@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/acl/1",
+  "identifier": "world-view:default",
+  "description": "World View MVP custom capabilities (file IO for project directory).",
+  "permissions": [
+    {
+      "identifier": "world-view:allow-open-project",
+      "description": "允许前端调用 open_project command",
+      "commands": ["open_project"]
+    },
+    {
+      "identifier": "world-view:allow-save-project",
+      "description": "允许前端调用 save_project command",
+      "commands": ["save_project"]
+    },
+    {
+      "identifier": "world-view:allow-create-city-map",
+      "description": "允许前端调用 create_city_map command",
+      "commands": ["create_city_map"]
+    },
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-exists",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "**" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+# ---- Node / Frontend ----
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+.pnpm-store/
+
+# ---- Rust / Cargo ----
+target/
+**/*.rs.bk
+
+# ---- Tauri ----
+src-tauri/target/
+src-tauri/gen/
+
+# ---- World View 私有目录（运行时产生，不入版本库） ----
+.worldview/cache/
+.worldview/autosave/
+.worldview/backup/
+
+# ---- 编辑器临时文件 ----
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- 环境 / 凭证 ----
+.env
+.env.local

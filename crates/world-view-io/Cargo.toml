@@ -1,0 +1,19 @@
+[package]
+name = "world-view-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "World View I/O 层：工程加载/保存、terrain 文件 IO、校验器、create_city_map 生成"
+
+[dependencies]
+world-view-core = { path = "../world-view-core" }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+# tempfile 需要 fastrand 等额外下载，受限于网络环境。
+# MVP 测试用 `std::env::temp_dir() + 唯一子目录 + RAII Drop` 自管临时目录。
+# tempfile = "3"

@@ -1,0 +1,29 @@
+[package]
+name = "world-view"
+version = "0.1.0"
+description = "World View — Tauri 主进程壳"
+authors = ["you"]
+edition = "2021"
+rust-version = "1.77"
+
+# src-tauri 必须**独立**于根 workspace（避免与 Tauri 工具链 resolver 冲突）。
+# spec §T1.2：workspace 根 members 不含 src-tauri；本 crate 通过 path dep 引用两个领域 crate。
+[workspace]
+
+[lib]
+name = "world_view_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+world-view-core = { path = "../crates/world-view-core" }
+world-view-io = { path = "../crates/world-view-io" }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
