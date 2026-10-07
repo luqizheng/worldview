@@ -20,6 +20,7 @@ import { TerrainLayer } from "@/render/TerrainLayer";
 import { GridLayer } from "@/render/GridLayer";
 import { MarkerLayer } from "@/render/MarkerLayer";
 import { clampScale, fitTo, visibleGridRange } from "@/render/Viewport";
+import { applyRoundBrush } from "@/editing/brush";
 
 const VIEWPORT_THROTTLE_MS = 100;
 
@@ -240,17 +241,13 @@ export function MapCanvas() {
   }
 
   function applyBrushAt(col: number, row: number, record: boolean) {
-    // 占位：MVP 阶段笔刷仅画在地形层上；真实实现会调用 EditingStore.runCommand(ApplyBrushCommand)
-    // 当前 spec §E 阶段才进入；这里先放 mock：
-    // - record=true 时记录到 strokeBufRef / strokeBeforeRef
-    // - 不改 TerrainCell（mock 数据不修改）
     if (record && strokeBufRef.current) {
       strokeBufRef.current.push({ col, row });
     }
-    // 视觉反馈：临时高亮（拖拽期间）
+    // 视觉反馈：用 TerrainLayer.redrawRect 把落点附近重画
+    // 真实地形修改走 commitStroke() 提交的 ApplyBrushCommand
     const tl = terrainRef.current;
     if (!tl) return;
-    // 简化：直接走 TerrainLayer.redrawRect 触发一次（实际应改 grid.cells）
     const r = Math.max(1, brushParams.size);
     const colMin = Math.max(0, col - r);
     const colMax = Math.min(63, col + r);
@@ -261,15 +258,22 @@ export function MapCanvas() {
   }
 
   function commitStroke() {
-    // 提交一条 ApplyBrushCommand 到 useEditingStore（spec §T13 / §T14）
-    // MVP 阶段：mock 写一个空命令
-    useEditingStore.getState().runCommand({
-      kind: "apply_brush",
-      apply: () => {},
-      revert: () => {},
-      dirtyRect: null,
-    });
-    // 触发 dirty 标记 + 重绘
+    // 构造 ApplyBrushCommand（聚合整个 stroke 的全部落点）
+    const stroke = strokeBufRef.current ?? [];
+    if (stroke.length === 0) return;
+
+    // MVP 简化：仅就最后一个落点构造一条命令（避免重复；M2+ 会做合并）
+    const last = stroke[stroke.length - 1];
+    const cmd = applyRoundBrush(
+      last.col,
+      last.row,
+      Math.max(1, brushParams.size),
+      brushParams.terrainType,
+      brushParams.strength,
+      64,
+      48,
+    );
+    useEditingStore.getState().runCommand(cmd);
     if (currentMapPath) useDomainStore.getState().markDirty(currentMapPath);
     redraw();
   }
