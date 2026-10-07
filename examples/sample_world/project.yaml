@@ -1,9 +1,4 @@
-# 示例工程：艾瑟兰大陆
-# MVP 阶段开箱即用：在 Godot 4.7.2 mono 编辑器中按 F5，FileMenu → 「打开示例工程」选本目录即可加载。
-# 启动命令参考：`dotnet build WorldView.sln` + `Godot.exe --path D:\kudi-project\world-view`。
-# 顶层字段定义以 `docs/数据模型规格_v0.1.md` §1 为唯一真源。
-
-project_version: "0.1"
+project_version: 0.1
 name: 示例世界
 description: World View MVP 示例工程 — 艾瑟兰大陆 + 极光港
 author: World View 示例
@@ -15,7 +10,19 @@ era:
   name: 创世历
   start_year: 1
   months_per_year: 12
-  days_per_month: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  days_per_month:
+  - 31
+  - 28
+  - 31
+  - 30
+  - 31
+  - 30
+  - 31
+  - 31
+  - 30
+  - 31
+  - 30
+  - 31
   hours_per_day: 24
   minutes_per_hour: 60
   seconds_per_minute: 60
@@ -23,24 +30,15 @@ era:
     every: 4
     month: 2
     add_days: 1
-
-# map_index: 引用规则见 `docs/存储与目录规范_v0.1.md` §3。
-# - ref 相对工程根（project.yaml 所在目录），不得含 ..，不得为绝对路径。
 map_index:
-  - ref: maps/world/world_kael.yaml
-  - ref: maps/city/city_kael.yaml
-
-# MVP 阶段 character_index 仅作数据契约样例，前端 UI 不加载（M5 落地）。
+- ref: maps/world/world_kael.yaml
+- ref: maps/city/city_kael.yaml
 character_index:
-  - ref: characters/lin_yu.yaml
-
-# 资产清单：瓦片图集源真值位于 `assets/textures/tiles/index.yaml`，
-# 由 Render/TerrainPalette 引用，地形枚举与图集帧一一对应。
+- ref: characters/lin_yu.yaml
 assets:
   textures:
     tiles:
       manifest: assets/textures/tiles/index.yaml
-
 settings:
   autosave: false
   backup_keep: 5
