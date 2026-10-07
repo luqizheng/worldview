@@ -21,7 +21,9 @@ examples/sample_world/
 
 ## 加载方式
 
-1. 启动 Tauri 桌面应用（待 MSVC 安装：`pnpm tauri dev`）；
+1. 启动 Tauri 桌面应用：
+   - 方式 A（推荐首次跑）：在仓库根执行 `pnpm tauri dev`（需 MSVC Build Tools + Edge WebView2）；
+   - 方式 B（已有编译产物）：双击 `src-tauri/target/debug/world-view.exe`；
 2. 「打开示例工程」选本目录 `examples/sample_world/`；
 3. 看到世界地图渲染，「极光港」城市标记可见，点击即可下钻。
 

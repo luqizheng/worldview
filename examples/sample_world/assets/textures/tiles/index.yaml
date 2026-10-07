@@ -1,0 +1,79 @@
+# World View — runtime tile atlas manifest
+#
+# This file is the renderer-facing source of truth for tile atlases.
+# The terrain frame names MUST match the TerrainType enum keys defined
+# in docs/数据模型规格_v0.1.md §3.1 (and crates/world-view-core/src/terrain.rs).
+# Adding a terrain type means: edit the data-model spec → register here →
+# add a frame in _tools/make_tiles.py → re-run `python _tools/make_tiles.py`.
+
+version: 1
+tile_size: 64
+padding: 1
+format: pixijs_spritesheet
+
+atlases:
+  - id: terrain_atlas
+    png: terrain_atlas.png
+    json: terrain_atlas.json
+    cols: 11
+    rows: 1
+    frame_count: 11
+    frames:
+      - mountain
+      - forest
+      - plain
+      - hill
+      - water
+      - desert
+      - swamp
+      - tundra
+      - basin
+      - coast
+      - river
+
+  - id: road_atlas
+    png: road_atlas.png
+    json: road_atlas.json
+    cols: 11
+    rows: 1
+    frame_count: 11
+    frames:
+      - h
+      - v
+      - d1
+      - d2
+      - bend_tl
+      - bend_tr
+      - bend_bl
+      - bend_br
+      - t
+      - cross
+      - endcap
+
+  - id: river_atlas
+    png: river_atlas.png
+    json: river_atlas.json
+    cols: 8
+    rows: 1
+    frame_count: 8
+    frames:
+      - river_h
+      - river_v
+      - river_d1
+      - river_d2
+      - river_bend_tl
+      - river_bend_tr
+      - river_bend_bl
+      - river_bend_br
+
+  - id: border_atlas
+    png: border_atlas.png
+    json: border_atlas.json
+    cols: 4
+    rows: 1
+    frame_count: 4
+    frames:
+      - border_solid
+      - border_dashed
+      - border_dotted
+      - border_double

@@ -27,3 +27,39 @@ Thumbs.db
 # ---- 环境 / 凭证 ----
 .env
 .env.local
+
+# ---- Godot 4 + Mono ----
+.godot/
+.import/
+addons/
+*.translation
+*.gd
+*.godot.uid
+*.godot.uid.json
+
+# ---- .NET / C# ----
+.mono/
+data_*/
+mono_crash.*.json
+*.csproj.user
+*.csproj.useross
+*.csproj.useross.cache
+*.csproj.userprefs
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+*.pidbin
+*.userosscache
+*.sln.docstates
+*.binlog
+
+# ---- IDE / 工具私有状态(DeepSeek / Reasonix / Workbuddy / ACL) ----
+.acl-report/
+.reasonix/
+.workbuddy/
+
+# ---- 一次性清理/迁移文件 ----
+.trae/m1-cleanup-manifest.md

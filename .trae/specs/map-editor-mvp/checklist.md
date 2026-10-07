@@ -1,119 +1,127 @@
-# Checklist — 地图编辑器 MVP
+# Map Editor MVP — 验收清单(Checklist)
 
-> 验收检查清单；每条对应 spec.md §1.1 的一条 IN MVP 能力，或 §7 的一条 demo。
-> 由实现完成后逐条核验；通过的项在 `- [ ]` 上打 `[x]` 并附验证记录（命令 / 截图路径 / 时间戳）。
+> 栈:Godot 4.7.2(mono)+ C# (.NET 8)+ YamlDotNet 16.3.0。
+> 验收方式:逐项勾选 ✅;每项都可以用一个具体命令 / 操作 / 断言来验证。
+> 最终合格标准:**A–K 全部 ✅ 且无遗留 ⏸️**。
 
 ---
 
 ## A. 工程骨架与领域层
 
-- [ ] A1. **Workspace 结构（src-tauri 独立）**：
-  - 仓库根 `Cargo.toml` 为 workspace 根，`members = ["crates/world-view-core", "crates/world-view-io"]`（**不含** `src-tauri`，避免与 Tauri 工具链冲突）
-  - `src-tauri/Cargo.toml` **保持独立 crate**，不写 `[workspace]` 段
-  - `src-tauri/Cargo.toml` 通过 `[dependencies] world-view-core = { path = "../crates/world-view-core" }` 与 `world-view-io = { path = "../crates/world-view-io" }` 引入两个领域 crate
-  - 两个领域 crate **不依赖** `tauri`（仅 `serde_yaml` / `serde` / `thiserror`），保证纯逻辑可单测
-- [ ] A2. `pnpm tauri dev` 启动空白 Tauri 窗口成功
-- [ ] A3. `world-view-core` 含 `Project` / `Map` / `Layer` / `TerrainCell` / `CityRef` / `BuildingRef` 类型，对应数据模型规格 MVP 子集
-- [ ] A4. `terrain_data` 支持 `grid` ↔ `sparse` 序列化往返，且单测覆盖以下三种场景：
-  - 全默认值的 grid → sparse 应只剩默认值声明
-  - 含 50 个非默认单元的 grid → sparse → 反向解回 grid 数值一致
-  - sparse（无 `default`）→ grid 自动用 `Default::default()` 填充
-- [ ] A5. `validate(&Project)` 覆盖 spec §3 Requirement: 校验器 五条规则且单测通过
-- [ ] A6. **Commands 注册**：
-  - `src-tauri/src/lib.rs` 中 `tauri::generate_handler![open_project, save_project, create_city_map]`
-  - `src-tauri/capabilities/default.json` 中：
-    - `permissions` 数组含 `core:default` + 自定义 `world-view:allow-open-project` / `world-view:allow-save-project` / `world-view:allow-create-city-map`
-    - `fs.scope` 允许对所选工程目录（含 `examples/sample_world/` 及未来用户目录）下任意子路径的 `readFile` / `writeFile` / `readDir` / `mkdir`
-  - `src-tauri/tauri.conf.json` 的 `app.security.csp` 允许 `connect-src` 含 `ipc://localhost` 与 `http://ipc.localhost`（Tauri v2 IPC 默认）
+- [ ] **A1 Workspace 结构正确**:`tree -L 2` 输出含 `project.godot` `WorldView.sln` `WorldView.csproj` `scenes/` `scripts/` `examples/` `docs/` `crates/` `AGENTS.md` `README.md` `.gitignore`,**不**含 `src/` `src-tauri/` `Cargo.toml` `package.json` `pnpm-lock.yaml` `vite.config.ts`。
+- [ ] **A2 Godot 编辑器可打开工程**:Godot 4.7.2 → "Import" → 选 `project.godot` → 无「Project version mismatch」警告。
+- [ ] **A3 dotnet build 成功**:`dotnet build WorldView.sln` 退出码 0,无 warning(允许 IDE0005 文件级抑制)。
+- [ ] **A4 dotnet test 跑过**:`dotnet test WorldView.sln` 退出码 0(领域层 + 坐标单元测试)。
+- [ ] **A5 Domain 层无 Godot 依赖**:`grep -rn "using Godot" scripts/Domain/ scripts/Storage/ scripts/Editing/Editing/*.cs scripts/Domain/Editing/*.cs 2>&1` 无输出。
+  - *例外*:`scripts/Editing/BrushController.cs` 因需 `Time.GetTicksMsec()` 允许 `using Godot;`。
+- [ ] **A6 YamlDotNet 16.3.0 引用正确**:`WorldView.csproj` 中 `PackageReference YamlDotNet` 版本 = `16.3.0`,`dotnet restore` 成功。
+
+---
 
 ## B. 示例工程
 
-- [ ] B1. `examples/sample_world/project.yaml` 存在且 `project_version = "0.1"`
-- [ ] B2. `examples/sample_world/maps/world/main.yaml` 含 `极光港` 城市条目
-- [ ] B3. `examples/sample_world/maps/world/main.terrain.yaml` 含明确地形分布：**至少 1 片 `mountain`（≥ 20 格连片）、1 条 `river`（≥ 8 格折线或直线）、其余 `plain`**；`move_cost` / `buildable` 字段按数据模型规格 §3.2 默认值填
-- [ ] B4. `examples/sample_world/maps/city/port_aurora.yaml` 存在，`building_refs` 为空
-- [ ] B5. `examples/sample_world/characters/lin_yu.yaml` 存在，`residence.map_ref` 指向城市地图；**MVP 不加载到 UI store**，仅 `world-view-core` 单测 `character_yaml_roundtrip` 通过
-- [ ] B6. 加载示例工程的录屏/截图保留为 **`docs/acceptance/map_editor_mvp_check.md`** 附件（**不放**在 `examples/sample_world/` 内，避免被 `open_project` 误扫）
-- [ ] B7. `examples/sample_world/README.md` 存在，首段含「人物 / 事件为数据契约样例，MVP 不进 UI」声明
+- [ ] **B1 project.yaml 存在**:文件 `examples/sample_world/project.yaml`,YAML 解析通过(无 YamlDotNet 异常)。
+- [ ] **B2 工程可加载**:顶栏「文件 → 打开示例工程」点击后,**≤ 5 秒** 进入主场景(D1 验收)。
+- [ ] **B3 工程字段合法**:`view_mode="2d"`,`default_unit="m"`,`maps:` 至少 1 项。
+- [ ] **B4 至少 1 张世界地图 + 1 张城市地图**:`maps/world_kael.yaml`(type="world",grid 64×64)+ `maps/city_kael.yaml`(type="city",grid 64×64)。
+- [ ] **B5 4 类图层齐全**:`layers/terrain.yaml` / `road.yaml` / `building.yaml` / `marker.yaml`,每张 `kind` 字段对应,`visible=true`。
+- [ ] **B6 城市标记可下钻**:`maps/world_kael.yaml` 中 `cities:` 列表 ≥ 1,`ref` 指向 `maps/city_kael.yaml`。
+- [ ] **B7 至少 2 个建筑占位**:`maps/city_kael.yaml` 中 `buildings:` 列表 ≥ 2,`type ∈ {house, tower, wall_gate}`,`at` 在 `0 ≤ x,y < 64` 内,`map_id="city_kael"`。
+
+---
 
 ## C. 主界面与视图
 
-- [ ] C1. 应用启动后用户能看到顶栏 / 左工具栏 / 中央画布 / 右面板 / 状态栏五段布局（按界面规格 §1）
-- [ ] C2. 状态栏显示面包屑、当前地图名、比例尺、当前鼠标所在网格坐标
-- [ ] C3. 滚轮缩放围绕指针焦点，缩放比例 clamp 到 [0.25, 8.0]
-- [ ] C4. 鼠标交互与快捷键：
-  - 左键拖拽 → 平移（中键 / 右键亦等效）
-  - 滚轮 → 围绕指针焦点缩放
-  - `F` → 全图适配
-  - `G` → 切换网格显示
-  - `C` → 切换坐标显示
-  - `Ctrl+S` → 触发保存（无论焦点位置）
-  - `Ctrl+Z` / `Ctrl+Y` → 撤销 / 重做
-  - `Esc` → 取消当前工具，回到 pan
-  - 快捷键在画布聚焦时生效；非画布聚焦时不响应（不抢占浏览器默认行为）
+- [ ] **C1 主场景四区布局**:`scenes/Main.tscn` 实例化后,TopBar / ToolPanel / InspectorPanel / StatusBar / LayerPanel 5 个区域**位置 + 大小** 与 `spec.md §6.1` 一致(TopBar 顶 32 px / StatusBar 底 24 px / ToolPanel 左 64 px / InspectorPanel 右 240 px / 中间余下为画布)。
+- [ ] **C2 画布节点树正确**:`WorldCanvas` 子节点含 `Camera2D` + 4 个 `TileMapLayer`(terrain / road / building / marker)+ `GridOverlay`,**节点顺序** 与画布 z 序一致(terrain 在底,marker 在顶)。
+- [ ] **C3 键盘平移**:WASD 或方向键按下时,`Camera2D` 位置平移(单位 = `cell_distance × 1`,可通过调试打印验证)。
+- [ ] **C4 鼠标交互**:鼠标中键拖拽平移 + 鼠标滚轮缩放(范围 0.25× ~ 4.0×,步长 1.2×)。
+- [ ] **C5 状态栏实时刷新**:鼠标移动时,状态栏中间段 `Label.Text` 显示当前坐标(格式 `x: <int>, y: <int>`)。
+
+---
 
 ## D. 图层面板
 
-- [ ] D1. 右图层面板列出当前地图所有 `layers[]`，每行含可见性 / 锁定 / 透明度 / z_order 控件
-- [ ] D2. 取消勾选可见性 → 地形立即消失；恢复勾选 → 立即重现
-- [ ] D3. 修改透明度 → 渲染层实时响应
+- [ ] **D1 图层 CheckBox 渲染**:`LayerPanel` 启动后,CheckBox 数 = `project.maps[0].layers` 列表长度,每项 label = `layer.name`。
+- [ ] **D2 显隐切换即时**:点击某 CheckBox 后,对应 `TileMapLayer.Visible` 在**一个帧内**(≤ 16 ms)翻转。
+- [ ] **D3 顺序与 project.yaml 一致**:`LayerPanel` 中 CheckBox 自顶向下顺序 = `project.maps[0].layers` 列表顺序。
+
+---
 
 ## E. 笔刷与撤销
 
-- [ ] E1. 圆形笔刷可调 size（1–16）/ 地形类型 / strength，落点吸附网格
-- [ ] E2. 拖拽期间按 **100ms 节流**（`requestAnimationFrame` + 时间戳门控；按住移动每秒约落 10 个 stroke 中心，落点之间不补插值）落点；松开即提交一条完整 `ApplyBrushCommand`
-- [ ] E3. `Ctrl+Z` 至少可回退 50 步；`Ctrl+Y` 重做；新操作清空 redo 栈
-- [ ] E4. 笔刷命令的 `revert()` 把受影响单元精确恢复成落点前的值（手改地形后撤销可见差异）
+- [ ] **E1 工具切换**:工具栏切到「笔刷」后,鼠标在画布上的光标变为「笔刷」状态(自定义 `Cursor` 资源或 `default_cursor = Shape.CURSOR_DRAG`)。
+- [ ] **E2 笔刷覆盖范围**:在 (10, 10) 落点 + 半径 1 时,`ApplyBrushCommand` 影响格集合 = 欧几里得圆盘 `{c : sqrt(dx²+dy²) ≤ 1}`,即 5 格:`(10,10) / (9,10) / (11,10) / (10,9) / (10,11)`。
+- [ ] **E3 笔刷节流**:1 秒内连续点击 100 次鼠标,实际下笔次数 ≤ 10(100 ms 节流)。
+- [ ] **E4 重绘帧率**:笔刷落点后,`dirty_rect` 包围盒内的格子在**一帧内** 重绘完毕(可通过 `Performance.GetMonitor(Performance.Monitor.TimeFps)` 验证无显著掉帧)。
+- [ ] **E5 撤销**:按 `Ctrl+Z` 后,刚刷的格子全部还原为 `default` 地形(`plain`)。
+- [ ] **E6 重做**:按 `Ctrl+Shift+Z` 后,撤销前的格子恢复为选定地形。
+- [ ] **E7 UndoStack 上限**:连续 push 250 个 `ApplyBrushCommand`,UndoStack 容量 = 200(最旧的 50 个被 FIFO 丢弃)。
+- [ ] **E8 撤销 + 重做循环无残留**:xUnit 测试 `for _ in range(100): push + undo;` 后,MapDoc 与初始 state 逐字段相等。
+
+---
+
+## F. 渲染层正确性
+
+- [ ] **F1 11 色地形调色板**:`Render/TerrainPalette.cs` 中 `GetColor(TerrainType type)` 返回的 `Color` 与 `spec.md §2.4` 表中 11 个 hex 完全一致。
+- [ ] **F2 TileSet 单一来源**:`Render/terrain.tres` 存在,被 4 个 TileMapLayer 共用,切换地形不重建 TileSet。
+- [ ] **F3 坐标转换互逆**:xUnit 测试 `CoordTransform.WorldToCell(CellToWorld(c)) == c` 全部通过(GridOverlay 与 WorldCanvas 共用)。
+- [ ] **F4 视口裁剪**:xUnit 测试 1024×1024 网格 + 128×128 视口下,`WorldCanvas.GetDrawnCellCount() ≤ 4915`(J2 量化断言)。
+
+---
 
 ## G. 城市下钻与导航
 
-- [ ] G1. 世界地图上能看到「极光港」圆形标记 + 文字
-- [ ] G2. 点击标记弹出基础信息卡（名称 / 人口 / 势力 / 备注）
-- [ ] G3. 点击「进入编辑」→ 切到城市地图；面包屑更新；画布重绘
-- [ ] G4. 点击「创建城市地图」（`map_ref` 为空场景）→ 自动生成 `maps/city/<id>.yaml` 后下钻
-- [ ] G5. 面包屑点击任一段可跳回该层级（至少两级：世界 / 城市）
-- [ ] G6. **冒烟测试**：在 `examples/sample_world/_smoke/` 提供端到端冒烟脚本
-  - G3 路径：通过 IPC 直接调 `invoke('open_project')` 加载示例工程 → 直接调领域层 `switchMap('maps/city/port_aurora.yaml')` → 断言 `breadcrumb.length == 3` 且当前地图 `type == "city"`
-  - G4 路径：准备一份「`city_refs[0].map_ref` 为空」的临时工程 → 调 `invoke('create_city_map')` → 断言生成的 YAML 文件存在且 `project.map_index` 已同步
-  - MVP **不强制要求** Playwright；冒烟脚本以 Node 直跑（无浏览器），覆盖核心状态机即可；GUI 点击路径在 D1–D8 录屏中手动验收
+- [ ] **G1 双击进入**:在城市地图标记上双击,场景切到对应城市地图。
+- [ ] **G2 面包屑可见**:顶栏面包屑显示「世界 / Kael」(2 段),自顶向下顺序 = 路径顺序。
+- [ ] **G3 点击面包屑回退**:点面包屑「世界」段或按 `Esc`,场景回到上一级地图。
+- [ ] **G4 面包屑不直接跳根**:点面包屑中间段(如「Kael」)只回退到 Kael,不会直接跳到根。
+- [ ] **G5 城市地图四区一致**:切到城市地图后,ToolPanel / InspectorPanel / LayerPanel 切换为城市地图的内容。
+- [ ] **G6 双击城市地图标记**:在 `city_kael.yaml` 中的 marker 上双击,提示「已在最深层」或更早一步(实现允许处理)。
+
+---
 
 ## H. 建筑放置
 
-- [ ] H1. 工具栏切到「放置建筑」+ 选类型 → 进入占地拖拽状态
-- [ ] H2. 拖拽松开弹出属性对话框（`name` 必填 / `interior_ref` 可选）
-- [ ] H3. 确认后 `building_refs` 追加一条；建筑以矩形 + 文字渲染；当建筑占地跨越 1024 格上限时**提示**「MVP 未启用 `chunked`，建议把城市地图缩到 1024×1024 以内或使用 sparse 编码」，**不阻塞**保存
-- [ ] H4. 取消属性对话框不入撤销栈
+- [ ] **H1 工具切换**:工具栏切到「建筑」后,光标变为「可放置」状态。
+- [ ] **H2 非城市地图禁用**:在世界地图(`type="world"`)下,「建筑」工具为 `Disabled` 状态。
+- [ ] **H3 落点约束**:在 `terrain.buildable=false` 的格子上点击时,状态栏文字显示「此处不可放置建筑」(无弹窗)。
+- [ ] **H4 落点成功**:在 `terrain.buildable=true` 的格子上点击时,弹「建筑占位」对话框,确认后建筑出现在 `at` 处。
+- [ ] **H5 建筑登记**:`MapDoc.Buildings` 列表新增 1 项,`id` 8 字符 UUID,`type` 取自工具栏,`map_id` 等于当前城市地图 id。
+
+---
 
 ## I. 保存与校验
 
-- [ ] I1. **保存语义区分**：
-  - 「保存」点击 → 若校验全过：写回所有 dirty 地图 + 清空 `dirtyMapIds` + 显示「已保存」
-  - 若校验失败：写盘动作**取消**；`dirtyMapIds` **保留**；弹错误对话框（`ErrorDialog`，逐条展示 `ValidationError`，可点复制纯文本）
-  - 「保存」按钮在 `dirtyMapIds` 为空时置灰（无变更不写盘，避免误覆盖）
-- [ ] I2. 删除 `port_aurora.yaml` 后点保存 → 校验器报错，写盘取消；`city_refs[i].map_ref` 在错误信息中显式指明
-- [ ] I3. ID 重名时校验报错并阻止保存
-- [ ] I4. `terrain_data.cells` 行/列与 `grid.width/height` 不一致时校验报错
+- [ ] **I1 保存回写**:点击「保存」按钮,所有被修改文件按原路径落盘(可 `git status` 验证)。
+- [ ] **I2 重新打开字段逐一对齐**:保存 → 关闭 → 重新打开 → `MapDoc` 与保存前逐字段相等(键序可不同)。
+- [ ] **I3 「另存为」可用**:顶栏「文件 → 另存为」可写入任意目录,D7 demo 验证。
+- [ ] **I4 启动校验失败弹错误对话框**:手动把 `maps/city_kael.yaml` 的 `grid.cols` 改成 `-1` → 重启 → 弹错误对话框,显示 `maps/city_kael.yaml / map.grid.cols / enum_out_of_range`,渲染被阻止。
+- [ ] **I5 错误对话框可关闭**:点「关闭」后,主场景回到空状态,**不** 渲染任何地图。
+- [ ] **I6 校验覆盖 5 种错误码**:xUnit 测试覆盖 `RequiredMissing` / `EnumOutOfRange` / `RefNotFound` / `IdDuplicate` / `TypeMismatch`。
+
+---
 
 ## J. 性能与体验
 
-- [ ] J1. 笔刷拖拽期间帧率 ≥ 30 fps（开发者工具实测）
-- [ ] J2. **视口裁剪量化**：
-  - 测试地形：**1024×1024 全平原地图**（人工生成的边界用例，与示例工程分开存放）
-  - 测试视口：128×128 像素 + `scale=2.0`（即覆盖 64×64 网格）
-  - 断言：`TerrainLayer` 内 `Graphics` 对象**只绘制**视口覆盖的 64×64 单元；`getSpritesCount()` ≤ `64 × 64 × 1.2 = 4915`（1.2 为边带冗余）
-  - 验证手段：在 `TerrainLayer` 暴露 `getDrawnCellCount(): number`，由冒烟脚本读取并断言
-  - 若未实现 cull，断言会失败 → 强制落实视口裁剪
-- [ ] J3. 应用启动到示例工程首屏 ≤ 2 秒（Release 构建）
+- [ ] **J1 100 ms 节流验证**:E3 测试已覆盖。
+- [ ] **J2 视口裁剪量化断言**(F4 已覆盖,这里再独立验证一次):`tests/Render.Tests/ViewportCullingTests.cs` 通过。
+- [ ] **J3 启动时间**:从点 F5 到 D1 主场景就位,**≤ 5 秒**(可在 `Main.cs._Ready` 末尾打 `GD.Print($"Ready in {(Time.GetTicksMsec() - startTicks) / 1000.0:F2}s")` 验证)。
 
-## K. 范围纪律（再次确认 MVP 边界）
+---
 
-- [ ] K1. **`chunked` 严格排除**：
-  - `examples/sample_world/` 及其所有子目录**不存在**任何 `*.bin` 文件
-  - 所有 `terrain_data.encoding` 与 `height_data.encoding`（如有）**均为** `grid` 或 `sparse`
-  - 冒烟脚本扫一遍工程目录，断言 `grep -r 'encoding: chunked'` 命中 0 条
-  - 任何 `chunked` 字段出现 = 拒收（违反 MVP 边界）
-- [ ] K2. **未实现** `building` 类型地图的下钻（点击带 `interior_ref` 的建筑只展示属性，不切到室内图）
-- [ ] K3. **未实现** 时间轴联动 / 回放 / 快照 UI
-- [ ] K4. **未实现** 运输 / 路线 / 载具面板
-- [ ] K5. **未实现** 疆界自动贴合 / 影响力裁剪 / 居民生成
-- [ ] K6. **未引入** 第三方插件 / 分支时间线 / 协作
+## K. 范围纪律(反向断言)
+
+- [ ] **K1 无 chunked 编码**:`grep -rn "encoding.*chunked\|chunked" docs/ examples/ scripts/ scenes/` 仅在 spec.md / 总体设计 / 存储规范 中出现,**examples/sample_world/** 与 **scripts/Domain/** 无 `chunked` 字样。
+- [ ] **K2 无 `using Godot;` in Domain**:`grep -rn "using Godot" scripts/Domain/` 无输出(BrushController 例外除外)。
+- [ ] **K3 `ref` 不含 `..` 或绝对路径**:`grep -rnE 'ref:\s*"(\.\./|/)' examples/sample_world/` 无输出。
+- [ ] **K4 `id` 与 `ref` 不混用**:`grep -rnE 'ref:\s*"[^"]+"' examples/sample_world/` 中,引用 4 类图层与跨文件引用使用 `ref`,地图与建筑与图层自身标识使用 `id`,无混淆。
+- [ ] **K5 所有修改走命令模式**:`scripts/Render/` 与 `scripts/Ui/` 中**禁止**调用 `MapDoc.X = ...` 这类直接写入;必须通过 `UndoStack.Push(new ApplyBrushCommand(...))` 等方式。
+- [ ] **K6 性能纪律**:不引入 `chunked` / 室内下钻 / 时间轴 / 运输 / 贴合 / 视觉增强 / 插件。
+
+---
+
+## 验收签字
+
+- 全部 A–K 节 ✅ 后,`docs/acceptance/map_editor_mvp_check.md` 末尾签字栏填 `验收日期 / 验收人 / commit SHA`。
+- `git tag mvp-v0.1` 标注本 MVP 节点。

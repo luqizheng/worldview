@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorldView", "WorldView.csproj", "{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{A8B4C0A1-1111-4A11-8B11-A1B1C1D1E1F1}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

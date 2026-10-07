@@ -1,401 +1,257 @@
-# 地图编辑器 MVP 功能清单 Spec
+# Map Editor MVP — 规格说明
 
-> 本文档定义 World View **地图编辑器 MVP** 的功能范围、数据契约与验收口径。
-> 字段语义以 [`docs/数据模型规格_v0.1.md`](../../../docs/数据模型规格_v0.1.md) 为唯一真源；
-> 编辑能力定义以 [`docs/地图编辑器规格_v0.1.md`](../../../docs/地图编辑器规格_v0.1.md) 为准；
-> 界面骨架以 [`docs/界面与交互规格_v0.1.md`](../../../docs/界面与交互规格_v0.1.md) 为准；
-> 存储布局以 [`docs/存储与目录规范_v0.1.md`](../../../docs/存储与目录规范_v0.1.md) 为准；
-> 二进制分块以 [`docs/二进制格式规格_v0.1.md`](../../../docs/二进制格式规格_v0.1.md) 为准；
-> 技术选型以 [`docs/技术基调确认_v0.1.md`](../../../docs/技术基调确认_v0.1.md) 为准（Tauri + Rust + PixiJS）。
+> 范围:运行本文档示例定义的数据模型与目录规范的最小编辑器实现。
+> 栈:**Godot 4.7.2(mono)+ C# (.NET 8)**;数据契约中立(YamlDotNet)。
+> 编写目的:作为开发、测试与验收的共同基线。所有未在此文档中明确为「MVP 之内」或「MVP 之外」的功能,默认属于范围外。
 
 ---
 
-## Why
+## 1. Why
 
-World View 已完成 v0.1 设计定稿（P0-1 / P0-2 / P0-3 已收敛），但**地图编辑器尚无可运行实现**。当前任务是把《地图编辑器规格 v0.1》中可独立验证的子集，先以 MVP 形态落出来，做到：
+用户需要一个能在桌面端打开一个示例世界工程、切换地图、画地形笔刷、放置建筑、撤销重做、并能下钻到城市地图的最短闭环工具。M1 阶段不追求完整功能覆盖,只验证:
 
-- 打开一个工程目录就能看到**一张世界地图**渲染出来；
-- 用户能**平移 / 缩放 / 切换图层可见性**；
-- 用户能**用笔刷在地形网格上落点**并**撤销 / 重做**；
-- 用户能**为城市条目创建并下钻到一张城市地图**，再**放一栋带室内引用的建筑**；
-- 整个编辑过程**只产生 YAML + 二进制分块**标准格式文件，可直接被 Godot 导出目标消费。
+1. 数据契约(YAML / JSON 字段名与默认值)在新的 Godot + C# 栈上可以端到端跑通;
+2. 编辑器交互回路能落地(笔刷落点 → 画 → 重绘 → 撤销栈 → 持久化);
+3. 城市下钻 + 建筑放置可以演示「多地图结构」的最小用例。
 
-MVP 不做完整 M1–M8 范围，**只做能跑通主路径的最小集合**；非主路径能力（影响力热力图、贴合算法、回放、运输等）显式 **NOT IN MVP**。
-
-## What Changes
-
-- **NEW**：Tauri + Rust + TypeScript + PixiJS 工程骨架（M1 基线）。
-- **NEW**：领域层 `Map` / `Project` / `Layer` / `TerrainCell` 纯逻辑类型 + 序列化器（YAML + 二进制分块）。
-- **NEW**：存储层 `ProjectStore`：按 `project.yaml` + `map_index` 加载、写入、校验。
-- **NEW**：渲染层 PixiJS 画布：网格 + 地形色块 + 图层合成 + 视口平移 / 缩放。
-- **NEW**：编辑层 `Brush`（圆形 / 方形）+ 命令模式 `UndoStack`。
-- **NEW**：UI 层三栏布局（顶栏 / 左侧工具 / 中间画布 / 右侧选中对象信息面板 + 状态栏）。
-- **NEW**：城市下钻（点击 `city_refs[i]` → 切换到 `map_ref` 指向的城市地图）+ 建筑放置（含 `interior_ref`）。
-- **NEW**：示例工程 `examples/sample_world/`（一张世界地图 + 一张城市地图 + 一栋建筑 + 一个居民）。
-- **BREAKING**：暂无（仓库目前没有代码）。
-
-## Impact
-
-- 受影响规格（**只读取，不修改字段定义**）：
-  - `docs/地图编辑器规格_v0.1.md`（MVP 范围对齐 §1.1 笔刷、§2.1 地形绘制、§3.1 建筑放置、§4 多地图引用）
-  - `docs/界面与交互规格_v0.1.md`（MVP 范围对齐 §1 主界面布局、§2.1 世界→城市下钻）
-  - `docs/图层系统规格_v0.1.md`（MVP 仅使用 §2.1 地形层 + §2.4 道路层最小集）
-  - `docs/存储与目录规范_v0.1.md`（MVP 走 §1 标准目录布局 + §5.1 `grid`/`sparse` 编码；**MVP 不引入 `chunked`**）
-- 受影响代码（**新建**）：
-  - `crates/world-view-core/` — Rust 核心（领域模型 + 序列化 + 校验）
-  - `crates/world-view-io/` — Rust I/O（Tauri commands）
-  - `src/` — TypeScript 前端（PixiJS 渲染 + 编辑 + UI）
-  - `examples/sample_world/` — 示例工程
+后续 M2/M3 才会扩展为正式的世界编辑器。
 
 ---
 
-## 1. MVP 范围声明
+## 1.1 IN MVP — 功能清单
 
-### 1.1 IN MVP（必须实现并验收）
-
-| # | 能力 | 引用 |
+| 编号 | 功能 | 验收依据 |
 |---|---|---|
-| F01 | **打开 / 创建工程**：选择目录（含 `project.yaml` 则打开；否则创建新工程骨架） | 存储 §1；界面 §2 |
-| F02 | **加载一张世界地图**：从 `map_index[0]` 读取 YAML，渲染到画布 | 地图编辑器 §2 |
-| F03 | **平移 / 缩放 / 全图适配 / 显示网格 / 显示坐标 / 显示比例尺** | 地图编辑器 §5.2 / §8.3 |
-| F04 | **图层可见性 / 锁定 / 透明度 / z_order 调整**（仅地形层 + 道路层） | 图层系统 §1 |
-| F05 | **圆形笔刷绘制地形**：size / 强度可调；落点吸附网格；写入 `terrain_data`（`grid`/`sparse` 编码） | 地图编辑器 §1.1 / §2.1 |
-| F06 | **撤销 / 重做**（命令模式，至少 50 步；含笔刷命令） | 地图编辑器 §1.3 |
-| F07 | **城市条目下钻**：点击 `city_refs[i]` 卡片 → 打开 `map_ref` → 切换到城市地图 | 地图编辑器 §3.5 / §4；界面 §2.1 |
-| F08 | **创建城市地图**：`city_refs[i].map_ref` 为空时弹「创建」对话框，生成 `maps/city/<id>.yaml`。**默认值**：`grid` = `{ width: 64, height: 64, cell_distance: 2, distance_unit: "m", base_unit: "m", origin: {x:0,y:0}, show: true, snap: true }`；`time` = `{ default_granularity: "hour", min_granularity: "hour" }`；`type = city`；`layers` 默认含 `terrain` + `road` 两层；`terrain_data.encoding: sparse`、`default: {type: plain, move_cost: 1, buildable: true}`、`cells_ref: maps/city/<id>.terrain.yaml`；同步更新 `project.map_index` 与 `world_map.city_refs[i].map_ref` | 地图编辑器 §2.4 |
-| F09 | **建筑放置**：选择建筑类型 → 拖拽占地 → 写入 `building_refs[]`；可指定 `interior_ref`（可为空） | 地图编辑器 §3.1 |
-| F10 | **面包屑**（世界 › 城市）+ 逐级返回 | 界面 §2.1 |
-| F11 | **校验器（最小集）**：保存时检查 `ref` 存在 + ID 唯一 + 必填字段 | 存储 §7 |
-| F12 | **保存工程**：将所有修改写回 YAML（地形**加载支持 grid 与 sparse，保存统一写 sparse**，落 `maps/.../main.terrain.yaml`） | 存储 §1 / §3 / §5.1.2 |
-| F13 | **示例工程**：内置一份 `examples/sample_world/`，开箱即可加载 | — |
-| F14 | **人物 / 事件数据契约样例**（非功能范围，**非 IN MVP UI**）：示例工程保留 `characters/_templates.yaml` + `characters/lin_yu.yaml` 作为**数据契约样例**；MVP 不加载人物到 UI、不暴露任何人物 UI、不纳入验收 demo；仅供领域层单测验证 `Character` / `CharacterTemplate` 的 YAML 解析与 `residence.map_ref` 跨文件引用格式 | 事件与人物登记 §2 |
-
-### 1.2 NOT IN MVP（**显式不做**，留待后续迭代）
-
-| 能力 | 计划里程碑 |
-|---|---|
-| 高度图绘制 / 平滑 / 等高线 | M2 后续 |
-| 套索 / 魔术棒笔刷 / 沿路径笔刷 / 填充 | M2 后续 |
-| 选区变换（旋转 / 缩放 / 对齐 / 吸附边缘） | M3 后续 |
-| 二进制分块（`encoding: chunked`） | M1 仅引入分块索引声明，**MVP 不生成 `.bin`**；MVP 只用 `grid` + `sparse` |
-| 疆界自动贴合 / 影响力衰减 / 裁剪 | M3 |
-| 城市居民生成 / 街道绘制 / 巷子 / 桥梁 / 城墙 | M4 |
-| 建筑内放置家具 / 门 / 入口编辑 | M5 后续 |
-| 室内图下钻（点击带 `interior_ref` 的建筑→切到 `building` 图） | **MVP 不做**（下钻链路只到 `city`） |
-| 时间轴联动 / 回放 / 快照 | M6 |
-| 运输 / 路线 / 载具 | M8 |
-| 视觉增强（昼夜 / 光照 / 战争迷雾 / 粒子） | M3+ |
-| 多地图标签页 / 自定义面板布局 | M7 |
-| 自动保存 / 备份 / 撤销栈持久化 | M7 |
-| Godot 导出模块 | M7 |
-| **人物详情面板 / 人物编辑 / 关系网 UI / 属性模板 UI** | **MVP 不做**（F14 仅作数据契约样例，不进 UI；M5 完整人物登记） |
-| **事件登记面板 / 时间轴 UI / 路线编辑面板 / 载具登记面板** | **MVP 不做**（不进 UI；M5/M6/M8 分别落地） |
-| 第三方插件 | 不在 v0.1 范围 |
+| F01 | 打开 / 保存 `project.yaml` | D1(打开示例工程成功) + D7(保存回写 + 重新打开一致) |
+| F02 | 顶栏 / 状态栏 / 工具栏 / 检视器 4 区布局 | D1 / D2(切地形类型与笔刷) / D6(切城市下检) |
+| F03 | 顶栏工程下拉菜单(打开 / 关闭 / 另存为) | D1 / D7 |
+| F04 | 图层面板(图层可见性切换) | D2(关 terrain 后地形不可见) |
+| F05 | 工具栏(选中 / 笔刷 / 建筑) | D2 / D6 |
+| F06 | 检视器(地图元数据只读) | D1 |
+| F07 | 状态栏(地图名 / 鼠标坐标 / 选中建筑) | D1 / D6 |
+| F08 | 画布节点树:`Camera2D` + `TileMapLayer` × N + `GridOverlay` | C2 / J2 |
+| F09 | 键盘平移(WASD / 方向键) + 鼠标滚轮缩放 + 中键拖拽 | C3 |
+| F10 | 圆形笔刷 + 1 个地形类型;`ApplyBrushCommand` | D2 / D3 / D4 |
+| F11 | 撤销 / 重做(Ctrl+Z / Ctrl+Shift+Z,栈深 200) | D3 / D4 |
+| F12 | 双击城市 → 进入城市地图,顶栏面包屑返回 | D5 / D6 |
+| F13 | 在建筑数据可点击的位置放置建筑 + 「建筑占位」对话框 | D6 |
+| F14 | 保存 + 启动时自动校验(YAML 必填字段、引用合法性、ID 唯一性) | D7 / D8 |
 
 ---
 
-## 2. 数据契约（中立字段；**实现只读取，不修改《数据模型规格》字段**）
+## 1.2 NOT IN MVP — 范围外
 
-### 2.1 Project（`project.yaml`）
+| 编号 | 功能 | 推迟到 |
+|---|---|---|
+| N01 | 高度图 / 等高线 | M3+ |
+| N02 | 套索 / 多选 / 选区编辑 | M4+ |
+| N03 | 选区变换(旋转 / 缩放) | M4+ |
+| N04 | `chunked` 编码(> 1M 单元) | M5 |
+| N05 | 疆界贴合 / 国家边界 | M5 |
+| N06 | 居民 / 人口统计 | M5+ |
+| N07 | 室内下钻 / 房间系统 | M5+ |
+| N08 | 时间轴 / 事件 | M5+ |
+| N09 | 运输 / 商路 / 物流 | M6+ |
+| N10 | 视觉增强(光照 / 阴影 / 后期) | M6+ |
+| N11 | 多地图标签页(同时打开多个工程) | M7+ |
+| N12 | 自动保存 / 崩溃恢复 | M7+ |
+| N13 | Godot 导出(`.pck` / 平台打包) | M7+ |
+| N14 | 人物 UI / 角色面板 | M7+ |
+| N15 | 事件 UI / 日志面板 | M7+ |
+| N16 | 插件系统 / 第三方扩展 | M7+ |
 
-MVP 只用到以下字段子集（字段定义见数据模型规格 §1）：
+---
 
-- 必填：`project_version`、`name`、`era`、`default_time`、`map_index`
-- 可选：`character_index`（**仅作示例工程的数据契约样例**，MVP 不加载到 UI、不验证有效性）、`settings.autosave: false`
+## 2. 数据契约(精简引用)
 
-**F14「人物数据契约样例」明确定位**：
+完整字段定义见 `docs/存储与目录规范_v0.1.md` 与 `docs/地图类型规格_v0.1.md`。本节只列 MVP 关心的子集。
 
-- **不做**：人物 UI / 人物编辑 / 关系网 / 属性模板编辑 / 事件登记面板 / 时间轴 UI / 路线编辑面板 / 载具登记面板
-- **做**：示例工程保留 `characters/_templates.yaml` + `characters/lin_yu.yaml`；MVP 不加载到 UI store；仅领域层单测中按 `from_yaml_str` / `to_yaml` 解析往返，验证 `Character` / `CharacterTemplate` 字段定义与 `residence.map_ref` 跨文件引用格式
-- **验收**：F14 **不进**验收 demo（D1–D8 不覆盖）；单测覆盖即可
-- **防误解**：示例工程 `README.md`（或本节末尾）须写明「人物 / 事件仅作数据契约样例，M5+ 才进 UI」，避免用户加载后困惑
-
-### 2.2 Map（`maps/**/*.yaml`）
-
-MVP 必填子集：
-
-- `id` / `name` / `type`
-- `grid`（完整字段：`width`/`height`/`cell_distance`/`distance_unit`/`base_unit`/`origin`/`show`/`snap`）
-- `time`（完整字段：`default_granularity`/`min_granularity`）
-- `layers`（MVP 只配 `terrain` 与 `road` 两层；其余图层允许出现但渲染层忽略）
-- `terrain_data`（`encoding: grid` 或 `sparse` + `cells_ref`）
-- `city_refs`（仅 `world` 类型）
-- `building_refs`（仅 `city` 类型）
-
-MVP 不写：`height_data`（可空）、`markers`（可空）、`presentation`（可空但建议带默认）、`travel`（可空）。
-
-**MVP 透传字段约定**：`presentation` / `markers` / `travel` / `height_data` / `parent_map` / `child_maps` / `anchor` / `extent` / `custom_attributes` 等字段**MVP 阶段只透传保留**——加载时存入 `LoadedMap.map` 的对应字段，**不读取其语义**渲染；保存时原样写回。
-
-**MVP 地图尺寸约束**：
-
-- MVP **推荐**单张地图 ≤ 1024 × 1024 单元。
-- 单图超过 1024 × 1024 时（不自动切换；MVP 不引 `chunked`）：保存时**提示**「该路径未启用 chunked，建议缩到 1024×1024 内或等待 MVP`；笔刷不阻塞。
-- 单图超过 1024 × 1024 时，**仍允许加载与渲染**，仅 Git diff 噪声与解析性能可能退化。
-
-**MVP 阶段 `height` 约定**：
-
-- `height_data` **MVP 不读取、不写入**；示例工程中所有地图 `height_data` 字段省略。
-- 地形单元 `terrain.height`（[数据模型规格 §3.2](file:///d:/kudi-project/world-view/docs/数据模型规格_v0.1.md)）在 MVP 阶段**不参与计算**；值为 `0` 表示「无高度信息」。
-- 所有依赖高度的能力（地形阴影 / 河流方向 / 疆界贴合 / 通行成本对高度的修正）MVP 阶段一律**关闭**，对应字段标 `[待标定]`、对应 UI 不展示。
-- 不与 `default.height` 冲突：`sparse.default` MVP 阶段**只填** `{type: plain, move_cost: 1, buildable: true}`，**不带 `height`**（height 留 M2+ 处理）。
-
-### 2.3 Layer（`layers[]`）
-
-MVP 只渲染**可见且未被时间过滤**的图层（时间过滤留空，所有图层视为全程可见）。MVP 用到的字段：
-
-- `id` / `name` / `type`（仅识别 `terrain` 与 `road`）/ `visible` / `locked` / `opacity` / `z_order`
-- `valid_from` / `valid_to` **MVP 忽略**（按可见处理）
-
-### 2.4 Terrain（`maps/.../<map>.terrain.yaml`）
-
-MVP **加载**支持 `encoding: grid`（二维数组：行优先 `cells[row*W+col] = {type, move_cost, buildable}`）与 `encoding: sparse`（cells 列表）；**保存统一写 sparse**（按 [存储规范 §5.1.2](file:///d:/kudi-project/world-view/docs/存储与目录规范_v0.1.md) 决策阈值：≤ 1024 单元仍可写 grid，但 MVP 默认走 sparse 以降低 Git diff 噪声）。`chunked` MVP **不生成**。
-
-地形类型枚举以 `data_model §3.1` 为准；MVP 默认全部填默认值 `{type: plain, move_cost: 1, buildable: true}`。
-
-### 2.5 引用规则
-
-MVP 严格遵守《存储与目录规范》§3：
-
-- 跨文件引用 → `ref`（相对工程根路径）
-- 同类型对象之间 → `id`
-- 所有 `ref` 不得含 `..`、不得是绝对路径
-
-### 2.6 YAML 示例（示例工程中的世界地图）
+### 2.1 Project(工程)
 
 ```yaml
-id: map_world_01
-name: 艾瑟兰大陆
-type: world
+project:
+  name: string            # 必填,非空
+  view_mode: "2d"         # 必填,字面量 "2d"
+  default_unit: "m"       # 必填,字面量 "m"
+  maps:
+    - ref: maps/<file>.yaml
+```
 
-grid:
-  width: 64
-  height: 48
-  cell_distance: 10
-  distance_unit: km
-  base_unit: m
-  height_unit: m
-  origin: { x: 0, y: 0 }
-  show: true
-  snap: true
-  scale_label: "1 格 = 10 km"
+引用规则:`ref` = 相对工程根(`project.yaml` 所在目录)的路径;`id` = 稳定 ID;两者**不可混用**;`ref` 中不得含 `..`,不得为绝对路径。
 
-time:
-  default_granularity: month
-  min_granularity: day
-  inherit_calendar: true
-  allow_fuzzy: true
+### 2.2 Map(地图)
 
-presentation:
-  default_mode: edit
-  view_mode: 2d
-  theme: parchment
-  show_scale_bar: true
-  show_coordinates: true
+```yaml
+map:
+  id: string              # 必填,工程内唯一
+  name: string            # 必填,非空
+  type: "world" | "city"  # 必填
+  encoding: "grid" | "sparse"   # 必填
+  grid: { cols: int, rows: int }   # encoding="grid" 时必填
+  cell_distance: number   # 必填,> 0
+  distance_unit: "m"      # 必填,字面量 "m"
+  base_unit: "m"          # 必填,字面量 "m"
+  time:
+    default_granularity: "hour"  # 必填
+    min_granularity: "hour"      # 必填
+  presentation:
+    theme: "parchment"    # 必填
+  layers:
+    - ref: ../layers/<file>.yaml
+  cities:                 # type="world" 时可选
+    - ref: ../maps/<city>.yaml
+  terrain_data:
+    encoding: "grid" | "sparse"   # 必填
+    default: { type: "plain", move_cost: 1, buildable: true }  # 必填
+    cells:                 # encoding="grid" 时必填
+      - at: [x, y]
+        type: <terrain_type>
+```
 
-terrain_data:
-  encoding: grid
-  cells_ref: maps/world/main.terrain.yaml
+MVP 默认参数:**世界地图 / 城市地图** 均使用 `grid 64×64`,`cell_distance = 2 m`,`presentation.theme = parchment`,`layers = [terrain, road]`,`terrain_data.encoding = sparse`,`default = {type: plain}`。
 
-layers:
-  - id: layer_terrain
-    name: 基础地形
-    type: terrain
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 0
-  - id: layer_road
-    name: 道路
-    type: road
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 10
+### 2.3 Layer(图层)
 
-city_refs:
-  - id: city_port_aurora
-    name: 极光港
-    x: 32
-    y: 24
-    entry: { x: 32, y: 24 }
-    map_ref: maps/city/port_aurora.yaml
-    population: 24000
-    faction: fac_merchant_league
+```yaml
+layer:
+  id: string              # 必填
+  name: string            # 必填
+  kind: "terrain" | "road" | "building" | "marker"   # 必填
+  visible: bool           # 必填
+  opacity: number         # 必填,0..1
+```
+
+MVP 关心:`terrain` / `road` / `building` / `marker` 四类;面板只切显隐,不切不透明度。
+
+### 2.4 TerrainType(地形)
+
+MVP 支持 11 种:
+
+| 值 | 显示色 |
+|---|---|
+| `plain` | `#c2b280` |
+| `mountain` | `#7a6f5c` |
+| `forest` | `#3f7a3f` |
+| `hill` | `#8a7a4a` |
+| `water` | `#3a6ea5` |
+| `desert` | `#d9c47a` |
+| `swamp` | `#5a6a3a` |
+| `tundra` | `#cfd6e0` |
+| `basin` | `#7a8aa6` |
+| `coast` | `#a8c3d6` |
+| `river` | `#5e8fc4` |
+
+完整地形字段见 `docs/存储与目录规范_v0.1.md §3.4`。MVP `default = {type: plain, move_cost: 1, buildable: true}`,**不携带** `height` 字段。
+
+### 2.5 Building(建筑,MVP 占位)
+
+```yaml
+building:
+  id: string              # 必填,工程内唯一
+  type: "house" | "tower" | "wall_gate"   # 必填
+  at: [x, y]              # 必填,城市地图坐标
+  map_id: string          # 必填,引用父地图 id
+```
+
+MVP 只放 3 种占位建筑;`at` 是城市地图坐标(米),非世界地图坐标。
+
+### 2.6 YAML 示例(城市地图)
+
+```yaml
+map:
+  id: "city_kael"
+  name: "Kael"
+  type: "city"
+  encoding: "grid"
+  grid: { cols: 64, rows: 64 }
+  cell_distance: 2
+  distance_unit: "m"
+  base_unit: "m"
+  time:
+    default_granularity: "hour"
+    min_granularity: "hour"
+  presentation:
+    theme: "parchment"
+  layers:
+    - ref: "../layers/terrain.yaml"
+    - ref: "../layers/road.yaml"
+  terrain_data:
+    encoding: "sparse"
+    default: { type: "plain", move_cost: 1, buildable: true }
+    cells: []
+  buildings:
+    - id: "b1"
+      type: "house"
+      at: [10, 10]
+      map_id: "city_kael"
 ```
 
 ---
 
-## 3. ADDED Requirements
+## 3. ADDED Requirements(本规范新增)
 
-### Requirement: 工程加载与保存
+### 3.1 工程加载与保存
 
-`world-view-io` SHALL 提供 `open_project(dir)` / `save_project(project, dir)` 两个 Tauri command；`open_project` 必须解析 `project.yaml` 并按 `map_index` 顺序加载每张地图（地形文件按 `cells_ref` 解析为 `grid`/`sparse`）；`save_project` 必须把内存中的 `Project` 完整写回磁盘（含所有引用闭包）。
+- **AC 工程加载**(R-LOAD-01):启动后,顶栏「打开示例工程」点击后,**5 秒内** 完成对 `examples/sample_world/project.yaml` 的解析,主场景切到第一张地图。
+  - **Then**:主场景展示该地图的画布、图层面板、检视器、状态栏四区。
+- **AC 工程保存**(R-SAVE-01):点击「保存」后,所有被修改的地图 / 图层 / 建筑文件**按原路径回写**;重新打开后字段一致(逐字段比对,允许键序差异)。
+- **AC 「另存为」**(R-SAVE-02):支持把当前工程另存到 `examples/sample_world/` 之外的目录(便于 D7 / D8 写到临时目录做对照)。
 
-#### Scenario: 打开示例工程
+### 3.2 视图与坐标
 
-- **WHEN** 用户选择目录 `examples/sample_world/`
-- **THEN** `open_project` 在 200ms 内返回 `Project{ name: "示例世界", maps: [world_map], characters: [...] }`
-- **AND** 前端将 `world_map` 渲染到画布
-- **AND** 状态栏显示面包屑「示例世界 › 艾瑟兰大陆」
+- **AC 视图类型**(R-VIEW-01):MVP 只支持 2D 俯视正交视图;`view_mode = "2d"` 是唯一字面量。
+- **AC 坐标转换**(R-VIEW-02):世界坐标 ↔ 像素坐标 ↔ 网格坐标三向互转在 `WorldView.Render.CoordTransform` 静态类中集中,所有渲染层必须调用,不得直接做乘法。
+- **AC 缩放范围**(R-VIEW-03):滚轮缩放范围 0.25× ~ 4.0×,步长 1.2×;钳制在视口内,无溢出 / 反向。
 
-#### Scenario: open_project 加载失败
+### 3.3 图层面板
 
-- **WHEN** 任一 `map_index[i]` 加载失败（文件不存在 / YAML 解析错 / `cells_ref` 不可达）
-- **THEN** `open_project` 返回 `Err(IoError::MapLoadFailed { path, cause })`，**不返回部分 `Project`**（已读入但未完成加载的 `Map` 实例全部丢弃）
+- **AC 图层显隐**(R-LAYER-01):勾选切换 `layer.visible` 时,对应 `TileMapLayer` 的 `Visible` 同步切换,**刷新时间 ≤ 16 ms**(一个帧)。
+- **AC 图层顺序**(R-LAYER-02):图层顺序与 `project.yaml` 中 `layers:` 列表顺序一致,顺序不可拖动。
 
-#### Scenario: 保存工程
+### 3.4 圆形笔刷
 
-- **WHEN** 用户点击「保存」且当前有未保存修改
-- **THEN** `save_project` 把所有修改过的 YAML 写回原路径
-- **AND** 写回前校验：`ref` 存在 / ID 唯一 / 必填字段；不通过时返回错误并阻止保存
-- **AND** 写回后清空「未保存」标记
+- **AC 落点节流**(R-BRUSH-01):同一笔刷连续落点之间间隔**≥ 100 ms**,落点超过节流阈值时只提交最后一次;通过 `Editor.BrushController` 集中计时。
+- **AC 笔刷覆盖范围**(R-BRUSH-02):以鼠标命中格为中心,半径 `r` 格(默认 1)的**欧几里得圆盘**(`sqrt(dx²+dy²) ≤ r`)内所有格都被覆盖;空过格不报错。MVP 默认半径 = 1,即「十字 + 中心」5 格。
+- **AC 笔刷重绘**(R-BRUSH-03):笔刷落点后,`TileMapLayer` 对应 `dirty_rect`(包围盒 + 1 格边带)内格子在**一个帧内** 重绘完成。
 
-### Requirement: 视图与坐标
+### 3.5 撤销与重做
 
-渲染层 SHALL 提供平移（右键 / 中键拖拽）、缩放（滚轮）、全图适配（`F` 键）、显示网格（`G` 切换）、显示坐标（`C` 切换）、显示比例尺（默认开启）。坐标系遵守 §5.3：屏幕 → 网格 → 地图 → 世界四层互转。
+- **AC 命令模式**(R-UNDO-01):所有会改变文档状态的操作必须通过 `IEditorCommand` 接口(`Apply()` / `Revert()`)实现;UndoStack 容量 ≤ 200,超出后 FIFO 丢弃最旧命令。
+- **AC 快捷键**(R-UNDO-02):`Ctrl+Z` = 撤销,`Ctrl+Shift+Z` = 重做;连续撤销直到栈空为止,不可越过空栈。
+- **AC 命令回放一致性**(R-UNDO-03):撤销 + 重做组合执行后,所有被影响字段必须**逐字段** 回到原值(测试:循环执行 `for _ in range(100): apply + undo` 不留下任何残留)。
 
-**Esc 取消当前工具**：当前工具 ≠ `pan` 时按 Esc 复位到 `pan`；同时清空临时拖拽状态（未提交笔刷、放置建筑 dragRect 候选框、选区笔刷候选框）；**不撤销**已提交命令（撤销走 `Ctrl+Z`）；关闭所有模态对话框。
+### 3.6 城市下钻
 
-#### Scenario: 全图适配
+- **AC 双击进入**(R-T-ZOOM-01):在城市地图标记上双击后,场景切到对应城市地图,`breadcrumbs` 增加一项「世界 / <城市名>」,顶栏面包屑可见。
+- **AC 返回上一级**(R-T-ZOOM-02):点击面包屑中的「世界」或按 `Esc`,场景回到上一级地图(只回退一级,不直接回根)。
 
-- **WHEN** 用户按下 `F`
-- **THEN** 画布视口调整为地图 `grid.width × grid.height` 完全可见 + 留 8% 内边距
+### 3.7 建筑放置
 
-#### Scenario: 缩放至网格内
+- **AC 工具切换**(R-BUILD-01):工具栏点击「建筑」后,鼠标光标变为「可放置」状态;非城市地图下该工具禁用。
+- **AC 落点约束**(R-BUILD-02):只允许在 `terrain.buildable = true` 的格子上放置;否则提示「此处不可放置建筑」(状态栏文字反馈,无弹窗)。
+- **AC 建筑登记**(R-BUILD-03):放置后,该建筑作为新对象加入当前 `map.buildings` 列表,`id` 自动生成(递增 UUID 短串,长足 8),`type` 取自工具栏。
 
-- **WHEN** 用户在画布 `(sx, sy)` 滚轮放大
-- **THEN** 缩放围绕 `(sx, sy)` 保持该像素位置下的网格点不动
-- **AND** 缩放比例 clamp 到 [0.25, 8.0]
+### 3.9 校验器
 
-### Requirement: 图层面板
+- **AC 启动校验**(R-VAL-01):工程打开 → 渲染前,对整个工程做字段合法性扫描;第一处错误就停止,弹错误对话框(`ErrorDialog`),不允许部分渲染。
+- **AC 错误消息**(R-VAL-02):错误对话框包含:
+  1. 文件相对路径(`ref` 形式);
+  2. 字段路径(点号分隔,如 `map.grid.cols`);
+  3. 错误类型(`required_missing` / `enum_out_of_range` / `ref_not_found` / `id_duplicate` / `type_mismatch`)。
+- **AC 错误恢复**(R-VAL-03):校验失败时,顶栏保持可见,用户可点「关闭」回到空场景;不可强制进入「半渲染」状态。
 
-UI SHALL 在右侧提供图层面板：列出当前地图的所有 `layers[]`，每行显示 `name` + `type` + `visible`/`locked`/`opacity`/`z_order` 控件；变更后立刻同步到渲染层。
+### 3.10 示例工程
 
-#### Scenario: 隐藏地形层
-
-- **WHEN** 用户取消勾选「地形」图层的 `visible`
-- **THEN** 渲染层立即移除地形色块
-- **AND** 「未保存」标记亮起
-
-### Requirement: 圆形笔刷地形绘制
-
-编辑层 SHALL 提供圆形笔刷：参数 `size`（格，1–16，默认 3）、`terrain_type`（默认 `plain`）、`strength`（0.1–1.0，默认 1.0）。鼠标按下 + 拖拽期间持续落点；每个落点向画布下达一条 `ApplyBrushCommand`。
-
-#### Scenario: 绘制山地
-
-- **WHEN** 用户选择地形 `mountain` + `size=4` + `strength=1.0`，在 `(30,30)`–`(40,40)` 区域拖拽
-- **THEN** 落点范围内所有单元 `type` 写为 `mountain`，`move_cost=4`，`buildable=false`
-- **AND** 渲染层立即刷新该区域
-- **AND** 一条 `ApplyBrushCommand` 入撤销栈
-
-#### Scenario: 吸附网格
-
-- **WHEN** `grid.snap = true`
-- **THEN** 笔刷中心始终对齐到最近格点；落点坐标按整数格计算
-
-### Requirement: 撤销与重做
-
-`UndoStack` SHALL 支持 ≥ 50 步撤销 / 重做；MVP 仅持久化到内存（不落盘）。每条命令实现 `apply()` / `revert()`；笔刷命令的 `revert()` 必须把单元恢复成落点前的快照。
-
-#### Scenario: 撤销笔刷
-
-- **WHEN** 用户按下 `Ctrl+Z` 且撤销栈非空
-- **THEN** 栈顶命令 `revert()` 生效，渲染层刷新该区域
-- **AND** 命令从撤销栈移到重做栈
-
-#### Scenario: 重做笔刷
-
-- **WHEN** 用户按下 `Ctrl+Y` 且重做栈非空
-- **THEN** 栈顶命令 `apply()` 生效，渲染层刷新该区域
-
-### Requirement: 城市下钻
-
-UI SHALL 在世界地图上把 `city_refs[i]` 渲染为可点击标记；点击后弹出基础信息卡，含「进入编辑」按钮：
-
-- 当 `map_ref` 存在 → 切换到该城市地图（写入「当前地图」状态）；
-- 当 `map_ref` 为空 → 按钮文字变为「创建城市地图」，点击后由 `world-view-io` 生成 `maps/city/<id>.yaml`（字段自动按城市地图默认：grid 64×64 / `cell_distance=2 m` / `default_granularity: hour`），再切换。
-
-#### Scenario: 下钻到已有城市
-
-- **WHEN** 用户点击「极光港」标记 → 弹出基础信息卡 → 点击「进入编辑」
-- **THEN** 当前地图切到 `maps/city/port_aurora.yaml`
-- **AND** 面包屑变为「示例世界 › 艾瑟兰大陆 › 极光港」
-- **AND** 画布重置为该城市地图的视口
-
-#### Scenario: 创建缺失城市地图
-
-- **WHEN** 用户点击某 `city_refs[i].map_ref` 为空的条目 → 点击「创建城市地图」
-- **THEN** `world-view-io` 在 `maps/city/<id>.yaml` 写出最小可加载骨架（**默认值**：`grid 64×64 / cell_distance=2 m / distance_unit=m / base_unit=m / time.default_granularity=hour / time.min_granularity=hour / presentation.theme=parchment / layers=[terrain, road] / terrain_data.encoding=sparse, default={type:plain}`）
-- **AND** 同时写一份空的 `<id>.terrain.yaml`（仅有 `encoding: sparse` + `default`）
-- **AND** `project.map_index` 与 `world_map.city_refs[i].map_ref` 同步更新
-- **AND** 立即下钻到该城市地图
-- **AND** 若 `create_city_map` 返回 `Err(IoError)`：弹错误对话框（§ErrorDialog），**不下钻**，CityCard 保持打开
-
-### Requirement: 建筑放置
-
-在城市地图画布上，UI SHALL 提供「放置建筑」工具：从类型列表（住宅 / 商店 / 酒馆 / 神庙 / 城堡 / 兵营 / 市场 / 码头 / 监狱 / 魔法塔）选一项 → 鼠标按下并拖拽决定 `geometry = {x, y, w, h}` → 松开后弹出属性对话框（含 `name`、`type`、`interior_ref` 可选） → 确认后写入 `building_refs[]`。
-
-#### Scenario: 放置住宅
-
-- **WHEN** 用户选 `type=住宅`、在 `(10,10)` 拖拽至 `(14,14)`、属性对话框 `name=林语居`、留空 `interior_ref`
-- **THEN** `city_map.building_refs` 追加 `{id: bld_<uuid>, name: "林语居", type: "住宅", geometry: {x:10,y:10,w:4,h:4}, rotation: 0, floors: 1, state: intact}`
-
-#### Scenario: 放置带 interior_ref 的建筑
-
-- **WHEN** 属性对话框 `interior_ref` 留空（不创建室内图）→ 确认
-- **THEN** `interior_ref` 字段不写入（**MVP 不支持室内下钻**；保留字段以维持与数据模型一致）
-
-### Requirement: 面包屑
-
-UI SHALL 在状态栏左侧显示面包屑 `项目 › 地图1 › 地图2 ...`；点击任一段可跳回该层级；MVP 仅支持两级（世界 / 城市）。
-
-**视口恢复**：领域 store 维护 `viewportHistory: Map<mapPath, Viewport>`；`switchMap(newPath)` 离开当前地图时把当前视口写入历史，切到 `newPath` 时优先从历史恢复（无则 `fitTo`）；同一地图内的 pan/zoom 不写入历史，避免 map 内存无限增长。
-
-#### Scenario: 返回世界
-
-- **WHEN** 用户在城市地图中点击面包屑的「艾瑟兰大陆」
-- **THEN** 当前地图切回世界地图
-- **AND** 视口回到进入城市前的位置（来自 `viewportHistory[world_path]`）
-
-### Requirement: 校验器
-
-`world-view-io` SHALL 在 `save_project` 前执行最小校验：
-
-1. `project.yaml` 存在且 `project_version = "0.1"`；
-2. 所有 `map_ref` / `interior_ref` / `cells_ref` 指向的文件存在；
-3. `id` 工程内全局唯一（跨类型）；
-4. **`grid` 编码**：`terrain_data.cells` 行数 == `grid.height`、列数 == `grid.width`；**`sparse` 编码**：每个 cell 的 `(col, row)` 落在 `[0, width) × [0, height)` 内，且 `(col, row)` 唯一不重复；
-5. `city_refs[i].map_ref` 为空时合法（表示未创建城市地图）；非空时路径可达。
-
-#### Scenario: 校验失败阻止写入
-
-- **WHEN** 用户删除示例工程中的 `maps/city/port_aurora.yaml` 后再保存
-- **THEN** 校验器报错「`map_ref maps/city/port_aurora.yaml` 不可达」
-- **AND** 弹出错误对话框，写盘动作被取消
-
-### Requirement: 示例工程
-
-仓库 SHALL 内置 `examples/sample_world/`，开箱即可被 `open_project` 加载：
-
-- `project.yaml`（`name: 示例世界`，1 张世界地图 + 1 张城市地图索引）
-- `maps/world/main.yaml`（64×48，1 个城市 `极光港`）
-- `maps/world/main.terrain.yaml`（`grid` 编码，含若干山地 / 河流示例单元）
-- `maps/city/port_aurora.yaml`（64×64，1 栋建筑 `林语居`）
-- `maps/city/port_aurora.terrain.yaml`（默认全平原）
-- `characters/_templates.yaml`（含 1 条 HP 模板，演示模板机制）
-- `characters/lin_yu.yaml`（1 个示例人物，居住地 `residence.map_ref` 指向 `port_aurora.yaml`、`building_ref: bld_xx`）
-
-#### Scenario: 开箱加载
-
-- **WHEN** 用户首次启动应用并选择「打开示例工程」
-- **THEN** 加载成功，画布显示世界地图，地形色块正确（山地灰偏暗、河流蓝色）
-- **AND** 「极光港」标记可见，点击可下钻
+- **AC 示例存在**(R-SAMPLE-01):`examples/sample_world/project.yaml` 必须随仓库提供,可在 5 秒内打开(D1 验收)。
+- **AC 示例内容**(R-SAMPLE-02):示例工程至少包含:1 张世界地图(`grid 64×64`)+ 1 张城市地图(`grid 64×64`)+ terrain / road / building 三个图层 + 1 个城市下钻标记 + 2 个建筑占位。
 
 ---
 
 ## 4. MODIFIED Requirements
 
-无（仓库目前没有代码，不存在「修改既有实现」）。
+无。
+
+---
 
 ## 5. REMOVED Requirements
 
@@ -403,96 +259,191 @@ UI SHALL 在状态栏左侧显示面包屑 `项目 › 地图1 › 地图2 ...`�
 
 ---
 
-## 6. 实现架构（仅约束实现层，不污染数据契约）
+## 6. 实现架构
 
-### 6.1 仓库布局
+### 6.1 仓库布局(Godot / C# 栈)
 
 ```
 world-view/
-├── crates/
-│   ├── world-view-core/        # 领域层：Project/Map/Layer/Terrain 类型 + YAML 解析
-│   └── world-view-io/          # Tauri commands + 文件 I/O + 校验器
-├── src/                        # TypeScript 前端
-│   ├── app/                    # 应用入口、根布局
-│   ├── render/                 # PixiJS 渲染层（地形、图层、视口）
-│   ├── editing/                # 笔刷、命令模式、撤销栈
-│   ├── ui/                     # 顶栏 / 左工具栏 / 右面板 / 状态栏
-│   ├── state/                  # Zustand：领域 store + UI store（严格分层）
-│   └── bridge/                 # 与 Tauri commands 的 IPC 封装
+├── project.godot              # Godot 工程根(主场景配置、dotnet assembly_name)
+├── WorldView.sln              # .NET 解决方案
+├── WorldView.csproj           # C# 项目(Godot.NET.Sdk/4.7.0,TargetFramework=net8.0)
+├── scenes/                    # Godot 场景文件(.tscn),节点文件引用
+│   ├── Main.tscn              # 主场景(Control 根)
+│   ├── WorldCanvas.tscn       # 画布(Camera2D + TileMapLayer × N + GridOverlay)
+│   ├── LayerPanel.tscn        # 图层面板
+│   ├── ToolPanel.tscn         # 工具栏
+│   ├── InspectorPanel.tscn    # 检视器
+│   ├── StatusBar.tscn         # 状态栏
+│   └── TopBar.tscn            # 顶栏(包含 FileMenu + Breadcrumbs)
+├── scripts/                   # C# 脚本,挂到场景节点上
+│   ├── Domain/                # 纯领域逻辑(无 Godot.* 依赖)
+│   │   ├── World.cs           # World 根模型
+│   │   ├── MapDoc.cs          # Map 文档(加载/保存/校验)
+│   │   ├── LayerDoc.cs        # Layer 文档
+│   │   ├── Terrain.cs         # 地形枚举 + 默认值
+│   │   ├── Building.cs        # 建筑模型
+│   │   └── Validation/        # 校验器
+│   │       ├── ValidationError.cs
+│   │       ├── ValidationErrorCode.cs
+│   │       └── ProjectValidator.cs
+│   ├── Storage/               # YamlDotNet 读写
+│   │   ├── ProjectLoader.cs
+│   │   ├── ProjectSaver.cs
+│   │   └── YamlSchemas.cs     # 类 ↔ YAML 映射
+│   ├── Editing/               # 命令模式 + 撤销栈 + 笔刷
+│   │   ├── IEditorCommand.cs
+│   │   ├── UndoStack.cs
+│   │   ├── ApplyBrushCommand.cs
+│   │   ├── CreateCityMapCommand.cs
+│   │   ├── PlaceBuildingCommand.cs
+│   │   └── BrushController.cs # 节流 + dirty_rect
+│   ├── Render/                # Godot 节点与绘制
+│   │   ├── CoordTransform.cs  # 世界 ↔ 像素 ↔ 网格
+│   │   ├── WorldCanvas.cs     # Camera2D + TileMapLayer 容器
+│   │   ├── TerrainLayer.cs    # TileMapLayer 子类
+│   │   ├── RoadLayer.cs
+│   │   ├── BuildingLayer.cs
+│   │   ├── GridOverlay.cs     # Line2D 网格叠加
+│   │   └── TerrainPalette.cs  # 11 色 → TileSet
+│   ├── Ui/                    # Godot Control 节点
+│   │   ├── Main.cs            # 主场景脚本
+│   │   ├── TopBar.cs          # 顶栏 + FileMenu + Breadcrumbs
+│   │   ├── LayerPanel.cs
+│   │   ├── ToolPanel.cs
+│   │   ├── InspectorPanel.cs
+│   │   ├── StatusBar.cs
+│   │   ├── ErrorDialog.cs     # 校验错误弹窗
+│   │   └── BuildingPlaceDialog.cs # 建筑放置弹窗
+│   └── Editor/                # 编辑器协调器
+│       ├── EditorContext.cs   # 当前工程 + 地图 + 选中状态
+│       └── EditorController.cs # 命令分发 / 撤销 / 重做
+├── crates/                    # Rust 可选加速层(M1 不参与,空骨架保留)
 ├── examples/
-│   └── sample_world/           # 示例工程（开箱可用）
-├── docs/                       # 既有设计文档（不动）
-└── ...
+│   └── sample_world/          # 示例工程
+│       ├── project.yaml
+│       ├── maps/
+│       ├── layers/
+│       ├── assets/
+│       └── README.md
+├── docs/                      # 设计文档
+├── _tools/                    # 辅助脚本(make_icons.py 等)
+├── AGENTS.md
+├── README.md
+└── .gitignore
 ```
 
-### 6.2 状态分层
+### 6.2 数据流(替代旧 Zustand 分层)
 
-- **领域 store**（Zustand）：持有 `Project` / 所有已加载的 `LoadedMap` / `currentMapId`（当前地图 ID）/ `currentMapPath`（当前地图文件路径）/ `dirtyMapIds` / `breadcrumb: Array<{label, mapPath}>`。**「当前地图」归属在领域 store**——它决定渲染层订阅哪张地图；UI store 不持有 `currentMapId`。
-- **UI store**（Zustand）：当前工具 / 笔刷参数 / 视口 / 选区 / 图层面板展开状态。
-- **视口栈**（`viewportHistory: Map<mapId, Viewport>`）：放在领域 store；下钻前快照当前视口与对应 mapId，回退时恢复。MVP 仅支持两级（世界 / 城市），所以 MVP 可用 `lastWorldViewport: Viewport | null` 简化实现。
-- **渲染缓存**：仅 `render/` 模块内持有；不入 store。
+**旧栈**用 Zustand 分 4 个 store(`useDomainStore` / `useEditingStore` / `useUiStore` / `useErrorStore`)。
+**新栈**统一为 `WorldView.Editor.EditorContext` 单例**,挂在 `/root/Editor` 节点上,Godot 信号(`[Signal]` 属性)承担「通知」职责:
+
+- `Domain.*` → 纯 C# 数据模型,无 Godot 依赖,可在 Godot 之外做单元测试。
+- `Editor.EditorContext` → 持有当前 `World`(工程根) + `MapDoc`(当前地图) + 选中状态,发出 `Domain/KeyChanged`、`MapChanged`、`SelectionChanged` 等信号。
+- `Render.*` → 监听 `EditorContext` 信号,**只渲染** 当前地图;不直接持有数据。
+- `Ui.*` → 监听 `EditorContext` 信号 + 用户输入事件,调用 `EditorController` 派发命令。
+- `Editing.*` → 命令模式与撤销栈,不依赖 Godot 信号,但通过 `EditorContext` 触达数据。
+
+**核心原则:领域层不引用 `Godot.*` 命名空间。** 所有 Godot 概念(`Node2D` / `TileMap` / `TileSet` / `Control` / `[Signal]`)只出现在 `Render/Ui/Editor` 三个目录。
 
 ### 6.3 命令模式
 
-- `ApplyBrushCommand { stroke: Stroke, before: Snapshot, after: Snapshot, dirty_rect }`（统一命名，与 tasks.md T13.1 / checklist E4 一致）
-- `CreateCityMapCommand { new_path, initial_map, parent_world_id, city_id }`
-- `PlaceBuildingCommand { map_id, building, before_index }`
-- 撤销栈：FIFO 上限 200；内存持有；MVP 不持久化。
+| 命令 | 触发 | 影响的字段 |
+|---|:---|:---|
+| `ApplyBrushCommand` | 笔刷落点 | `MapDoc.TerrainData` 中命中格的 `type` |
+| `CreateCityMapCommand` | 双击城市标记 → 进入城市 | `World.MapCrumbs` 增加一项 |
+| `PlaceBuildingCommand` | 在城市地图放置建筑 | `MapDoc.Buildings` 列表新增一项 |
 
-### 6.4 性能纪律（MVP 适用部分）
+`UndoStack`(`scripts/Editing/UndoStack.cs`)FIFO 上限 200 条;满后从最旧端丢弃。
+`UndoStack.WithCommand(IEditorCommand)` 会执行 `command.Apply()`,失败则不记录。
+`UndoStack.Redo()` 会重做栈顶命令;`UndoStack.Undo()` 会回退。
 
-- 视口外不渲染（MVP 实现 `cull`：基于视口网格范围跳过非可见单元）；
-- 笔刷落点仅触发**脏区**重绘（`dirty_rect`）；
-- 笔刷拖拽期间按 **100ms 节流**（`requestAnimationFrame` + 时间戳门控）落点，落点之间不补插值；松开提交一条完整 `ApplyBrushCommand`；
-- **视口裁剪**：渲染层对每帧**只绘制视口覆盖的网格单元**（加 1 格冗余边带）；不在视口的单元**不构造 PixiJS 图形对象**；`TerrainLayer` 暴露 `getDrawnCellCount()` 用于量化断言；
-- `terrain_data` MVP 走 `grid`/`sparse`；超过 1024×1024 时**手动提示**「MVP 阶段未启用 chunked，建议使用 sparse」。
+### 6.4 性能纪律
+
+- 笔刷落点 100 ms 节流(`Editor.BrushController` 集中计时,见 R-BRUSH-01)。
+- `dirty_rect` 矩形包围盒 + 1 格边带(`Render.TerrainLayer.QueueRedraw(Rect2I)`)。
+- 视图裁剪:**视口外的格子不调用 `SetCell`**,只画视口内的(参见 `Render.TerrainLayer.GetVisibleCellBounds()` → `WorldView.Render.CoordTransform.WorldRectToCellRect`)。
+- TileSet 单一来源:`Render.TerrainPalette` 静态类根据 terrain 类型返回 `Vector2I` 索引;切换地形不重建 TileSet。
+
+### 6.5 测试策略
+
+- 领域层 + 编辑层:`dotnet test` 运行 `tests/` 下的 xUnit 套件(无 Godot 依赖,可 CI 跑)。
+- 渲染层 + UI 层:Godot 4.7.2 mono 自带的 `SceneTree.ProcessFrame` 事件做手动 smoke test(D1–D8 录屏,见 §7)。
+- 视觉断言:D7 / D8 的「保存 + 重新打开」用「逐字段比对 YAML 文本」做(去除注释差异、信任差异无关)。
 
 ---
 
-## 7. 验收口径（demo）
+## 7. 验收 demo(MVP D1–D8)
 
-| # | 验收 demo | 通过条件 |
-|---|---|---|
-| D1 | 启动应用 → 打开示例工程 → 世界地图渲染 | 画布显示 64×48 网格、地形色块、`极光港`标记 |
-| D2 | 滚轮缩放 / 鼠标拖拽平移 / `F` 全图适配 / `G` 切网格 | 视口响应正确，坐标显示随指针更新 |
-| D3 | 选圆形笔刷 + `mountain` + 在画布拖拽 → 看到山地刷出 | 笔刷落点写为 `mountain`，色阶变深 |
-| D4 | `Ctrl+Z` 撤销、`Ctrl+Y` 重做 | 山地区域恢复 / 重画 |
-| D5 | 点击「极光港」标记 → 基础信息卡 → 「进入编辑」 | 切到城市地图，面包屑更新 |
-| D6 | 选建筑类型「住宅」→ 在城市地图拖拽 → 弹属性框 → 确认 | `building_refs` 新增条目，建筑以色块渲染 |
-| D7 | 关闭应用 → 重新打开同一目录 | 所有修改保留（YAML 落盘正确） |
-| D8 | 删除 `port_aurora.yaml` 后点保存 | 校验器报错，写盘取消 |
+> 演示环境:Godot 4.7.2 mono 编辑器中按 F5 运行,主场景 `res://scenes/Main.tscn`。
+
+### D1 — 启动 + 打开示例工程
+
+操作:启动 → 顶栏「文件 → 打开示例工程」 → 5 秒内主场景切到 `world_kael`。
+验收:画布、图层面板、检视器、状态栏四区显示正确;检视器展示 `world_kael` 元数据。
+
+### D2 — 切地形类型与笔刷
+
+操作:工具栏选中「笔刷」→ 顶栏下拉选「forest」 → 在画布中画 20 格。
+验收:对应格子变为 forest 色(参见 R-BRUSH-02 / R-BRUSH-03);状态栏显示当前鼠标坐标。
+
+### D3 — 撤销
+
+操作:`Ctrl+Z` 一次。
+验收:刚画的 20 格全部还原为 `plain`(参见 R-UNDO-01 / R-UNDO-03)。
+
+### D4 — 重做
+
+操作:`Ctrl+Shift+Z` 一次。
+验收:刚才撤销的 20 格恢复为 forest(R-UNDO-02)。
+
+### D5 — 城市下钻
+
+操作:在画布中双击城市标记。
+验收:场景切到对应城市地图(`city_kael`);顶栏面包屑显示「世界 / Kael」(参见 R-T-ZOOM-01 / R-T-ZOOM-02)。
+
+### D6 — 建筑放置
+
+操作:工具栏切到「建筑」→ 选 `house` → 在 buildable 格子上点击。
+验收:建筑出现在点击位置;弹「建筑占位」对话框(参见 R-BUILD-01 / R-BUILD-02 / R-BUILD-03)。
+
+### D7 — 保存 + 重新打开
+
+操作:顶栏「文件 → 保存」 → 关闭工程 → 重新打开。
+验收:`map.buildings` 包含刚才放置的建筑;逐字段比对 `project.yaml` / `maps/<id>.yaml` 内容(允许键序差异)。
+
+### D8 — 校验失败
+
+操作:手动编辑示例工程的 `maps/city_kael.yaml`,把 `grid.cols` 改成 `-1`(非法) → 启动。
+验收:弹错误对话框,显示:`maps/city_kael.yaml / map.grid.cols / enum_out_of_range`(参见 R-VAL-01 / R-VAL-02 / R-VAL-03)。
 
 ---
 
 ## 8. 风险与回退
 
-| 风险 | 对策 |
-|---|---|
-| PixiJS 在 Tauri WebView 中 GPU 加速不稳定 | 启动时检测 WebGL2 失败则降级到 Canvas（性能略低但可运行） |
-| YAML 解析性能（64×48 地图） | MVP 网格上限建议 ≤ 1024×1024；超过提示改 chunked（MVP 不实现） |
-| 命令模式内存增长 | 撤销栈上限 200；超出丢弃最旧 |
-| `terrain_data` 大数据回写慢 | MVP 用 `sparse` 编码写出（仅写非默认值单元） |
+| 风险 | 影响 | 回退策略 |
+|---|---|---|
+| Godot 4.7.2 mono 在 Windows 上的 .NET 8 兼容性 | 主流程无法跑 | 锁定 `Godot.NET.Sdk/4.7.0` + `net8.0`,CI 上跑 dotnet build 验证 |
+| TileMapLayer 的 `SetCell` 性能不够 | J2 量化断言失败 | 退回 `MapCanvas.setCell` 显式循环 + dirty_rect 裁剪 |
+| 笔刷节流不到位 | 一帧落点过多,Drop | F=20 帧节流(`Engine.MaxFps` 钳制) + `BrushController` 集中节流 |
+| YamlDotNet 16.3.0 对 nullable value 类型 < 严格 | 校验失败被误判 | `YamlSchemas` 集中收口,所有 nullable 字段给默认值 |
+| 示例工程缺图块 / 图层引用错 | D1 失败 | D1 录制前在 `examples/sample_world/` 内做完整性自检 |
 
 ---
 
-## 9. 范围纪律（再次声明）
+## 9. 范围纪律
 
-- MVP **不做**二进制分块（`chunked`）；仅 `grid` / `sparse`。
-- MVP **不做**室内图下钻（`building` 层级保留字段但不实现跳转）。
-- MVP **不做**时间轴联动、回放、快照。
-- MVP **不做**运输 / 路线 / 载具。
-- MVP **不做**疆界自动贴合 / 影响力裁剪 / 居民生成。
-- MVP **不做**视觉增强（昼夜 / 光照 / 战争迷雾）。
-- MVP **不做**第三方插件、分支时间线、协作。
-
-以上能力均归属 M3+，按《总体设计 v0.1》§7 排期推进；本 MVP 仅提供 M1/M2/M4 子集的可运行基线，作为后续里程碑的起点。
+- **不得**在 MVP 中引入 `chunked` 编码 / 室内下钻 / 时间轴 / 运输 / 贴合 / 视觉增强 / 插件。
+- **不得**在 `Domain/` 目录下 `using Godot;`(领域层纯逻辑,无 Godot 依赖)。
+- **不得**用 `..` 或绝对路径写 `ref`;只允许相对工程根。
+- **不得**让 `id` 与 `ref` 混用(同类型用 `id`,跨文件用 `ref`)。
+- **不得**跳过命令模式直接修改文档状态(必须通过 `IEditorCommand`)。
 
 ---
 
 ## 10. 变更记录
 
-| 版本 | 变更 |
-|---|---|
-| v0.1 | 首版：MVP 范围声明（§1）、数据契约（§2）、ADDED Requirements（§3）、仓库布局（§6）、验收 demo（§7）、风险（§8）、范围纪律（§9）。 |
-| v0.1（补充：P0 评审修复） | §2.2 增加「MVP 阶段 `height` 约定」：height_data 不读写；terrain.height = 0；高度相关能力关闭；sparse.default 不带 height。 |
-| v0.1（补充：P1 评审修复） | §1.1 增加 F14「人物索引只读展示」；§1.2 增加「人物 / 事件 / 路线 / 载具 UI 面板不做」三行；F12 改为「加载 grid+sparse，保存统一写 sparse」；F08 列默认值；§2.2 增加「MVP 透传字段约定」与「MVP 地图尺寸约束」；§2.4 区分加载与保存的编码策略；§3 Requirement: 校验器 第 4 条按 grid/sparse 分两支；§6.2 增加 viewportHistory、明确 currentMapId / currentMapPath 归属领域 store。 |
+| 日期 | 版本 | 变更 |
+|---|---|---|
+| 2026-10-07 | v0.1 | 初版,Tauri + Rust + TS + PixiJS 栈(M1 基线) |
+| 2026-10-07 | v0.2 | 重大重写:**栈切换为 Godot 4.7.2 mono + C# (.NET 8) + YamlDotNet**。移除 `crates/world-view-core/`、`crates/world-view-io/`、`src/`、`src-tauri/`、Zustand、PixiJS、Tauri commands;新增 `project.godot`、`WorldView.sln`、`WorldView.csproj`、`scenes/`、`scripts/`。验收 demo 同步切换到 Godot 节点粒度;性能断言保留(J2 量化 4915)。 |

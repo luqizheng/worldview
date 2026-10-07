@@ -35,8 +35,8 @@
 
 | 编号 | 决策点 | 结论 | 出处 |
 |---|---|---|---|
-| **P0-1** | 技术栈形态 | **定案：Tauri + Rust + TypeScript**（单机桌面壳）。Rust 承担二进制分块 I/O、空间索引、寻路等重计算；TS 承担界面与编辑 | [总体设计 §3.1](docs/总体设计_v0.1.md) |
-| **P0-2** | 渲染方案 | **定案：PixiJS（2D WebGL）**；Three.js（3D/2.5D）后置，v0.1 不引入 | [总体设计 §3.1](docs/总体设计_v0.1.md) |
+| **P0-1** | 技术栈形态 | **2026-10-09 反转：Godot 4.7.2 mono + C#**（单机桌面壳）。Godot 整体接管客户端 UI + 渲染 + 编辑器；C# 同时承担 UI / 编辑器 / 数据契约 / 业务逻辑 / YAML 解析 / 空间索引 / 寻路。**Rust 降级为可选加速层**（`crates/` 保留空骨架，不参与 v0.1 主流程）。**Tauri + TypeScript 路线作废** | [总体设计 §3.1](docs/总体设计_v0.1.md) / [技术基调确认 §1 §10 §13](docs/技术基调确认_v0.1.md) |
+| **P0-2** | 渲染方案 | **2026-10-09 反转：Godot 内置 2D**（`Node2D` / `CanvasItem` / `TileMap` / `TileSet` / `Polygon2D` / `Line2D`）；**PixiJS 全面下线**；Three.js 不引入 | [总体设计 §3.1](docs/总体设计_v0.1.md) / [技术基调确认 §3 §10](docs/技术基调确认_v0.1.md) |
 | **P0-3** | 地图数据形态 | **定案：网格 + 矢量混合**；大网格用二进制分块，见 [二进制格式规格](docs/二进制格式规格_v0.1.md) | [数据模型规格 §3](docs/数据模型规格_v0.1.md) |
 
 **仍未收敛（P1）**：
@@ -55,7 +55,7 @@
 |---|---|---|---|
 | **P2-1** | 旧 ChronoGeo Schema 稿吸收 | **延期**。原稿位于 `c:\Users\leo\AppData\Roaming\Trae CN\User\workspaceStorage\a0799e6de0be75a8cc512a1e3a595ca2\long-text\home\muxk14u6-waw1\地图数据 Schem....txt`，已被用户指认为本项目旧稿。含可借鉴字段（影响力 `clip_to_faction`、载具 `terrain_modifiers`、路线 `sub_map_refs`、事件 `time_precision`、快照 `influence_states`、导出可裁剪等），含潜在冲突（`project.yaml` 根入口、时间字符串格式、势力双源、建筑 `pixel_scale` 污染数据契约）。本轮**仅登记不处理**，留待 M1 之后批量吸收；吸收前须先升《数据模型规格》版本号并按事实来源优先级裁决 | 数据模型 / 图层 / 时间轴 / 存储 |
 
-**纪律**：P0 已收敛，实现层可引入 Tauri / PixiJS 等具体技术；但**数据契约仍以中立字段为准**，框架专有概念只允许出现在《总体设计》与各规格的「实现」小节，**不得污染《数据模型规格》的字段定义**。
+**纪律**：P0 已收敛（2026-10-09 反转 P0-1 / P0-2 后），实现层以 **Godot 4.7.2 mono + C# + Godot 内置 2D** 为主；**数据契约仍以中立字段为准**，Godot / C# / .NET 专有概念只允许出现在《总体设计》与各规格的「实现」小节，**不得污染《数据模型规格》的字段定义**。Rust 留作可选加速层，**v0.1 不参与主流程**。
 
 ## 4. 文档索引与阅读顺序
 
@@ -102,36 +102,41 @@
 ### 6.1 仓库布局决策（v0.1 起生效）
 
 - **同仓布局**：文档与代码并置于 `world-view/` 单仓库。理由：当前仓库正在使用；文档改动经常伴随示例与代码改动，单仓便于同步迭代。
-- **目录约定**：
+- **目录约定（2026-10-09 反转后；M1 落地前须按本约定清理旧栈骨架）**：
 
 ```
 world-view/
 ├── AGENTS.md                 # 本文件（AI 导航）
 ├── docs/                     # 设计规格（v0.1 × 10 + 技术基调确认 + MVP 评估纪要）
 ├── .trae/specs/              # MVP / Task / Checklist 等任务定义（按需新增）
-├── crates/                   # Rust crates（world-view-core / world-view-io 等）
-├── src/                      # TypeScript 前端（PixiJS 渲染 + 编辑 + UI）
+├── project.godot             # Godot 4.7.2 mono 工程根
+├── WorldView.sln / *.csproj  # .NET 解决方案 + Godot SDK C# 项目
+├── scripts/                  # C# 业务与 UI 代码（领域层、存储层、UI 控件）
+├── scenes/                   # Godot 场景文件（*.tscn）—主界面、地图编辑器、时间轴等
+├── crates/                   # 【可选】Rust crates 骨架（world-view-core 等；v0.1 不参与主流程，M2+ 实测瓶颈再启用）
 ├── examples/                 # 示例工程（含 sample_world）
-├── src-tauri/                # Tauri 主进程（由 pnpm create tauri-app 生成）
-├── package.json / pnpm-lock  # 前端依赖
-├── Cargo.toml                # Rust workspace 根
-├── tauri.conf.json           # Tauri 配置
-├── tsconfig.json
-└── .gitignore                # 忽略 .worldview/cache/、autosave/、build artifacts
+├── .worldview/               # 应用运行时私有目录（autosave / backup / cache），不进版本库
+├── *.csproj.user / obj/ / bin/  # .NET 构建产物
+└── .gitignore                # 忽略 .worldview/、autosave/、build artifacts、.godot/、*.csproj.user
 ```
 
+**已撤销的旧栈骨架**（M1 开工前清理）：`src/`（TS + Vite）、`src-tauri/`（Tauri 主进程）、`Cargo.toml`、`Cargo.lock`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`node_modules/`、`dist/`。清理动作**不进 v0.1 文档范围**,在仓库根清单更新任务中处理。
+
 - **纪律**：
-  - 文档与代码**同仓不同目录**；文档改动进 `docs/`，代码改动进 `crates/` / `src/`，不要互窜。
+  - 文档与代码**同仓不同目录**；文档改动进 `docs/`，代码改动进 `scripts/` / `scenes/` / `crates/`，不要互窜。
+  - C# 命名空间根建议 `WorldView.{Domain, Storage, Render, Ui, Editor}`（与 [总体设计 §3](docs/总体设计_v0.1.md) 分层对齐）；领域层纯逻辑**不引用** `Godot.*` 命名空间,便于脱离引擎单测。
   - `examples/sample_world/` 是**示例工程**（一份独立世界工程），不是应用的一部分。它应能被 `open_project` 加载；不要把它嵌进应用二进制。
   - `.worldview/` 是应用运行时产生的私有目录（autosave / backup / cache），**不进版本库**。
   - `.trae/specs/` 存放任务定义（spec / checklist / tasks），与 `docs/` 设计规格分离；前者是任务清单，后者是设计文档。
+  - Rust crates **v0.1 不参与主流程**;启用前须先在 [总体设计 §3.1](docs/总体设计_v0.1.md) 增补接入路径并经评审。
 
 ### 6.2 当前进度
 
-- 文档阶段产物：`AGENTS.md` + `docs/` 下 **10** 份规格文档 + [技术基调确认_v0.1.md](docs/技术基调确认_v0.1.md)（P0 收敛官方记录）。
-- 已收敛：**P0-1 / P0-2 / P0-3**（技术栈 Tauri + Rust + TS、渲染 PixiJS、数据形态网格+矢量+二进制分块）。
-- MVP 任务定义：`.trae/specs/map-editor-mvp/`（spec + checklist + tasks）。
-- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。
+- 文档阶段产物：`AGENTS.md` + `docs/` 下 **10** 份规格文档 + [技术基调确认_v0.1.md](docs/技术基调确认_v0.1.md)（P0 收敛官方记录,2026-10-09 反转一次）。
+- 已收敛：**P0-1 / P0-2 / P0-3**（技术栈 **Godot 4.7.2 mono + C#**，渲染 **Godot 内置 2D**，数据形态网格+矢量+二进制分块）；Tauri + TS + PixiJS 路线已作废。
+- MVP 任务定义：`.trae/specs/map-editor-mvp/`（spec + checklist + tasks；含 MVP / Task / Checklist,任务清单须按新栈重写 C# / Godot 节点对应项）。
+- 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1）。
+- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`）；② 清理 §6.1 列出的旧栈骨架；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度。
 
 ## 7. 改动检查清单
 
