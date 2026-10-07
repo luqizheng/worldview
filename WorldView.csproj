@@ -1,7 +1,9 @@
-<Project Sdk="Godot.NET.Sdk/4.7.2">
+<Project>
+  <Sdk Name="Godot.NET.Sdk" Version="4.7.2" />
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>WorldView</RootNamespace>
     <AssemblyName>WorldView</AssemblyName>
@@ -9,15 +11,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!--
+      Godot.NET.Sdk 4.7.2 默认会把仓库内所有 *.cs 都纳入编译（含 tests/ 与 obj/、bin/）。
+      本工程只编译 scripts/ 下源码；tests/ 由独立 csproj 编译。
+      obj/bin 是构建产物,绝不能让主项目纳入。
+    -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
-  <!-- WorldView 主项目只编译 scripts/ 下的代码；tests/ 由独立 csproj 编译 -->
   <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
+    <Compile Include="scripts/**/*.cs" />
   </ItemGroup>
 
 </Project>

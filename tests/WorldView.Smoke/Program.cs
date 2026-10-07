@@ -448,7 +448,8 @@ internal static class Program
             }
             Directory.CreateDirectory(tmpRoot);
 
-            ProjectSaver.Save(tmpRoot, world, loaded.Maps);
+            // 必传 layers：Saver 才会写出 layers/* 文件，roundtrip 后 reload 才找得到图层
+            ProjectSaver.Save(tmpRoot, world, loaded.Maps, loaded.Layers);
 
             True(File.Exists(Path.Combine(tmpRoot, "project.yaml")), "临时目录未生成 project.yaml");
             True(File.Exists(Path.Combine(tmpRoot, "maps", "world", "world_kael.yaml")), "未生成 maps/world/world_kael.yaml");
@@ -465,6 +466,12 @@ internal static class Program
             Eq(new GridCoord(20, 30), reloaded.Maps[1].Buildings[0].At, "reloaded house At");
             Eq(new GridCoord(32, 32), reloaded.Maps[1].Buildings[1].At, "reloaded tower At");
             Eq("示例世界", reloaded.World.Name, "reloaded.World.Name");
+            // D7 死角修复：layers 与 cells 都得 roundtrip 找回
+            Eq(loaded.Layers.Count, reloaded.Layers.Count, "reloaded.Layers.Count（Saver 必须写出 layers/*.yaml）");
+            // PROBE: 调试 roundtrip cells 为何 0
+            Console.WriteLine($"  PROBE world TerrainData null? {reloaded.Maps[0].TerrainData is null}");
+            Console.WriteLine($"  PROBE world cells={reloaded.Maps[0].TerrainData?.Cells?.Count} ref='{reloaded.Maps[0].TerrainData?.CellsRef}'");
+            Eq(21, reloaded.Maps[0].TerrainData!.Cells.Count, "reloaded world terrain cells（Saver 必须写出 *.terrain.yaml）");
         });
 
         // ---- 观测项：不影响通过/失败，只输出客观事实 ----
@@ -480,12 +487,19 @@ internal static class Program
             loaded.Validation.Errors.Count == 0
                 ? "(无错误)"
                 : string.Join(", ", loaded.Validation.Errors.GroupBy(e => e.Code).Select(g => $"{g.Key}×{g.Count()}")));
-        Observe("B-obs.7 保存后重载得到的 LayerDoc 数（ProjectSaver 不写 layers/）", () =>
+        Observe("B-obs.7 roundtrip 后 LayerDoc 数（Saver 写 layers/，Loader 能 reload 找回）", () =>
         {
             if (!Directory.Exists(tmpRoot)) return "临时目录不存在";
             var r = ProjectLoader.Load(tmpRoot);
             var refs = r.Maps.Sum(m => m.Layers?.Count ?? 0);
             return $"map 的 layer refs 共 {refs} 个，实际加载到 {r.Layers.Count} 个 LayerDoc";
+        });
+        Observe("B-obs.7.1 roundtrip 临时目录 layers/ 文件清单", () =>
+        {
+            if (!Directory.Exists(tmpRoot)) return "临时目录不存在";
+            var layersDir = Path.Combine(tmpRoot, "layers");
+            if (!Directory.Exists(layersDir)) return "layers/ 目录未生成";
+            return string.Join(", ", Directory.GetFiles(layersDir, "*.yaml").Select(Path.GetFileName)!);
         });
         Observe("B-obs.8 样例根下 ProjectLoader 解析出的 layer ref 绝对路径首项", () =>
             Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.Combine(SampleRoot, "maps", "world", "world_kael.yaml"))!, "../layers/terrain.yaml")));

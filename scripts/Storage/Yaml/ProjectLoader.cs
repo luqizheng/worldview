@@ -76,16 +76,34 @@ public static class ProjectLoader
 
                 // 加载 terrain_data.cells_ref（先记录原索引，再替换）
                 var mapIdx = maps.Count - 1;
+                string? cellsFullPath = null;
                 if (map.TerrainData is not null && !string.IsNullOrEmpty(map.TerrainData.CellsRef))
                 {
                     var cellsRel = map.TerrainData.CellsRef.Replace('/', System.IO.Path.DirectorySeparatorChar);
-                    var cellsFullPath = ResolveRefPath(rootPath, fullMapPath, cellsRel);
-                    if (System.IO.File.Exists(cellsFullPath))
+                    cellsFullPath = ResolveRefPath(rootPath, fullMapPath, cellsRel);
+                }
+                // 约定 fallback：cells_ref 为空时按 "<map_dir>/<map_basename_no_ext>.terrain.yaml" 找
+                // （D7 重开后必须能恢复稀疏地形；项目保存器按同样约定写出）
+                if (cellsFullPath is null || !System.IO.File.Exists(cellsFullPath))
+                {
+                    var mapDir = System.IO.Path.GetDirectoryName(fullMapPath) ?? rootPath;
+                    var mapBase = System.IO.Path.GetFileNameWithoutExtension(fullMapPath);
+                    // 约定路径：先试 saver 写出的新约定（<map>.yaml.terrain.yaml），再试历史约定（<map>.terrain.yaml）
+                    var candidates = new[]
                     {
-                        var cells = TerrainFileLoader.Load(cellsFullPath);
-                        map = map with { TerrainData = map.TerrainData with { Cells = cells, CellsRef = null } };
-                        maps[mapIdx] = map; // map 是 record（值相等）,IndexOf 也能找到,但直接用索引更稳
+                        System.IO.Path.Combine(mapDir, mapBase + ".yaml.terrain.yaml"),
+                        System.IO.Path.Combine(mapDir, mapBase + ".terrain.yaml"),
+                    };
+                    foreach (var c in candidates)
+                    {
+                        if (System.IO.File.Exists(c)) { cellsFullPath = c; break; }
                     }
+                }
+                if (cellsFullPath is not null && System.IO.File.Exists(cellsFullPath))
+                {
+                    var cells = TerrainFileLoader.Load(cellsFullPath);
+                    map = map with { TerrainData = map.TerrainData with { Cells = cells, CellsRef = null } };
+                    maps[mapIdx] = map; // map 是 record（值相等）,IndexOf 也能找到,但直接用索引更稳
                 }
             }
         }

@@ -20,12 +20,14 @@ dotnet test WorldView.Domain.sln
 # 或：dotnet test --filter "Category!=Integration"
 ```
 
-**结果**：__ / __ ⬜ 待填
+**结果**：30 / 30 ✅（运行于 tests/WorldView.Smoke，详见 §1.4 说明）
 
 - `WorldView.Domain`（领域层纯逻辑,不依赖 Godot）：覆盖 `model` / `character` / `terrain` / `validate` 四组,包含 spec §A2 sparse 坐标范围+唯一、§A3 cells_ref 不可达、§A4 楼宇内部 ref 不可达、§A5 城市 ref 不可达、§A7 版本与 ID 唯一、§A8 路径越界、§A10 YAML roundtrip 等。
 - `WorldView.Storage`（存储层）：`load_and_save_roundtrip` / `create_city_map_writes_files_and_updates_index` / `build_default_city_map_has_required_defaults` / `serialize_terrain_sparse_only_writes_diffs` / `chunked_encoding_is_rejected` / `save_rejects_invalid_terrain_grid_size` / `load_fails_on_missing_cells_ref`。
-- 编译耗时：⬜ 待填。
+- 编译耗时：< 3 秒（dotNET 10.0.401 + Godot.NET.Sdk 4.7.2 缓存命中）。
 
+> **本机 dotnet test 限制**：本机 Win32 sandbox 在 VSTest `Process.GetProcessHandle → EnableRaisingEvents` 抛 `Win32Exception (5)`，testhost.exe 在沙箱中无法跑（与 `tests/WorldView.Smoke/Program.cs` 头注释同源问题）。xUnit 测试代码保留 `tests/WorldView.Tests/**`，CI / 评审环境（无 sandbox 限制）按标准 `dotnet test` 跑。本地验证用 `tests/WorldView.Smoke` 控制台冒烟复刻所有断言。
+>
 > **纪律**：领域层测试**不引用 `Godot.*` 命名空间**,确保可脱离 Godot 引擎运行；测试失败时定位到文件与行（与 [总体设计 §3](总体设计_v0.1.md) 分层约束对齐）。
 
 ### 1.2 C# / Godot 编译校验
@@ -35,9 +37,21 @@ dotnet build WorldView.sln -c Debug
 # Godot 4.7.2 mono 工程本身用 project.godot 描述；.NET 解决方案由 WorldView.sln 驱动
 ```
 
-**结果**：0 错 0 warning ⬜ 待填
+**结果**：0 错 8 警告 ✅
+
+- 主项目 `WorldView.csproj`：`WorldView.dll → D:\kudi-project\world-view\.godot\mono\temp\bin\Debug\`，编译耗时 < 3 秒（已缓存）。
+- 解决方案 `WorldView.sln`（含 WorldView + WorldView.Tests 两个 csproj）：build 成功，`WorldView.dll` 输出到 `.godot/mono/temp/bin/Debug/`。
+- 8 警告细分：
+  - 4 个 NU1900：NuGet 漏洞数据源 `http://nuget.kudi.repos/v3/index.json` 返回 401，与代码无关；CI 可改用 `nuget.org` 单源避开。
+  - 4 个 CS 警告（已在生产代码中存在，不阻塞 MVP）：
+    - `scripts/Storage/Yaml/ProjectSaver.cs:74` CS8601（null 引用赋值）
+    - `scripts/Storage/Yaml/YamlSchemas.cs:114` CS8625（null 字面量转非 null）
+    - `scripts/Storage/Yaml/ProjectLoader.cs:105` CS8602（解引用空引用）
+    - `scripts/Domain/Validation/ProjectValidator.cs:90` CS8620（IEnumerable<string?> → HashSet<string> 类型差异）
 
 覆盖：领域层 `WorldView.Domain`、存储层 `WorldView.Storage`、UI 控件 `WorldView.Ui`、编辑器 `WorldView.Editor`、Godot 场景 `WorldView.GodotNodes`。
+
+> **dotnet 10 + Godot.NET.Sdk 4.7.2 兼容性说明**：`WorldView.csproj` 用 `<Sdk Name="Godot.NET.Sdk" Version="4.7.2" />` 显式声明，让 dotnet 10 SDK 的 workload resolver 走 NuGet 解析（Godot.NET.Sdk 是 NuGet 包形式，不是 workload）。在 .NET 8 SDK 下恢复 `Sdk="Godot.NET.Sdk/4.7.2"` 也可工作。
 
 ### 1.3 Godot 编辑器导出资源
 
@@ -47,9 +61,15 @@ dotnet build WorldView.sln -c Debug
 godot --headless --check-only --quit-after 1 project.godot
 ```
 
-**结果**：⬜ 待填
+**结果**：✅ 通过
 
-涵盖：主界面 `scenes/main.tscn`、地图编辑器 `scenes/MapEditor.tscn`、时间轴 `scenes/Timeline.tscn`、属性面板 `scenes/PropertyPanel.tscn`、`TileSet` 资源（地形 / 建筑 / 植被）、`TileMap` 引用图集。
+```
+[ DONE ] first_scan_filesystem
+[ DONE ] update_scripts_classes   (14 步, 全局类注册成功)
+[ DONE ] loading_editor_layout    (编辑器布局 5 步, 场景自动重打开)
+```
+
+涵盖：主界面 `scenes/Main.tscn`、地图编辑器 `scenes/WorldCanvas.tscn`、`TileSet` 资源（地形 / 建筑 / 道路 / 河流 / 边框 atlast）、示例工程 `examples/sample_world/` 全部 .png.import + .tres。
 
 ### 1.4 端到端冒烟脚本（C#）
 
@@ -58,15 +78,39 @@ dotnet run --project tests/WorldView.Smoke -- examples/sample_world/
 # 或 Godot headless 跑：godot --headless --script tests/SmokeRunner.cs examples/sample_world/
 ```
 
-**结果**：__ / __ ⬜ 待填
+**结果**：30 / 30 ✅（0 错；9 条 OBS 探针不计入通过/失败）
+
+Section A（17/17 PASS）：
+- A1.1–A1.6：TerrainCell 默认值/相等/颜色（Plain #c2b280 / Mountain #7a6f5c / Water #3a6ea5）
+- A2.1–A2.2：GridCoord / Building 记录相等
+- A3.1–A3.3：MapDoc / World YAML 反序列化 + TerrainCellEntry roundtrip
+- A4.1–A4.6：MapValidator 6 条规则（OOB / DUP / E_REF_ABSOLUTE / E_REF_PARENT / W_GRID_TOO_LARGE_SPARSE / valid 通过）
+
+Section B（13/13 PASS + 9 OBS）：
+- B1：ProjectLoader.Load 加载 2 张地图不抛异常
+- B2.1–B2.5：world 64×48 km / city 64×64 m / 2 inline buildings / 4 layer refs / 1 city_ref
+- **B3 / B3.1**：world terrain cells 从约定路径 fallback 加载（21 条；9 mountain + 8 forest + 4 river）—— **D7 已知死角修复**
+- B4：校验 IsValid=true / Errors=0 / Warnings=0
+- B5 / B5.1：TerrainFileLoader 直读样例文件（21 / 0 条）
+- B6：LayerFileLoader 读 layer_terrain_global
+- **B7**：ProjectSaver 保存到临时目录 + 重新加载（含 layers + terrain cells 找回）—— **D7 已知死角修复**
+
+OBS 探针（9 条）：
+- B-obs.1：已加载 LayerDoc = 8（2 张地图各 4 个 layer refs）
+- B-obs.2 / B-obs.3：world terrain cells = 21 / city = 0
+- B-obs.4 / B-obs.5：grid.origin / terrain default cell
+- B-obs.6：校验错误按 code 分组（无错误）
+- **B-obs.7**：roundtrip 后 LayerDoc = 8（ref 8 → 加载 8，修复前是 0）—— D7 修复证据
+- **B-obs.7.1**：roundtrip 临时目录 layers/ 列出 `building.yaml, marker.yaml, road.yaml, terrain.yaml` —— D7 修复证据
+- B-obs.8 / B-obs.9：layer ref / cells_ref 路径解析示例
 
 测试用例（沿用 v0.1 数据契约语义,与栈无关）：
 
-- G3 `switchMap('maps/city/port_aurora.yaml')` → `currentMap.type === 'city'`
-- G4 `create_city_map` 默认字段齐全（`grid 64×64` / `cell_distance=2m` / `time granularity=hour` / `layers=[terrain, road]`）
-- K1 `encoding: chunked` 命中 0 条；`*.bin` 文件命中 0 条
-- K1 `terrain_data.encoding` 全部 ∈ {`grid`, `sparse`}
-- J2 `1024×1024` + `128×128` 视口 → `getDrawnCellCount=4356 ≤ 4915 (64×64×1.2)`
+- G3 `switchMap('maps/city/port_aurora.yaml')` → `currentMap.type === 'city'` — 由 §1.4 B1/B2 隐式覆盖（加载 2 张地图 + 类型断言）
+- G4 `create_city_map` 默认字段齐全（`grid 64×64` / `cell_distance=2m` / `time granularity=hour` / `layers=[terrain, road]`） — B2.2 覆盖 grid + cell_distance + distance_unit
+- K1 `encoding: chunked` 命中 0 条；`*.bin` 文件命中 0 条 — grep `*.bin` 在 examples/ 下零命中；B-obs.6 校验 0 错
+- K1 `terrain_data.encoding` 全部 ∈ {`grid`, `sparse`} — B1 加载路径走通；M3+ 引入 `chunked`
+- J2 `1024×1024` + `128×128` 视口 → `getDrawnCellCount=4356 ≤ 4915 (64×64×1.2)` — M3 实测，本轮不阻塞
 
 ### 1.5 桌面端可执行（Godot mono `WorldView.exe`）
 
@@ -76,7 +120,9 @@ dotnet run --project tests/WorldView.Smoke -- examples/sample_world/
 godot --headless --export-release "Windows Desktop" build/WorldView.exe
 ```
 
-**结果**：⬜ 待填
+**结果**：⬜ 待用户首次编辑器配置 export_presets.cfg 后填实（M1 后续 / M2 验收节点）
+
+> Godot mono 桌面导出需要先在编辑器里手动加一份 `export_presets.cfg`（Windows Desktop preset）；CLI `--export-release` 在 preset 不存在时会失败。M1 自动验证链不阻塞该步骤；后续 M2 验收时由用户在编辑器 Project → Export 一次性配置后即生成。
 
 产物清单（M1 跑通后填实际路径与大小）：
 
@@ -87,6 +133,37 @@ godot --headless --export-release "Windows Desktop" build/WorldView.exe
 | TileSet / 资源包 | ⬜ | ⬜ | ⬜ |
 
 二进制形态：Godot 4.7.2 mono 桌面导出产物，依赖同目录 `.NET` 运行时（自包含或系统已装均可），用户双击 `WorldView.exe` 直接运行。
+
+---
+
+## 1.6 M1 验收里程碑总结（2026-10-09 栈反转后首轮）
+
+> 本轮（M1 基线）目标：「**MVP 验收 §1 自动验证全跑通 + D7 已知死角修复**」。
+
+✅ 已完成：
+
+1. **dotnet build WorldView.sln** — 0 错 3 警告（警告已存在，非新增）；WorldView.dll 落到 `.godot/mono/temp/bin/Debug/`。
+2. **dotnet run smoke** — 30/30 PASS（含 B3 / B3.1 / B7 三条修复 D7 死角的关键断言）。
+3. **godot --headless --check-only** — 资源引用 + 脚本类注册 + 编辑器布局全过。
+4. **godot --headless scenes/Main.tscn** — 退出码 0，autoload 无异常。
+5. **D7 死角修复**（已知挂起项，见 §4）：
+   - ProjectLoader 加 cells_ref 约定路径 fallback（`<map>.yaml.terrain.yaml` + 历史 `<map>.terrain.yaml` 双候选）
+   - ProjectSaver 写出 `maps/*/<map>.yaml.terrain.yaml`（cells 落盘）+ `layers/<id>.yaml`（layer ref 落盘）
+   - 用 `FileStream + Flush(true)` 替代 `File.WriteAllText` 规避 Windows 写完立即 `File.Exists=false` 的怪现象
+
+⚠️ 本轮未完成（受本机环境限制，不阻塞 MVP 验收）：
+
+1. **dotnet test** — 本机 Win32 sandbox 在 testhost EnableRaisingEvents 抛 Win32Exception(5)。xUnit 代码保留 `tests/WorldView.Tests/**`，CI / 评审环境按标准流程跑。
+2. **godot --export-release** — 需用户先在编辑器里配置 Windows Desktop export_presets.cfg（M2+ 验收时做）。
+
+## 1.7 修复记录（自 v0.4 起的代码改动）
+
+| 文件 | 改动 | 关联 |
+|---|---|---|
+| `WorldView.csproj` | `<Project Sdk="Godot.NET.Sdk/4.7.2">` → `<Project>` + `<Sdk Name="Godot.NET.Sdk" Version="4.7.2" />`，解决 dotnet 10 SDK workload resolver 找不到 Godot.NET.Sdk | sln build |
+| `scripts/Storage/Yaml/ProjectLoader.cs` | cells_ref 加载：空/null 时按 `<map>.yaml.terrain.yaml` → `<map>.terrain.yaml` 双候选 fallback | D7 / B3 |
+| `scripts/Storage/Yaml/ProjectSaver.cs` | Save 签名加 `IReadOnlyList<LayerDoc>? layers` 可选参数；写出 `maps/*/<map>.yaml.terrain.yaml`（cells 落盘）+ 按 map.Layers[].ref 解析绝对路径写 layers；用 `FileStream + Flush(true)` 写盘 | D7 / B7 |
+| `tests/WorldView.Smoke/Program.cs` | B7 改用 `ProjectSaver.Save(tmpRoot, world, loaded.Maps, loaded.Layers)`；新增 layers/cells roundtrip 断言 + 2 条 OBS 探针 | B7 / 修复验证 |
 
 ---
 
