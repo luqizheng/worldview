@@ -92,22 +92,173 @@ godot --headless --export-release "Windows Desktop" build/WorldView.exe
 
 ## 2. 手动验收 demo（D1–D8，spec §7）
 
-> **运行环境**：本节描述用户本机在 M1 跑通后的验收脚本与预期现象；启动方式以 Godot mono 工程为准。
+> **运行环境**：Godot 4.7.2 mono + C# + Godot 内置 2D 工程本目录。
 >
-> **两种启动方式**：
-> - 方式 A（直接跑 demo 二进制）：双击 `build/WorldView.exe`（M1 落地后填实际路径）。
-> - 方式 B（带 dev-tools）：`godot --path . scenes/main.tscn`，编辑器 inspector / remote tree 可开。
+> **启动方式**：
+> - 方式 A（编辑器 F5，推荐验收用，能开 RemoteTree）：`C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --editor`，编辑器内按 F5 启动 Main.tscn。F5 触发 [scripts/Editor/EditorController.cs](scripts/Editor/EditorController.cs) 的 `TryAutoloadSampleProject()` 自动加载 `examples/sample_world/`。
+> - 方式 B（直接跑 demo 二进制）：`C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path .`，首次运行若画布空白按顶栏「打开工程…」按钮选 `examples/sample_world/` 目录。
+>
+> **核心约束**：
+> - 窗口尺寸建议 ≥ 1280×720（小窗口会被 SubViewport 自动适配）。
+> - 鼠标进入画布才会触发 MouseCellLabel 更新。
+> - 验收时把 RemoteTree（Godot 4 调试面板）打开便于核对节点树与状态。
 
-| # | demo | 验收条件 | 自动化 / 用户状态 |
-|---|---|---|---|
-| D1 | 启动 + 打开示例工程 + 世界地图渲染 | 64×48 网格 + 山地 / 河流 / 森林色块 + 极光港标记（`Node2D` 树 + `TileMap` 渲染） | ⬜ 待用户验收 |
-| D2 | 滚轮缩放 / 拖拽 / F / G | 视口响应正确，坐标显示随指针更新 | ⬜ 待用户验收 |
-| D3 | 圆形笔刷 + mountain + 拖拽 | 山地刷出色阶（`CanvasItem` 脏区重绘） | ⬜ 待用户验收 |
-| D4 | Ctrl+Z / Ctrl+Y | 山地区域恢复 / 重画（命令栈 C# 实现） | ⬜ 待用户验收 |
-| D5 | 点击极光港 → 城市卡 → 进入编辑 | 切到城市地图，面包屑更新（`anchor` 跨图跳转） | ⬜ 待用户验收 |
-| D6 | 选建筑类型 + 拖拽 + 属性对话框 | `building_refs` 追加条目（`Sprite2D` + 吸附） | ⬜ 待用户验收 |
-| D7 | 关闭 + 重开同一目录 | 修改保留（sparse 编码写出正确） | ⬜ 待用户验收 |
-| D8 | 删 `port_aurora.yaml` → 保存 | 校验器报错，写盘取消，错误对话框列出 `map_ref 不可达` | ⬜ 待用户验收 |
+### D1 — 启动 + 打开示例工程 + 世界地图渲染
+
+**操作**：
+1. 方式 A 编辑器 F5 / 方式 B `Godot --path .`。
+2. 等待 ≤ 1 秒（autoload）。
+
+**期望**：
+- 主窗口分四区：TopBar（打开工程…/保存(Ctrl+S)/撤销/重做/面包屑）+ 中部三栏（ToolPanel/画布/RightColumn）+ StatusBar。
+- 顶栏面包屑：`艾瑟兰大陆 / 极光港`（如果只显示"未加载工程"，说明 autoload 失败；点「打开工程…」手动选 `examples/sample_world/`）。
+- 画布中央一张整张艾瑟兰大陆（64×48 浅米色 #c2b280 平地），上面：
+  - 中央山脉（[22..24, 10..12]，深褐色 #7a6f5c，9 格）
+  - 北方针叶林（[5..7, 4..5]，8 格）
+  - 南方密林（[44..45, 24..25]）
+  - 永风洋水系（[8..11, 30]，蓝色 #3a6ea5，4 格）
+  - **红色圆环 marker** 在画布正中（32, 24 像素坐标）
+- 状态栏：「校验通过 (0 警告)」「鼠标 (--, --)」。
+
+**代码路径**：[ProjectLoader.Load](scripts/Storage/Yaml/ProjectLoader.cs) → [EditorContext.LoadProject](scripts/Editor/EditorContext.cs) → [WorldCanvas.RebuildAll](scripts/Render/WorldCanvas.cs) → 4 个 Layer 子节点 `Configure(TileSet, 32)` + `CenterCameraOnMap()`（地图居中 + 自动 zoom）。
+
+**已知死角**：默认 cell 不写 TileMapLayer（spec §3.5 perf discipline），所以未覆盖的区域显示透明背景（暗灰 #212129）。BuildingLayer 仅在城市地图绘制，D1 看不见。
+
+---
+
+### D2 — 滚轮缩放 / 中键拖拽
+
+**操作**：
+1. 在 D1 状态下，鼠标移到画布。
+2. **滚轮**滚动 → 画布缩放（向上放大、向下缩小）。
+3. **中键按住拖动** → 画布平移。
+
+**期望**：
+- 滚轮：`Zoom *= 1.15` 或 `/=1.15`，clamp 到 [0.15, 8]，状态栏 MouseCellLabel 实时显示当前格子坐标 `(x, y)`。
+- 中键拖动：`Camera2D.Position -= motion.Relative / zoom`，画布跟随。
+- 鼠标移动 → 状态栏底部 `MouseCellLabel` 实时刷新坐标。
+
+**代码路径**：[WorldCanvas._UnhandledInput](scripts/Render/WorldCanvas.cs)（wheel + middle button）→ Camera2D.Zoom / Position。
+
+**已知死角**：F / G 快捷键（相机自适应、相机居中）**未实现**。需要相机居中可手动中键拖或滚轮缩放。
+
+---
+
+### D3 — 圆形笔刷 + mountain + 拖拽
+
+**操作**：
+1. 按 **B** 进入笔刷模式（或点 ToolPanel「笔刷(B)」按钮）。
+2. ToolPanel `TerrainBtnContainer` 选 `Mountain`。
+3. `BrushRoundBtn` 选圆形 / `BrushRadiusSlider` 调到 2-3。
+4. 在画布上**按住左键拖拽**。
+
+**期望**：
+- 拖过区域从浅米色变为深褐色 mountain 色。
+- **100ms throttle**（[BrushController.ThrottleMs=100](scripts/Editing/BrushController.cs)），快速拖拽时部分格子不立刻上色。
+- Toolbar 顶栏 undo/redo 按钮变为可用态。
+
+**代码路径**：WorldCanvas._UnhandledInput left press → `_brush.TryStamp()` → [ApplyBrushCommand.Apply](scripts/Editing/ApplyBrushCommand.cs) → EditorContext.SetTerrainCells → emit MapChanged。
+
+**已知死角**：
+- BuildingLayer 不刷新（MVP 范围外）。
+- 撤销栈不立即清零（应保持到 Ctrl+Z / Ctrl+Y）。
+
+---
+
+### D4 — Ctrl+Z / Ctrl+Y
+
+**操作**：
+1. D3 拖完一笔后按 **Ctrl+Z**。
+2. 再按 **Ctrl+Y**。
+
+**期望**：
+- Ctrl+Z：mountain 区域恢复成浅米色。
+- Ctrl+Y：mountain 重新出现。
+- UndoStack 容量 200，每次笔刷笔触是一条命令。
+- 撤销语义：「恢复该笔触之前的所有格子原貌」（ApplyBrushCommand 第一次 Apply 时快照 `_before`，Revert 时按原始 terrain 类型分组写回）。
+
+**代码路径**：WorldCanvas._UnhandledInput Ctrl+Z → UndoStack.Undo → IEditorCommand.Revert → EditorContext.SetTerrainCells → emit MapChanged。
+
+**已知死角**：Ctrl+Y 不重画 BuildingLayer / MarkerLayer。
+
+---
+
+### D5 — 双击极光港 marker → 进入城市地图
+
+**操作**：
+1. 在 D1 状态下（先按 Esc 切回世界地图）。
+2. 滚轮缩放到 1.0 倍以上（marker hitRadius=14 px，必须能点中）。
+3. 在画布上**双击红色 marker 圆环**（视口坐标 32, 24）。
+4. 双击 → 切换城市地图。城市画布操作同上。
+
+**期望**：
+- WorldCanvas 收到 `DoubleClick` + Tool=Selected → `TryDrillToCity`。
+- `_marker.HitTest(localPos)` 返回 true → `FindCity("city_kael")` → `ResolveMapIdByRef("maps/city/city_kael.yaml")` → `EditorContext.DrillTo("map_city_kael")`。
+- 画布切换：grid 从 64×48 km → 64×64 m；breadcrumb `艾瑟兰大陆 / 极光港`。
+- 城市画布上**两个建筑矩形**（house @[20,30] 深灰、tower @[32,32] 深红）。
+- **Esc** 键返回世界地图（WorldCanvas._UnhandledInput Esc → `DrillBack`）。
+
+**代码路径**：[MarkerLayer.HitTest](scripts/Render/MarkerLayer.cs) → WorldCanvas.TryDrillToCity → EditorContext.DrillTo → SetActiveMap → MapChanged signal → WorldCanvas.RebuildAll。
+
+**已知死角**：
+- 没有"城市卡"中间预览层（spec §10 提到过）。
+- hitRadius 固定 14 px，缩放到 0.15x 时可能点不中。
+- 切换后视图位置继承世界地图相机（不自动居中到城市中心）。
+
+---
+
+### D6 — 选建筑类型 + 拖拽
+
+**操作**：
+1. 在城市地图下（D5 状态）。
+2. 按 **P** 进入建筑放置工具（EditorController V/B/P 键）。
+3. ToolPanel `BuildingBtnContainer` 选 `Tower`。
+4. 在城市画布**按住左键拖拽**。
+
+**期望**：
+- 每个落点位置画一个深红矩形。
+- 同 D3 100ms throttle。
+
+**代码路径**：WorldCanvas._UnhandledInput left press + Tool=Building → [BuildingPlaceController.TryPlace](scripts/Editing/BuildingPlaceController.cs) → [PlaceBuildingCommand](scripts/Editing/PlaceBuildingCommand.cs) → EditorContext.AddBuilding。
+
+**已知死角**：
+- 没有"属性对话框"（InspectorPanel 显示地图级 buildings 数，不显示单个建筑）。
+- 建筑师 ID 是 deterministic：`b_{mapId}_{x}_{y}` — 同一格再放会覆盖（同一 ID），不是新增。建议切到 Plain 地形再放。
+- 放置前不检查该格子是否在已有建筑上，可以堆叠多建筑在一格。
+
+---
+
+### D7 — 关闭 + 重开同一目录
+
+**操作**：
+1. 完成 D3 / D6 后按 **Ctrl+S**（顶栏 SaveBtn 或快捷键）。
+2. 关闭应用。
+3. 重新启动（方式 A F5 / 方式 B）。
+
+**期望**：
+- Ctrl+S 触发 `WorldCanvas._UnhandledInput Ctrl+S` → `EditorContext.SaveProject()` → [ProjectSaver.Save](scripts/Storage/Yaml/ProjectSaver.cs) → 写 `project.yaml` + `maps/world/world_kael.yaml` + `maps/city/city_kael.yaml`。
+- 关闭 + 重开后 autoload 重新读，看到刚才刷的地形 + 放置的建筑。
+
+**代码路径**：同 D1 + ProjectSaver 序列化。
+
+**已知死角（待修）**：
+- terrain cells **不会被回写到 map yaml**，但 cells_ref 文件 (`world_kael.terrain.yaml`) 也 **没被回写**。所以 D3 刷的山头在 D7 重开后**会丢失**。这是真 bug。
+
+---
+
+### D8 — 校验失败阻止保存
+
+**操作**：
+1. 手动删除 `examples/sample_world/maps/city/port_aurora.yaml`（deprecation stub）或编辑 `maps/world/world_kael.yaml` 把 layer ref 改为绝对路径 `D:/xxx`。
+2. 画布上做任意编辑后按 Ctrl+S。
+
+**期望**：
+- 校验器报 `E_REF_PARENT` 或 `E_REF_ABSOLUTE` + 写盘取消 + 错误对话框列出错误。
+
+**代码路径**：`ProjectLoader.Load` 时 `MapValidator.Validate` 已经触发 `E_REF_PARENT`（因为 `port_aurora.yaml` 不存在）。
+
+**已知死角（待修）**：
+- `EditorContext.SaveProject` 当前**不检查 Validation.Errors.Count**，D8 的"写盘取消"行为缺失，需要加 guard。
 
 ---
 

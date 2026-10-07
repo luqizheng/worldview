@@ -1,28 +1,28 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://dj5d55wiuin6s"]
 
-[ext_resource type="Script" path="res://scripts/Render/WorldCanvas.cs" id="1_worldcanvas"]
-[ext_resource type="Script" path="res://scripts/Render/TerrainLayer.cs" id="2_terrainlayer"]
-[ext_resource type="Script" path="res://scripts/Render/RoadLayer.cs" id="3_roadlayer"]
-[ext_resource type="Script" path="res://scripts/Render/BuildingLayer.cs" id="4_buildinglayer"]
-[ext_resource type="Script" path="res://scripts/Render/GridOverlay.cs" id="5_gridoverlay"]
-[ext_resource type="Script" path="res://scripts/Render/MarkerLayer.cs" id="6_markerlayer"]
+[ext_resource type="Script" uid="uid://3j71n7w2sjh2" path="res://scripts/Render/WorldCanvas.cs" id="1_worldcanvas"]
+[ext_resource type="Script" uid="uid://dnfyoa51ec3vb" path="res://scripts/Render/TerrainLayer.cs" id="2_terrainlayer"]
+[ext_resource type="Script" uid="uid://jxpmyadpxm33" path="res://scripts/Render/RoadLayer.cs" id="3_roadlayer"]
+[ext_resource type="Script" uid="uid://cm4qi7jb4l40" path="res://scripts/Render/BuildingLayer.cs" id="4_buildinglayer"]
+[ext_resource type="Script" uid="uid://bi7ooxoueosdo" path="res://scripts/Render/GridOverlay.cs" id="5_gridoverlay"]
+[ext_resource type="Script" uid="uid://brabufggg4mkt" path="res://scripts/Render/MarkerLayer.cs" id="6_markerlayer"]
 
-[node name="WorldCanvas" type="Node2D"]
+[node name="WorldCanvas" type="Node2D" unique_id=2145757013]
 script = ExtResource("1_worldcanvas")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1014462919]
 
-[node name="TerrainLayer" type="TileMapLayer" parent="."]
+[node name="TerrainLayer" type="TileMapLayer" parent="." unique_id=1948930466]
 script = ExtResource("2_terrainlayer")
 
-[node name="RoadLayer" type="TileMapLayer" parent="."]
+[node name="RoadLayer" type="TileMapLayer" parent="." unique_id=1793910818]
 script = ExtResource("3_roadlayer")
 
-[node name="BuildingLayer" type="Node2D" parent="."]
+[node name="BuildingLayer" type="Node2D" parent="." unique_id=1472551926]
 script = ExtResource("4_buildinglayer")
 
-[node name="GridOverlay" type="Node2D" parent="."]
+[node name="GridOverlay" type="Node2D" parent="." unique_id=357764794]
 script = ExtResource("5_gridoverlay")
 
-[node name="MarkerLayer" type="Node2D" parent="."]
+[node name="MarkerLayer" type="Node2D" parent="." unique_id=843031977]
 script = ExtResource("6_markerlayer")
