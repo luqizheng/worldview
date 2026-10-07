@@ -323,7 +323,12 @@ public partial class EditorController : Control
 
     // ------------------------------------------------------------------ 槽
 
-    private void OnOpenPressed() => _fileDialog?.PopupCenteredRatio(0.5f);
+    private void OnOpenPressed()
+    {
+        if (_fileDialog is null) return;
+        // 固定在主窗口左上角内嵌位置，避免遮挡画布
+        _fileDialog.Popup(new Rect2I(8, 8, 720, 480));
+    }
     private void OnSavePressed() => _context?.SaveProject();
     private void OnUndoPressed() => _context?.UndoStack?.Undo();
     private void OnRedoPressed() => _context?.UndoStack?.Redo();
