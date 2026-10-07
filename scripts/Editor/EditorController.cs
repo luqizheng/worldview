@@ -86,6 +86,10 @@ public partial class EditorController : Control
         {
             _context.LoadProject(sampleRoot);
         }
+        else
+        {
+            _context.NotifyHint($"未找到 {sampleRoot}，请点击「打开工程…」选择工程根目录（含 project.yaml）。");
+        }
     }
 
     /// <summary>
@@ -164,6 +168,7 @@ public partial class EditorController : Control
             FileMode = FileDialog.FileModeEnum.OpenDir,
             Title = "选择工程根目录（含 project.yaml）",
             Size = new Vector2I(720, 480),
+            CurrentDir = EditorContext.ResolvePath("res://examples"),
         };
         _fileDialog.DirSelected += path => _context?.LoadProject(path);
         AddChild(_fileDialog);
@@ -318,7 +323,7 @@ public partial class EditorController : Control
 
     // ------------------------------------------------------------------ 槽
 
-    private void OnOpenPressed() => _fileDialog?.PopupCentered();
+    private void OnOpenPressed() => _fileDialog?.PopupCenteredRatio(0.5f);
     private void OnSavePressed() => _context?.SaveProject();
     private void OnUndoPressed() => _context?.UndoStack?.Undo();
     private void OnRedoPressed() => _context?.UndoStack?.Redo();

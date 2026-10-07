@@ -15,14 +15,6 @@ config/description="World building tool — geographic × time × people × even
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
-[debug]
-
-settings/stdout/print_fps=false
-
 [dotnet]
 
 project/assembly_name="WorldView"
-
-[rendering]
-
-renderer/rendering_method="forward_plus"

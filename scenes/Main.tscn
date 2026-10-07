@@ -8,6 +8,7 @@
 [sub_resource type="ButtonGroup" id="2_bg_brush"]
 
 [node name="Main" type="Control"]
+script = ExtResource("1_ctrl")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -105,7 +106,20 @@ text = "建筑类型"
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 
+[node name="CanvasBackground" type="ColorRect" parent="Root/MiddleRow/CanvasArea"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.13, 0.13, 0.16, 1)
+
 [node name="WorldCanvas" parent="Root/MiddleRow/CanvasArea" instance=ExtResource("2_worldcanvas")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="RightColumn" type="VBoxContainer" parent="Root/MiddleRow"]
 custom_minimum_size = Vector2(240, 0)
