@@ -120,6 +120,9 @@ public partial class WorldCanvas : Node2D
             _markerLayer.Rebuild(map);
         }
 
+        // 加载地图后：让 Camera2D 居中到地图中心，并把当前 viewport 缩放到「整张地图刚好填满可见区」
+        CenterCameraOnMap(map);
+
         ApplyLayerVisibility();
         _brush.Reset();
         _lastPaintCell = new Vector2I(int.MinValue, int.MinValue);
@@ -422,5 +425,27 @@ public partial class WorldCanvas : Node2D
 
         var zoom = Mathf.Clamp(_camera.Zoom.X * factor, MinZoom, MaxZoom);
         _camera.Zoom = new Vector2(zoom, zoom);
+    }
+
+    /// <summary>
+    /// 把 Camera2D 居中到地图中心，并按当前 viewport 尺寸缩放，
+    /// 使整张地图刚好填满画布（保留少量边距）。
+    /// </summary>
+    private void CenterCameraOnMap(MapDoc map)
+    {
+        if (_camera is null) return;
+        var cellPixels = (float)TerrainTileSetFactory.TilePixels;
+        var mapSizePx = new Vector2(map.Grid.Width * cellPixels, map.Grid.Height * cellPixels);
+        _camera.Position = mapSizePx / 2f;
+        _camera.MakeCurrent();
+
+        // 按 viewport 尺寸选择缩放比，使整张地图可见
+        var viewport = GetViewportRect();
+        if (viewport.Size.X <= 0 || viewport.Size.Y <= 0) return;
+        var zX = (viewport.Size.X * 0.9f) / mapSizePx.X;
+        var zY = (viewport.Size.Y * 0.9f) / mapSizePx.Y;
+        var z = Mathf.Min(zX, zY);
+        z = Mathf.Clamp(z, MinZoom, MaxZoom);
+        _camera.Zoom = new Vector2(z, z);
     }
 }
