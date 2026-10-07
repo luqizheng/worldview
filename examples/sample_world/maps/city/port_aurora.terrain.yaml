@@ -1,0 +1,9 @@
+# 极光港城市地形（sparse 编码，默认全平原）
+# MVP 阶段：空白城市，无任何非默认单元。
+
+encoding: sparse
+default:
+  type: plain
+  move_cost: 1
+  buildable: true
+cells: []

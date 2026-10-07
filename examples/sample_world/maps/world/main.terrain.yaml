@@ -1,0 +1,9373 @@
+# 艾瑟兰大陆世界地形（grid 编码，行优先 (row, col)）
+# 由 _tools/gen_world_terrain.ts 自动生成；分布：
+#   mountain: 矩形 (x:20..30, y:10..20) 共 121 格
+#   river:    横向折线 (x:10..54, y=40..39) 共 47 格
+#   forest:   散点 (x:5..15, y:30..38) ∪ (x:45..55, y:5..12) 共 50 格
+#   其余 plain 共 2854 格
+encoding: grid
+default:
+  type: plain
+  move_cost: 1
+  buildable: true
+cells:
+  # row 0
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 1
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 2
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 3
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 4
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 5
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 6
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 7
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 8
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 9
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 10
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 11
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 12
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 13
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 14
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 15
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 16
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 17
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 18
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 19
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 20
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: mountain
+    move_cost: 4
+    buildable: false
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 21
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 22
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 23
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 24
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 25
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 26
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 27
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 28
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 29
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 30
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 31
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 32
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 33
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 34
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 35
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 36
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 37
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 38
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: forest
+    move_cost: 2
+    buildable: true
+    resources: [timber]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 39
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 40
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: river
+    move_cost: -1
+    buildable: false
+    resources: [freshwater]
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 41
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 42
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 43
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 44
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 45
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 46
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  # row 47
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true
+  - type: plain
+    move_cost: 1
+    buildable: true

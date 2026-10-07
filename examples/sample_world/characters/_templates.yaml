@@ -1,0 +1,27 @@
+# 人物属性模板（数据契约样例，非 UI 数据）
+# MVP 阶段：本文件不加载到 UI store；仅 `world-view-core` 单测验证模板字段语义。
+# 字段定义见 `docs/事件与人物登记规格_v0.1.md` §2。
+
+version: "0.1"
+templates:
+  - id: tpl_hp
+    name: 生命值
+    description: 人物 HP 上下限 / 恢复速率
+    schema:
+      type: object
+      properties:
+        current:
+          type: integer
+          minimum: 0
+        max:
+          type: integer
+          minimum: 1
+        regen_per_day:
+          type: integer
+          minimum: 0
+      required: [current, max]
+    defaults:
+      current: 100
+      max: 100
+      regen_per_day: 1
+    applies_to: [character, npc, party_member]

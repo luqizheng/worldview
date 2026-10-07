@@ -1,0 +1,36 @@
+# 示例工程：艾瑟兰大陆
+# MVP 阶段开箱即用：`pnpm tauri dev` 启动后「打开示例工程」选本目录即可加载。
+# 顶层字段定义以 `docs/数据模型规格_v0.1.md` §1 为唯一真源。
+
+project_version: "0.1"
+name: 示例世界
+description: World View MVP 示例工程 — 艾瑟兰大陆 + 极光港
+author: World View 示例
+default_time:
+  year: 1042
+  month: 3
+  day: 12
+era:
+  name: 创世历
+  start_year: 1
+  months_per_year: 12
+  days_per_month: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  hours_per_day: 24
+  minutes_per_hour: 60
+  seconds_per_minute: 60
+  leap:
+    every: 4
+    month: 2
+    add_days: 1
+
+map_index:
+  - maps/world/main.yaml
+  - maps/city/port_aurora.yaml
+
+# MVP 阶段 character_index 仅作数据契约样例，前端 UI 不加载（M5 落地）。
+character_index:
+  - characters/lin_yu.yaml
+
+settings:
+  autosave: false
+  backup_keep: 5

@@ -1,0 +1,42 @@
+# 林语（示例人物 — 数据契约样例，非 UI 数据）
+# MVP 阶段：本文件不加载到 UI store；仅 `world-view-core` 单测验证 Character YAML 解析 + residence.map_ref 跨文件引用。
+# 字段定义见 `docs/事件与人物登记规格_v0.1.md` §2 + `docs/数据模型规格_v0.1.md` §6。
+
+id: char_lin_yu
+name: 林语
+gender: female
+race: human
+age: 27
+faction: fac_merchant_league
+residence:
+  map_ref: maps/city/port_aurora.yaml
+  building_ref: null
+  note: |
+    居所：极光港南区渔市坊第 12 号院落（建筑引用将在 M4 阶段房屋数据上线后填入）。
+
+attributes:
+  - template: tpl_hp
+    current: 100
+    max: 100
+    regen_per_day: 1
+  - name: 魅力
+    value: 78
+    note: 商人之女，待人亲和。
+
+relationships:
+  - target: char_unknown
+    kind: 朋友
+    note: 占位（无 UI 节点）
+    # 注意：relationships 在 MVP 阶段作为数据契约样例保留，UI 不渲染关系网（M5 落地）。
+
+faction_memberships:
+  - faction: fac_merchant_league
+    rank: 商人学徒
+    since:
+      year: 1035
+      month: 6
+      day: 1
+
+notes: |
+  数据契约样例 — 此人物仅用于演示 character 模块字段定义与跨文件引用，
+  MVP 阶段 UI 不加载（M5 完整人物登记系统）。

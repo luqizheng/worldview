@@ -5,11 +5,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod character;
 pub mod error;
 pub mod model;
 pub mod terrain;
 pub mod validate;
 
+pub use character::{Character, CharacterTemplate, CharacterTemplates, Residence};
 pub use error::{CoreError, CoreResult};
 pub use model::{Layer, Map, Project};
 pub use terrain::{TerrainCell, TerrainGrid, TerrainType};
