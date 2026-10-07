@@ -1,9 +1,6 @@
-# 极光港城市地形（sparse 编码，默认全平原）
-# MVP 阶段：空白城市，无任何非默认单元。
-
-encoding: sparse
-default:
-  type: plain
-  move_cost: 1
-  buildable: true
-cells: []
+# 已废弃（DEPRECATED）
+#
+# 原文件名：maps/city/port_aurora.terrain.yaml → 已重命名为 maps/city/city_kael.terrain.yaml
+# 内容（sparse，全平原）相同；新文件见 maps/city/city_kael.terrain.yaml。
+# 本文件保留仅为 git 历史完整性参考。
+# 清理时机：可在 M1 验收通过后由 m1-cleanup-manifest.md 的用户批准流程移除。

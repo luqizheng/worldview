@@ -1,0 +1,141 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Editor/EditorController.cs" id="1_ctrl"]
+[ext_resource type="PackedScene" path="res://scenes/WorldCanvas.tscn" id="2_worldcanvas"]
+
+[sub_resource type="ButtonGroup" id="1_bg_tools"]
+
+[sub_resource type="ButtonGroup" id="2_bg_brush"]
+
+[node name="Main" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Root" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="TopBar" type="HBoxContainer" parent="Root"]
+custom_minimum_size = Vector2(0, 32)
+
+[node name="OpenBtn" type="Button" parent="Root/TopBar"]
+text = "打开工程…"
+
+[node name="SaveBtn" type="Button" parent="Root/TopBar"]
+text = "保存 (Ctrl+S)"
+
+[node name="BreadcrumbLabel" type="Label" parent="Root/TopBar"]
+size_flags_horizontal = 3
+text = "未加载工程"
+vertical_alignment = 1
+
+[node name="UndoBtn" type="Button" parent="Root/TopBar"]
+text = "撤销 (Ctrl+Z)"
+
+[node name="RedoBtn" type="Button" parent="Root/TopBar"]
+text = "重做 (Ctrl+Y)"
+
+[node name="MiddleRow" type="HBoxContainer" parent="Root"]
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 0
+
+[node name="ToolPanel" type="VBoxContainer" parent="Root/MiddleRow"]
+custom_minimum_size = Vector2(180, 0)
+theme_override_constants/separation = 4
+
+[node name="ToolPanelHeader" type="Label" parent="Root/MiddleRow/ToolPanel"]
+text = "工具"
+
+[node name="SelectToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel"]
+toggle_mode = true
+button_group = SubResource("1_bg_tools")
+text = "选择 (V)"
+
+[node name="BrushToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel"]
+toggle_mode = true
+button_group = SubResource("1_bg_tools")
+text = "笔刷 (B)"
+
+[node name="BuildingToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel"]
+toggle_mode = true
+button_group = SubResource("1_bg_tools")
+text = "建筑 (P)"
+
+[node name="BrushShapeHeader" type="Label" parent="Root/MiddleRow/ToolPanel"]
+text = "笔刷形状"
+
+[node name="BrushRoundBtn" type="Button" parent="Root/MiddleRow/ToolPanel"]
+toggle_mode = true
+button_group = SubResource("2_bg_brush")
+text = "圆形"
+
+[node name="BrushSquareBtn" type="Button" parent="Root/MiddleRow/ToolPanel"]
+toggle_mode = true
+button_group = SubResource("2_bg_brush")
+text = "方形"
+
+[node name="BrushRadiusLabel" type="Label" parent="Root/MiddleRow/ToolPanel"]
+text = "笔刷半径"
+
+[node name="BrushRadiusSlider" type="HSlider" parent="Root/MiddleRow/ToolPanel"]
+min_value = 1.0
+max_value = 10.0
+step = 1.0
+value = 2.0
+
+[node name="TerrainHeader" type="Label" parent="Root/MiddleRow/ToolPanel"]
+text = "地形"
+
+[node name="TerrainBtnContainer" type="VBoxContainer" parent="Root/MiddleRow/ToolPanel"]
+
+[node name="BuildingHeader" type="Label" parent="Root/MiddleRow/ToolPanel"]
+text = "建筑类型"
+
+[node name="BuildingBtnContainer" type="VBoxContainer" parent="Root/MiddleRow/ToolPanel"]
+
+[node name="CanvasArea" type="Control" parent="Root/MiddleRow"]
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="WorldCanvas" parent="Root/MiddleRow/CanvasArea" instance=ExtResource("2_worldcanvas")]
+
+[node name="RightColumn" type="VBoxContainer" parent="Root/MiddleRow"]
+custom_minimum_size = Vector2(240, 0)
+theme_override_constants/separation = 4
+
+[node name="InspectorHeader" type="Label" parent="Root/MiddleRow/RightColumn"]
+text = "检视器"
+
+[node name="InspectorBody" type="VBoxContainer" parent="Root/MiddleRow/RightColumn"]
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="LayerHeader" type="Label" parent="Root/MiddleRow/RightColumn"]
+text = "图层"
+
+[node name="LayerList" type="VBoxContainer" parent="Root/MiddleRow/RightColumn"]
+custom_minimum_size = Vector2(0, 160)
+
+[node name="StatusBar" type="HBoxContainer" parent="Root"]
+custom_minimum_size = Vector2(0, 24)
+
+[node name="StatusHintLabel" type="Label" parent="Root/StatusBar"]
+size_flags_horizontal = 3
+text = "就绪"
+
+[node name="MouseCellLabel" type="Label" parent="Root/StatusBar"]
+text = "(-, -)"
+
+[node name="SelectionLabel" type="Label" parent="Root/StatusBar"]
+text = "未选中"
+
+[node name="ValidationLabel" type="Label" parent="Root/StatusBar"]
+text = ""

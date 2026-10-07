@@ -37,10 +37,12 @@
 
 - `examples/sample_world/project.yaml`(工程根)。
 - `examples/sample_world/README.md`(说明示例用途 + 文件清单)。
-- `examples/sample_world/maps/world_kael.yaml`(1 张世界地图,`grid 64×64`,含 1 个城市标记)。
-- `examples/sample_world/maps/city_kael.yaml`(1 张城市地图,`grid 64×64`,含 2 个建筑占位)。
-- `examples/sample_world/layers/terrain.yaml` + `road.yaml` + `building.yaml` + `marker.yaml`(4 类图层)。
-- **DoD**:D8 校验成功(所有字段合法);手动启动 Godot 5 秒内可加载。
+- `examples/sample_world/maps/world/world_kael.yaml`(1 张世界地图,`grid 64×48`,含 1 个城市标记)。
+- `examples/sample_world/maps/world/world_kael.terrain.yaml`(world 地形,sparse 编码,演示用 21 cells)。
+- `examples/sample_world/maps/city/city_kael.yaml`(1 张城市地图,`grid 64×64`,含 2 个建筑占位)。
+- `examples/sample_world/maps/city/city_kael.terrain.yaml`(city 地形,sparse,全平原)。
+- `examples/sample_world/layers/terrain.yaml` + `road.yaml` + `building.yaml` + `marker.yaml`(4 类图层,各自 `id` / `type` / `z_order`)。
+- **DoD**:D8 校验成功(所有字段合法;spec.md §2.2 字段对照表 100% 一致);手动启动 Godot 5 秒内可加载;checklist.md B1-B7 全 ✅。
 
 ---
 

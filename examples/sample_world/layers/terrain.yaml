@@ -1,0 +1,14 @@
+# 基础地形图层定义（工程内全局图层）
+# 字段定义见 `docs/数据模型规格_v0.1.md` §4 + `docs/图层系统规格_v0.1.md`。
+# MVP 字段：id / name / type / visible / opacity / z_order / locked。
+
+id: layer_terrain_global
+name: 基础地形
+type: terrain
+visible: true
+opacity: 1.0
+z_order: 0
+locked: false
+
+# MVP 默认渲染参数（M3+ 后由 Render/TerrainPalette 与 TileSet 提供）
+default_style: flat

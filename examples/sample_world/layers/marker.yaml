@@ -1,0 +1,13 @@
+# 标记图层定义（工程内全局图层）
+# 字段定义见 `docs/数据模型规格_v0.1.md` §4 + `docs/图层系统规格_v0.1.md`。
+# MVP 字段：id / name / type / visible / opacity / z_order / locked。
+
+id: layer_marker_global
+name: 标记
+type: marker
+visible: true
+opacity: 1.0
+z_order: 30
+locked: false
+
+default_style: ring

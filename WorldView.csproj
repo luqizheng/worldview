@@ -1,4 +1,4 @@
-<Project Sdk="Godot.NET.Sdk/4.7.0">
+<Project Sdk="Godot.NET.Sdk/4.7.2">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -13,6 +13,11 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <!-- WorldView 主项目只编译 scripts/ 下的代码；tests/ 由独立 csproj 编译 -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
   </ItemGroup>
 
 </Project>

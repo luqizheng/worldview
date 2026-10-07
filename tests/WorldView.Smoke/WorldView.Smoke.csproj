@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    独立控制台冒烟运行器（刻意不加入 WorldView.sln，不引入 xUnit / test SDK）。
+    原因：本机 VSTest 不可用（Win32Exception(5) 拒绝访问，见 Program.cs 头注释）。
+
+    关于源码引入方式 —— 没有使用 <ProjectReference Include="..\..\WorldView.csproj" />：
+    该引用会把 scripts/Render/**、scripts/Editor/**、scripts/Editing/** 一并编译，
+    而 scripts/Render/RoadLayer.cs:37 与 scripts/Render/TerrainLayer.cs:55 当前存在编译错误
+    （Godot.Collections.Array<Vector2I> 没有 Length 属性），会直接阻断本运行器。
+    那两处属 Godot 渲染层，不在 Domain/Storage 冒烟范围内，且本任务要求不得改动 scripts/。
+    因此改为直接引入 Godot-free 的两棵源码树，仍然编译**真实的生产源码**。
+    约束遵守情况：scripts/Domain/** 与 scripts/Storage/** 均无 using Godot。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WorldView.Smoke</RootNamespace>
+    <AssemblyName>WorldView.Smoke</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\scripts\Domain\**\*.cs" LinkBase="Domain" />
+    <Compile Include="..\..\scripts\Storage\**\*.cs" LinkBase="Storage" />
+  </ItemGroup>
+
+</Project>

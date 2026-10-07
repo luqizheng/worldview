@@ -62,63 +62,125 @@
 
 ---
 
-## 2. 数据契约(精简引用)
+## 2. 数据契约(MVP 投影)
 
-完整字段定义见 `docs/存储与目录规范_v0.1.md` 与 `docs/地图类型规格_v0.1.md`。本节只列 MVP 关心的子集。
+> **MVP 投影说明**：本节是 `docs/数据模型规格_v0.1.md` 与 `docs/存储与目录规范_v0.1.md` 的 MVP 投影。
+> 字段定义 / 枚举 / 引用规则的唯一真源是《数据模型规格》§2;本节只说明 MVP 关心的字段范围与默认值,以及 MVP 暂时不实现的字段(按规格默认值或不写入 YAML)。
+> 字段对照见 §2.7 末尾的「字段对照表」。
+>
+> 引用规则:`ref` = 相对工程根(`project.yaml` 所在目录)的路径;`id` = 稳定 ID;两者**不可混用**;`ref` 中不得含 `..`,不得为绝对路径。
 
 ### 2.1 Project(工程)
 
 ```yaml
 project:
+  project_version: "0.1"  # 必填
   name: string            # 必填,非空
-  view_mode: "2d"         # 必填,字面量 "2d"
-  default_unit: "m"       # 必填,字面量 "m"
-  maps:
+  default_time:
+    year: int             # 必填
+    month: int            # 可选(1..months_per_year)
+    day: int              # 可选(1..days_per_month[month-1])
+  era:
+    name: string
+    start_year: int
+    months_per_year: int
+    days_per_month: [int, ...]
+    hours_per_day: int
+    minutes_per_hour: int
+    seconds_per_minute: int
+    leap: { every: int, month: int, add_days: int }
+  map_index:
     - ref: maps/<file>.yaml
+  character_index:        # MVP 仅作数据契约样例,前端 UI 不加载
+    - ref: characters/<file>.yaml
+  assets:
+    textures:
+      tiles:
+        manifest: assets/textures/tiles/index.yaml
+  settings:
+    autosave: bool
+    backup_keep: int
 ```
-
-引用规则:`ref` = 相对工程根(`project.yaml` 所在目录)的路径;`id` = 稳定 ID;两者**不可混用**;`ref` 中不得含 `..`,不得为绝对路径。
 
 ### 2.2 Map(地图)
 
 ```yaml
 map:
-  id: string              # 必填,工程内唯一
-  name: string            # 必填,非空
-  type: "world" | "city"  # 必填
-  encoding: "grid" | "sparse"   # 必填
-  grid: { cols: int, rows: int }   # encoding="grid" 时必填
-  cell_distance: number   # 必填,> 0
-  distance_unit: "m"      # 必填,字面量 "m"
-  base_unit: "m"          # 必填,字面量 "m"
-  time:
-    default_granularity: "hour"  # 必填
-    min_granularity: "hour"      # 必填
-  presentation:
-    theme: "parchment"    # 必填
-  layers:
-    - ref: ../layers/<file>.yaml
-  cities:                 # type="world" 时可选
-    - ref: ../maps/<city>.yaml
-  terrain_data:
-    encoding: "grid" | "sparse"   # 必填
-    default: { type: "plain", move_cost: 1, buildable: true }  # 必填
-    cells:                 # encoding="grid" 时必填
-      - at: [x, y]
-        type: <terrain_type>
+  id: string                # 必填,工程内唯一(稳定 ID,跨文件引用用此)
+  name: string              # 必填,非空
+  type: "world" | "city"    # 必填;MVP 仅支持 world / city(region/street/building/underground 见 M3+)
+  parent_map: { id: string }  # 可选;MVP 默认为 null(根级地图)
+
+  grid:                     # 必填
+    width: int              # 必填,> 0
+    height: int             # 必填,> 0
+    cell_distance: number   # 必填,> 0
+    distance_unit: "m"      # 必填,字面量 "m"
+    base_unit: "m"          # 必填,字面量 "m"
+    height_unit: "m"        # 必填,字面量 "m"
+    origin: { x: 0, y: 0 }  # 可选
+    show: true              # 可选
+    snap: true              # 可选
+    scale_label: string     # 可选
+
+  time:                     # 必填
+    default_granularity: "hour"   # 必填(world=month/day; city=hour/hour; building=minute/minute; 见数据模型规格 §2.3)
+    min_granularity: "hour"       # 必填
+    display_format: string       # 可选
+    inherit_calendar: true        # 可选
+    allow_fuzzy: true             # 可选
+
+  presentation:             # 可选
+    default_mode: "edit"
+    view_mode: "2d"          # MVP 唯一字面量
+    theme: "parchment"
+    show_scale_bar: true
+    show_coordinates: true
+    show_minimap: false
+
+  layers:                   # 必填,至少 1 项
+    - ref: ../layers/<file>.yaml   # 跨文件引用必须用 ref
+
+  city_refs:                # type="world" 时可选(MVP 至少 1 项以验证 D5)
+    - id: string            # 工程内唯一,与目标城市地图 id 一致
+      name: string
+      x: int                # 世界地图网格坐标
+      y: int
+      entry: { x: int, y: int }  # 进入城市地图时的初始焦点(城市坐标)
+      map_ref: ../maps/<city>.yaml
+      population: int
+      faction: string
+      notes: string
+
+  building_refs: []         # MVP 不使用(建筑走 inline,见 §2.5)
+
+  terrain_data:             # 必填
+    encoding: "sparse"      # MVP 仅支持 sparse(grid 不引二进制分块;chunked 见 N04,推迟 M5)
+    default:                # 必填
+      type: "plain"
+      move_cost: 1
+      buildable: true
+    cells_ref: ../maps/<...>.terrain.yaml  # 可选;外部地形文件(sparse)
+    cells: []               # 内联地形单元(sparse 编码);MVP 通常为空,数据走 cells_ref
 ```
 
-MVP 默认参数:**世界地图 / 城市地图** 均使用 `grid 64×64`,`cell_distance = 2 m`,`presentation.theme = parchment`,`layers = [terrain, road]`,`terrain_data.encoding = sparse`,`default = {type: plain}`。
+MVP 默认参数:**世界地图** `grid 64×48 / cell_distance = 10 km`,**城市地图** `grid 64×64 / cell_distance = 2 m`,二者 `presentation.theme = parchment`,`layers = [terrain, road, building, marker]`(4 类,见 R-SAMPLE-02),`terrain_data.encoding = sparse`,`default = {type: plain, move_cost: 1, buildable: true}`。
 
 ### 2.3 Layer(图层)
 
+> Layer 文件以独立 YAML 形式存放在 `layers/<kind>.yaml`,字段定义见 `docs/数据模型规格_v0.1.md` §4 + `docs/图层系统规格_v0.1.md`。
+> Map 通过 `layers: - ref: ../layers/<file>.yaml` 引用;不允许在 Map 内 inline。
+
 ```yaml
 layer:
-  id: string              # 必填
-  name: string            # 必填
-  kind: "terrain" | "road" | "building" | "marker"   # 必填
+  id: string              # 必填,工程内唯一
+  name: string            # 必填,非空
+  type: "terrain" | "road" | "building" | "marker"   # 必填(MVP 4 类)
   visible: bool           # 必填
   opacity: number         # 必填,0..1
+  z_order: int            # 必填,MVP 推荐 0(terrain) / 10(road) / 20(building) / 30(marker)
+  locked: bool            # 可选,MVP 默认 false
+  default_style: "flat" | "line" | "solid" | "ring"   # 可选,MVP 默认值随 type 变化
 ```
 
 MVP 关心:`terrain` / `road` / `building` / `marker` 四类;面板只切显隐,不切不透明度。
@@ -145,46 +207,98 @@ MVP 支持 11 种:
 
 ### 2.5 Building(建筑,MVP 占位)
 
+> **MVP 投影**：建筑以 **inline 列表** 登记在城市地图 YAML 内(`buildings: [...]` 字段)。
+> 数据模型规格 §2 定义的 `building_refs`(跨文件 ref 到独立 `buildings/<id>.yaml`)推迟到 M5 落地。
+> MVP 字段:`id`(8 字符 UUID 短串)/ `type` / `at` / `map_id`。
+
 ```yaml
 building:
-  id: string              # 必填,工程内唯一
-  type: "house" | "tower" | "wall_gate"   # 必填
-  at: [x, y]              # 必填,城市地图坐标
-  map_id: string          # 必填,引用父地图 id
+  id: string              # 必填,工程内唯一(8 字符 UUID 短串;R-BUILD-03 自动生成)
+  type: "house" | "tower" | "wall_gate"   # 必填;MVP 仅 3 种占位
+  at: [x, y]              # 必填,城市地图网格坐标(0 ≤ x,y < grid.width/height)
+  map_id: string          # 必填,引用父城市地图 id
 ```
 
-MVP 只放 3 种占位建筑;`at` 是城市地图坐标(米),非世界地图坐标。
+MVP 只放 3 种占位建筑;`at` 是城市地图**网格坐标**,非世界地图坐标,也非米。
 
 ### 2.6 YAML 示例(城市地图)
 
 ```yaml
-map:
-  id: "city_kael"
-  name: "Kael"
-  type: "city"
-  encoding: "grid"
-  grid: { cols: 64, rows: 64 }
+# 极光港(city_kael)MVP 示例
+# 字段定义见 `docs/数据模型规格_v0.1.md` §2;MVP 投影见本规范 §2.2。
+id: map_city_kael
+name: 极光港
+type: city
+
+grid:
+  width: 64
+  height: 64
   cell_distance: 2
-  distance_unit: "m"
-  base_unit: "m"
-  time:
-    default_granularity: "hour"
-    min_granularity: "hour"
-  presentation:
-    theme: "parchment"
-  layers:
-    - ref: "../layers/terrain.yaml"
-    - ref: "../layers/road.yaml"
-  terrain_data:
-    encoding: "sparse"
-    default: { type: "plain", move_cost: 1, buildable: true }
-    cells: []
-  buildings:
-    - id: "b1"
-      type: "house"
-      at: [10, 10]
-      map_id: "city_kael"
+  distance_unit: m
+  base_unit: m
+  height_unit: m
+  origin: { x: 0, y: 0 }
+  show: true
+  snap: true
+  scale_label: "1 格 = 2 m"
+
+time:
+  default_granularity: hour
+  min_granularity: hour
+  display_format: "YYYY-MM-DD HH:mm"
+  inherit_calendar: true
+  allow_fuzzy: true
+
+presentation:
+  default_mode: edit
+  view_mode: 2d
+  theme: parchment
+  show_scale_bar: true
+  show_coordinates: true
+  show_minimap: false
+
+terrain_data:
+  encoding: sparse
+  default:
+    type: plain
+    move_cost: 1
+    buildable: true
+  cells_ref: maps/city/city_kael.terrain.yaml
+  cells: []
+
+# 4 类图层(参见 R-SAMPLE-02):terrain / road / building / marker
+layers:
+  - ref: ../layers/terrain.yaml
+  - ref: ../layers/road.yaml
+  - ref: ../layers/building.yaml
+  - ref: ../layers/marker.yaml
+
+city_refs: []
+
+# MVP 投影:建筑以 inline 列表登记(数据模型规格 §2 的 building_refs 推迟 M5)。
+buildings:
+  - id: b_kael_house_01
+    type: house
+    at: [20, 30]
+    map_id: map_city_kael
+  - id: b_kael_tower_01
+    type: tower
+    at: [32, 32]
+    map_id: map_city_kael
 ```
+
+### 2.7 字段对照表(spec.md §2.2 ↔ 数据模型规格 §2)
+
+| spec.md §2.2 字段 | 数据模型规格 §2 字段 | 说明 |
+|---|---|---|
+| `id` / `name` / `type` | `id` / `name` / `type` | 完全一致 |
+| `grid.{width,height,cell_distance,distance_unit,base_unit,height_unit,origin,show,snap,scale_label}` | `grid.{width,height,cell_distance,distance_unit,base_unit,height_unit,origin,show,snap,scale_label}` | 完全一致 |
+| `time.{default_granularity,min_granularity,display_format,inherit_calendar,allow_fuzzy}` | `time.{default_granularity,min_granularity,...}` | 完全一致 |
+| `terrain_data.encoding: "sparse"` | `terrain_data.encoding: "sparse"\|"grid"\|"chunked"` | MVP 仅取 sparse |
+| `city_refs` | `city_refs`(id / name / x / y / entry / map_ref / population / faction / notes) | 完全一致 |
+| `layers: - ref: ../layers/<file>.yaml` | `layers: - ref: layers/<file>.yaml`(数据模型规格 §4 描述) | 引用规则一致,ref 相对工程根 |
+| `buildings: - id / type / at / map_id`(inline) | `building_refs: - ref: buildings/<id>.yaml` | **MVP 投影**:inline vs M5+ 外键 |
+| — | `parent_map` / `anchor` / `extent` / `markers` / `height_data` / `timeline_sync` | **MVP 不实现**:按规格默认值或不写入 YAML |
 
 ---
 
@@ -222,8 +336,9 @@ map:
 
 ### 3.6 城市下钻
 
-- **AC 双击进入**(R-T-ZOOM-01):在城市地图标记上双击后,场景切到对应城市地图,`breadcrumbs` 增加一项「世界 / <城市名>」,顶栏面包屑可见。
+- **AC 双击进入**(R-T-ZOOM-01):在**世界地图**的 marker 图层(或 `city_refs` 数据驱动的标记)上双击后,场景切到对应城市地图,`breadcrumbs` 增加一项「世界 / <城市名>」,顶栏面包屑可见。
 - **AC 返回上一级**(R-T-ZOOM-02):点击面包屑中的「世界」或按 `Esc`,场景回到上一级地图(只回退一级,不直接回根)。
+- **AC 最深层反馈**(R-T-ZOOM-03):当前地图已是最深层时双击 marker = 状态栏提示「已在最深层」,不弹错误对话框(参见 checklist.md G6)。
 
 ### 3.7 建筑放置
 

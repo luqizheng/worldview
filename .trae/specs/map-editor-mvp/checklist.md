@@ -12,8 +12,8 @@
 - [ ] **A2 Godot 编辑器可打开工程**:Godot 4.7.2 → "Import" → 选 `project.godot` → 无「Project version mismatch」警告。
 - [ ] **A3 dotnet build 成功**:`dotnet build WorldView.sln` 退出码 0,无 warning(允许 IDE0005 文件级抑制)。
 - [ ] **A4 dotnet test 跑过**:`dotnet test WorldView.sln` 退出码 0(领域层 + 坐标单元测试)。
-- [ ] **A5 Domain 层无 Godot 依赖**:`grep -rn "using Godot" scripts/Domain/ scripts/Storage/ scripts/Editing/Editing/*.cs scripts/Domain/Editing/*.cs 2>&1` 无输出。
-  - *例外*:`scripts/Editing/BrushController.cs` 因需 `Time.GetTicksMsec()` 允许 `using Godot;`。
+- [ ] **A5 Domain 层无 Godot 依赖**:`grep -rn "using Godot" scripts/Domain/ scripts/Storage/ scripts/Editing/` 无输出(`scripts/Editing/BrushController.cs` 因需 `Time.GetTicksMsec()` 是唯一例外)。
+  - *说明*:旧版本包含 `scripts/Editing/Editing/*.cs` 与 `scripts/Domain/Editing/*.cs` 两个**不存在的路径**(spec.md §6.1 仓库布局未列),已删除避免假阳性通过。
 - [ ] **A6 YamlDotNet 16.3.0 引用正确**:`WorldView.csproj` 中 `PackageReference YamlDotNet` 版本 = `16.3.0`,`dotnet restore` 成功。
 
 ---
@@ -23,10 +23,11 @@
 - [ ] **B1 project.yaml 存在**:文件 `examples/sample_world/project.yaml`,YAML 解析通过(无 YamlDotNet 异常)。
 - [ ] **B2 工程可加载**:顶栏「文件 → 打开示例工程」点击后,**≤ 5 秒** 进入主场景(D1 验收)。
 - [ ] **B3 工程字段合法**:`view_mode="2d"`,`default_unit="m"`,`maps:` 至少 1 项。
-- [ ] **B4 至少 1 张世界地图 + 1 张城市地图**:`maps/world_kael.yaml`(type="world",grid 64×64)+ `maps/city_kael.yaml`(type="city",grid 64×64)。
-- [ ] **B5 4 类图层齐全**:`layers/terrain.yaml` / `road.yaml` / `building.yaml` / `marker.yaml`,每张 `kind` 字段对应,`visible=true`。
-- [ ] **B6 城市标记可下钻**:`maps/world_kael.yaml` 中 `cities:` 列表 ≥ 1,`ref` 指向 `maps/city_kael.yaml`。
-- [ ] **B7 至少 2 个建筑占位**:`maps/city_kael.yaml` 中 `buildings:` 列表 ≥ 2,`type ∈ {house, tower, wall_gate}`,`at` 在 `0 ≤ x,y < 64` 内,`map_id="city_kael"`。
+- [ ] **B4 至少 1 张世界地图 + 1 张城市地图**:`maps/world/world_kael.yaml`(type="world",grid 64×48)+ `maps/city/city_kael.yaml`(type="city",grid 64×64)。
+- [ ] **B5 4 类图层齐全**:`layers/terrain.yaml` / `road.yaml` / `building.yaml` / `marker.yaml`,每张 `type` 字段对应,`visible=true`。
+- [ ] **B6 城市标记可下钻**:`maps/world/world_kael.yaml` 中 `city_refs:` 列表 ≥ 1,`map_ref` 指向 `maps/city/city_kael.yaml`。
+- [ ] **B7 至少 2 个建筑占位**:`maps/city/city_kael.yaml` 中 `buildings:` 列表 ≥ 2,`type ∈ {house, tower, wall_gate}`,`at` 在 `0 ≤ x,y < 64` 内,`map_id="map_city_kael"`。
+- [ ] **B8 老文件名清理**:`maps/world/main.yaml` / `main.terrain.yaml` / `maps/city/port_aurora.yaml` / `port_aurora.terrain.yaml` 4 个文件已废弃为 stub(M1 验收通过后由用户批准 m1-cleanup-manifest.md 实际删除)。
 
 ---
 

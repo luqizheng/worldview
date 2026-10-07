@@ -120,7 +120,7 @@ world-view/
 └── .gitignore                # 忽略 .worldview/、autosave/、build artifacts、.godot/、*.csproj.user
 ```
 
-**已撤销的旧栈骨架**（M1 开工前清理）：`src/`（TS + Vite）、`src-tauri/`（Tauri 主进程）、`Cargo.toml`、`Cargo.lock`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`node_modules/`、`dist/`。清理动作**不进 v0.1 文档范围**,在仓库根清单更新任务中处理。
+**已撤销的旧栈骨架**（M1 开工前清理）：`src/`（TS + Vite）、`src-tauri/`（Tauri 主进程）、`Cargo.toml`、`Cargo.lock`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`node_modules/`、`dist/`。清理动作**不进 v0.1 文档范围**,在仓库根清单更新任务中处理。清理清单与执行步骤见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)（待用户批准 A / B / C 选项后执行）。
 
 - **纪律**：
   - 文档与代码**同仓不同目录**；文档改动进 `docs/`，代码改动进 `scripts/` / `scenes/` / `crates/`，不要互窜。
@@ -135,8 +135,77 @@ world-view/
 - 文档阶段产物：`AGENTS.md` + `docs/` 下 **10** 份规格文档 + [技术基调确认_v0.1.md](docs/技术基调确认_v0.1.md)（P0 收敛官方记录,2026-10-09 反转一次）。
 - 已收敛：**P0-1 / P0-2 / P0-3**（技术栈 **Godot 4.7.2 mono + C#**，渲染 **Godot 内置 2D**，数据形态网格+矢量+二进制分块）；Tauri + TS + PixiJS 路线已作废。
 - MVP 任务定义：`.trae/specs/map-editor-mvp/`（spec + checklist + tasks；含 MVP / Task / Checklist,任务清单须按新栈重写 C# / Godot 节点对应项）。
-- 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1）。
-- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`）；② 清理 §6.1 列出的旧栈骨架；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度。
+- 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1，详情见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)）。
+- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`，已完成）；② 清理 §6.1 列出的旧栈骨架（待用户批准清理清单）；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度（已完成 v0.2，待 §6.3 工程模板 ready 后方可启动实现）。
+
+### 6.3 本机外部依赖（agent 调用清单）
+
+> 本节记录本机已安装的外部依赖与 CLI 调用入口，供 AI agent 直接复用，无需每次探测。
+
+#### 6.3.1 Godot 4.7.2 mono
+
+- **安装路径**：`C:\App\Godot_v4.7.2-stable_mono_win64\`
+- **可执行**：`C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe`（Godot 4 起官方 Windows mono 包的可执行名带完整版本字符串；目录内的 `GodotSharp/` 是 .NET 绑定 + GodotSharpEditor.dll，运行时由 exe 自动加载）
+- **版本**：4.7.2-stable.mono（mono 构建，支持 C# / .NET 8）
+- **用途**：`project.godot` 的 F5 运行 / 资源导入 / 导出 / `--headless --check-only` 工程完整性校验 / `--export-release` 打包
+- **CLI 调用模板**（PowerShell，`D:\kudi-project\world-view` 为工程根）：
+
+  ```powershell
+  $GODOT = "C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe"
+  $ROOT  = "D:\kudi-project\world-view"
+
+  # 1. 打开工程（GUI）
+  & $GODOT --path $ROOT
+
+  # 2. 无头校验（CI / agent 自检,验证场景节点与脚本引用正确,不需要显示窗口）
+  & $GODOT --headless --path $ROOT --check-only
+
+  # 3. 直接运行主场景（等价 F5,但需要先编译 C#）
+  & $GODOT --path $ROOT  # 主场景由 project.godot 的 run/main_scene 指定
+
+  # 4. 导出（ExportDebug / ExportRelease 需先用编辑器导出一份 export_presets.cfg）
+  & $GODOT --headless --path $ROOT --export-release "Windows Desktop" "build/WorldView.exe"
+
+  # 5. 版本自检
+  & $GODOT --version   # 应输出 4.7.2-stable.mono
+  ```
+
+- **路径探测规则**：若上列硬编码路径不可用（机器更换 / Godot 升级），优先在 `C:\App\`、`C:\Program Files\Godot\`、`D:\Godot\`、`%LOCALAPPDATA%` 下扫描 `Godot*.exe`，挑版本号 ≥ `4.7.2` 且文件名带 `mono` 的构建。
+- **版本约束**：必须 ≥ 4.7.2 且 mono flavor；**不要**用 `Godot_v4.7.2-stable_win64`（无 C# 支持，运行时所有 C# 脚本会失败）。
+
+#### 6.3.2 .NET SDK 8.0+
+
+- **安装路径**：`C:\Program Files\dotnet\`（默认；如使用 `dotnet --list-sdks` 返回空，需先安装）
+- **用途**：`dotnet build WorldView.sln` / `dotnet test` / `dotnet restore` / `dotnet run --project tests/WorldView.Smoke`
+- **CLI 调用模板**：
+
+  ```powershell
+  $ROOT = "D:\kudi-project\world-view"
+
+  # 1. 构建解决方案（含 C# → .NET 8 → Godot 程序集）
+  dotnet build $ROOT/WorldView.sln -c Debug
+
+  # 2. 跑 xUnit 套件（领域层 + 坐标转换）
+  dotnet test  $ROOT/WorldView.sln -c Debug --no-build
+
+  # 3. 拉取 NuGet 依赖（YamlDotNet 16.3.0 等）
+  dotnet restore $ROOT/WorldView.sln
+  ```
+
+- **版本探测**：`dotnet --list-sdks` 应至少包含 `8.0.x`。若仅有 `8.0.0` 之前的预览版，需升级到 8.0.100+ GA。
+
+#### 6.3.3 NuGet 包依赖
+
+- **YamlDotNet 16.3.0**：由 `WorldView.csproj` 的 `<PackageReference>` 声明，`dotnet restore` 自动拉取，无需手动安装；离线环境下需预先 `dotnet restore` 缓存。
+- **Godot.NET.Sdk 4.7.0**：同上。
+- **不要**在外部安装 yaml / godot 类的系统级工具；所有依赖均通过 NuGet。
+
+#### 6.3.4 Rust 工具链（v0.1 不启用）
+
+- `crates/` 留作可选加速层（M2+ 实测瓶颈再启用）；v0.1 不需要 Rust 工具链可正常工作。
+- 若后续启用，需安装 `rustup` + `cargo`，并把 `src-tauri/` 风格的入口重新接入（详见 [.trae/m1-cleanup-manifest.md §2](.trae/m1-cleanup-manifest.md) 关于 `crates/` 保留的说明）。
+
+> **依赖变更纪律**：任何外部依赖的新增 / 移除 / 版本切换，需在本节更新路径与版本号，并同步 [技术基调确认_v0.1.md §10 §13](docs/技术基调确认_v0.1.md) 变更记录。Godot 主版本升级需经总体设计评审。
 
 ## 7. 改动检查清单
 

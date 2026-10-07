@@ -1,0 +1,10 @@
+# 极光港城市地形（sparse 编码，默认全平原）
+# 父文件：`maps/city/city_kael.yaml`（terrain_data.cells_ref）。
+# MVP 阶段：空白城市，无任何非默认单元；所有 64×64 = 4096 格默认为 plain。
+
+encoding: sparse
+default:
+  type: plain
+  move_cost: 1
+  buildable: true
+cells: []

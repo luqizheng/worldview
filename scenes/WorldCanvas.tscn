@@ -1,0 +1,28 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Render/WorldCanvas.cs" id="1_worldcanvas"]
+[ext_resource type="Script" path="res://scripts/Render/TerrainLayer.cs" id="2_terrainlayer"]
+[ext_resource type="Script" path="res://scripts/Render/RoadLayer.cs" id="3_roadlayer"]
+[ext_resource type="Script" path="res://scripts/Render/BuildingLayer.cs" id="4_buildinglayer"]
+[ext_resource type="Script" path="res://scripts/Render/GridOverlay.cs" id="5_gridoverlay"]
+[ext_resource type="Script" path="res://scripts/Render/MarkerLayer.cs" id="6_markerlayer"]
+
+[node name="WorldCanvas" type="Node2D"]
+script = ExtResource("1_worldcanvas")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="TerrainLayer" type="TileMapLayer" parent="."]
+script = ExtResource("2_terrainlayer")
+
+[node name="RoadLayer" type="TileMapLayer" parent="."]
+script = ExtResource("3_roadlayer")
+
+[node name="BuildingLayer" type="Node2D" parent="."]
+script = ExtResource("4_buildinglayer")
+
+[node name="GridOverlay" type="Node2D" parent="."]
+script = ExtResource("5_gridoverlay")
+
+[node name="MarkerLayer" type="Node2D" parent="."]
+script = ExtResource("6_markerlayer")

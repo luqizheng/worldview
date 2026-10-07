@@ -1,0 +1,42 @@
+# 艾瑟兰大陆世界地形（sparse 编码）
+# 父文件：`maps/world/world_kael.yaml`（terrain_data.cells_ref）。
+# MVP 阶段：仅记录非默认（plain）单元；其余 64×48 - 16 = 3056 格默认为 plain。
+# 数据形态与字段定义见 `docs/数据模型规格_v0.1.md` §3.5 + `docs/存储与目录规范_v0.1.md` §5。
+#
+# 地形分布（演示用）：
+#   mountain: 艾瑟兰中央山脉 (col=22..24, row=10..12) 共 9 格
+#   forest:   北方针叶林带 (col=5..7, row=4..5) + 南方密林 (col=44..45, row=24..25) 共 8 格
+#   river:    永风洋水系（横贯 (col=8..11, row=30)）共 4 格
+#   其余 plain
+
+encoding: sparse
+default:
+  type: plain
+  move_cost: 1
+  buildable: true
+cells:
+  # 中央山脉
+  - { at: [22, 10], type: mountain }
+  - { at: [22, 11], type: mountain }
+  - { at: [22, 12], type: mountain }
+  - { at: [23, 10], type: mountain }
+  - { at: [23, 11], type: mountain }
+  - { at: [23, 12], type: mountain }
+  - { at: [24, 10], type: mountain }
+  - { at: [24, 11], type: mountain }
+  - { at: [24, 12], type: mountain }
+  # 北方针叶林
+  - { at: [5, 4], type: forest }
+  - { at: [5, 5], type: forest }
+  - { at: [6, 4], type: forest }
+  - { at: [6, 5], type: forest }
+  # 南方密林
+  - { at: [44, 24], type: forest }
+  - { at: [44, 25], type: forest }
+  - { at: [45, 24], type: forest }
+  - { at: [45, 25], type: forest }
+  # 永风洋水系
+  - { at: [8, 30], type: river }
+  - { at: [9, 30], type: river }
+  - { at: [10, 30], type: river }
+  - { at: [11, 30], type: river }

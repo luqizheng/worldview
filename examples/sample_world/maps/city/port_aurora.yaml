@@ -1,63 +1,8 @@
-# 极光港（城市地图）
-# MVP 子集：grid 64×64 / cell_distance=2 m / time granularity=hour / layers=[terrain, road]。
-# building_refs 留空；MVP 不做居民生成 / 街道绘制。
-
-id: map_city_port_aurora
-name: 极光港
-type: city
-
-grid:
-  width: 64
-  height: 64
-  cell_distance: 2
-  distance_unit: m
-  base_unit: m
-  height_unit: m
-  origin: { x: 0, y: 0 }
-  show: true
-  snap: true
-  scale_label: "1 格 = 2 m"
-
-time:
-  default_granularity: hour
-  min_granularity: hour
-  display_format: "YYYY-MM-DD HH:mm"
-  inherit_calendar: true
-  allow_fuzzy: true
-
-presentation:
-  default_mode: edit
-  view_mode: 2d
-  theme: parchment
-  show_scale_bar: true
-  show_coordinates: true
-  show_minimap: false
-
-terrain_data:
-  encoding: sparse
-  default:
-    type: plain
-    move_cost: 1
-    buildable: true
-  cells_ref: maps/city/port_aurora.terrain.yaml
-  cells: []
-
-layers:
-  - id: layer_terrain
-    name: 基础地形
-    type: terrain
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 0
-  - id: layer_road
-    name: 道路
-    type: road
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 10
-
-city_refs: []
-
-building_refs: []
+# 已废弃（DEPRECATED）
+#
+# 原文件名：maps/city/port_aurora.yaml → 已重命名为 maps/city/city_kael.yaml
+# 原地形文件：maps/city/port_aurora.terrain.yaml → 已重命名为 maps/city/city_kael.terrain.yaml
+#
+# 本文件保留仅为 git 历史完整性参考；project.yaml 的 map_index 不再引用它。
+# 新内容（含 2 个建筑占位）见 maps/city/city_kael.yaml。
+# 清理时机：可在 M1 验收通过后由 m1-cleanup-manifest.md 的用户批准流程移除。

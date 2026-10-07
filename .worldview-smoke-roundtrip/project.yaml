@@ -1,0 +1,44 @@
+project_version: 0.1
+name: 示例世界
+description: World View MVP 示例工程 — 艾瑟兰大陆 + 极光港
+author: World View 示例
+default_time:
+  year: 1042
+  month: 3
+  day: 12
+era:
+  name: 创世历
+  start_year: 1
+  months_per_year: 12
+  days_per_month:
+  - 31
+  - 28
+  - 31
+  - 30
+  - 31
+  - 30
+  - 31
+  - 31
+  - 30
+  - 31
+  - 30
+  - 31
+  hours_per_day: 24
+  minutes_per_hour: 60
+  seconds_per_minute: 60
+  leap:
+    every: 4
+    month: 2
+    add_days: 1
+map_index:
+- ref: maps/world/world_kael.yaml
+- ref: maps/city/city_kael.yaml
+character_index:
+- ref: characters/lin_yu.yaml
+assets:
+  textures:
+    tiles:
+      manifest: assets/textures/tiles/index.yaml
+settings:
+  autosave: false
+  backup_keep: 5

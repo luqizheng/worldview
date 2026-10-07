@@ -1,74 +1,8 @@
-# 艾瑟兰大陆（世界地图）
-# 字段定义见 `docs/数据模型规格_v0.1.md` §2。
-# MVP 子集：grid / time / presentation / terrain_data / layers / city_refs。
-
-id: map_world_01
-name: 艾瑟兰大陆
-type: world
-
-grid:
-  width: 64
-  height: 48
-  cell_distance: 10
-  distance_unit: km
-  base_unit: m
-  height_unit: m
-  origin: { x: 0, y: 0 }
-  show: true
-  snap: true
-  scale_label: "1 格 = 10 km"
-
-time:
-  default_granularity: month
-  min_granularity: day
-  display_format: "YYYY-MM-DD"
-  inherit_calendar: true
-  allow_fuzzy: true
-
-presentation:
-  default_mode: edit
-  view_mode: 2d
-  theme: parchment
-  show_scale_bar: true
-  show_coordinates: true
-  show_minimap: false
-
-terrain_data:
-  encoding: grid
-  cells_ref: maps/world/main.terrain.yaml
-  default:
-    type: plain
-    move_cost: 1
-    buildable: true
-  cells: []
-
-layers:
-  - id: layer_terrain
-    name: 基础地形
-    type: terrain
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 0
-  - id: layer_road
-    name: 道路
-    type: road
-    visible: true
-    locked: false
-    opacity: 1.0
-    z_order: 10
-
-city_refs:
-  - id: city_port_aurora
-    name: 极光港
-    x: 32
-    y: 24
-    entry: { x: 32, y: 24 }
-    map_ref: maps/city/port_aurora.yaml
-    population: 24000
-    faction: fac_merchant_league
-    notes: |
-      艾瑟兰大陆东南海岸的最大港口；面向永风洋，
-      是创世历 1042 年「断潮夜」事件的发生地。
-
-building_refs: []
+# 已废弃（DEPRECATED）
+#
+# 原文件名：maps/world/main.yaml → 已重命名为 maps/world/world_kael.yaml
+# 原地形文件：maps/world/main.terrain.yaml → 已重命名为 maps/world/world_kael.terrain.yaml
+#
+# 本文件保留仅为 git 历史完整性参考；project.yaml 的 map_index 不再引用它。
+# 如需查看实际内容，请打开 maps/world/world_kael.yaml。
+# 清理时机：可在 M1 验收通过后由 m1-cleanup-manifest.md 的用户批准流程移除。
