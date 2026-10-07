@@ -108,6 +108,23 @@ export function MapCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMapPath, viewport.x, viewport.y, viewport.scale, showGrid]);
 
+  // 切换地图时恢复视口（spec §T17.3 viewportHistory）
+  useEffect(() => {
+    if (!currentMapPath) return;
+    const hist = useDomainStore.getState().viewportHistory.get(currentMapPath);
+    if (hist) {
+      setViewport(hist);
+    }
+    // 切走前：在新地图生效前，把当前视口写到当前地图
+    return () => {
+      const cur = useDomainStore.getState().currentMapPath;
+      if (cur) {
+        useDomainStore.getState().saveViewport(cur, useUiStore.getState().viewport);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMapPath]);
+
   // resize 时应用层跟随
   useEffect(() => {
     const handler = () => {
