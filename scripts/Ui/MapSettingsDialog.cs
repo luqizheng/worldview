@@ -99,6 +99,12 @@ public partial class MapSettingsDialog : AcceptDialog
         Size = new Vector2I(560, 460);
         Unresizable = false;
 
+        // EditorController 在 _Ready 里先建了 FileDialog（同为 AcceptDialog，默认 Exclusive = true）。
+        // 同一父窗口只允许一个独占子窗口，否则 PopupCentered() 会报
+        // 「Attempting to make child window exclusive, but the parent window already has another
+        //  exclusive child window」并把当前 FileDialog 指为占用者。本对话框不需要独占，关掉即可共存。
+        Exclusive = false;
+
         var root = new VBoxContainer { Name = "Body" };
         root.AddThemeConstantOverride("separation", 6);
         AddChild(root);
