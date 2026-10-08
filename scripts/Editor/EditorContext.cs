@@ -76,6 +76,13 @@ public partial class EditorContext : Node
     [Signal]
     public delegate void ToolChangedEventHandler(int tool);
 
+    /// <summary>
+    /// 面板布局变化（停靠边 / 浮动 / 折叠 / 可见性 / 行节顺序）。
+    /// 只承载 <b>UI 私有状态</b>，与地图 / 图层 / 文档数据无关（spec §5.1）。
+    /// </summary>
+    [Signal]
+    public delegate void LayoutChangedEventHandler();
+
     // ------------------------------------------------------------------ 工程数据
 
     /// <summary>工程根目录（绝对路径）。</summary>
@@ -572,4 +579,10 @@ public partial class EditorContext : Node
     public void NotifySelection(string description) => EmitSignal(SignalName.SelectionChanged, description);
 
     public void NotifyHint(string text) => EmitSignal(SignalName.StatusHint, text);
+
+    /// <summary>
+    /// 广播 UI 布局变化。唯一的发出方是 <c>scripts/Ui/Dock/DockLayout.cs</c>，
+    /// 由它驱动 500ms 防抖落盘（spec §5.2 写时机）。
+    /// </summary>
+    public void NotifyLayoutChanged() => EmitSignal(SignalName.LayoutChanged);
 }

@@ -14,9 +14,13 @@ src-tauri/target/
 src-tauri/gen/
 
 # ---- World View 私有目录（运行时产生，不入版本库） ----
-.worldview/cache/
-.worldview/autosave/
-.worldview/backup/
+# 模式含中间斜杠时会按 .gitignore 所在目录锚定，故必须带 **/ 前缀：
+# 否则嵌套工程里的同名目录（如 examples/sample_world/.worldview/layouts/）不会被忽略。
+**/.worldview/cache/
+**/.worldview/autosave/
+**/.worldview/backup/
+# 面板布局是纯 UI 私有状态（spec §5），按工程分文件写入，不进版本库
+**/.worldview/layouts/
 
 # ---- 编辑器临时文件 ----
 *.tmp

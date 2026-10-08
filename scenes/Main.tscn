@@ -1,179 +1,153 @@
-[gd_scene format=3 uid="uid://i3h3pyr6q2gm"]
+[gd_scene load_steps=9 format=3]
 
-[ext_resource type="Script" uid="uid://cf7qxcgy4ikxl" path="res://scripts/Editor/EditorController.cs" id="1_ctrl"]
-[ext_resource type="PackedScene" uid="uid://dj5d55wiuin6s" path="res://scenes/WorldCanvas.tscn" id="2_worldcanvas"]
+[ext_resource type="Script" path="res://scripts/Editor/EditorController.cs" id="1_controller"]
+[ext_resource type="Theme" path="res://scripts/Ui/Theme/Dark.tres" id="2_theme"]
+[ext_resource type="Script" path="res://scripts/Ui/Dock/DockLayout.cs" id="3_docklayout"]
+[ext_resource type="PackedScene" uid="uid://dj5d55wiuin6s" path="res://scenes/WorldCanvas.tscn" id="4_worldcanvas"]
+[ext_resource type="Script" path="res://scripts/Ui/WorldDropSurface.cs" id="5_dropsurface"]
+[ext_resource type="PackedScene" path="res://scenes/ui/BottomPalette.tscn" id="6_bottompalette"]
+[ext_resource type="Script" path="res://scripts/Ui/Inspector.cs" id="7_inspector"]
+[ext_resource type="Script" path="res://scripts/Ui/LayerPanel.cs" id="8_layerpanel"]
 
-[sub_resource type="ButtonGroup" id="1_bg_tools"]
-
-[sub_resource type="ButtonGroup" id="2_bg_brush"]
-
-[node name="Main" type="Control" unique_id=2094362407]
+[node name="Main" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_ctrl")
+theme = ExtResource("2_theme")
+script = ExtResource("1_controller")
 
-[node name="Root" type="VBoxContainer" parent="." unique_id=328850900]
-layout_mode = 0
+[node name="BgLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="CanvasBackground" type="ColorRect" parent="BgLayer"]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+color = Color(0.08, 0.08, 0.1, 1)
+
+[node name="WorldCanvas" parent="." instance=ExtResource("4_worldcanvas")]
+unique_name_in_owner = true
+position = Vector2(0, 32)
+
+[node name="UiLayer" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="DockLayout" type="Control" parent="UiLayer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_docklayout")
+
+[node name="Root" type="VBoxContainer" parent="UiLayer/DockLayout"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 theme_override_constants/separation = 0
 
-[node name="TopBar" type="HBoxContainer" parent="Root" unique_id=1787913610]
+[node name="TopStrip" type="PanelContainer" parent="UiLayer/DockLayout/Root"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 
-[node name="OpenBtn" type="Button" parent="Root/TopBar" unique_id=472435767]
+[node name="TopBar" type="HBoxContainer" parent="UiLayer/DockLayout/Root/TopStrip"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OpenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "打开工程…"
 
-[node name="SaveBtn" type="Button" parent="Root/TopBar" unique_id=111690826]
+[node name="SaveBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
-text = "保存 (Ctrl+S)"
+text = "保存"
 
-[node name="BreadcrumbLabel" type="Label" parent="Root/TopBar" unique_id=155294454]
+[node name="Sep" type="Label" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
+layout_mode = 2
+text = "│"
+
+[node name="BreadcrumbLabel" type="Label" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "未加载工程"
 vertical_alignment = 1
 
-[node name="UndoBtn" type="Button" parent="Root/TopBar" unique_id=1267959082]
+[node name="UndoBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
-text = "撤销 (Ctrl+Z)"
+text = "⟲ 撤销"
 
-[node name="RedoBtn" type="Button" parent="Root/TopBar" unique_id=906840600]
+[node name="RedoBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
-text = "重做 (Ctrl+Y)"
+text = "⟳ 重做"
 
-[node name="MiddleRow" type="HBoxContainer" parent="Root" unique_id=443245426]
+[node name="FullscreenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
-size_flags_vertical = 3
+text = "全屏 F11"
+
+[node name="TopDock" type="VBoxContainer" parent="UiLayer/DockLayout/Root"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 0
 
-[node name="ToolPanel" type="VBoxContainer" parent="Root/MiddleRow" unique_id=656346073]
-custom_minimum_size = Vector2(180, 0)
+[node name="MidRow" type="HBoxContainer" parent="UiLayer/DockLayout/Root"]
 layout_mode = 2
-theme_override_constants/separation = 4
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
 
-[node name="ToolPanelHeader" type="Label" parent="Root/MiddleRow/ToolPanel" unique_id=786320343]
+[node name="LeftDock" type="VBoxContainer" parent="UiLayer/DockLayout/Root/MidRow"]
+visible = false
 layout_mode = 2
-text = "工具"
+mouse_filter = 2
+theme_override_constants/separation = 0
 
-[node name="SelectToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel" unique_id=45934388]
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("1_bg_tools")
-text = "选择 (V)"
-
-[node name="BrushToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel" unique_id=1593061435]
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("1_bg_tools")
-text = "笔刷 (B)"
-
-[node name="BuildingToolBtn" type="Button" parent="Root/MiddleRow/ToolPanel" unique_id=964829261]
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("1_bg_tools")
-text = "建筑 (P)"
-
-[node name="BrushShapeHeader" type="Label" parent="Root/MiddleRow/ToolPanel" unique_id=1716200343]
-layout_mode = 2
-text = "笔刷形状"
-
-[node name="BrushRoundBtn" type="Button" parent="Root/MiddleRow/ToolPanel" unique_id=81831360]
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("2_bg_brush")
-text = "圆形"
-
-[node name="BrushSquareBtn" type="Button" parent="Root/MiddleRow/ToolPanel" unique_id=905274836]
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("2_bg_brush")
-text = "方形"
-
-[node name="BrushRadiusLabel" type="Label" parent="Root/MiddleRow/ToolPanel" unique_id=2023588594]
-layout_mode = 2
-text = "笔刷半径"
-
-[node name="BrushRadiusSlider" type="HSlider" parent="Root/MiddleRow/ToolPanel" unique_id=1047932921]
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 2.0
-
-[node name="TerrainHeader" type="Label" parent="Root/MiddleRow/ToolPanel" unique_id=1017746777]
-layout_mode = 2
-text = "地形"
-
-[node name="TerrainBtnContainer" type="VBoxContainer" parent="Root/MiddleRow/ToolPanel" unique_id=42112131]
-layout_mode = 2
-
-[node name="BuildingHeader" type="Label" parent="Root/MiddleRow/ToolPanel" unique_id=1178174540]
-layout_mode = 2
-text = "建筑类型"
-
-[node name="BuildingBtnContainer" type="VBoxContainer" parent="Root/MiddleRow/ToolPanel" unique_id=1241912162]
-layout_mode = 2
-
-[node name="CanvasArea" type="Control" parent="Root/MiddleRow" unique_id=625022067]
+[node name="CanvasArea" type="Control" parent="UiLayer/DockLayout/Root/MidRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+script = ExtResource("5_dropsurface")
 
-[node name="CanvasBackground" type="ColorRect" parent="Root/MiddleRow/CanvasArea" unique_id=63209416]
-layout_mode = 0
+[node name="RightDock" type="VBoxContainer" parent="UiLayer/DockLayout/Root/MidRow"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="BottomPalette" parent="UiLayer/DockLayout/Root" instance=ExtResource("6_bottompalette")]
+layout_mode = 2
+
+[node name="Inspector" type="Control" parent="UiLayer/DockLayout"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.13, 0.13, 0.16, 1)
+script = ExtResource("7_inspector")
+PanelId = "inspector"
+PanelTitle = "检视器"
 
-[node name="WorldCanvas" parent="Root/MiddleRow/CanvasArea" unique_id=2127316935 instance=ExtResource("2_worldcanvas")]
-position = Vector2(394, 299)
-
-[node name="RightColumn" type="VBoxContainer" parent="Root/MiddleRow" unique_id=1555744215]
-custom_minimum_size = Vector2(240, 0)
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="InspectorHeader" type="Label" parent="Root/MiddleRow/RightColumn" unique_id=41248328]
-layout_mode = 2
-text = "检视器"
-
-[node name="InspectorBody" type="VBoxContainer" parent="Root/MiddleRow/RightColumn" unique_id=2092867923]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="LayerHeader" type="Label" parent="Root/MiddleRow/RightColumn" unique_id=1342828277]
-layout_mode = 2
-text = "图层"
-
-[node name="LayerList" type="VBoxContainer" parent="Root/MiddleRow/RightColumn" unique_id=1929559615]
-custom_minimum_size = Vector2(0, 160)
-layout_mode = 2
-
-[node name="StatusBar" type="HBoxContainer" parent="Root" unique_id=1591932005]
-custom_minimum_size = Vector2(0, 24)
-layout_mode = 2
-
-[node name="StatusHintLabel" type="Label" parent="Root/StatusBar" unique_id=1397378448]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "就绪"
-
-[node name="MouseCellLabel" type="Label" parent="Root/StatusBar" unique_id=2036311424]
-layout_mode = 2
-text = "(-, -)"
-
-[node name="SelectionLabel" type="Label" parent="Root/StatusBar" unique_id=438499543]
-layout_mode = 2
-text = "未选中"
-
-[node name="ValidationLabel" type="Label" parent="Root/StatusBar" unique_id=615100615]
-layout_mode = 2
+[node name="LayerPanel" type="Control" parent="UiLayer/DockLayout"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("8_layerpanel")
+PanelId = "layer_panel"
+PanelTitle = "图层"

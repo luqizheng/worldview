@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ui/Palette/MinimapSection.cs" id="1_minimap"]
+
+[node name="MinimapSection" type="Control"]
+layout_mode = 2
+script = ExtResource("1_minimap")
