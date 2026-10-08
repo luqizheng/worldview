@@ -41,7 +41,8 @@ public partial class EditorController : Control
 	private EditorContext? _context;
 	private FileDialog? _fileDialog;
 	private Control? _canvasArea;
-	private Node2D? _worldCanvas;
+	private WorldView.Render.WorldCanvas? _worldCanvas;
+	private bool _initialFitDone;
 	private bool _lastCanUndo;
 	private bool _lastCanRedo;
 
@@ -83,6 +84,23 @@ public partial class EditorController : Control
 		{
 			_worldCanvas.Position = target;
 		}
+
+		// 相机拟合目标 = 画布区矩形（不是整个窗口）：地图留在默认画布层仍受 Camera2D 缩放，
+		// 而 UI 在 CanvasLayer 内不受缩放，若按窗口拟合，地图会比画布区大一截、下半被底栏遮住。
+		var size = _canvasArea.Size;
+		if (size.X <= 1f || size.Y <= 1f)
+		{
+			return;
+		}
+
+		_worldCanvas.FitRect = new Rect2(_canvasArea.GlobalPosition, size);
+
+		// 初始拟合只能等布局跑完（_Ready 时 CanvasArea 尺寸还是 0，此时会退回旧行为按窗口拟合）。
+		if (!_initialFitDone)
+		{
+			_initialFitDone = true;
+			_worldCanvas.RefitCamera();
+		}
 	}
 
 	/// <summary>
@@ -105,7 +123,7 @@ public partial class EditorController : Control
 		_fullscreenBtn = GetNodeOrNull<Button>($"{TopBarPath}/FullscreenBtn");
 		_breadcrumbLabel = GetNodeOrNull<Label>($"{TopBarPath}/BreadcrumbLabel");
 		_canvasArea = GetNodeOrNull<Control>(CanvasAreaPath);
-		_worldCanvas = GetNodeOrNull<Node2D>(WorldCanvasPath);
+		_worldCanvas = GetNodeOrNull<WorldView.Render.WorldCanvas>(WorldCanvasPath);
 	}
 
 	private void ConnectSignals()

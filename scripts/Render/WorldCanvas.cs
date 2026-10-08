@@ -34,6 +34,23 @@ public partial class WorldCanvas : Node2D
     [Export]
     public float PanSpeed { get; set; } = 700f;
 
+    /// <summary>
+    /// 相机拟合的目标区（= UI 层 <c>CanvasArea</c> 的屏幕矩形）。默认为空表示沿用整个 viewport（旧行为）。
+    /// 由 <c>scripts/Editor/EditorController.cs</c> 赋值。之所以需要它：UI 在 <c>CanvasLayer</c> 内不受相机缩放，
+    /// 而地图仍受相机控制，若继续按窗口拟合并把地图中心对准窗口中心，地图会比画布区大一截且整体偏下、
+    /// 下半被底栏遮住。
+    /// </summary>
+    public Rect2 FitRect { get; set; }
+
+    /// <summary>按当前 <see cref="FitRect"/> 重新拟合相机（供 UI 侧做「初始拟合」）。</summary>
+    public void RefitCamera()
+    {
+        if (EditorContext.Instance?.ActiveMap is { } map)
+        {
+            CenterCameraOnMap(map);
+        }
+    }
+
     private Camera2D? _camera;
     private TerrainLayer? _terrainLayer;
     private RoadLayer? _roadLayer;
@@ -471,16 +488,22 @@ public partial class WorldCanvas : Node2D
         if (_camera is null) return;
         var cellPixels = (float)TerrainTileSetFactory.TilePixels;
         var mapSizePx = new Vector2(map.Grid.Width * cellPixels, map.Grid.Height * cellPixels);
-        _camera.Position = mapSizePx / 2f;
         _camera.MakeCurrent();
 
-        // 按 viewport 尺寸选择缩放比，使整张地图可见
-        var viewport = GetViewportRect();
-        if (viewport.Size.X <= 0 || viewport.Size.Y <= 0) return;
-        var zX = (viewport.Size.X * 0.9f) / mapSizePx.X;
-        var zY = (viewport.Size.Y * 0.9f) / mapSizePx.Y;
-        var z = Mathf.Min(zX, zY);
-        z = Mathf.Clamp(z, MinZoom, MaxZoom);
+        // 拟合目标：优先用 UI 侧给的画布区矩形（FitRect，见 EditorController），否则退回整个 viewport
+        var viewportSize = GetViewportRect().Size;
+        var useFit = FitRect.Size.X > 1f && FitRect.Size.Y > 1f;
+        var fitSize = useFit ? FitRect.Size : viewportSize;
+        if (fitSize.X <= 0f || fitSize.Y <= 0f) return;
+
+        var zX = (fitSize.X * 0.9f) / mapSizePx.X;
+        var zY = (fitSize.Y * 0.9f) / mapSizePx.Y;
+        var z = Mathf.Clamp(Mathf.Min(zX, zY), MinZoom, MaxZoom);
+
+        // 相机默认把自己的位置对准整个 viewport 中心；这里改为对准拟合区中心，
+        // 否则地图在画布区里整体偏下（画布区上方是 TopStrip、下方是 BottomPalette）。
+        var fitCenter = useFit ? FitRect.Position + FitRect.Size / 2f : viewportSize / 2f;
+        _camera.Position = mapSizePx / 2f - (fitCenter - viewportSize / 2f) / z;
         _camera.Zoom = new Vector2(z, z);
     }
 }
