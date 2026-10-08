@@ -150,7 +150,11 @@ public partial class WorldCanvas : Node2D
             return;
         }
 
-        var tileSet = TerrainTileSetFactory.Build();
+        // 经注册器取 TileSet，使「瓦片风格」下拉真正驱动渲染（plan L488）。
+        // 当前 assets/textures/tiles/ 下尚无 tileset.tres，TileSetLoader 会降级到
+        // TerrainTileSetFactory.Build() 的纯色块 —— 与接线前同观感，但路径已通，
+        // 下一轮放入真实 TileSet 资源后无需再改本文件。
+        var tileSet = TileSetLoader.Get(context.CurrentTilesetId);
         var cellPixels = (float)TerrainTileSetFactory.TilePixels;
 
         _terrainLayer?.Configure(tileSet, cellPixels);

@@ -92,7 +92,11 @@ public class TileSetStyleRegistryTests
     {
         const string yaml = "version: 1\ndefault: jrpg\nstyles: []\n";
 
-        Assert.Throws<InvalidDataException>(() => new TileSetStyleRegistry(yaml));
+        // 只断言异常类型是无判别力的：删掉 TileSetStyleRegistry.cs:119-122 的空表守卫后，
+        // 紧随其后的「default 不在 styles 中」检查仍会抛同一个 InvalidDataException，测试照绿。
+        // 用文案区分，钉住空表守卫本身。
+        var ex = Assert.Throws<InvalidDataException>(() => new TileSetStyleRegistry(yaml));
+        Assert.Contains("不能为空", ex.Message);
     }
 
     /// <summary>
