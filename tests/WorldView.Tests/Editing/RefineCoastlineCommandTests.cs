@@ -45,6 +45,35 @@ public class RefineCoastlineCommandTests
             Generation: null);
     }
 
+    /// <summary>不排序地生成 MapDoc（保留 <paramref name="entries"/> 的原始顺序），用于验证 ApplyTo 的排序行为。</summary>
+    private static MapDoc BuildMapFromEntries(
+        int width, int height, TerrainType defaultType, IReadOnlyList<TerrainCellEntry> entries)
+    {
+        return new MapDoc(
+            Id: "test-map",
+            Name: "test",
+            Type: MapType.World,
+            Grid: new GridSpec(width, height, 1.0),
+            Time: new TimeSpec(TimeGranularity.Month, TimeGranularity.Day),
+            Presentation: new PresentationSpec(),
+            TerrainData: new TerrainData("sparse", new TerrainCell(defaultType), null, entries),
+            Layers: Array.Empty<LayerRef>(),
+            CityRefs: Array.Empty<CityRef>(),
+            Buildings: Array.Empty<Building>(),
+            Generation: null);
+    }
+
+    private static bool IsSortedByYThenX(IReadOnlyList<TerrainCellEntry> entries)
+    {
+        for (int i = 1; i < entries.Count; i++)
+        {
+            var prev = entries[i - 1].At;
+            var curr = entries[i].At;
+            if (prev.Y > curr.Y || (prev.Y == curr.Y && prev.X > curr.X)) return false;
+        }
+        return true;
+    }
+
     private static GenerationSpec SpecWithErosion(int erosion) =>
         new(Algorithm: "coastline_v1", Seed: 0, LandRatio: 0.35, Ruggedness: 0.5,
             MinIslandCells: 8, MinLakeCells: 6, Erosion: erosion);
@@ -81,12 +110,11 @@ public class RefineCoastlineCommandTests
     // ──── Compute_* ──────────────────────────────────────────────────────────
 
     [Fact]
-    public void Compute_RemovesThreeCellIsland_AtDefaultThreshold()
+    public void Compute_RemovesThreeCellIsland_AtThreshold4()
     {
-        // 5x5, 中央 3 格 Plain 岛（(2,2)(1,2)(2,1)），外圈 Water。
-        // MinIslandCells=3：3 块岛 size == Min(临界)，按 ≥ 规则应保留；
-        // 用 MinIslandCells=4 才能删——但 brief 说「RemovedCells.Count == 3」即全删。
-        // 这里要「全部删掉」则 MinIslandCells 必须 > 3。
+        // 5x5, 中央 3 格 Plain 岛（(2,2)(1,2)(2,1)；4 邻接连通，size=3），外圈 Water。
+        // 去碎岛规则是「size < MinIslandCells 才删」（CoastlineRefiner.cs:110 的 `cells.Count >= MinIslandCells` 则 continue），
+        // 故 MinIslandCells=3 会保留（等于临界）；要全删必须 MinIslandCells=4。
         var map = BuildMap(5, 5, DefaultType,
             (2, 2, TerrainType.Plain),
             (1, 2, TerrainType.Plain),
@@ -136,9 +164,10 @@ public class RefineCoastlineCommandTests
 
         var after = RefineCoastlineCommand.ApplyTo(map, outcome);
 
-        // 应包含至少一个 coast 标签（紧邻 (3,3) 水格的陆地格，如 (2,3)(3,2)(4,3)(3,4)）
-        var hasCoast = after.TerrainData.Cells.Any(e => e.Type == TerrainType.Coast);
-        Assert.True(hasCoast, "Expected at least one Coast cell in result");
+        // 紧邻 (3,3) 水格的陆地格应有 (2,3)(3,2)(4,3)(3,4) 共 4 个被重标 coast，
+        // 收紧到 >= 2 才能真正钉住「不止偶然标中一个」。
+        var coastCount = after.TerrainData.Cells.Count(e => e.Type == TerrainType.Coast);
+        Assert.True(coastCount >= 2, $"Expected at least 2 Coast cells in result, got {coastCount}");
 
         // 原陆地格至少保留一块
         Assert.Contains(after.TerrainData.Cells, e => e.Type == TerrainType.Plain || e.Type == TerrainType.Coast);
@@ -150,20 +179,31 @@ public class RefineCoastlineCommandTests
     [Fact]
     public void ApplyTo_DeletesEntriesEqualToDefault()
     {
-        // 5x5, Default = Plain, 中央 1x1 Water（=default 不在 cells 里）,
-        // 外圈 4x4 全 Plain（也 = default 不在 cells 里）。
-        // Compute 后理论上没东西要改，ApplyTo 后 cells.Count == 0。
-        var map = BuildMap(5, 5, TerrainType.Plain);
-        // (2,2) 是默认 Plain, 不放进 cells 列表；模拟「全 Plain 5x5」.
+        // 5x5, default = Water；cells 里只有 (2,2)=Forest（非 default）。
+        // 用手工 RefineOutcome 直接打 ApplyTo 的删除分支（不经过 Compute，避免输入为空导致断言退化成 0 == 0）。
+        var map = BuildMap(5, 5, TerrainType.Water, (2, 2, TerrainType.Forest));
 
-        var options = new RefineOptions(MinIslandCells: 8, MinLakeCells: 6, Erosion: 0, Morphology: false);
-        var outcome = RefineCoastlineCommand.Compute(
-            map,
-            new GridCoord(0, 0), new GridCoord(4, 4),
-            options);
+        // 前置条件：起点非空，删除才有意义。
+        Assert.Single(map.TerrainData.Cells);
+
+        // Changed[(2,2)] = Water = default → 删除分支。
+        var outcome = new RefineOutcome(
+            new Dictionary<GridCoord, TerrainType> { [new GridCoord(2, 2)] = TerrainType.Water },
+            new RefineStats(RemovedCells: 1, FilledCells: 0, RelabeledCells: 0));
 
         var after = RefineCoastlineCommand.ApplyTo(map, outcome);
-        Assert.Equal(0, after.TerrainData.Cells.Count);
+
+        Assert.Empty(after.TerrainData.Cells);
+        Assert.DoesNotContain(after.TerrainData.Cells, e => e.At == new GridCoord(2, 2));
+
+        // 写入分支：Changed 值 ≠ default 时必须被写进 sparse 列表（这里起始列表为空，故一定是新写入）。
+        var outcome2 = new RefineOutcome(
+            new Dictionary<GridCoord, TerrainType> { [new GridCoord(1, 1)] = TerrainType.Coast },
+            new RefineStats(RemovedCells: 0, FilledCells: 0, RelabeledCells: 1));
+
+        var after2 = RefineCoastlineCommand.ApplyTo(BuildMap(5, 5, TerrainType.Water), outcome2);
+
+        Assert.Contains(after2.TerrainData.Cells, e => e.At == new GridCoord(1, 1) && e.Type == TerrainType.Coast);
     }
 
     // ──── RevertTo_* ────────────────────────────────────────────────────────
@@ -204,16 +244,24 @@ public class RefineCoastlineCommandTests
     [Fact]
     public void ApplyTo_KeepsCellsSortedByYThenX()
     {
-        // 故意按 (X, Y) 顺序乱序填 cells。
-        var map = BuildMap(10, 10, DefaultType,
-            (5, 3, TerrainType.Plain),
-            (2, 1, TerrainType.Plain),
-            (8, 1, TerrainType.Plain),
-            (1, 5, TerrainType.Plain),
-            (3, 3, TerrainType.Plain),
-            (7, 2, TerrainType.Plain));
+        // 故意乱序填 cells（Y 序列 5,1,1,5,3,2 既非升序，也不是 (X,Y) 序），
+        // 且用 BuildMapFromEntries 绕过 BuildMap 的预排序 —— 否则这个测试会退化成空转。
+        var unsorted = new List<TerrainCellEntry>
+        {
+            new(new GridCoord(5, 3), TerrainType.Plain),
+            new(new GridCoord(2, 1), TerrainType.Plain),
+            new(new GridCoord(8, 1), TerrainType.Plain),
+            new(new GridCoord(1, 5), TerrainType.Plain),
+            new(new GridCoord(3, 3), TerrainType.Plain),
+            new(new GridCoord(7, 2), TerrainType.Plain),
+        };
+        var map = BuildMapFromEntries(10, 10, TerrainType.Water, unsorted);
 
-        var options = new RefineOptions(MinIslandCells: 8, MinLakeCells: 6, Erosion: 0, Morphology: false);
+        // 前提断言：输入确实乱序（否则这个测试又会退化成空转）
+        Assert.False(IsSortedByYThenX(unsorted), "fixture 必须乱序，否则测不出排序");
+
+        // 阈值 0：任何 size>=1 的块都保留（CoastlineRefiner.cs:110 与 :129），保证结果非空。
+        var options = new RefineOptions(MinIslandCells: 0, MinLakeCells: 0, Erosion: 0, Morphology: false);
         var outcome = RefineCoastlineCommand.Compute(
             map,
             new GridCoord(0, 0), new GridCoord(9, 9),
@@ -221,6 +269,10 @@ public class RefineCoastlineCommandTests
 
         var after = RefineCoastlineCommand.ApplyTo(map, outcome);
         var cells = after.TerrainData.Cells;
+
+        // 前提断言：结果非空，排序循环才真正跑
+        Assert.True(cells.Count >= 2, "结果必须非空，否则排序断言是空转");
+
         for (int i = 1; i < cells.Count; i++)
         {
             var prev = cells[i - 1].At;
@@ -231,27 +283,21 @@ public class RefineCoastlineCommandTests
         }
     }
 
-    // ──── Description_* ─────────────────────────────────────────────────────
+    // ──── Describe_* ────────────────────────────────────────────────────────
 
     [Fact]
-    public void Description_CountsMatchStats()
+    public void Describe_CountsMatchStats()
     {
-        // 构造一个 RefineOutcome：RemovedCells=3, FilledCells=2, RelabeledCells=4
-        // 还要给 Changed 一个有效 dict（5 删 + 6 加/改 = 11 项，对应 3+2+4=9，外加 2 项在 changed 中但 stats=0 不可能——改用相同数）
-        // 简化：构造已知 stats，按 Description 模板输出。
+        // 调生产静态方法（纯函数，不触碰 Godot），删除生产模板代码会让本测试变红。
+        // 注：实例 Description 属性本身无法在纯 .NET 测试里覆盖（需要 Godot Node 来构造命令）。
         var stats = new RefineStats(RemovedCells: 3, FilledCells: 2, RelabeledCells: 4);
-        var outcome = new RefineOutcome(
-            Changed: new Dictionary<GridCoord, TerrainType>(),
-            Stats: stats);
+        var outcome = new RefineOutcome(new Dictionary<GridCoord, TerrainType>(), stats);
 
-        // 直接验证模板字符串（Description 是实例方法，但 outcome 是 public 字段可读）.
-        // Description 模板: $"细化海岸线（去碎岛 {RemovedCells} · 填碎海 {FilledCells}）"
-        var expected = "细化海岸线（去碎岛 3 · 填碎海 2）";
-        // 用 ref 反射验证：直接调 string 拼接方式
-        var actual = $"细化海岸线（去碎岛 {outcome.Stats.RemovedCells} · 填碎海 {outcome.Stats.FilledCells}）";
-        Assert.Equal(expected, actual);
+        var actual = RefineCoastlineCommand.Describe(outcome);
 
-        // 也确认中点字符是 U+00B7 而非 U+30FB（全角）
+        Assert.Equal("细化海岸线（去碎岛 3 · 填碎海 2）", actual);
+
+        // 中点必须是 U+00B7（MIDDLE DOT），不是全角 U+30FB。
         Assert.Contains('\u00B7', actual);
         Assert.DoesNotContain('\u30FB', actual);
     }

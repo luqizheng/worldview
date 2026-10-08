@@ -10,7 +10,8 @@ namespace WorldView.Editing;
 /// <summary>
 /// 对地图指定范围执行海岸线细化的可撤销命令（spec 2 §6.4 + plan L321-339）。
 ///
-/// 三个静态方法是<strong>纯函数</strong>（不读不写 <see cref="EditorContext"/>），方便裸测；
+/// 五个静态方法是<strong>纯函数</strong>（不读不写 <see cref="EditorContext"/>），方便裸测：
+/// <see cref="OptionsFor"/> / <see cref="Compute"/> / <see cref="ApplyTo"/> / <see cref="RevertTo"/> / <see cref="Describe"/>；
 /// 实例路径（<see cref="Apply"/> / <see cref="Revert"/>）走 <see cref="EditorContext.ReplaceMap"/> 写回通道。
 /// </summary>
 public sealed class RefineCoastlineCommand : IEditorCommand
@@ -23,6 +24,7 @@ public sealed class RefineCoastlineCommand : IEditorCommand
 
     private RefineOutcome? _outcome;
     private IReadOnlyList<TerrainCellEntry>? _beforeCells;
+    private bool _applied;
 
     public RefineCoastlineCommand(
         EditorContext context,
@@ -41,14 +43,14 @@ public sealed class RefineCoastlineCommand : IEditorCommand
         _options = OptionsFor(radiusCells, spec);
     }
 
-    public string Description
+    /// <summary>纯：把细化统计格式化成 <see cref="Description"/> 使用的字符串（spec 2 §6.4 + brief §3.1）。中点用 <c>U+00B7</c>（MIDDLE DOT），不是全角 <c>U+30FB</c>。</summary>
+    public static string Describe(RefineOutcome outcome)
     {
-        get
-        {
-            if (_outcome is null) return "细化海岸线";
-            return $"细化海岸线（去碎岛 {_outcome.Stats.RemovedCells} · 填碎海 {_outcome.Stats.FilledCells}）";
-        }
+        ArgumentNullException.ThrowIfNull(outcome);
+        return $"细化海岸线（去碎岛 {outcome.Stats.RemovedCells} · 填碎海 {outcome.Stats.FilledCells}）";
     }
+
+    public string Description => _outcome is null ? "细化海岸线" : Describe(_outcome);
 
     /// <summary>
     /// 把「笔刷半径」映射到三档细化强度（spec 2 §6.4）：
@@ -131,52 +133,23 @@ public sealed class RefineCoastlineCommand : IEditorCommand
     }
 
     /// <summary>
-    /// 纯：撤销细化。
+    /// 纯：把 sparse cells 列表还原成调用方传入的、<see cref="ApplyTo"/> 之前的精确快照。
     ///
-    /// 通过先对当前 map 应用一次 outcome（把「应用后的状态」拿稳），再把 <paramref name="beforeCells"/>
-    /// 写回（保持 sparse 升序）实现，逻辑与 <see cref="ApplyTo"/> 一致：值为 defaultType 的格从 cells 中删除。
-    /// 调用方传入 Apply 前的 snapshot，保证值相等。
+    /// <paramref name="beforeCells"/> <strong>必填</strong>：<see cref="RefineOutcome.Changed"/> 是单向的
+    /// （被删除的格不记录原类型），无法从 outcome 反推 Apply 前的状态，故撤销必须依赖调用方快照。
+    /// <paramref name="outcome"/> 参数仅为与 <see cref="ApplyTo"/> 对称保留，<strong>不参与计算</strong>。
+    /// 还原结果按 (Y, X) 升序。
     /// </summary>
-    public static MapDoc RevertTo(MapDoc map, RefineOutcome outcome, IReadOnlyList<TerrainCellEntry>? beforeCells = null)
+    public static MapDoc RevertTo(MapDoc map, RefineOutcome outcome, IReadOnlyList<TerrainCellEntry> beforeCells)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(outcome);
+        ArgumentNullException.ThrowIfNull(beforeCells);
 
-        var defaultType = map.TerrainData.Default?.Type ?? TerrainDefaults.DefaultType;
-
-        // 优先使用 beforeCells（精确还原 Apply 前的 sparse 状态）；否则按 outcome 字典反推。
         var byCoord = new Dictionary<GridCoord, TerrainCellEntry>();
-        if (beforeCells is not null)
+        foreach (var entry in beforeCells)
         {
-            foreach (var entry in beforeCells)
-            {
-                byCoord[entry.At] = entry;
-            }
-        }
-        else
-        {
-            // 退化路径：从当前 cells 出发，反向应用 outcome.
-            if (map.TerrainData.Cells is not null)
-            {
-                foreach (var entry in map.TerrainData.Cells)
-                {
-                    byCoord[entry.At] = entry;
-                }
-            }
-            foreach (var kvp in outcome.Changed)
-            {
-                if (EqualityComparer<TerrainType>.Default.Equals(kvp.Value, defaultType))
-                {
-                    // Apply 时是「删除」：原来这里有一格非默认；要恢复它需要原类型，outcome 没记，
-                    // 故退化路径只能丢弃——降级路径上由 beforeCells 必填来避免。
-                    // 为安全起见，此处保留 byCoord[kvp.Key] 不变（什么都不做）。
-                }
-                else
-                {
-                    // Apply 时是「写入」：原值就是 defaultType，不在 sparse 里。
-                    // 这里也得丢掉——同样退化路径只能保留现状。
-                }
-            }
+            byCoord[entry.At] = entry;
         }
 
         var ordered = byCoord.Values
@@ -198,19 +171,21 @@ public sealed class RefineCoastlineCommand : IEditorCommand
     {
         var map = _context.FindMap(_mapId)
             ?? throw new InvalidOperationException($"Map not found: {_mapId}");
-        _beforeCells ??= map.TerrainData.Cells;
-        _outcome ??= Compute(map, _rangeMin, _rangeMax, _options);
-        var updated = ApplyTo(map, _outcome);
-        _context.ReplaceMap(updated);
+        if (!_applied)
+        {
+            _beforeCells = map.TerrainData.Cells ?? Array.Empty<TerrainCellEntry>();
+            _outcome = Compute(map, _rangeMin, _rangeMax, _options);
+            _applied = true;
+        }
+        _context.ReplaceMap(ApplyTo(map, _outcome!));
     }
 
     public void Revert()
     {
-        if (_beforeCells is null || _outcome is null)
+        if (!_applied)
             throw new InvalidOperationException("Revert before Apply is not allowed.");
         var map = _context.FindMap(_mapId)
             ?? throw new InvalidOperationException($"Map not found: {_mapId}");
-        var restored = RevertTo(map, _outcome, _beforeCells);
-        _context.ReplaceMap(restored);
+        _context.ReplaceMap(RevertTo(map, _outcome!, _beforeCells!));
     }
 }
