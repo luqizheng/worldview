@@ -122,6 +122,9 @@ public partial class EditorContext : Node
     /// <summary>笔刷半径（格）。</summary>
     public int BrushRadius { get; set; } = 2;
 
+    /// <summary>笔刷拖动**释放**时是否顺带做一次海岸线细化（spec 2 §6.4）。仅进程内状态，不落盘。</summary>
+    public bool RefineOnStroke { get; set; } = true;
+
     /// <summary>笔刷当前绘制的地形类型。</summary>
     public TerrainType PaintTerrain { get; private set; } = TerrainType.Mountain;
 

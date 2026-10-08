@@ -65,6 +65,15 @@ public partial class WorldCanvas : Node2D
     private bool _painting;
     private Vector2I _lastPaintCell = new(int.MinValue, int.MinValue);
 
+    /// <summary>本次笔迹覆盖的最小格（按笔刷覆盖盒扩张，见 <see cref="TryPaint"/>）。</summary>
+    private GridCoord _strokeMin;
+
+    /// <summary>本次笔迹覆盖的最大格。</summary>
+    private GridCoord _strokeMax;
+
+    /// <summary>本节点的按下分支是否开了一个撤销批（只有笔刷工具会开）。</summary>
+    private bool _strokeBatchOpen;
+
     /// <summary>
     /// 是否已绑定 <see cref="EditorContext"/> 信号。Godot 默认子先父后顺序：
     /// 本节点（Canvas 子树）_Ready 早于 EditorController._Ready，
@@ -324,6 +333,17 @@ public partial class WorldCanvas : Node2D
             _painting = true;
             _lastPaintCell = new Vector2I(int.MinValue, int.MinValue);
 
+            _strokeMin = cell;
+            _strokeMax = cell;
+            _strokeBatchOpen = false;
+
+            // 只有笔刷才开批：建筑 / 选择工具若也开批，释放时会误关别人的批。
+            if (context.Tool == ToolState.Brush)
+            {
+                context.UndoStack.BeginBatch("笔刷绘制");
+                _strokeBatchOpen = true;
+            }
+
             switch (context.Tool)
             {
                 case ToolState.Brush:
@@ -342,6 +362,32 @@ public partial class WorldCanvas : Node2D
         else
         {
             _painting = false;
+
+            if (_strokeBatchOpen)
+            {
+                // 细化只在释放时发生一次，覆盖整条笔迹外扩 1 格（CoastlineRefiner 的扫描盒还会再外扩 1）。
+                if (context.RefineOnStroke)
+                {
+                    var refineMin = new GridCoord(_strokeMin.X - 1, _strokeMin.Y - 1);
+                    var refineMax = new GridCoord(_strokeMax.X + 1, _strokeMax.Y + 1);
+
+                    // 与网格求交，避免越界范围。
+                    refineMin = new GridCoord(Math.Max(0, refineMin.X), Math.Max(0, refineMin.Y));
+                    refineMax = new GridCoord(
+                        Math.Min(map.Grid.Width - 1, refineMax.X),
+                        Math.Min(map.Grid.Height - 1, refineMax.Y));
+
+                    if (refineMin.X <= refineMax.X && refineMin.Y <= refineMax.Y)
+                    {
+                        context.UndoStack.Push(new RefineCoastlineCommand(
+                            context, map.Id, refineMin, refineMax, context.BrushRadius));
+                    }
+                }
+
+                // 无论是否真的推了细化命令，都必须关批 —— 否则撤销栈会一直处于批模式。
+                context.UndoStack.EndBatch();
+                _strokeBatchOpen = false;
+            }
         }
     }
 
@@ -410,6 +456,14 @@ public partial class WorldCanvas : Node2D
         {
             return;
         }
+
+        // 笔迹范围按「笔刷覆盖盒」扩张，且在节流 early-return 之前更新 ——
+        // 保证细化范围覆盖整条拖动轨迹（宁可多覆盖也不能漏，漏了会留下未细化的海岸）。
+        var r = context.BrushRadius;
+        if (cell.X - r < _strokeMin.X) _strokeMin = new GridCoord(cell.X - r, _strokeMin.Y);
+        if (cell.Y - r < _strokeMin.Y) _strokeMin = new GridCoord(_strokeMin.X, cell.Y - r);
+        if (cell.X + r > _strokeMax.X) _strokeMax = new GridCoord(cell.X + r, _strokeMax.Y);
+        if (cell.Y + r > _strokeMax.Y) _strokeMax = new GridCoord(_strokeMax.X, cell.Y + r);
 
         // 同一格不重复落笔。
         if (cell.X == _lastPaintCell.X && cell.Y == _lastPaintCell.Y)
