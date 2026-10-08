@@ -136,6 +136,7 @@ world-view/
 - 已收敛：**P0-1 / P0-2 / P0-3**（技术栈 **Godot 4.7.2 mono + C#**，渲染 **Godot 内置 2D**，数据形态网格+矢量+二进制分块）；Tauri + TS + PixiJS 路线已作废。
 - MVP 任务定义：`.trae/specs/map-editor-mvp/`（spec + checklist + tasks；含 MVP / Task / Checklist,任务清单须按新栈重写 C# / Godot 节点对应项）。
 - 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1，详情见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)）。
+- UI 重设计规格（M2）：`.trae/specs/ui-redesign-simgame/`（spec v0.2 + tasks v0.3 + checklist v0.3）。**已定案**：UI 收敛为 **map-first + 单条 `BottomPalette`**（内部 rows → sections：事件播放条 / 小地图 + 自适应网格建筑面板 / 工具行）；建筑网格列数按可用宽高运行时推导（`items_per_page` 不落盘）；小地图进 M2；`Render/` 开唯一只读例外 `TerrainPalette.cs`。落地节奏见 spec §13（W1–W4）。设计层同步：`docs/界面与交互规格_v0.1.md` §1 加修订标记、两处文末「变更记录」追加一行。
 - 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`，已完成）；② 清理 §6.1 列出的旧栈骨架（待用户批准清理清单）；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度（已完成 v0.2，待 §6.3 工程模板 ready 后方可启动实现）。
 
 ### 6.3 本机外部依赖（agent 调用清单）
