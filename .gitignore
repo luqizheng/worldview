@@ -59,6 +59,8 @@ mono_crash.*.json
 *.userosscache
 *.sln.docstates
 *.binlog
+# Godot/.NET 工具链自动改写工程文件时留下的备份（如 WorldView.csproj.old.1）
+*.csproj.old*
 
 # ---- IDE / 工具私有状态(DeepSeek / Reasonix / Workbuddy / ACL) ----
 .acl-report/
