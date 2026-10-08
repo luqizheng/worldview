@@ -1,33 +1,25 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Godot;
 using WorldView.Domain;
 using WorldView.Editing;
+using WorldView.Ui;
+using WorldView.Ui.Dock;
+using WorldView.Ui.Inspector;
+using WorldView.Ui.LayerPanelUi;
+using WorldView.Ui.Palette;
 
 namespace WorldView.Editor;
 
 /// <summary>
 /// 编辑器总控（挂在 Main.tscn 的 Main 节点）。
-///
-/// 职责（tasks.md T9 / T17 / T20）：
+/// <para>
+/// M2 职责：
 /// <list type="bullet">
 ///   <item>启动时确保 <see cref="EditorContext"/> 单例挂载为子节点。</item>
 ///   <item>解析 Main.tscn 中的 UI 节点（按节点名约定）并连接到上下文信号。</item>
-///   <item>响应 UI 按钮事件，调用 <see cref="EditorContext"/> 的状态变更方法。</item>
-///   <item>实现 Ctrl+Z / Ctrl+Y / Ctrl+S / V/B/P 快捷键（与 <c>WorldCanvas</c> 互补）。</item>
-///   <item>动态生成地形 / 建筑按钮（按 <see cref="EditorContext.Layers"/> + 枚举）。</item>
+///   <item>把 <see cref="ToolStrip"/> / <see cref="Inspector"/> / <see cref="LayerPanel"/> 注册到 <see cref="DockLayout"/>。</item>
+///   <item>提供 F11 全屏、Ctrl+B 折叠、Ctrl+I 检视器、Ctrl+L 图层面板 快捷键。</item>
 /// </list>
-///
-/// 节点名约定（与 Main.tscn 严格对齐，缺一漏一处会导致 UI 静默失联）：
-/// <list type="bullet">
-///   <item>OpenBtn / SaveBtn / UndoBtn / RedoBtn / BreadcrumbLabel</item>
-///   <item>SelectToolBtn / BrushToolBtn / BuildingToolBtn + BrushRoundBtn / BrushSquareBtn / BrushRadiusSlider</item>
-///   <item>TerrainBtnContainer / BuildingBtnContainer</item>
-///   <item>InspectorBody（容器，动态填充地图信息）</item>
-///   <item>LayerList（容器，动态填充图层切换 CheckBox）</item>
-///   <item>StatusHintLabel / MouseCellLabel / SelectionLabel / ValidationLabel</item>
-/// </list>
+/// </para>
 /// </summary>
 public partial class EditorController : Control
 {
@@ -37,28 +29,18 @@ public partial class EditorController : Control
 	private Button? _undoBtn;
 	private Button? _redoBtn;
 	private Label? _breadcrumbLabel;
+	private Button? _fullscreenBtn;
 
-	private Button? _selectToolBtn;
-	private Button? _brushToolBtn;
-	private Button? _buildingToolBtn;
-	private Button? _brushRoundBtn;
-	private Button? _brushSquareBtn;
-	private HSlider? _brushRadiusSlider;
-
-	private VBoxContainer? _terrainBtnContainer;
-	private VBoxContainer? _buildingBtnContainer;
-
-	private VBoxContainer? _inspectorBody;
-	private VBoxContainer? _layerList;
-
-	private Label? _statusHintLabel;
-	private Label? _mouseCellLabel;
-	private Label? _selectionLabel;
-	private Label? _validationLabel;
+	private DockLayout? _dockLayout;
+	private BottomPalette? _bottomPalette;
+	private ToolStrip? _toolStrip;
+	private FloatPanelHost? _inspectorHost;
+	private FloatPanelHost? _layerPanelHost;
 
 	// ------------------------------------------------------------------ 状态
 	private EditorContext? _context;
 	private FileDialog? _fileDialog;
+	private bool _fullscreen;
 
 	// ------------------------------------------------------------------ 生命周期
 
@@ -67,88 +49,81 @@ public partial class EditorController : Control
 		_context = EditorContext.Instance ?? EnsureContext();
 		CacheNodes();
 		CreateFileDialog();
+		WireDock();
 		ConnectSignals();
-		SyncCanvasViewport();
-		RebuildDynamicUi();
-		UpdateUiFromContext();
 		TryAutoloadSampleProject();
-	}
-
-	public override void _Notification(int what)
-	{
-		if (what == NotificationResized)
-		{
-			SyncCanvasViewport();
-		}
-	}
-
-	/// <summary>
-	/// 把 SubViewport 尺寸同步到 CanvasArea 容器实际大小，
-	/// 否则窗口缩放时画布区域与 SubViewport 内部 viewport 不一致。
-	/// </summary>
-	private void SyncCanvasViewport()
-	{
-		var container = GetNodeOrNull<SubViewportContainer>("Root/MiddleRow/CanvasArea");
-		var viewport = GetNodeOrNull<SubViewport>("Root/MiddleRow/CanvasArea/CanvasViewport");
-		if (container is null || viewport is null) return;
-		viewport.Size = new Vector2I((int)container.Size.X, (int)container.Size.Y);
-	}
-
-	/// <summary>
-	/// 启动时若 <c>res://examples/sample_world/project.yaml</c> 存在，自动加载；
-	/// 失败不阻塞编辑器（用户可点 "打开工程" 重试）。
-	/// 对应 D1 验收：F5 启动后立即看到示例世界。
-	/// </summary>
-	private void TryAutoloadSampleProject()
-	{
-		if (_context is null) return;
-		var sampleRoot = EditorContext.ResolvePath("res://examples/sample_world");
-		if (System.IO.Directory.Exists(sampleRoot))
-		{
-			_context.LoadProject(sampleRoot);
-		}
-		else
-		{
-			_context.NotifyHint($"未找到 {sampleRoot}，请点击「打开工程…」选择工程根目录（含 project.yaml）。");
-		}
-	}
-
-	/// <summary>
-	/// Main.tscn 已经把 <see cref="EditorContext"/> 挂在 <c>/root/Editor</c> 之前，理论上
-	/// 应由 autoload 提供；为 MVP 简化场景，若不存在就在 Main 节点下挂一个实例。
-	/// </summary>
-	private EditorContext EnsureContext()
-	{
-		var ctx = new EditorContext { Name = "Editor" };
-		AddChild(ctx);
-		return ctx;
 	}
 
 	private void CacheNodes()
 	{
-		_openBtn = GetNodeOrNull<Button>("Root/TopBar/OpenBtn");
-		_saveBtn = GetNodeOrNull<Button>("Root/TopBar/SaveBtn");
-		_undoBtn = GetNodeOrNull<Button>("Root/TopBar/UndoBtn");
-		_redoBtn = GetNodeOrNull<Button>("Root/TopBar/RedoBtn");
-		_breadcrumbLabel = GetNodeOrNull<Label>("Root/TopBar/BreadcrumbLabel");
+		_openBtn = GetNodeOrNull<Button>("DockLayout/CenterZone/MainLayout/TopStrip/OpenBtn");
+		_saveBtn = GetNodeOrNull<Button>("DockLayout/CenterZone/MainLayout/TopStrip/SaveBtn");
+		_undoBtn = GetNodeOrNull<Button>("DockLayout/CenterZone/MainLayout/TopStrip/UndoBtn");
+		_redoBtn = GetNodeOrNull<Button>("DockLayout/CenterZone/MainLayout/TopStrip/RedoBtn");
+		_breadcrumbLabel = GetNodeOrNull<Label>("DockLayout/CenterZone/MainLayout/TopStrip/BreadcrumbLabel");
+		_fullscreenBtn = GetNodeOrNull<Button>("DockLayout/CenterZone/MainLayout/TopStrip/FullscreenBtn");
 
-		_selectToolBtn = GetNodeOrNull<Button>("Root/MiddleRow/ToolPanel/SelectToolBtn");
-		_brushToolBtn = GetNodeOrNull<Button>("Root/MiddleRow/ToolPanel/BrushToolBtn");
-		_buildingToolBtn = GetNodeOrNull<Button>("Root/MiddleRow/ToolPanel/BuildingToolBtn");
-		_brushRoundBtn = GetNodeOrNull<Button>("Root/MiddleRow/ToolPanel/BrushRoundBtn");
-		_brushSquareBtn = GetNodeOrNull<Button>("Root/MiddleRow/ToolPanel/BrushSquareBtn");
-		_brushRadiusSlider = GetNodeOrNull<HSlider>("Root/MiddleRow/ToolPanel/BrushRadiusSlider");
+		_dockLayout = GetNodeOrNull<DockLayout>("DockLayout");
+		_bottomPalette = GetNodeOrNull<BottomPalette>("DockLayout/CenterZone/MainLayout/BottomPalette");
+	}
 
-		_terrainBtnContainer = GetNodeOrNull<VBoxContainer>("Root/MiddleRow/ToolPanel/TerrainBtnContainer");
-		_buildingBtnContainer = GetNodeOrNull<VBoxContainer>("Root/MiddleRow/ToolPanel/BuildingBtnContainer");
+	/// <summary>把所有 DockPanel 子树接入 DockLayout 注册表。</summary>
+	private void WireDock()
+	{
+		if (_dockLayout is null) return;
 
-		_inspectorBody = GetNodeOrNull<VBoxContainer>("Root/MiddleRow/RightColumn/InspectorBody");
-		_layerList = GetNodeOrNull<VBoxContainer>("Root/MiddleRow/RightColumn/LayerList");
+		// ToolStrip — 由 W2 直接生成在 .tscn 中,本步只负责注册
+		_toolStrip = FindToolStrip();
+		if (_toolStrip is not null)
+		{
+			_dockLayout.RegisterPanel(_toolStrip);
+			_toolStrip.BindContextSignals();
+		}
 
-		_statusHintLabel = GetNodeOrNull<Label>("Root/StatusBar/StatusHintLabel");
-		_mouseCellLabel = GetNodeOrNull<Label>("Root/StatusBar/MouseCellLabel");
-		_selectionLabel = GetNodeOrNull<Label>("Root/StatusBar/SelectionLabel");
-		_validationLabel = GetNodeOrNull<Label>("Root/StatusBar/ValidationLabel");
+		// Inspector / LayerPanel — 默认浮动、隐藏
+		_inspectorHost = new FloatPanelHost
+		{
+			Name = "InspectorHost",
+			PanelId = "inspector",
+			Title = "Inspector",
+			InitialPosition = new Vector2I(120, 80),
+		};
+		var inspector = new Inspector();
+		_inspectorHost.AdoptPanel(inspector);
+		_dockLayout.RegisterPanel(inspector);
+		AddChild(_inspectorHost);
+		inspector.BindContextSignals();
+
+		_layerPanelHost = new FloatPanelHost
+		{
+			Name = "LayerPanelHost",
+			PanelId = "layer_panel",
+			Title = "Layers",
+			InitialPosition = new Vector2I(420, 80),
+		};
+		var layerPanel = new LayerPanel();
+		_layerPanelHost.AdoptPanel(layerPanel);
+		_dockLayout.RegisterPanel(layerPanel);
+		AddChild(_layerPanelHost);
+		layerPanel.BindContextSignals();
+
+		// TopStrip 上的 Inspector / Layers 按钮：先取 F10 / F9 快捷键代替,TopStrip 不加按钮。
+	}
+
+	private ToolStrip? FindToolStrip()
+	{
+		// BottomPalette/ToolRow 下找 ToolStrip 节点
+		var toolRow = GetNodeOrNull("DockLayout/CenterZone/MainLayout/BottomPalette/ToolRow");
+		if (toolRow is null) return null;
+		foreach (var child in toolRow.GetChildren())
+		{
+			if (child is ToolStrip ts) return ts;
+			foreach (var inner in child.GetChildren())
+			{
+				if (inner is ToolStrip ts2) return ts2;
+			}
+		}
+		return null;
 	}
 
 	private void ConnectSignals()
@@ -157,28 +132,43 @@ public partial class EditorController : Control
 		if (_saveBtn is not null) _saveBtn.Pressed += OnSavePressed;
 		if (_undoBtn is not null) _undoBtn.Pressed += OnUndoPressed;
 		if (_redoBtn is not null) _redoBtn.Pressed += OnRedoPressed;
-
-		if (_selectToolBtn is not null) _selectToolBtn.Pressed += () => _context?.SetTool(ToolState.Selected);
-		if (_brushToolBtn is not null) _brushToolBtn.Pressed += () => _context?.SetTool(ToolState.Brush);
-		if (_buildingToolBtn is not null) _buildingToolBtn.Pressed += () => _context?.SetTool(ToolState.Building);
-
-		if (_brushRoundBtn is not null) _brushRoundBtn.Pressed += () => _context?.SetBrush(BrushType.Round);
-		if (_brushSquareBtn is not null) _brushSquareBtn.Pressed += () => _context?.SetBrush(BrushType.Square);
-
-		if (_brushRadiusSlider is not null)
-		{
-			_brushRadiusSlider.ValueChanged += v => { if (_context is not null) _context.BrushRadius = Mathf.RoundToInt(v); };
-		}
+		if (_fullscreenBtn is not null) _fullscreenBtn.Pressed += () => ToggleFullscreen();
 
 		if (_context is not null)
 		{
-			_context.MapChanged += RebuildDynamicUi;
-			_context.LayersChanged += RebuildDynamicUi;
 			_context.StatusHint += OnStatusHint;
+			_context.ToolChanged += OnToolChanged;
 			_context.MouseMoved += OnMouseMoved;
 			_context.SelectionChanged += OnSelectionChanged;
-			_context.ToolChanged += _ => UpdateUiFromContext();
+			_context.BreadcrumbChanged += UpdateBreadcrumb;
 		}
+	}
+
+	private void OnToolChanged(int tool)
+	{
+		// 工具切换时刷新 Title 显示,无 DOM 副作用。
+		_context?.NotifyHint($"工具已切换（{(ToolState)tool}）");
+	}
+
+	private void UpdateBreadcrumb()
+	{
+		if (_breadcrumbLabel is null || _context is null) return;
+		if (!_context.IsLoaded)
+		{
+			_breadcrumbLabel.Text = "未加载工程";
+			return;
+		}
+		var parts = new System.Collections.Generic.List<string>();
+		foreach (var id in _context.Breadcrumbs) parts.Add(_context.DisplayNameOf(id));
+		parts.Add(_context.DisplayNameOf(_context.ActiveMapId));
+		_breadcrumbLabel.Text = string.Join(" / ", parts);
+	}
+
+	private EditorContext EnsureContext()
+	{
+		var ctx = new EditorContext { Name = "Editor" };
+		AddChild(ctx);
+		return ctx;
 	}
 
 	private void CreateFileDialog()
@@ -195,179 +185,72 @@ public partial class EditorController : Control
 		AddChild(_fileDialog);
 	}
 
-	// ------------------------------------------------------------------ 动态 UI
-
-	private void RebuildDynamicUi()
-	{
-		RebuildTerrainButtons();
-		RebuildBuildingButtons();
-		RebuildLayerList();
-		RebuildInspector();
-		UpdateUiFromContext();
-	}
-
-	private void RebuildTerrainButtons()
-	{
-		if (_terrainBtnContainer is null) return;
-		foreach (var child in _terrainBtnContainer.GetChildren())
-		{
-			child.QueueFree();
-		}
-
-		var bg = new ButtonGroup();
-		foreach (var terrain in Enum.GetValues<TerrainType>())
-		{
-			var btn = new Button
-			{
-				Text = terrain.ToString(),
-				ToggleMode = true,
-				ButtonGroup = bg,
-			};
-			if (_context?.PaintTerrain == terrain) btn.ButtonPressed = true;
-			var captured = terrain;
-			btn.Pressed += () => _context?.SetPaintTerrain(captured);
-			_terrainBtnContainer.AddChild(btn);
-		}
-	}
-
-	private void RebuildBuildingButtons()
-	{
-		if (_buildingBtnContainer is null) return;
-		foreach (var child in _buildingBtnContainer.GetChildren())
-		{
-			child.QueueFree();
-		}
-
-		var bg = new ButtonGroup();
-		foreach (var btype in Enum.GetValues<BuildingType>())
-		{
-			var btn = new Button
-			{
-				Text = btype.ToString(),
-				ToggleMode = true,
-				ButtonGroup = bg,
-			};
-			if (_context?.PlaceBuildingType == btype) btn.ButtonPressed = true;
-			var captured = btype;
-			btn.Pressed += () => _context?.SetPlaceBuildingType(captured);
-			_buildingBtnContainer.AddChild(btn);
-		}
-	}
-
-	private void RebuildLayerList()
-	{
-		if (_layerList is null || _context is null) return;
-		foreach (var child in _layerList.GetChildren())
-		{
-			child.QueueFree();
-		}
-
-		foreach (var layer in _context.Layers)
-		{
-			var cb = new CheckBox
-			{
-				Text = $"{layer.Name} ({layer.Type})",
-				ButtonPressed = layer.Visible,
-			};
-			var capturedId = layer.Id;
-			var capturedVisible = layer.Visible;
-			cb.Toggled += pressed => _context?.SetLayerVisible(capturedId, pressed);
-			_layerList.AddChild(cb);
-		}
-	}
-
-	private void RebuildInspector()
-	{
-		if (_inspectorBody is null || _context is null) return;
-		foreach (var child in _inspectorBody.GetChildren())
-		{
-			child.QueueFree();
-		}
-
-		var map = _context.ActiveMap;
-		if (map is null)
-		{
-			_inspectorBody.AddChild(new Label { Text = "（未加载地图）" });
-			return;
-		}
-
-		_inspectorBody.AddChild(new Label { Text = $"地图：{map.Name}" });
-		_inspectorBody.AddChild(new Label { Text = $"ID：{map.Id}" });
-		_inspectorBody.AddChild(new Label { Text = $"类型：{map.Type}" });
-		_inspectorBody.AddChild(new Label { Text = $"网格：{map.Grid.Width} × {map.Grid.Height}" });
-		_inspectorBody.AddChild(new Label { Text = $"单格距离：{map.Grid.CellDistance} {map.Grid.DistanceUnit}" });
-		_inspectorBody.AddChild(new Label { Text = $"图层：{map.Layers.Count}" });
-		_inspectorBody.AddChild(new Label { Text = $"建筑：{map.Buildings.Count}" });
-		_inspectorBody.AddChild(new Label { Text = $"城市引用：{map.CityRefs.Count}" });
-	}
-
-	// ------------------------------------------------------------------ UI 同步
-
-	private void UpdateUiFromContext()
+	private void TryAutoloadSampleProject()
 	{
 		if (_context is null) return;
-
-		if (_selectToolBtn is not null) _selectToolBtn.ButtonPressed = _context.Tool == ToolState.Selected;
-		if (_brushToolBtn is not null) _brushToolBtn.ButtonPressed = _context.Tool == ToolState.Brush;
-		if (_buildingToolBtn is not null) _buildingToolBtn.ButtonPressed = _context.Tool == ToolState.Building;
-
-		if (_brushRoundBtn is not null) _brushRoundBtn.ButtonPressed = _context.Brush == BrushType.Round;
-		if (_brushSquareBtn is not null) _brushSquareBtn.ButtonPressed = _context.Brush == BrushType.Square;
-		if (_brushRadiusSlider is not null && !Equals(_brushRadiusSlider.Value, _context.BrushRadius))
+		var sampleRoot = EditorContext.ResolvePath("res://examples/sample_world");
+		if (System.IO.Directory.Exists(sampleRoot))
 		{
-			_brushRadiusSlider.Value = _context.BrushRadius;
+			_context.LoadProject(sampleRoot);
 		}
-
-		if (_breadcrumbLabel is not null)
+		else
 		{
-			_breadcrumbLabel.Text = _context.IsLoaded
-				? FormatBreadcrumbs(_context)
-				: "未加载工程";
+			_context.NotifyHint($"未找到 {sampleRoot},请点击 \"打开\" 选择工程目录。");
 		}
-
-		if (_validationLabel is not null)
-		{
-			var v = _context.Validation;
-			_validationLabel.Text = v.Errors.Count == 0
-				? $"校验通过 ({v.Warnings.Count} 警告)"
-				: $"校验错误 {v.Errors.Count}";
-		}
-	}
-
-	private static string FormatBreadcrumbs(EditorContext ctx)
-	{
-		var parts = new List<string>();
-		foreach (var id in ctx.Breadcrumbs) parts.Add(ctx.DisplayNameOf(id));
-		parts.Add(ctx.DisplayNameOf(ctx.ActiveMapId));
-		return string.Join(" / ", parts);
 	}
 
 	// ------------------------------------------------------------------ 槽
 
 	private void OnOpenPressed()
 	{
-		if (_fileDialog is null) return;
-		// 固定在主窗口左上角内嵌位置，避免遮挡画布
-		_fileDialog.Popup(new Rect2I(8, 8, 720, 480));
+		_fileDialog?.Popup(new Rect2I(8, 8, 720, 480));
 	}
+
 	private void OnSavePressed() => _context?.SaveProject();
+
 	private void OnUndoPressed() => _context?.UndoStack?.Undo();
+
 	private void OnRedoPressed() => _context?.UndoStack?.Redo();
 
 	private void OnStatusHint(string text)
 	{
-		if (_statusHintLabel is not null) _statusHintLabel.Text = text;
+		// 状态文本由 ToolStrip.StatusLabel 承载；本处留空以备扩展。
 	}
 
-	private void OnMouseMoved(Vector2I cell)
+	private void OnMouseMoved(Vector2I cell) { }
+	private void OnSelectionChanged(string description) { }
+
+	// ------------------------------------------------------------------ 全屏 / 折叠 / 浮动
+
+	private void ToggleFullscreen()
 	{
-		if (_mouseCellLabel is not null) _mouseCellLabel.Text = $"({cell.X}, {cell.Y})";
+		_fullscreen = !_fullscreen;
+		if (_dockLayout is not null) _dockLayout.SetAllPanelsVisible(!_fullscreen);
+		_context?.NotifyHint(_fullscreen ? "进入全屏地图模式（F11 退出）" : "退出全屏");
 	}
 
-	private void OnSelectionChanged(string description)
+	private void TogglePalette()
 	{
-		if (_selectionLabel is not null) _selectionLabel.Text = description;
+		if (_bottomPalette is null) return;
+		_bottomPalette.ToggleCollapsed();
+		_context?.NotifyHint(_bottomPalette.Collapsed ? "BottomPalette 已折叠（Ctrl+B 展开）" : "BottomPalette 已展开");
 	}
+
+	private void ToggleInspector()
+	{
+		if (_inspectorHost is null) return;
+		if (_inspectorHost.Visible) _inspectorHost.HidePanel();
+		else _inspectorHost.ShowPanel();
+	}
+
+	private void ToggleLayerPanel()
+	{
+		if (_layerPanelHost is null) return;
+		if (_layerPanelHost.Visible) _layerPanelHost.HidePanel();
+		else _layerPanelHost.ShowPanel();
+	}
+
+	// ------------------------------------------------------------------ 键盘
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
@@ -386,6 +269,18 @@ public partial class EditorController : Control
 				break;
 			case Key.P when !key.CtrlPressed:
 				_context?.SetTool(ToolState.Building);
+				break;
+			case Key.F11:
+				ToggleFullscreen();
+				break;
+			case Key.B when key.CtrlPressed:
+				TogglePalette();
+				break;
+			case Key.I when key.CtrlPressed:
+				ToggleInspector();
+				break;
+			case Key.L when key.CtrlPressed:
+				ToggleLayerPanel();
 				break;
 		}
 	}

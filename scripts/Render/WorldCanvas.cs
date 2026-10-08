@@ -57,6 +57,54 @@ public partial class WorldCanvas : Node2D
 
     /// <summary>当前已绘制的地形瓦片数（T22 视口剔除验收指标）。</summary>
     public int GetDrawnCellCount() => _terrainLayer?.GetDrawnCellCount() ?? 0;
+    /// <summary>
+    /// drop entry: place a building dropped from palette (spec section 4.2 + tasks T5).
+    /// </summary>
+    public bool TryDropBuilding(BuildingType type, GridCoord cell)
+    {
+        var context = EditorContext.Instance;
+        if (context is null) return false;
+        context.SetPlaceBuildingType(type);
+        _placer ??= new BuildingPlaceController(context);
+        return _placer.TryPlace(cell);
+    }
+
+    /// <summary>
+    /// drop entry: paint terrain dropped from palette (spec section 4.2 + tasks T5).
+    /// </summary>
+    public bool TryDropTerrain(TerrainType type, GridCoord cell, int radius = 0)
+    {
+        var context = EditorContext.Instance;
+        if (context is null || context.ActiveMap is null) return false;
+        var cmd = new ApplyBrushCommand(
+            context,
+            context.ActiveMapId,
+            BrushType.Round,
+            cell,
+            radius,
+            type);
+        context.UndoStack.Push(cmd);
+        return true;
+    }
+
+    /// <summary>
+    /// screen position to grid cell coord (drop routing helper, mirrors mouse routing but accepts an external position).
+    /// </summary>
+    public GridCoord ScreenToCell(Vector2 screenPos)
+    {
+        var camera = _camera;
+        if (camera is null)
+        {
+            return LocalToCell(screenPos);
+        }
+        var viewport = GetViewportRect().Size;
+        if (viewport.X <= 0 || viewport.Y <= 0)
+        {
+            return LocalToCell(screenPos);
+        }
+        var worldPos = (screenPos - viewport / 2f) / camera.Zoom + camera.Position;
+        return LocalToCell(worldPos);
+    }
 
     public override void _Ready()
     {

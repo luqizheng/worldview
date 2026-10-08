@@ -12,11 +12,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!--
-      Godot.NET.Sdk 4.7.2 默认会把仓库内所有 *.cs 都纳入编译（含 tests/ 与 obj/、bin/）。
-      本工程只编译 scripts/ 下源码；tests/ 由独立 csproj 编译。
+      Godot.NET.Sdk 4.7.2 默认会把库里所有 *.cs 都纳入编译（含 tests/ 与 obj/、bin/）。
+      本工程只编译 scripts/ 下源代码；tests/ 由独立 csproj 编译。
       obj/bin 是构建产物,绝不能让主项目纳入。
     -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>

@@ -52,5 +52,18 @@ public partial class TerrainLayer : TileMapLayer
     }
 
     /// <summary>已绘制瓦片数（T22 视口剔除验收指标）。</summary>
-    public int GetDrawnCellCount() => GetUsedCells().Count;
+    
+    private void FillDefault(MapDoc map, TerrainType defaultType)
+    {
+        var w = map.Grid.Width;
+        var h = map.Grid.Height;
+        if (w <= 0 || h <= 0 || w * h > 4096) return; // MVP 保护
+        for (var y = 0; y < h; y++)
+        {
+            for (var x = 0; x < w; x++)
+            {
+                SetTerrainCell(new Vector2I(x, y), defaultType);
+            }
+        }
+    }public int GetDrawnCellCount() => GetUsedCells().Count;
 }

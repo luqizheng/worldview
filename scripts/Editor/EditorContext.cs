@@ -60,6 +60,14 @@ public partial class EditorContext : Node
     [Signal]
     public delegate void LayersChangedEventHandler();
 
+    /// <summary>面板拖放、停靠、折叠、全屏、布局加载、布局保存等产生的体机。由 DockLayout 在处理事件后发出。</summary>
+    [Signal]
+    public delegate void LayoutChangedEventHandler();
+
+    /// <summary>面包屑变更（活动地图切换或下钻/返回时触发）。</summary>
+    [Signal]
+    public delegate void BreadcrumbChangedEventHandler();
+
     /// <summary>鼠标所在网格坐标变化（StatusBar 用）。</summary>
     [Signal]
     public delegate void MouseMovedEventHandler(Vector2I cell);
@@ -75,6 +83,10 @@ public partial class EditorContext : Node
     /// <summary>工具切换，参数为 <see cref="ToolState"/> 的整数值。</summary>
     [Signal]
     public delegate void ToolChangedEventHandler(int tool);
+
+    /// <summary>绘制地形变更（ToolStrip 同步 OptionButton 用）。</summary>
+    [Signal]
+    public delegate void PaintTerrainChangedEventHandler(int terrain);
 
     // ------------------------------------------------------------------ 工程数据
 
@@ -172,6 +184,7 @@ public partial class EditorContext : Node
             ActiveMapId = PickInitialMapId();
 
             EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.BreadcrumbChanged);
             EmitSignal(SignalName.LayersChanged);
             EmitSignal(
                 SignalName.StatusHint,
@@ -276,6 +289,7 @@ public partial class EditorContext : Node
         }
 
         EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.BreadcrumbChanged);
     }
 
     public void SetLayerVisible(string layerId, bool visible)
@@ -504,6 +518,7 @@ public partial class EditorContext : Node
 
         ActiveMapId = mapId;
         EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.BreadcrumbChanged);
     }
 
     /// <summary>返回上一层（R-T-ZOOM-03：已在最深层时给提示而非报错）。</summary>
@@ -518,6 +533,7 @@ public partial class EditorContext : Node
         ActiveMapId = _breadcrumbs[^1];
         _breadcrumbs.RemoveAt(_breadcrumbs.Count - 1);
         EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.BreadcrumbChanged);
     }
 
     /// <summary>直接切换活动地图（不改变导航栈）。</summary>
@@ -530,6 +546,7 @@ public partial class EditorContext : Node
 
         ActiveMapId = mapId;
         EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.BreadcrumbChanged);
     }
 
     // ------------------------------------------------------------------ 工具
@@ -555,7 +572,9 @@ public partial class EditorContext : Node
 
     public void SetPaintTerrain(TerrainType terrain)
     {
+        if (PaintTerrain == terrain) return;
         PaintTerrain = terrain;
+        EmitSignal(SignalName.PaintTerrainChanged, (int)terrain);
         EmitSignal(SignalName.StatusHint, $"绘制地形：{terrain}");
     }
 
@@ -564,8 +583,6 @@ public partial class EditorContext : Node
         PlaceBuildingType = type;
         EmitSignal(SignalName.StatusHint, $"放置建筑：{type}");
     }
-
-    // ------------------------------------------------------------------ UI 上报入口
 
     public void NotifyMouseCell(Vector2I cell) => EmitSignal(SignalName.MouseMoved, cell);
 

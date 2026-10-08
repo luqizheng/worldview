@@ -47,13 +47,11 @@ public partial class GridOverlay : Node2D
             return;
         }
 
-        // 只取视口覆盖的格线范围。
-        var visible = GetViewportRect();
-
-        var firstX = Mathf.Max(0, Mathf.FloorToInt(visible.Position.X / CellSize));
-        var lastX = Mathf.Min(GridWidth, Mathf.CeilToInt(visible.End.X / CellSize));
-        var firstY = Mathf.Max(0, Mathf.FloorToInt(visible.Position.Y / CellSize));
-        var lastY = Mathf.Min(GridHeight, Mathf.CeilToInt(visible.End.Y / CellSize));
+        // MVP:绘制整张地图的格线(性能上限 4096 格,M3+ 改为视口剔除)。
+        var firstX = 0;
+        var lastX = GridWidth;
+        var firstY = 0;
+        var lastY = GridHeight;
 
         var top = firstY * CellSize;
         var bottom = lastY * CellSize;
