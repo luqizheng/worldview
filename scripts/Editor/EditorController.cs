@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using WorldView.Ui;
 using WorldView.Ui.Dock;
 
 namespace WorldView.Editor;
@@ -36,10 +37,13 @@ public partial class EditorController : Control
 	private Button? _redoBtn;
 	private Button? _fullscreenBtn;
 	private Label? _breadcrumbLabel;
+	private HBoxContainer? _topBar;
+	private Button? _mapSettingsBtn;
 
 	// ------------------------------------------------------------------ 状态
 	private EditorContext? _context;
 	private FileDialog? _fileDialog;
+	private MapSettingsDialog? _mapSettingsDialog;
 	private Control? _canvasArea;
 	private WorldView.Render.WorldCanvas? _worldCanvas;
 	private bool _initialFitDone;
@@ -53,6 +57,7 @@ public partial class EditorController : Control
 		_context = EditorContext.Instance ?? EnsureContext();
 		CacheNodes();
 		CreateFileDialog();
+		CreateMapSettingsDialog();
 		ConnectSignals();
 		UpdateBreadcrumb();
 		UpdateUndoButtons(force: true);
@@ -122,6 +127,7 @@ public partial class EditorController : Control
 		_redoBtn = GetNodeOrNull<Button>($"{TopBarPath}/RedoBtn");
 		_fullscreenBtn = GetNodeOrNull<Button>($"{TopBarPath}/FullscreenBtn");
 		_breadcrumbLabel = GetNodeOrNull<Label>($"{TopBarPath}/BreadcrumbLabel");
+		_topBar = GetNodeOrNull<HBoxContainer>(TopBarPath);
 		_canvasArea = GetNodeOrNull<Control>(CanvasAreaPath);
 		_worldCanvas = GetNodeOrNull<WorldView.Render.WorldCanvas>(WorldCanvasPath);
 	}
@@ -153,6 +159,47 @@ public partial class EditorController : Control
 		};
 		_fileDialog.DirSelected += path => _context?.LoadProject(path);
 		AddChild(_fileDialog);
+	}
+
+	/// <summary>
+	/// 地图设置对话框（Task 13）。沿用 <see cref="CreateFileDialog"/> 的「动态创建 + AddChild」手法；
+	/// 顶栏按钮也在代码里建，避免为了一个入口去改 <c>Main.tscn</c>（本任务文件范围只有 2 个）。
+	/// </summary>
+	private void CreateMapSettingsDialog()
+	{
+		_mapSettingsDialog = new MapSettingsDialog { Name = "MapSettingsDialog" };
+		AddChild(_mapSettingsDialog);
+
+		if (_topBar is null)
+		{
+			return;
+		}
+
+		_mapSettingsBtn = new Button
+		{
+			Name = "MapSettingsBtn",
+			Text = "地图…",
+			TooltipText = "新建世界地图 / 调整当前地图尺寸（Ctrl+M）",
+			CustomMinimumSize = new Vector2(64f, 0f),
+		};
+		_mapSettingsBtn.Pressed += OnMapSettingsPressed;
+		_topBar.AddChild(_mapSettingsBtn);
+
+		// 插到「打开工程… / 保存」之后、面包屑之前，保持顶栏原有语义分组。
+		var index = _saveBtn is not null ? _saveBtn.GetIndex() + 1 : 1;
+		_topBar.MoveChild(_mapSettingsBtn, Mathf.Min(index, _topBar.GetChildCount() - 1));
+	}
+
+	private void OnMapSettingsPressed()
+	{
+		if (_mapSettingsDialog is null || _context is null)
+		{
+			return;
+		}
+
+		// 无活动地图 → 新建世界态；有活动地图 → 改该图尺寸（生成参数只读）。
+		_mapSettingsDialog.Setup(_context, _context.ActiveMap);
+		_mapSettingsDialog.PopupCentered(new Vector2I(560, 460));
 	}
 
 	/// <summary>
@@ -270,6 +317,10 @@ public partial class EditorController : Control
 				break;
 			case Key.P when !key.CtrlPressed:
 				_context?.SetTool(ToolState.Building);
+				break;
+			case Key.M when key.CtrlPressed:
+				OnMapSettingsPressed();
+				GetViewport().SetInputAsHandled();
 				break;
 			case Key.F11:
 				DockLayout.Instance?.ToggleFullscreen();
