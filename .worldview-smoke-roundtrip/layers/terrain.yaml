@@ -1,0 +1,8 @@
+id: layer_terrain_global
+name: 基础地形
+type: Terrain
+visible: true
+opacity: 1
+z_order: 0
+locked: false
+default_style: flat

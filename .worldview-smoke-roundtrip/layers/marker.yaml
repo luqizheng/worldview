@@ -1,0 +1,8 @@
+id: layer_marker_global
+name: 标记
+type: Marker
+visible: true
+opacity: 1
+z_order: 30
+locked: false
+default_style: ring

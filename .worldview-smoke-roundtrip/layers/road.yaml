@@ -1,0 +1,8 @@
+id: layer_road_global
+name: 道路
+type: Road
+visible: true
+opacity: 1
+z_order: 10
+locked: false
+default_style: line

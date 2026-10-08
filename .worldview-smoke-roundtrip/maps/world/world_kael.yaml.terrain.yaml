@@ -1,0 +1,91 @@
+encoding: sparse
+default:
+  type: Plain
+  move_cost: 1
+  buildable: true
+  height: 
+cells:
+- at: [22, 10]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [22, 11]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [22, 12]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [23, 10]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [23, 11]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [23, 12]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [24, 10]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [24, 11]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [24, 12]
+  type: Mountain
+  move_cost: 
+  buildable: 
+- at: [5, 4]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [5, 5]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [6, 4]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [6, 5]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [44, 24]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [44, 25]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [45, 24]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [45, 25]
+  type: Forest
+  move_cost: 
+  buildable: 
+- at: [8, 30]
+  type: River
+  move_cost: 
+  buildable: 
+- at: [9, 30]
+  type: River
+  move_cost: 
+  buildable: 
+- at: [10, 30]
+  type: River
+  move_cost: 
+  buildable: 
+- at: [11, 30]
+  type: River
+  move_cost: 
+  buildable: 

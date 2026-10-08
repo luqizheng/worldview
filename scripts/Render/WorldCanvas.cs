@@ -48,6 +48,13 @@ public partial class WorldCanvas : Node2D
     private bool _painting;
     private Vector2I _lastPaintCell = new(int.MinValue, int.MinValue);
 
+    /// <summary>
+    /// 是否已绑定 <see cref="EditorContext"/> 信号。Godot 默认子先父后顺序：
+    /// 本节点（Canvas 子树）_Ready 早于 EditorController._Ready，
+    /// 第一次取 <c>EditorContext.Instance</c> 必为 null，故需延后到 _Process 里绑。
+    /// </summary>
+    private bool _contextBound;
+
     /// <summary>当前已绘制的地形瓦片数（T22 视口剔除验收指标）。</summary>
     public int GetDrawnCellCount() => _terrainLayer?.GetDrawnCellCount() ?? 0;
 
@@ -60,14 +67,9 @@ public partial class WorldCanvas : Node2D
         _gridOverlay = GetNodeOrNull<GridOverlay>("GridOverlay");
         _markerLayer = GetNodeOrNull<MarkerLayer>("MarkerLayer");
 
-        var context = EditorContext.Instance;
-
-        if (context is not null)
-        {
-            _placer = new BuildingPlaceController(context);
-            context.MapChanged += OnMapChanged;
-            context.LayersChanged += ApplyLayerVisibility;
-        }
+        // 第一次尝试：若 EditorController 已先 _Ready（场景里预设 EditorContext 节点时可能），
+        // 直接绑信号 + 触发首次重建。
+        TryBindContext();
 
         RebuildAll();
     }
@@ -80,7 +82,32 @@ public partial class WorldCanvas : Node2D
         {
             context.MapChanged -= OnMapChanged;
             context.LayersChanged -= ApplyLayerVisibility;
+            _contextBound = false;
         }
+    }
+
+    /// <summary>
+    /// 尝试绑定到 <see cref="EditorContext"/>。必须可重入安全：首次 _Ready 与后续 _Process
+    /// 都会调用。绑定成功后会立刻 <see cref="RebuildAll"/>，避免错过 LoadProject 后才发出的信号。
+    /// </summary>
+    private bool TryBindContext()
+    {
+        if (_contextBound)
+        {
+            return true;
+        }
+
+        var context = EditorContext.Instance;
+        if (context is null)
+        {
+            return false;
+        }
+
+        _placer ??= new BuildingPlaceController(context);
+        context.MapChanged += OnMapChanged;
+        context.LayersChanged += ApplyLayerVisibility;
+        _contextBound = true;
+        return true;
     }
 
     // ------------------------------------------------------------------ 重建
@@ -162,6 +189,14 @@ public partial class WorldCanvas : Node2D
 
     public override void _Process(double delta)
     {
+        // 延迟绑定 EditorContext：WorldCanvas._Ready 早于 EditorController._Ready，
+        // 此时 EditorContext.Instance 仍为 null，需要在 _Process 里重试直到绑上。
+        // 绑上后立即 RebuildAll，把首次 LoadProject 后设置的 ActiveMap 画出来。
+        if (!_contextBound && TryBindContext())
+        {
+            RebuildAll();
+        }
+
         if (_camera is null || !IsVisibleInTree())
         {
             return;

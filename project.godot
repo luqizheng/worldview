@@ -18,3 +18,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 [dotnet]
 
 project/assembly_name="WorldView"
+
+[autoload]
+
+McpInteractionServer="*res://autoload/mcp_interaction_server.gd"

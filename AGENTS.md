@@ -115,7 +115,7 @@ world-view/
 ├── scenes/                   # Godot 场景文件（*.tscn）—主界面、地图编辑器、时间轴等
 ├── crates/                   # 【可选】Rust crates 骨架（world-view-core 等；v0.1 不参与主流程，M2+ 实测瓶颈再启用）
 ├── examples/                 # 示例工程（含 sample_world）
-├── .worldview/               # 应用运行时私有目录（autosave / backup / cache），不进版本库
+├── .worldview/               # 应用运行时私有目录（autosave / backup / cache / debug 探针与截图），不进版本库
 ├── *.csproj.user / obj/ / bin/  # .NET 构建产物
 └── .gitignore                # 忽略 .worldview/、autosave/、build artifacts、.godot/、*.csproj.user
 ```

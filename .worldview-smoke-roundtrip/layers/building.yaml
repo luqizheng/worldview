@@ -1,0 +1,8 @@
+id: layer_building_global
+name: 建筑
+type: Building
+visible: true
+opacity: 1
+z_order: 20
+locked: false
+default_style: solid
