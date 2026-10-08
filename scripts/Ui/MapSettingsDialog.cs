@@ -50,6 +50,7 @@ public partial class MapSettingsDialog : AcceptDialog
     private Label? _sizeUnitLabel;
     private OptionButton? _resPreset;
     private SpinBox? _resCustom;
+    private OptionButton? _tileStyle;
     private Label? _coverageLabel;
     private SpinBox? _landSpin;
     private SpinBox? _ruggedSpin;
@@ -174,6 +175,21 @@ public partial class MapSettingsDialog : AcceptDialog
         _coverageLabel = new Label { Text = "—" };
         grid.AddChild(_coverageLabel);
 
+        // 瓦片风格（T14）：条目来自 assets/textures/tiles/styles.yaml 的注册器。
+        // 目前选择只写进 EditorContext.CurrentTilesetId（进程内），渲染层尚未消费，故不会改变画面。
+        grid.AddChild(new Label { Text = "瓦片风格" });
+        _tileStyle = new OptionButton
+        {
+            TooltipText = "瓦片风格来自 assets/textures/tiles/styles.yaml；本轮仅进程内生效，尚未写入地图文件",
+        };
+        foreach (var styleId in TileSetLoader.AvailableIds)
+        {
+            _tileStyle.AddItem(styleId);
+        }
+
+        _tileStyle.ItemSelected += OnTileStyleSelected;
+        grid.AddChild(_tileStyle);
+
         root.AddChild(new HSeparator());
 
         // 生成参数（仅「新建世界」态可编辑）
@@ -289,6 +305,9 @@ public partial class MapSettingsDialog : AcceptDialog
         }
 
         OkButtonText = creating ? "创建" : "应用";
+
+        // 瓦片风格：两种态都显示当前值（默认来自 styles.yaml 的 default:）
+        SelectTileStyle(_context?.CurrentTilesetId ?? TileSetLoader.DefaultId);
 
         // 初值：新建 → 默认 12800 km 见方 @ 25 km/格（= 512 格，spec 2 §4.1 的世界默认）；
         // 已存在 → 反推该图当前的物理边长与分辨率。
@@ -416,6 +435,34 @@ public partial class MapSettingsDialog : AcceptDialog
 
         RefreshCoverage();
         RefreshPreview();
+    }
+
+    /// <summary>T14：下拉只是把选择写进 <see cref="EditorContext.CurrentTilesetId"/>（进程内，不落盘）。</summary>
+    private void OnTileStyleSelected(long index)
+    {
+        var ids = TileSetLoader.AvailableIds;
+        if (_context is not null && index >= 0 && index < ids.Count)
+        {
+            _context.CurrentTilesetId = ids[(int)index];
+        }
+    }
+
+    private void SelectTileStyle(string id)
+    {
+        if (_tileStyle is null)
+        {
+            return;
+        }
+
+        var ids = TileSetLoader.AvailableIds;
+        for (var i = 0; i < ids.Count; i++)
+        {
+            if (ids[i] == id)
+            {
+                _tileStyle.Selected = i;
+                return;
+            }
+        }
     }
 
     private void SelectPresetIndex(MapType type, double cellDistance, int fallback)

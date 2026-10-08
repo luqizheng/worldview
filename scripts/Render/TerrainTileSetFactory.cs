@@ -13,6 +13,10 @@ namespace WorldView.Render;
 /// 可在 <c>--headless</c> 下工作。
 ///
 /// 后续接入美术贴图时，仅需替换本工厂，图层代码不变。
+///
+/// <para>T14 起本工厂还兼任**兜底**：<c>WorldView.Editor.TileSetLoader</c> 在 <c>styles.yaml</c>
+/// 指到的风格目录里找不到 TileSet 资源（或解析失败）时，一律回落到 <see cref="Build"/>，
+/// 因此 <see cref="Build"/> 必须保持「不依赖任何外部资产、可独立调用」。</para>
 /// </summary>
 public static class TerrainTileSetFactory
 {

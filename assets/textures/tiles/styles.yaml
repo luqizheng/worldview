@@ -1,0 +1,9 @@
+version: 1
+default: jrpg
+styles:
+  - id: jrpg
+    path: .                          # 指向 assets/textures/tiles/ 自身（既有资源）
+    description: JRPG 16×16 风格
+  - id: _fallback_solid_color
+    path: solid                      # 若工程内不存在该目录，注册器降级到 TerrainTileSetFactory.Build() 的纯色块
+    description: 纯色兜底（无资产时退化）

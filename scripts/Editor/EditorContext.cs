@@ -50,6 +50,13 @@ public partial class EditorContext : Node
         }
     }
 
+    public override void _Ready()
+    {
+        // T14：预热默认瓦片风格（plan L466）。styles.yaml 缺失或风格资源没做好时，
+        // TileSetLoader 只会打印一行 WARN 并退化到纯色块，不会抛异常。
+        TileSetLoader.WarmUp();
+    }
+
     // ------------------------------------------------------------------ 信号
 
     /// <summary>活动地图切换、或当前地图文档被修改。</summary>
@@ -133,6 +140,15 @@ public partial class EditorContext : Node
 
     /// <summary>撤销 / 重做栈（容量 200）。</summary>
     public UndoStack UndoStack { get; } = new();
+
+    /// <summary>
+    /// 当前瓦片风格 id（T14 / plan L488），取值来自 <c>assets/textures/tiles/styles.yaml</c>，
+    /// 默认即该文件的 <c>default:</c>（当前为 <c>jrpg</c>）。
+    ///
+    /// <para><b>仅进程内状态，不落盘</b>：不写入 <c>MapDoc</c> / YAML / 校验器，重启工程回到默认风格
+    /// （持久化留到多风格实装的那一轮）。</para>
+    /// </summary>
+    public string CurrentTilesetId { get; set; } = TileSetLoader.DefaultId;
 
     // ------------------------------------------------------------------ 私有状态
 
