@@ -13,6 +13,7 @@ namespace WorldView.Domain.Validation;
 ///   <item>layers[].ref 指向的文件存在（M2 必跑）</item>
 ///   <item>buildings[].at 在城市地图网格范围内（M2 必跑）</item>
 ///   <item>网格超过 1024 × 1024 提示改 chunked（M2 警告）</item>
+///   <item>generation 参数超出 GenerationLimits 范围（仅警告，不阻塞 save）</item>
 /// </list>
 /// </summary>
 public sealed class MapValidator : IValidator<MapDoc>
@@ -45,6 +46,17 @@ public sealed class MapValidator : IValidator<MapDoc>
         if (width > SparseUpperBound || height > SparseUpperBound)
         {
             warnings.Add(ValidationError.GridTooLargeSparse(path, width, height));
+        }
+
+        // 规则 8: generation 参数范围（仅在用户填了 generation 时校验）
+        if (map.Generation is not null)
+        {
+            var violation = WorldView.Domain.Generation.GenerationLimits.DescribeViolation(map.Generation);
+            if (violation is not null)
+            {
+                warnings.Add(new ValidationError(
+                    Severity.Warning, "W_GENERATION_PARAM", path, violation));
+            }
         }
 
         // 规则 2 + 3: terrain_data.cells 范围 + 唯一性

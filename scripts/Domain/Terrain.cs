@@ -52,6 +52,12 @@ public static class TerrainDefaults
     public static TerrainCell Plain => new(TerrainType.Plain, 1, true);
 
     /// <summary>
+    /// MVP 默认水域单元：<c>{ type: water, move_cost: 999, buildable: false }</c>。
+    /// 不可建造是硬要求（spec 2 §3.2 含义）；move_cost 是占位值 [待标定]。
+    /// </summary>
+    public static TerrainCell Water => new(TerrainType.Water, 999, false);
+
+    /// <summary>
     /// 11 种地形类型 → spec.md §2.4 显示色（hex）。
     /// Render/TerrainPalette.cs（M3+ 实现）按此映射取 TileSet 帧。
     /// </summary>

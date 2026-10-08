@@ -95,6 +95,13 @@ public sealed record ValidationError(
         Warn($"图层 {layerFile} 解析后 type={actual}，与字段定义不符", "W_LAYER_TYPE_MISMATCH", path);
 
     /// <summary>
+    /// <c>W_GENERATION_PARAM</c>：<c>GenerationSpec</c> 的某个字段超出 <see cref="WorldView.Domain.Generation.GenerationLimits"/> 范围。
+    /// 仅警告，不阻塞 save（Generation 是新功能，用户手填的旧 spec 可能越界）。
+    /// </summary>
+    public static ValidationError GenerationParamOutOfRange(string path, string field, string value, string range) =>
+        Warn($"生成参数 {field}={value} 超出范围 {range}", "W_GENERATION_PARAM", path);
+
+    /// <summary>
     /// 语法糖：从字符串构造 Warning（避免每次手写 Severity.Warning）。
     /// </summary>
     private static ValidationError Warn(string message, string code, string path) =>
