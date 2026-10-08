@@ -3,6 +3,26 @@ using YamlDotNet.Serialization;
 namespace WorldView.Domain;
 
 /// <summary>
+/// 世界生成参数（嵌套 <c>generation</c> 字段，见 spec.md §3 + 数据模型规格 §2.11）。
+///
+/// 七个字段分别控制：算法版本（保证同种子可复现）/ 随机种子 / 陆地占比 / 崎岖度 /
+/// 最小岛屿格数 / 最小湖泊格数 / 海岸侵蚀步数。任一字段缺省即走默认行为；
+/// 整块 <c>generation</c> 缺省时整张地图被视为「未指定生成参数」，UI 与保存都按空白处理。
+/// </summary>
+public sealed record GenerationSpec(
+    [property: YamlMember(Alias = "algorithm")] string Algorithm = "coastline_v1",
+    [property: YamlMember(Alias = "seed")] long Seed = 0,
+    [property: YamlMember(Alias = "land_ratio")] double LandRatio = 0.35,
+    [property: YamlMember(Alias = "ruggedness")] double Ruggedness = 0.5,
+    [property: YamlMember(Alias = "min_island_cells")] int MinIslandCells = 8,
+    [property: YamlMember(Alias = "min_lake_cells")] int MinLakeCells = 6,
+    [property: YamlMember(Alias = "erosion")] int Erosion = 1)
+{
+    /// <summary>YamlDotNet 反序列化所需的无参构造器。</summary>
+    public GenerationSpec() : this("coastline_v1", 0, 0.35, 0.5, 8, 6, 1) { }
+}
+
+/// <summary>
 /// MVP 支持的地图类型（spec.md §2.2）。
 /// 完整地图类型清单（region / street / building / underground）见 <c>docs/地图类型规格_v0.1.md</c>。
 /// </summary>
@@ -141,7 +161,8 @@ public sealed record MapDoc(
     [property: YamlMember(Alias = "terrain_data")] TerrainData TerrainData = null!,
     [property: YamlMember(Alias = "layers")] IReadOnlyList<LayerRef> Layers = null!,
     [property: YamlMember(Alias = "city_refs")] IReadOnlyList<CityRef> CityRefs = null!,
-    [property: YamlMember(Alias = "buildings")] IReadOnlyList<Building> Buildings = null!)
+    [property: YamlMember(Alias = "buildings")] IReadOnlyList<Building> Buildings = null!,
+    [property: YamlMember(Alias = "generation")] GenerationSpec? Generation = null)
 {
     /// <summary>
     /// 防御性默认值（防止反序列化时 null 引用）。
@@ -156,5 +177,6 @@ public sealed record MapDoc(
         TerrainData: new TerrainData(),
         Layers: Array.Empty<LayerRef>(),
         CityRefs: Array.Empty<CityRef>(),
-        Buildings: Array.Empty<Building>()) { }
+        Buildings: Array.Empty<Building>(),
+        Generation: null) { }
 }
