@@ -328,11 +328,12 @@ public sealed record GenerationSpec(
 - Consumes: `CoastlineRefiner.Refine`、`RefineOptions`、`MapDoc`、`EditorContext`。
 - Produces:
   - `public sealed class WorldView.Editing.RefineCoastlineCommand : IEditorCommand`：
-    - `RefineCoastlineCommand(EditorContext context, string mapId, GridCoord rangeMin, GridCoord rangeMax, int radiusCells)`
+    - `RefineCoastlineCommand(EditorContext context, string mapId, GridCoord rangeMin, GridCoord rangeMax, int radiusCells, GenerationSpec? spec = null)`（**勘误（R21）**：原文漏了可选的 `spec`；`OptionsFor` 的 >8 档需要 `spec.Erosion`）
     - `public static RefineOptions OptionsFor(int radiusCells, GenerationSpec? spec)` —— 分档（spec 2 §6.4）：半径 1–2 → `new(0, 0, 0, Morphology: false)`（只重标 `coast`，用户在做精细活）；3–8 → `new(8, 6, 0, false)`（温和清理小碎块）；>8 → `new(8, 6, spec?.Erosion ?? 1, true)`（完整）。
     - `public static RefineOutcome Compute(MapDoc map, GridCoord rangeMin, GridCoord rangeMax, RefineOptions options)`（纯）
     - `public static MapDoc ApplyTo(MapDoc map, RefineOutcome outcome)`（纯）
-    - `public static MapDoc RevertTo(MapDoc map, RefineOutcome outcome)`（纯）
+    - `public static MapDoc RevertTo(MapDoc map, RefineOutcome outcome, IReadOnlyList<TerrainCellEntry> beforeCells)`（纯；**`beforeCells` 必填**）。**勘误（R20）**：原文写 2 参 `RevertTo(MapDoc, RefineOutcome)`，但 `RefineOutcome.Changed` 是**单向**的——被删除的格不记录原类型，无法从 outcome 反推前态，2 参版本只能是静默 no-op。故改为 3 参必填，`outcome` 仅为与 `ApplyTo` 对称保留、不参与计算。
+    - `public static string Describe(RefineOutcome outcome)`（纯；`Description` 属性委托它。**勘误（R21）**：`Description` 需要 `EditorContext`（Godot `Node`）才能构造实例，纯 .NET 测试无法覆盖属性本身，故把格式化逻辑抽成纯静态以便裸测）
     - `Description` = `$"细化海岸线（去碎岛 {RemovedCells} · 填碎海 {FilledCells}）"`。
   - 写回必须走 `EditorContext.ReplaceMap`，`Cells` 保持 `(y, x)` 升序；值为 `Default.Type` 的格**从 `cells` 中删除**（沿用 `SetTerrainCells` 的既有口径）。
 
@@ -351,11 +352,12 @@ public sealed record GenerationSpec(
 - Consumes: `MapDoc`、`GridSpec`、`Building`、`EditorContext.ReplaceMap`。
 - Produces:
   - `public sealed class WorldView.Editing.ResizeMapCommand : IEditorCommand`：
-    - `ResizeMapCommand(EditorContext context, string mapId, GridSpec newGrid)`
+    - `ResizeMapCommand(EditorContext context, string mapId, GridSpec newGrid)`（**勘误（R21）**：构造函数**不得**调用 `context.FindMap(...)`；`Description` 懒求值。测试不能构造 `EditorContext`）
     - `public static MapDoc Resize(MapDoc map, GridSpec newGrid)`（纯：换 `Grid` + 裁剪越界地形格与建筑，其余字段原样保留，含 `Encoding` / `Default` / `Generation`）
     - `public static IReadOnlyList<TerrainCellEntry> CropCells(IReadOnlyList<TerrainCellEntry> cells, int width, int height)`
     - `public static IReadOnlyList<Building> CropBuildings(IReadOnlyList<Building> buildings, int width, int height)`
     - `public static string DescribeLoss(MapDoc map, GridSpec newGrid)`（纯：`"缩小到 80 × 60 格将丢弃 1,240 个地形格与 3 个建筑。"`；放大时 `"扩大到 96 × 96 格不会丢弃任何数据。"`）
+    - `public static string Describe(GridSpec oldGrid, GridSpec newGrid)`（纯；`Description` 属性委托它。**勘误（R21）**：同 Task 9——`Description` 需要 Godot `Node` 才能构造实例，纯 .NET 测试无法覆盖属性本身）
     - `Description` = `$"调整地图尺寸：{oldW}×{oldH} → {newW}×{newH} 格"`。
   - 写回走 `ReplaceMap`；**不得**用 `SetTerrainCells`（越界格被静默跳过，裁不掉）。命令自身不弹确认框——预检确认由调用方（Task 13）在 `Push` 之前完成。
 
@@ -368,6 +370,7 @@ public sealed record GenerationSpec(
 
 **Files:**
 - Modify: `scripts/Render/WorldCanvas.cs`（按下 `:322-341`、释放 `:342-345`、`TryPaint` `:405-437`）
+- Modify: `scripts/Editor/EditorContext.cs`（加 `RefineOnStroke` 属性。**勘误（R22）**：原 Files 清单漏了本文件，但下面 Produces 明确要求本任务产出 `EditorContext.RefineOnStroke`）
 
 **Interfaces:**
 - Consumes: `UndoStack.BeginBatch/EndBatch`（Task 7）、`RefineCoastlineCommand`（Task 9）。
