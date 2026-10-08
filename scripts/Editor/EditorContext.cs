@@ -285,6 +285,24 @@ public partial class EditorContext : Node
         EmitSignal(SignalName.MapChanged);
     }
 
+    /// <summary>
+    /// 追加一张新地图，并把 <paramref name="refPath"/> 同步进 <see cref="World"/>.<c>MapIndex</c>。
+    ///
+    /// 这是 <c>World</c> 走 <c>private set</c> 时唯一允许的「向工程索引加新图」通道：
+    /// 内部必须用 <see cref="WorldIndex.AppendMap"/> 走不可变 <c>with { ... }</c>，
+    /// 然后再赋回 <see cref="World"/>，否则新图会进 <c>_maps</c> 但落盘时 <c>ProjectSaver</c>
+    /// 只按 <c>MapIndex</c> 遍历——静默丢失。
+    /// </summary>
+    public void AddMap(MapDoc map, string refPath)
+    {
+        if (map is null) throw new ArgumentNullException(nameof(map));
+        if (string.IsNullOrEmpty(refPath)) throw new ArgumentException("refPath 不可为空", nameof(refPath));
+
+        _maps.Add(map);
+        World = WorldIndex.AppendMap(World, refPath);
+        EmitSignal(SignalName.MapChanged);
+    }
+
     public void SetLayerVisible(string layerId, bool visible)
     {
         var index = _layers.FindIndex(l => l.Id == layerId);

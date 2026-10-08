@@ -33,9 +33,17 @@ public static class YamlSchemas
 
     /// <summary>
     /// 主序列化器（写回 YAML）。
+    ///
+    /// R12（plan L301-319 + 任务 8）：对 nullable 引用/可空类型为 <c>null</c> 的字段省略 key。
+    /// 例如 <c>MapDoc.Generation: GenerationSpec?</c> 为 <c>null</c> 时，序列化结果里**不写
+    /// <c>generation:</c>**，保持数据模型规格 §0「未填时省略键」的语义。
+    /// 实现走 <c>ConfigureDefaultValuesHandling(OmitNull)</c>（YamlDotNet 16.3.0 的全局开关），
+    /// 与 <c>scripts/Ui/Dock/PanelState.cs</c> 同一模式；作用域为全部 Domain 记录，副作用可控：
+    /// 任何 <c>T?</c> 字段为 <c>null</c> 时都不再写出空键，与手写 YAML 的预期一致。
     /// </summary>
     public static ISerializer BuildSerializer() => new SerializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
         .WithTypeConverter(new GridCoordYamlConverter())
         .WithTypeConverter(new ReadOnlyListYamlConverter())
         .Build();
