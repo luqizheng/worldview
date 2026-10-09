@@ -148,9 +148,53 @@ public partial class DemoUiAtoms : Control
         buttonRow.AddChild(new CloseButton());
         root.AddChild(buttonRow);
 
+        // ---- A2 5 原子 ----
+        root.AddChild(new JrpgLabel()
+            .SetText("--- A2 5 原子 (ToolButton / Menu / Toast / Tooltip / Tab) ---")
+            .SetColor(WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder));
+
+        // ToolButton (active 切换)
+        var toolBtn = new ToolButton()
+            .SetIcon(JrpgIcon.Shape.Check)
+            .SetText("Bold")
+            .AsToggle();
+        root.AddChild(toolBtn);
+
+        // Menu (按钮触发 + 3 项)
+        var menu = new Menu();
+        menu.AddItem("打开", () => GD.Print("[Demo] Menu: 打开"));
+        menu.AddItem("保存", () => GD.Print("[Demo] Menu: 保存"));
+        menu.AddSeparator();
+        menu.AddItem("退出", () => GD.Print("[Demo] Menu: 退出"));
+        var openMenuBtn = new JrpgButton { Text = "打开菜单" };
+        openMenuBtn.Pressed += () => menu.PopupCentered(this);
+        root.AddChild(openMenuBtn);
+
+        // Toast (按钮触发 + 2.5s 自动消失)
+        var toast = new Toast();
+        var showToastBtn = new JrpgButton { Text = "显示 Toast" };
+        showToastBtn.Pressed += () => toast.ShowMessage(this, "已保存", Toast.Severity.Success, Toast.PositionEnum.BottomRight, 2.5f);
+        root.AddChild(showToastBtn);
+
+        // Tooltip (悬停 0.4s 延迟显示)
+        var tipTarget = new JrpgLabel().SetText("悬停看我 0.4s 出 tooltip");
+        var tip = new Tooltip { Text = "这是 Tooltip 提示文本" };
+        tipTarget.MouseEntered += () => tip.ShowUnderCursor(tipTarget);
+        tipTarget.MouseExited += () => tip.Hide();
+        root.AddChild(tipTarget);
+
+        // Tab (3 项 + 默认第二项 active)
+        var tab = new Tab();
+        tab.AddTab("Layer");
+        tab.AddTab("Inspector");
+        tab.AddTab("Settings");
+        tab.ActiveIndex = 1;
+        tab.TabChanged += idx => GD.Print($"[Demo] Tab 切换到 {idx}");
+        root.AddChild(tab);
+
         // GrabFocus 让 F5 进去直接键盘 / 手柄能走 Tab + Enter + Esc, 不必先点鼠标
         openFloatingBtn.GrabFocus();
 
-        GD.Print("[DemoUiAtoms] ready — 验证 11 组件 + 4 Field 渲染");
+        GD.Print("[DemoUiAtoms] ready — 验证 11 组件 + 4 Field + A2 5 原子 渲染");
     }
 }
