@@ -30,6 +30,10 @@ public partial class Dialog : PanelContainer
     private PanelContainer? _overlay;
     private bool _modalOpen;
 
+    // 拖动状态 — 标题条按下时锁定
+    private bool _dragging;
+    private Vector2 _dragOffset;
+
     /// <inheritdoc/>
     public Dialog()
     {
@@ -43,6 +47,7 @@ public partial class Dialog : PanelContainer
 
         // 标题条 (跟 FloatingWindow 一致)
         _titleBar.CustomMinimumSize = new Vector2(0, WorldView.Ui.Theme.Palette.Metric.PanelTitleHeight);
+        _titleBar.MouseFilter = MouseFilterEnum.Pass; // 让自己接收 GuiInput 来拖动
         var titleStyle = new StyleBoxFlat
         {
             BgColor = WorldView.Ui.Theme.Palette.Color.JrpgFill,
@@ -50,6 +55,8 @@ public partial class Dialog : PanelContainer
             BorderWidthBottom = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
         };
         _titleBar.AddThemeStyleboxOverride("panel", titleStyle);
+        // 标题条自己处理 GuiInput → 拖动 (不是整个 Dialog,避免吃掉 body 内 button 点击)
+        _titleBar.GuiInput += OnTitleBarGuiInput;
 
         _titleLabel.VerticalAlignment = VerticalAlignment.Center;
         _titleLabel.AddThemeFontSizeOverride("font_size", WorldView.Ui.Theme.Palette.Metric.FontSizeTitle);
@@ -146,5 +153,36 @@ public partial class Dialog : PanelContainer
         Position = new Vector2(
             (parentSize.X - Size.X) / 2f,
             (parentSize.Y - Size.Y) / 2f);
+    }
+
+    /// <summary>标题条捕获输入 → 拖动 Dialog。Body 区域不受影响(button 点击正常)。</summary>
+    private void OnTitleBarGuiInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        {
+            _dragging = true;
+            // 记录鼠标相对 dialog 自身的偏移(标题条内点击位置)
+            _dragOffset = GetLocalMousePosition() - _titleBar.Position;
+            return;
+        }
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
+        {
+            _dragging = false;
+            return;
+        }
+        if (@event is InputEventMouseMotion && _dragging)
+        {
+            var parent = GetParentControl();
+            if (parent == null) return;
+            var globalMouse = GetGlobalMousePosition();
+            var parentGlobal = parent.GlobalPosition;
+            var newPos = globalMouse - parentGlobal - _dragOffset;
+            Position = newPos;
+            // 防止拖出父容器
+            var viewport = parent.Size;
+            Position = new Vector2(
+                Mathf.Clamp(newPos.X, 0, Mathf.Max(0, viewport.X - Size.X)),
+                Mathf.Clamp(newPos.Y, 0, Mathf.Max(0, viewport.Y - Size.Y)));
+        }
     }
 }

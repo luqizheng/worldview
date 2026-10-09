@@ -47,6 +47,7 @@ public partial class FloatingWindow : PanelContainer
     {
         // 标题条:标题左对齐 + 关闭按钮右对齐
         _titleBar.CustomMinimumSize = new Vector2(0, WorldView.Ui.Theme.Palette.Metric.PanelTitleHeight);
+        _titleBar.MouseFilter = MouseFilterEnum.Pass; // 接收 GuiInput 做拖动
         var titleStyle = new StyleBoxFlat
         {
             BgColor = WorldView.Ui.Theme.Palette.Color.JrpgFill,
@@ -54,6 +55,8 @@ public partial class FloatingWindow : PanelContainer
             BorderWidthBottom = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
         };
         _titleBar.AddThemeStyleboxOverride("panel", titleStyle);
+        // 标题条自己处理拖动输入(不是整个浮窗,避免吃掉 body 内 button 点击)
+        _titleBar.GuiInput += OnTitleBarGuiInput;
 
         _titleLabel.VerticalAlignment = VerticalAlignment.Center;
         _titleLabel.AddThemeFontSizeOverride("font_size", WorldView.Ui.Theme.Palette.Metric.FontSizeBody);
@@ -134,14 +137,13 @@ public partial class FloatingWindow : PanelContainer
         Position = pos;
     }
 
-    /// <inheritdoc/>
-    public override void _GuiInput(InputEvent @event)
+    /// <summary>标题条捕获输入 → 拖动 FloatingWindow。Body 区域不受影响(button 点击正常)。</summary>
+    private void OnTitleBarGuiInput(InputEvent @event)
     {
-        // 拖动逻辑:鼠标左键在标题条按下 → 拖动 → 释放
         if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
         {
             _dragging = true;
-            _dragOffset = GetLocalMousePosition();
+            _dragOffset = GetLocalMousePosition() - _titleBar.Position;
             return;
         }
         if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
@@ -151,14 +153,12 @@ public partial class FloatingWindow : PanelContainer
         }
         if (@event is InputEventMouseMotion && _dragging)
         {
-            // 父节点坐标系下的新位置 = 父节点全局鼠标位置 - 初始偏移
             var parent = GetParentControl();
             if (parent == null) return;
             var globalMouse = GetGlobalMousePosition();
             var parentGlobal = parent.GlobalPosition;
             var newPos = globalMouse - parentGlobal - _dragOffset;
             Position = newPos;
-
             // Clamp 到父容器视口
             var viewport = parent.Size;
             ClampToViewport(viewport);
