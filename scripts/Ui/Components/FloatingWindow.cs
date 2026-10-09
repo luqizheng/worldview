@@ -61,6 +61,8 @@ public partial class FloatingWindow : PanelContainer
         _titleLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _titleRow.AddChild(_titleLabel);
         _titleRow.AddChild(_closeButton);
+        // CloseButton 关闭请求 → 整个浮窗淡出 + QueueFree(而不是只 free CloseButton 本身)
+        _closeButton.CloseRequested += TriggerClose;
 
         _titleBar.AddChild(_titleRow);
 
@@ -84,6 +86,14 @@ public partial class FloatingWindow : PanelContainer
         AddChild(_contentRoot);
     }
 
+    /// <summary>语义化:触发浮窗淡出 + QueueFree(对齐 CloseButton 行为)。</summary>
+    public void TriggerClose()
+    {
+        var tween = CreateTween();
+        tween.TweenProperty(this, "modulate:a", 0f, WorldView.Ui.Theme.Palette.Animation.FadeOutMs / 1000f);
+        tween.TweenCallback(Callable.From(QueueFree));
+    }
+
     /// <summary>语义化:设置标题。</summary>
     public FloatingWindow SetTitle(string title)
     {
@@ -98,18 +108,23 @@ public partial class FloatingWindow : PanelContainer
         return this;
     }
 
-    /// <summary>语义化:屏幕居中显示(添加到一个 CanvasLayer 父节点后调用)。</summary>
-    public FloatingWindow PopupCentered(Vector2 viewportSize)
+    /// <summary>语义化:屏幕居中显示(在父 Control 内可见区域内居中)。
+    /// <para><paramref name="windowSize"/> 是想要的目标尺寸(对应 Godot <c>Window.PopupCentered</c> 的 size 参数,不是 viewport)。</para>
+    /// </summary>
+    public FloatingWindow PopupCentered(Vector2 windowSize)
     {
-        var size = Size;
+        Size = windowSize;
+        // 计算父容器可视区域大小,作为居中/clamp 基准
+        var parent = GetParentControl();
+        var viewport = parent?.Size ?? GetViewportRect().Size;
         Position = new Vector2(
-            (viewportSize.X - size.X) / 2f,
-            (viewportSize.Y - size.Y) / 2f);
-        ClampToViewport(viewportSize);
+            (viewport.X - Size.X) / 2f,
+            (viewport.Y - Size.Y) / 2f);
+        ClampToViewport(viewport);
         return this;
     }
 
-    /// <summary>ClampRect:把窗口位置 clamp 到视口内(防止拖出屏幕)。</summary>
+    /// <summary>ClampRect:把窗口位置 clamp 到父容器视口内(防止拖出屏幕)。</summary>
     public void ClampToViewport(Vector2 viewportSize)
     {
         var size = Size;

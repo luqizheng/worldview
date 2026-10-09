@@ -55,6 +55,8 @@ public partial class Dialog : Window
         _titleLabel.SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill;
         _titleRow.AddChild(_titleLabel);
         _titleRow.AddChild(_closeButton);
+        // CloseButton 关闭请求 → 整个对话框淡出 + Hide(而不是只 free CloseButton 本身)
+        _closeButton.CloseRequested += TriggerClose;
         _titleBar.AddChild(_titleRow);
         BodyRoot.AddChild(_titleBar);
 

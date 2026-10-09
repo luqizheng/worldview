@@ -80,3 +80,10 @@ screenshot.png
 
 # ---- 一次性清理/迁移文件 ----
 .trae/m1-cleanup-manifest.md
+
+# ---- UI 主题/Token 真源 派生产物(不入手工 commit) ----
+# Palette.Designer.cs 由 Roslyn IIncrementalGenerator 编译期生成到 .godot/mono/temp/obj/,
+# Demo 场景只在手测时创建(不进入版本库)
+**/Palette.Designer.cs
+**/Palette.Designer.g.cs
+scenes/_demo/
