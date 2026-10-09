@@ -172,6 +172,31 @@
 >
 > **2026-10-09 用户二选一确认**:**完全沿用 §4.5,不调整**(✓)。
 
+#### 1.4.6 实测参考图(2026-10-09,出图样张)
+
+> **本节是 §1.4.3 出图参数基线的实测背书**——下面这张图是按基线跑 Blue Pencil XL v7(无 ControlNet 控形、无 LoRA 叠加)的样张,证明 §1.4.3 的提示词骨架**确实**能出 HD-2D 子风格,不必调 LoRA。
+
+**样张特征(实测)**:
+
+| 项 | 值 | 与 §1.4.3 基线对应 |
+|---|---|---|
+| **视角** | 2.5D 俯视斜角 | ✓ `2.5d perspective, isometric` |
+| **色调** | 4 主色封顶(米白裙 / 橙背心 / 棕发 / 灰蓝屋顶)+ 黑描边 + 草丛黄绿 / 石径灰白 | ✓ jrpg_palette 4 色封顶纪律 |
+| **描边** | 1px dark outline | ✓ `1px dark outline, cel-shaded` |
+| **厚涂** | 厚涂水彩 + 干刷笔触 | ✓ `watercolor texture, paper texture, painterly` |
+| **光照** | 左上→右下方向暖光 + 阴影 | ✓ `thick layered lighting, soft vignette` |
+| **角色姿态** | 正面 T-pose(参考图常用) | ✓ 角色 marker 图标骨架 |
+| **场景元素** | 鹅卵石径 + 茅草屋顶 + 民居 + 灌木 + 灯笼 + 石围栏 | ✓ JRPG village 场景元素 |
+
+**结论**:
+- **§1.4.3 基线出图参数可用** —— 跑出图与基线描述高度吻合
+- **不叠 LoRA 是对的** —— Blue Pencil XL v7 自身 JRPG 风格完整
+- **载入 ControlNet 后可加细节控形** —— 这张图作为基线图,载入 §3.5.3 LoadImage(档 C:风格锚图)可复刻同一构图
+
+**作为后续参考图**:
+- 用作 LoadImage 上传**档 C:风格锚图**——保持同一视觉风格统一输出系列图
+- 文件落地路径:`D:\kudi-project\comfyui-models\reference_maps\char_girl_back_refmap_v1.png`(与 §3.5.8.4 推荐存放一致)
+
 ---
 
 ## 2. 本地缓存目录约定
@@ -916,3 +941,4 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 | 2026-10-09 | v0.1 补充 7 | **`ControlNetApplyAdvanced` 节点替换**——用户实测 ComfyUI 已升级,`ApplyControlNet` 被新版 `ControlNetApplyAdvanced` 取代,**无 `conditioning` 输入,只接 `positive` / `negative` / `control_net` / `image`**,**内部完成叠加**;**§3.5.3 节点清单 18 节点 → 16 节点**(删 ⑬⑭ ConditioningCombine,加 ⑪⑫ 新版节点);**§3.5.3.2 连线表 17 条 → 17 条(重写 5/12/13/14/15)**——方案 1 分层控形(Canny 控 P,strength=0.65;Depth 控 N,strength=0.45;N 排除非等距视角);**§3.5.3.3 简化版 12 节点 → 11 节点 / 9 连线 → 11 连线**(无 N 控形,③ 直接接 ⑬.negative);**§3.5.7.1 主表 `ControlNetApplyAdvanced` 行**——加新旧版接口对比,标注缺失回退到老版 ApplyControlNet(需补 ConditioningCombine);**§3.5.7.4 字段值兼容性表**——加 `ControlNetApplyAdvanced` 行,标注"接口不兼容老版";**残留旧 JSON 代码块(行 688-881)整体删除**——早已被新版文字版取代;**用户决策回查**:分层控形(方案 1) |
 | 2026-10-09 | v0.1 补充 8 | **`docs/comfyui/HD2D_simplified.json` 落地**——删除 Depth 一支 + ID 与 §3.5.3.3 一一对应(① ② ③ ④ ⑤ ⑦ ⑨ ⑪ ⑬ ⑭ ⑮ ⑯),12 节点 / 11 条连线,新增 `③ → ⑬.negative` 直连线(link=50);§3.5.3.3 表头"11 节点 / 7 条连线"勘误为"12 节点 / 11 条连线";§3.5.3.3 表格末"11 条"加节点数 12 备注;自检脚本 `.dsh_tmp/verify_hd2d.py` 输出 ✅ 每条 link 两端都对应实际节点 |
 | 2026-10-09 | v0.1 补充 9 | **新增 §3.5.8 LoadImage 上传规范**(6 小节:三档用法 A/B/C / 自画草图三类型 / 不传时怎么验证 / 三种推荐存放位置 / 文件格式 + 命名 + 尺寸规范 / widgets_values 实测结构);§3.5.2 表行 7 同步指向 §3.5.8 |
+| 2026-10-09 | v0.1 补充 10 | **新增 §1.4.6 实测参考图**——`image.png`(1024×1024,sha256:bb19de8a3c0f40da18db9698a8c4aae85181fb20e1a386e5b42c9757c6e72ceb)按 §1.4.3 基线出图,验证 7 项视觉特征与基线吻合;作为 LoadImage 档 C 风格锚图,文件落地路径 `D:\kudi-project\comfyui-models\reference_maps\char_girl_back_refmap_v1.png`(与 §3.5.8.4 推荐存放一致) |
