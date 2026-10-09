@@ -30,11 +30,22 @@ Spec (binding authority): `docs/superpowers/specs/2026-10-10-p0-c2-acceptance-ba
 
 | Task | 状态 | 产出 | commit |
 | --- | --- | --- | --- |
-| T1 B1 警告基线采集 | ✅ 完成 | `task-1-report.md` | — |
-| T2 B2 测试基线采集 | 待开工 | `task-2-report.md` | — |
-| T3 失败定性核对（§6.4 已完成，只核对） | 待开工 | `task-3-report.md` | — |
+| T1 B1 警告基线采集 | ✅ 完成 | `task-1-report.md` | 65e59b0 |
+| T2 B2 测试基线采集 | ✅ 完成 | `task-2-report.md` | （本提交） |
+| T3 失败定性核对（§6.4 引用 + flaky 定性） | ✅ 完成 | `task-3-report.md` | （本提交） |
 | T4 落盘 `docs/acceptance/baseline_v0.1.md` | 待开工 | 基线文档 | — |
 | T5 回写与提交 | 待开工 | §5 ST=done + progress 收口段 | — |
+
+### T2/T3 结果摘要（2026-10-10）
+
+- 命令：`DOTNET_CLI_UI_LANGUAGE=en-US dotnet exec tests/.../WorldView.Tests.dll`（exe 直跑因 hostfxr 失效）
+- **B2 基线 = 总数 351 / 成功 343 / 稳定失败 7 / flaky 1~4（不定）**
+- 4 次实测 failed = 9 / 8 / 8 / 11，总数稳定 351（§6.4 原记 344，+7）
+- 稳定 7 条与 §6.4 主表**逐条对应**，定性有效
+- **新增 flaky 6 条**（全部 `ProjectManagement`）→ 录入《长期执行计划》§6.4.1
+  - F1/F2 **机制已确认**：`BackupService.TryDeleteDir`（`:184-194`）静默吞删除失败 + 「先删目录后写清单」（`:99-113`）→ 清单与磁盘不一致 → 磁盘断言 +1。属产品健壮性缺陷
+  - F3~F6 标 `[待定性]`；已排除：清单写非原子（`Save` 用 tmp+Replace）、临时目录冲突（GUID 后缀）、`Cleanup()` 误删（无调用点）
+- **新增 Ruling R6**：flaky 既不得视为「已知通过」，也不得当作「必须修完才能提交」的红线；基线文档须写明失败构成。
 
 ### T1 结果摘要（2026-10-10）
 
