@@ -192,9 +192,38 @@ public partial class DemoUiAtoms : Control
         tab.TabChanged += idx => GD.Print($"[Demo] Tab 切换到 {idx}");
         root.AddChild(tab);
 
+        // ---- A4 数值 3 Field ----
+        root.AddChild(new JrpgLabel()
+            .SetText("--- A4 数值 3 Field (Slider / Color / Date) ---")
+            .SetColor(WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder));
+
+        // SliderField (范围 0-200, 步长 10, 默认 50)
+        var slider = new SliderField()
+            .SetLabel("密度")
+            .SetRange(0, 200, 10)
+            .SetValue(50);
+        slider.ValueChanged += v => GD.Print($"[Demo] Slider value: {v}");
+        root.AddChild(slider);
+
+        // ColorPickerField (默认 JRPG 暖色 jrpg_bg)
+        var colorField = new ColorPickerField()
+            .SetLabel("主色")
+            .SetValue(WorldView.Ui.Theme.Palette.Color.JrpgBg);
+        colorField.OnChange(c => GD.Print($"[Demo] Color: {ColorPickerField.ToHex(c)}"));
+        root.AddChild(colorField);
+
+        // DateField (今天 ± 30 天, 越界 prev/next 静默)
+        var today = System.DateOnly.FromDateTime(System.DateTime.Today);
+        var dateField = new DateField()
+            .SetLabel("日期")
+            .SetRange(today.AddDays(-30), today.AddDays(30))
+            .SetValue(today);
+        dateField.DateChanged += d => GD.Print($"[Demo] Date: {d}");
+        root.AddChild(dateField);
+
         // GrabFocus 让 F5 进去直接键盘 / 手柄能走 Tab + Enter + Esc, 不必先点鼠标
         openFloatingBtn.GrabFocus();
 
-        GD.Print("[DemoUiAtoms] ready — 验证 11 组件 + 4 Field + A2 5 原子 渲染");
+        GD.Print("[DemoUiAtoms] ready — 验证 11 组件 + 4 Field + A2 5 原子 + A4 数值 3 Field 渲染");
     }
 }
