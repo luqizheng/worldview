@@ -5,7 +5,7 @@ using Godot;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 单个面板 / 行 / 节的 **UI 私有**状态（spec §5.2 / §5.3）。

@@ -3,9 +3,9 @@ using WorldView.Domain;
 using WorldView.Editor;
 using WorldView.Editing;
 using WorldView.Render;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 地形色块（spec §3.1 row2 的 <c>Terrain</c> 控件 + §4.2 内容拖放 / tasks.md T5）：

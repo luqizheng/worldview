@@ -2,7 +2,7 @@ using Godot;
 using WorldView.Domain;
 using WorldView.Editing;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 地形色块拖放 payload（spec §4.2 / tasks.md T5）。

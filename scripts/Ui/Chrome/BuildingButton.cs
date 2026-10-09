@@ -1,9 +1,9 @@
 using Godot;
 using WorldView.Domain;
 using WorldView.Editor;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 建筑格（spec §4.2 / tasks.md T5）。

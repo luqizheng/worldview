@@ -1,6 +1,7 @@
 using Godot;
+using WorldView.Ui.Dock.Service;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 边缘停靠接受区（spec §4.1 / tasks.md T1）。

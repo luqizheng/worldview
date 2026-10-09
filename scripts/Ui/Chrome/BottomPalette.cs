@@ -2,10 +2,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using WorldView.Ui.Components;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
+using WorldView.Ui.Dock.Service;
 using WorldView.Ui.Theme;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 底部面板容器（spec §3.2 / §3.5 / tasks.md T8 + T11 + T12）。

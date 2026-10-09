@@ -1,6 +1,7 @@
 using Godot;
+using WorldView.Ui.Dock.Service;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 浮动面板宿主窗口（spec §4.4 / tasks.md T1）。

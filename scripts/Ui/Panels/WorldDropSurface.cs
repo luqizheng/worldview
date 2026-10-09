@@ -3,9 +3,9 @@ using WorldView.Domain;
 using WorldView.Editor;
 using WorldView.Editing;
 using WorldView.Render;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui;
+namespace WorldView.Ui.Panels;
 
 /// <summary>
 /// 画布拖放落点（spec §4.2 / tasks.md T5）。

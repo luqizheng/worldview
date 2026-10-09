@@ -1,7 +1,7 @@
 using Godot;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// BottomPalette 的行内 section（spec §3.2 / §5.3 / tasks.md T11）。

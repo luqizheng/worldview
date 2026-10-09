@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Service;
 
 /// <summary>
 /// 停靠布局根（spec §4.1 面板拖放 / §5 布局持久化 / tasks.md T1 + T4 + T6 + T7）。

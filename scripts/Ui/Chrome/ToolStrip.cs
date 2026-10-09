@@ -5,7 +5,7 @@ using WorldView.Domain;
 using WorldView.Editor;
 using WorldView.Editing;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 工具条（spec §3.1 row 2 / tasks.md T3 + T11 + T9）：BottomPalette 的 <c>row 2</c>，高 20px。

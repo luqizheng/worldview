@@ -1,10 +1,10 @@
 using Godot;
 using WorldView.Editor;
 using WorldView.Ui.Components;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 using WorldView.Ui.Theme;
 
-namespace WorldView.Ui;
+namespace WorldView.Ui.Panels;
 
 /// <summary>
 /// 图层面板（spec §3.6 / tasks.md T3）：与 <see cref="Inspector"/> 一样，本轮默认**浮动**、

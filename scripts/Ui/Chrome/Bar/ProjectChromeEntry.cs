@@ -2,7 +2,7 @@ using Godot;
 using WorldView.Editor;
 using WorldView.ProjectManagement;
 
-namespace WorldView.Ui;
+namespace WorldView.Ui.Chrome.Bar;
 
 /// <summary>
 /// 32px 顶部条左侧的「工程按钮」(W5 / C-L1)。

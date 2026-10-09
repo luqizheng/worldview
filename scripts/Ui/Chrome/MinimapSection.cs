@@ -3,7 +3,7 @@ using WorldView.Domain;
 using WorldView.Editor;
 using WorldView.Render;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 小地图（spec §3.4 / §4.3 / tasks.md T13）：BottomPalette <c>build_row</c> 的最左 section。

@@ -1,7 +1,7 @@
 using Godot;
 using WorldView.Domain;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 建筑图标拖放 payload（spec §4.2 / tasks.md T5）。

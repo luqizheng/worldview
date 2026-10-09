@@ -1,6 +1,6 @@
 using Godot;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 面板拖放 payload（spec §4.1）。

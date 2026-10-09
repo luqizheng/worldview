@@ -1,7 +1,8 @@
 using System;
 using Godot;
+using WorldView.Ui.Dock.Service;
 
-namespace WorldView.Ui.Dock;
+namespace WorldView.Ui.Dock.Leaf;
 
 /// <summary>
 /// 可停靠面板基类（spec §4.1 / tasks.md T1 + T4）。

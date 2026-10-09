@@ -7,7 +7,7 @@ using WorldView.Domain.Generation;
 using WorldView.Editing;
 using WorldView.Editor;
 using WorldView.Render;
-using WorldView.Ui.Palette;
+using WorldView.Ui.Chrome;
 
 namespace WorldView.Ui;
 

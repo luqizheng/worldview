@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using Godot;
 using WorldView.Domain;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 建筑面板（spec §3.5 / tasks.md T5 + T12）：BottomPalette <c>build_row</c> 的 section 1。

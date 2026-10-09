@@ -1,9 +1,9 @@
 using Godot;
 using WorldView.Editor;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 using WorldView.Ui.Theme;
 
-namespace WorldView.Ui;
+namespace WorldView.Ui.Panels;
 
 /// <summary>
 /// 检视器面板（spec §3.6 / tasks.md T3）：本轮默认**浮动**在右侧、默认不可见

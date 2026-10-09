@@ -1,7 +1,8 @@
 using Godot;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
+using WorldView.Ui.Dock.Service;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// BottomPalette 内某个 section 的**内容**基类（spec §5.2 / tasks.md T11）。

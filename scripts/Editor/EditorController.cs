@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using Godot;
 using WorldView.ProjectManagement;
 using WorldView.Ui;
+using WorldView.Ui.Chrome.Bar;
 using WorldView.Ui.Components;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Service;
 
 namespace WorldView.Editor;
 

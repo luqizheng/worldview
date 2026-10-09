@@ -1,7 +1,7 @@
 using Godot;
-using WorldView.Ui.Dock;
+using WorldView.Ui.Dock.Leaf;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// 事件播放条（spec §3.3 / tasks.md T14）：BottomPalette 的 <c>row 0</c>。

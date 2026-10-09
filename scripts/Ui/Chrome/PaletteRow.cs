@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace WorldView.Ui.Palette;
+namespace WorldView.Ui.Chrome;
 
 /// <summary>
 /// BottomPalette 的一行（spec §3.2 / tasks.md T11）。
