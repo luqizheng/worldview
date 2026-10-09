@@ -136,6 +136,7 @@ world-view/
   - **`.worldview/{cache,autosave,backup,layouts}` 与 `.dsh_tmp/`、`.tmp-pmtests/` = 忽略**。
   - **构建/调试产物一律不得入库**：`*.log`、`TestResults/`、`*.trx`、`csc-line.txt`、`probe-temp.ps1`、`test-class.cs(.uid)`、`screenshot.png.import`、`**/_b64_check.txt`。
   - **`*.gd` 默认忽略，但 `autoload/*.gd` 是负向例外**（`!autoload/*.gd` + `!autoload/*.gd.uid`）：`autoload/mcp_interaction_server.gd` 被 `project.godot` 引用，必须入库，否则跨机器 clone 后 F5 直接失败。
+  - **`.superpowers/sdd/` 台账 = 白名单入库**（2026-10-12 定案）：该目录 `.gitignore` 为 `*` + `!*/`，即默认忽略全部，仅**例外跟踪** `progress.md` 与 `task-*-report.md`（总账 + 逐任务实况）。`task-*-brief.md` / `task-*-review.md` / `final-review.md` / `review-*.diff|log|stat` / `*.xml` / `*.png` / `plan-path` **继续忽略**（本地留存，体积大或为过程件）。目的：跨机器可查「每个工作项做过什么」。新增台账目录无需额外配置，沿用同一规则。
 
 **已撤销的旧栈骨架**（`src/` TS+Vite、`src-tauri/` Tauri 主进程、`Cargo.toml`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`node_modules/`、`dist/`）：**2026-10-12 已全部清理完毕**（`P0-C0a`，选项 A，用户显式授权自动 commit；`git ls-files` 对全部旧栈项零命中，提交 2217fdd）。清理清单与执行记录见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)。**`cargo` / `pnpm` / `tauri` 指令自此全部作废**，任何文档中出现即为残留，须删除。
 
