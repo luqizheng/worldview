@@ -57,4 +57,48 @@ Spec (binding authority): `docs/superpowers/specs/2026-10-10-p0-c2-acceptance-ba
 
 ## 收口段（T5 完成后填写）
 
-（待填：结论 / 已知遗留 / spec 验收逐条对照）
+**结论：`P0-C2` 完成。** 交付物 `docs/acceptance/baseline_v0.1.md` 已落盘，后续所有工作项的 §0.5 自检以该文件为唯一对照真源。
+
+### 交付物
+
+| 项 | 路径 |
+| --- | --- |
+| spec | `docs/superpowers/specs/2026-10-10-p0-c2-acceptance-baseline.md` |
+| plan | `docs/superpowers/plans/2026-10-10-p0-c2-acceptance-baseline.md` |
+| 台账 | `.superpowers/sdd/2026-10-10-p0-c2-acceptance-baseline/` |
+| **基线文档** | **`docs/acceptance/baseline_v0.1.md`** |
+
+### 基线值（2026-10-10 采集）
+
+| 门 | 基线 |
+| --- | --- |
+| B1 | 0 error / **184 warnings**（必须 `--no-incremental`） |
+| B2 | 351 总 / 343 成功 / **稳定失败 7** / **flaky 1~4（不定）** |
+| B3 | 退出码 0 |
+| B4 | 无产物类混入；`.uid` 必须提交 |
+
+### spec 验收逐条对照
+
+| # | 验收项 | 结果 |
+| --- | --- | --- |
+| 1 | `baseline_v0.1.md` 落盘且含四节 | ✅ B1 / B2 / B3-B4 / 口径说明 四节齐全 |
+| 2 | 数字有命令输出佐证 | ✅ 各节含命令原文与采集日期；无「应该没问题」表述 |
+| 3 | 失败清单与 §6.4 对齐 | ✅ 稳定 7 条与 §6.4 主表逐条对应；新增 flaky 6 条已入 §6.4.1 |
+| 4 | 可独立执行 | ✅ 另一会话仅凭该文档 + §0.5 即可自检 |
+| 5 | 基线自检全绿 | ✅ T5 前跑 B1–B4：B1 184/0、B2 351/8（7 稳定+1 flaky）、B3 exit 0、B4 干净 |
+| 6 | 台账齐备 | ✅ `progress.md`（本收口段）+ `task-1..3-report.md`；`task-1-brief.md` 按入库策略留本地 |
+
+### 已知遗留（**不在本项范围，已各自登记**）
+
+1. **稳定失败 7 条** — 定性见 §6.4 主表；修复各单开工作项，排在 `P0-C2` 之后。
+2. **flaky 6 条** — 见 §6.4.1。F1/F2 机制已确认（`BackupService.TryDeleteDir` 静默吞删除失败 + 「先删目录后写清单」）；F3~F6 标 `[待定性]`，需最小复现。
+3. **CS2002 ×137** — `WorldView.csproj` 重复编译项缺陷，见 §6.3；清理后 B1 警告数预计从 184 降至 47。
+4. **B2 首选命令失效** — exe 直跑遇 hostfxr 加载被拒；已改用 `dotnet exec`（见 §0.5-B2）。
+
+### 本项新增 Rulings
+
+| 编号 | 内容 |
+| --- | --- |
+| R5 | B1 警告数必须用 `--no-incremental` 全量采集（增量 19 vs 全量 184） |
+| R6 | flaky 既不得视为「已知通过」，也不得当作提交红线；基线须写明「稳定 7 + flaky 1~4」 |
+
