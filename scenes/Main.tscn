@@ -102,6 +102,11 @@ layout_mode = 2
 text = "⟳ 重做"
 script = ExtResource("9_jrpgbtn")
 
+[node name="ViewBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
+layout_mode = 2
+text = "视图"
+script = ExtResource("9_jrpgbtn")
+
 [node name="FullscreenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "全屏 F11"

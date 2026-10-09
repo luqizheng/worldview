@@ -39,6 +39,8 @@ public partial class EditorController : Control
 	private Button? _undoBtn;
 	private Button? _redoBtn;
 	private Button? _fullscreenBtn;
+	private Button? _viewBtn;
+	private Menu? _viewMenu;
 	private JrpgBreadcrumb? _breadcrumb;
 	private HBoxContainer? _topBar;
 	private JrpgButton? _mapSettingsBtn;
@@ -133,6 +135,7 @@ public partial class EditorController : Control
 		_undoBtn = GetNodeOrNull<Button>($"{TopBarPath}/UndoBtn");
 		_redoBtn = GetNodeOrNull<Button>($"{TopBarPath}/RedoBtn");
 		_fullscreenBtn = GetNodeOrNull<Button>($"{TopBarPath}/FullscreenBtn");
+		_viewBtn = GetNodeOrNull<Button>($"{TopBarPath}/ViewBtn");
 		_breadcrumb = GetNodeOrNull<JrpgBreadcrumb>($"{TopBarPath}/Breadcrumb");
 		_scaleBar = GetNodeOrNull<JrpgScaleBar>($"{CanvasAreaPath}/CanvasOverlay/ScaleBar");
 		_mapTabBar = GetNodeOrNull<JrpgMapTabBar>("UiLayer/DockLayout/Root/MapTabBar");
@@ -148,6 +151,7 @@ public partial class EditorController : Control
 		if (_undoBtn is not null) _undoBtn.Pressed += OnUndoPressed;
 		if (_redoBtn is not null) _redoBtn.Pressed += OnRedoPressed;
 		if (_fullscreenBtn is not null) _fullscreenBtn.Pressed += OnFullscreenPressed;
+		if (_viewBtn is not null) _viewBtn.Pressed += OnViewPressed;
 		if (_breadcrumb is not null) _breadcrumb.MapJumpRequested += OnBreadcrumbJump;
 		if (_mapTabBar is not null) _mapTabBar.MapTabSelected += OnMapTabSelected;
 		if (_replayBar is not null)
@@ -372,6 +376,34 @@ public partial class EditorController : Control
 	private void OnRedoPressed() => _context?.UndoStack?.Redo();
 
 	private void OnFullscreenPressed() => (DockLayout.Instance as IDockHost)?.ToggleFullscreen();
+
+	/// <summary>
+	/// 「视图」菜单：打开 / 关闭 Inspector 与 LayerPanel 两个默认隐藏的浮动面板。
+	/// <para>
+	/// <c>PanelState.Default()</c> 把这两个面板设为 <c>Visible = false</c>（C 轮 W5 完成态），
+	/// 而 <c>DockLayout.ToggleFloat</c> 一直没有调用方 —— 用户 F5 目检时看不到面板，
+	/// P0-C1 第 2、3 项无法验证。此入口是补上的开关。
+	/// </para>
+	/// </summary>
+	private void OnViewPressed()
+	{
+		if (DockLayout.Instance is not { } dock)
+		{
+			return;
+		}
+
+		_viewMenu ??= BuildViewMenu();
+		_viewMenu.PopupCentered(_viewBtn!);
+	}
+
+	private Menu BuildViewMenu()
+	{
+		var menu = new Menu();
+		menu.AddItem("检视器", () => DockLayout.Instance?.ToggleFloat("inspector"));
+		menu.AddItem("图层面板", () => DockLayout.Instance?.ToggleFloat("layer_panel"));
+		AddChild(menu);
+		return menu;
+	}
 
 	// ------------------------------------------------------------------ 快捷键
 
