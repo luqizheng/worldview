@@ -5,41 +5,43 @@ namespace WorldView.Ui.Components;
 /// <summary>
 /// JRPG 对话框（§4.5.2 契约 / 模态确认 / 阻塞底层输入）
 ///
-/// <para>继承 Godot <c>Window</c> 节点(不手写 overlay),自动获得:</para>
-/// <list type="bullet">
-///   <item>模态:打开时阻塞同一 Window 树下其他 UI 节点输入(由 <c>Window.PopupCentered</c> 实现)</item>
-///   <item>独立 viewport:对话框内容不与主场景画布混淆</item>
-///   <item>Esc 关闭(由 <c>Window</c> 内置 <c>CloseRequested</c> 信号触发)</item>
-/// </list>
+/// <para>继承 <see cref="PanelContainer"/>,跟 <see cref="FloatingWindow"/> 同构,
+/// 100% 走 Palette token,不被 OS Window 主题污染。</para>
 ///
-/// <para>构造参数 <c>minSize</c> = 360x180(确认对话框常见尺寸)。Body 区域走
-/// <c>Palette.Color.JrpgCard</c>,确认 / 取消按钮由调用方添加到 <see cref="BodyRoot"/>。</para>
+/// <para>模态行为:在父 <see cref="CanvasLayer"/> 之上覆盖一层半透明 dim overlay
+/// (<c>Palette.Modal.OverlayOpacity</c>)+ 截获 overlay 的 <c>GuiInput</c> 拦截所有底层点击,
+/// 关闭时 overlay 跟 dialog 一起淡出 + QueueFree。</para>
 ///
-/// <para>关闭走 <see cref="CloseButton.TriggerClose"/> 同款 fade-out 淡出后 <c>Hide()</c>。</para>
+/// <para>用法:<c>new Dialog().SetTitle(...).SetContent(...).PopupModal(parent)</c>
+/// (parent 必须是 <see cref="Control"/> 或 <see cref="CanvasLayer"/>,dialog 会挂在它下面)。</para>
 /// </summary>
-public partial class Dialog : Window
+public partial class Dialog : PanelContainer
 {
     /// <summary>Body 根容器,调用方 AddChild(自己的内容 / 按钮)。</summary>
     public VBoxContainer BodyRoot { get; }
+
+    /// <summary>关闭请求信号 —— 用户点 X / Esc / overlay 时发,父节点可订阅。</summary>
+    [Signal] public delegate void CloseRequestedEventHandler();
 
     private readonly Label _titleLabel = new();
     private readonly PanelContainer _titleBar = new();
     private readonly HBoxContainer _titleRow = new();
     private readonly CloseButton _closeButton = new();
+    private PanelContainer? _overlay;
+    private bool _modalOpen;
 
     /// <inheritdoc/>
     public Dialog()
     {
-        Title = "Dialog";
-        MinSize = new Vector2I(360, 180);
-        WrapControls = true; // 自动 wrap 子节点到 body
-        Transient = true;   // 不抢占主窗口焦点
-        Exclusive = false;  // 不独占(允许非模态使用)
+        CustomMinimumSize = new Vector2(360, 180);
+        Size = new Vector2(360, 180);
+        FocusMode = FocusModeEnum.None;
 
+        // Body 根容器
         BodyRoot = new VBoxContainer();
         BodyRoot.AddThemeConstantOverride("separation", WorldView.Ui.Theme.Palette.Metric.ParagraphSpacing);
 
-        // 标题条
+        // 标题条 (跟 FloatingWindow 一致)
         _titleBar.CustomMinimumSize = new Vector2(0, WorldView.Ui.Theme.Palette.Metric.PanelTitleHeight);
         var titleStyle = new StyleBoxFlat
         {
@@ -55,42 +57,94 @@ public partial class Dialog : Window
         _titleLabel.SizeFlagsHorizontal = Godot.Control.SizeFlags.ExpandFill;
         _titleRow.AddChild(_titleLabel);
         _titleRow.AddChild(_closeButton);
-        // CloseButton 关闭请求 → 整个对话框淡出 + Hide(而不是只 free CloseButton 本身)
+        // CloseButton 关闭请求 → 整个对话框淡出 + QueueFree
         _closeButton.CloseRequested += TriggerClose;
         _titleBar.AddChild(_titleRow);
         BodyRoot.AddChild(_titleBar);
 
-        AddChild(BodyRoot);
+        // 对话框 body 整体走 JrpgCard 背景
+        var bodyStyle = new StyleBoxFlat
+        {
+            BgColor = WorldView.Ui.Theme.Palette.Color.JrpgCard,
+            BorderColor = WorldView.Ui.Theme.Palette.Color.JrpgOutline,
+            BorderWidthLeft = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
+            BorderWidthTop = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
+            BorderWidthRight = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
+            BorderWidthBottom = WorldView.Ui.Theme.Palette.Metric.BorderWidth,
+        };
+        AddThemeStyleboxOverride("panel", bodyStyle);
 
-        // Esc / 关闭请求 → fade-out + Hide
-        CloseRequested += OnCloseRequested;
+        AddChild(BodyRoot);
     }
 
-    /// <summary>语义化:设置对话框标题(显示在顶部 + OS 标题栏)。</summary>
+    /// <summary>语义化:设置对话框标题(显示在顶部标题条)。</summary>
     public Dialog SetTitle(string title)
     {
-        Title = title;
         _titleLabel.Text = title;
         return this;
     }
 
-    /// <summary>语义化:屏幕居中显示 + 模态弹出。</summary>
-    public Dialog PopupModal()
+    /// <summary>语义化:模态弹出 — overlay + 居中 + 截获输入。</summary>
+    public Dialog PopupModal(Control parent)
     {
-        PopupCentered();
+        if (_modalOpen) return this;
+        _modalOpen = true;
+
+        // 1. 先建半透明 dim overlay,铺满父容器,吃掉所有鼠标点击
+        _overlay = new PanelContainer { Name = "DialogOverlay" };
+        _overlay.MouseFilter = MouseFilterEnum.Stop; // 拦截
+        _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
+        var overlayStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(0, 0, 0, WorldView.Ui.Theme.Palette.Modal.OverlayOpacity),
+        };
+        _overlay.AddThemeStyleboxOverride("panel", overlayStyle);
+        // overlay 渲染在最底层
+        parent.AddChild(_overlay);
+        parent.MoveChild(_overlay, 0);
+
+        // 2. 把 dialog 挂到 parent (overlay 之上)
+        parent.AddChild(this);
+
+        // 3. 居中
+        PopupCentered(parent.Size);
+
         return this;
     }
 
     /// <summary>语义化:fade-out 淡出后关闭(对齐 CloseButton 行为)。</summary>
     public void TriggerClose()
     {
+        EmitSignal(SignalName.CloseRequested);
+
         var tween = CreateTween();
+        tween.SetParallel(true);
+        // dialog 淡出
         tween.TweenProperty(this, "modulate:a", 0f, WorldView.Ui.Theme.Palette.Animation.FadeOutMs / 1000f);
-        tween.TweenCallback(Callable.From(Hide));
+        // overlay 淡出
+        if (_overlay != null && IsInstanceValid(_overlay))
+        {
+            tween.TweenProperty(_overlay, "modulate:a", 0f, WorldView.Ui.Theme.Palette.Animation.FadeOutMs / 1000f);
+        }
+        tween.SetParallel(false);
+        tween.TweenCallback(Callable.From(QueueFreeAll));
     }
 
-    private void OnCloseRequested()
+    private void QueueFreeAll()
     {
-        TriggerClose();
+        if (_overlay != null && IsInstanceValid(_overlay))
+        {
+            _overlay.QueueFree();
+        }
+        QueueFree();
+    }
+
+    /// <summary>在父 Control 内居中(对齐 FloatingWindow 的 PopupCentered)。</summary>
+    private void PopupCentered(Vector2 parentSize)
+    {
+        Size = new Vector2(360, 180);
+        Position = new Vector2(
+            (parentSize.X - Size.X) / 2f,
+            (parentSize.Y - Size.Y) / 2f);
     }
 }

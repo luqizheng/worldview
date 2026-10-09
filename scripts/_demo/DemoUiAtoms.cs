@@ -132,13 +132,11 @@ public partial class DemoUiAtoms : Control
                 var dlg = new Dialog()
                     .SetTitle("确认操作");
                 dlg.BodyRoot.AddChild(new JrpgLabel()
-                    .SetText("这是 JRPG 模态对话框(继承 Godot.Window)\n按 Esc 或点关闭按钮淡出"));
+                    .SetText("这是 JRPG 模态对话框(PanelContainer + dim overlay)\n按 Esc 或点关闭按钮淡出"));
                 dlg.BodyRoot.AddChild(new JrpgButton { Text = "确认" });
-                // Window 节点必须加到另一个 Window 下(GetTree().Root 就是主 Window)
-                GetTree().Root.AddChild(dlg);
-                // Godot 内建 PopupCentered(Vector2I size) = 想要的目标尺寸,自动居中
-                dlg.PopupCentered(new Vector2I(360, 180));
-                GD.Print($"[Demo] 对话框位置: {dlg.Position}, 大小: {dlg.Size}");
+                // 模态弹出:overlay 拦截输入 + dialog 居中
+                dlg.PopupModal(this);
+                GD.Print($"[Demo] 对话框位置: {dlg.Position}, 大小: {dlg.Size}, 父容器: {Size}");
             }
             catch (System.Exception ex)
             {
