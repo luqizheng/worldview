@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/Ui/Palette/ToolStrip.cs" id="1_toolstrip"]
+[ext_resource type="Script" path="res://scripts/Ui/Chrome/ToolStrip.cs" id="1_toolstrip"]
 
 [node name="ToolStrip" type="Control"]
 layout_mode = 2

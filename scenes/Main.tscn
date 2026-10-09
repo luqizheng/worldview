@@ -2,18 +2,18 @@
 
 [ext_resource type="Script" path="res://scripts/Editor/EditorController.cs" id="1_controller"]
 [ext_resource type="Theme" path="res://assets/themes/parchment_theme.tres" id="2_theme"]
-[ext_resource type="Script" path="res://scripts/Ui/Dock/DockLayout.cs" id="3_docklayout"]
+[ext_resource type="Script" path="res://scripts/Ui/Dock/Service/DockLayout.cs" id="3_docklayout"]
 [ext_resource type="PackedScene" uid="uid://dj5d55wiuin6s" path="res://scenes/WorldCanvas.tscn" id="4_worldcanvas"]
-[ext_resource type="Script" path="res://scripts/Ui/WorldDropSurface.cs" id="5_dropsurface"]
+[ext_resource type="Script" path="res://scripts/Ui/Panels/WorldDropSurface.cs" id="5_dropsurface"]
 [ext_resource type="PackedScene" path="res://scenes/ui/BottomPalette.tscn" id="6_bottompalette"]
-[ext_resource type="Script" path="res://scripts/Ui/Inspector.cs" id="7_inspector"]
-[ext_resource type="Script" path="res://scripts/Ui/LayerPanel.cs" id="8_layerpanel"]
+[ext_resource type="Script" path="res://scripts/Ui/Panels/Inspector.cs" id="7_inspector"]
+[ext_resource type="Script" path="res://scripts/Ui/Panels/LayerPanel.cs" id="8_layerpanel"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgButton.cs" id="9_jrpgbtn"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgBreadcrumb.cs" id="11_jrpgcrumb"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgScaleBar.cs" id="12_jrpgbar"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgMapTabBar.cs" id="13_jrpgtb"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgReplayBar.cs" id="14_jrpgbar"]
-[ext_resource type="Script" path="res://scripts/Ui/ProjectChromeEntry.cs" id="15_projchrome"]
+[ext_resource type="Script" path="res://scripts/Ui/Chrome/Bar/ProjectChromeEntry.cs" id="15_projchrome"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
