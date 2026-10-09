@@ -1,6 +1,7 @@
 using WorldView.Domain;
 using WorldView.Domain.Generation;
 using WorldView.Storage.Yaml;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Generation;
@@ -20,21 +21,7 @@ public class GenerationSpecYamlTests
 {
     private const double Tolerance = 1e-9;
 
-    private static string SampleWorldDir
-    {
-        get
-        {
-            // 与 tests/WorldView.Tests/Storage/ProjectLoaderTests.cs 一致：
-            // 从测试工作目录向上找示例工程根（含 project.yaml）。
-            var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-            while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "project.yaml")))
-            {
-                dir = dir.Parent;
-            }
-            Assert.NotNull(dir);
-            return dir!.FullName;
-        }
-    }
+    private static string SampleWorldDir => TestPaths.SampleWorldDir;
 
     [Fact]
     public void Roundtrip_PreservesAllFields()

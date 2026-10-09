@@ -10,7 +10,7 @@ namespace WorldView.Tests.ProjectManagement;
 internal static class ProjectManagementTemp
 {
     public static string Root => Path.Combine(
-        Directory.GetCurrentDirectory(),
+        AppContext.BaseDirectory,
         ".tmp-pmtests");
 
     public static string NewDir(string label)

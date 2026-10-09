@@ -1,5 +1,6 @@
 using WorldView.Domain;
 using WorldView.Domain.Validation;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Validation;
@@ -9,7 +10,8 @@ namespace WorldView.Tests.Validation;
 /// </summary>
 public class MapValidatorTest
 {
-    private static string ScratchDir => Path.Combine(Path.GetTempPath(), "worldview-validator-tests");
+    // 一次性创建：ScratchDir 是计算属性，不能每次访问都新建 GUID 目录。
+    private static readonly string ScratchDir = TestPaths.CreateScratchDir("worldview-validator-tests");
 
     [Fact]
     public void Valid_World_Map_Passes_All_Rules()

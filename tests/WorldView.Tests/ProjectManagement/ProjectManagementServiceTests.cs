@@ -101,7 +101,7 @@ public class ProjectManagementServiceTests : IDisposable
     [Fact]
     public void OpenProject_Missing_Dir_Throws_Invalid()
     {
-        var ghost = Path.Combine(Path.GetTempPath(), "pmsvc-ghost-" + Guid.NewGuid().ToString("N"));
+        var ghost = Path.Combine(AppContext.BaseDirectory, "pmsvc-ghost-" + Guid.NewGuid().ToString("N"));
         var ex = Assert.Throws<ProjectException>(
             () => ProjectManagementService.OpenProject(ghost));
         Assert.Equal(ProjectErrorCode.InvalidProject, ex.Code);

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using WorldView.Storage.Yaml;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Storage;
@@ -109,8 +110,7 @@ public class TileSetStyleRegistryTests
         var source = RepoStylesYamlPath;
         Assert.True(File.Exists(source), $"仓库内应存在 styles.yaml：{source}");
 
-        var tempDir = Path.Combine(Path.GetTempPath(), "wv-tileset-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
+        var tempDir = TestPaths.CreateScratchDir("wv-tileset");
         try
         {
             var copy = Path.Combine(tempDir, "styles.yaml");
@@ -129,20 +129,7 @@ public class TileSetStyleRegistryTests
         }
     }
 
-    /// <summary>从测试工作目录向上找仓库根（含 <c>assets/textures/tiles/styles.yaml</c> 的那一层）。</summary>
-    private static string RepoStylesYamlPath
-    {
-        get
-        {
-            var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-            while (dir is not null &&
-                   !File.Exists(Path.Combine(dir.FullName, "assets", "textures", "tiles", "styles.yaml")))
-            {
-                dir = dir.Parent;
-            }
-
-            Assert.NotNull(dir);
-            return Path.Combine(dir!.FullName, "assets", "textures", "tiles", "styles.yaml");
-        }
-    }
+    /// <summary>从程序集位置向上找仓库根（含 <c>assets/textures/tiles/styles.yaml</c> 的那一层）。</summary>
+    private static string RepoStylesYamlPath =>
+        Path.Combine(TestPaths.RepoRoot, "assets", "textures", "tiles", "styles.yaml");
 }

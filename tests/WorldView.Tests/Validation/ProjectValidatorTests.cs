@@ -1,5 +1,6 @@
 using WorldView.Domain;
 using WorldView.Domain.Validation;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Validation;
@@ -15,7 +16,7 @@ namespace WorldView.Tests.Validation;
 /// </summary>
 public class ProjectValidatorTests
 {
-    private static string ScratchDir => Path.Combine(Path.GetTempPath(), "worldview-projectvalidator-tests");
+    private static string ScratchDir => TestPaths.CreateScratchDir("worldview-projectvalidator-tests");
 
     [Fact]
     public void Valid_Minimal_World_Passes()

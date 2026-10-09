@@ -1,5 +1,6 @@
 using WorldView.Domain;
 using WorldView.Storage.Yaml;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Storage;
@@ -129,7 +130,7 @@ public class ProjectSaverTests
     [Fact]
     public void Save_Rejects_Nonexistent_Root()
     {
-        var noRoot = Path.Combine(Path.GetTempPath(), "worldview-no-root-" + Guid.NewGuid().ToString("N"));
+        var noRoot = Path.Combine(TestPaths.RepoRoot, "nonexistent-root-for-test");
         Assert.Throws<DirectoryNotFoundException>(
             () => ProjectSaver.Save(noRoot, new World(), Array.Empty<MapDoc>()));
     }
@@ -137,8 +138,7 @@ public class ProjectSaverTests
     [Fact]
     public void Save_Rejects_Null_World()
     {
-        var scratch = Path.Combine(Path.GetTempPath(), "worldview-save-null-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratch);
+        var scratch = TestPaths.CreateScratchDir("worldview-save-null");
         try
         {
             Assert.Throws<ArgumentNullException>(
@@ -152,20 +152,11 @@ public class ProjectSaverTests
 
     // ---------------------------------------------------------------- helpers
 
-    private static string LocateSampleWorld()
-    {
-        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "project.yaml")))
-        {
-            dir = dir.Parent;
-        }
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static string LocateSampleWorld() => TestPaths.SampleWorldDir;
 
     private static string CopySampleWorldToScratch(string sourceDir)
     {
-        var scratch = Path.Combine(Path.GetTempPath(), "worldview-save-" + Guid.NewGuid().ToString("N"));
+        var scratch = TestPaths.CreateScratchDir("worldview-save");
         CopyDirectory(sourceDir, scratch);
         return scratch;
     }

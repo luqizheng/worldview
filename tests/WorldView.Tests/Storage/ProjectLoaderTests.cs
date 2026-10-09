@@ -1,5 +1,6 @@
 using WorldView.Domain;
 using WorldView.Storage.Yaml;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Storage;
@@ -14,20 +15,7 @@ namespace WorldView.Tests.Storage;
 /// </summary>
 public class ProjectLoaderTests
 {
-    private static string SampleWorldDir
-    {
-        get
-        {
-            // 从测试工作目录向上找示例工程
-            var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-            while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "project.yaml")))
-            {
-                dir = dir.Parent;
-            }
-            Assert.NotNull(dir);
-            return dir!.FullName;
-        }
-    }
+    private static string SampleWorldDir => TestPaths.SampleWorldDir;
 
     [Fact]
     public void Load_Sample_World_Passes_All_Validators()
@@ -188,14 +176,13 @@ public class ProjectLoaderTests
     public void Load_Nonexistent_Root_Throws()
     {
         Assert.Throws<DirectoryNotFoundException>(
-            () => ProjectLoader.Load(Path.Combine(Path.GetTempPath(), "worldview-no-such-dir")));
+            () => ProjectLoader.Load(Path.Combine(TestPaths.RepoRoot, "nonexistent-dir-for-test")));
     }
 
     [Fact]
     public void Load_Root_Without_ProjectYaml_Throws()
     {
-        var dir = Path.Combine(Path.GetTempPath(), "worldview-empty-dir-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        var dir = TestPaths.CreateScratchDir("worldview-empty-dir");
         try
         {
             Assert.Throws<FileNotFoundException>(() => ProjectLoader.Load(dir));

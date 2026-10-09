@@ -1,12 +1,13 @@
 using WorldView.Domain;
 using WorldView.Domain.Validation;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Validation;
 
 public class MapValidatorGenerationTests
 {
-    private static string ScratchDir => Path.Combine(Path.GetTempPath(), "worldview-validator-gen-tests");
+    private static readonly string ScratchDir = TestPaths.CreateScratchDir("worldview-validator-gen-tests");
     private static readonly GridSpec DefaultGrid = new(64, 48, 10.0);
     private static readonly TimeSpec DefaultTime = new(TimeGranularity.Month, TimeGranularity.Day);
     private static readonly PresentationSpec DefaultPres = new();

@@ -1,6 +1,7 @@
 using WorldView.Domain;
 using WorldView.Domain.Generation;
 using WorldView.Storage.Yaml;
+using WorldView.Tests.Support;
 using Xunit;
 
 namespace WorldView.Tests.Storage;
@@ -233,12 +234,7 @@ public class GeneratedWorldPersistenceTests
             Buildings: Array.Empty<Building>(),
             Generation: null);
 
-    private static string CreateScratchDir()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "worldview-gen-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        return dir;
-    }
+    private static string CreateScratchDir() => TestPaths.CreateScratchDir("worldview-gen");
 
     private static void DeleteDirectory(string dir)
     {
