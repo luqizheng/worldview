@@ -64,14 +64,16 @@ public sealed class RecentProjectService
 
     private readonly IAppDataLocator _locator;
     private readonly IClock _clock;
+    private readonly IFileSystem _fileSystem;
     private readonly object _lock = new();
 
     public string FilePath => Path.Combine(_locator.GetUserConfigDir(), DotWorldviewDir, FileName);
 
-    public RecentProjectService(IAppDataLocator locator, IClock clock)
+    public RecentProjectService(IAppDataLocator locator, IClock clock, IFileSystem? fileSystem = null)
     {
         _locator = locator ?? throw new ArgumentNullException(nameof(locator));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _fileSystem = fileSystem ?? new SystemFileSystem();
     }
 
     /// <summary>读取并校验当前清单；损坏抛 <see cref="ProjectException"/> RecentProjectsCorrupted。</summary>
@@ -103,7 +105,7 @@ public sealed class RecentProjectService
 
             var entries = file.Entries ?? Array.Empty<RecentProjectEntry>();
             return entries
-                .Select(e => e with { IsMissing = !Directory.Exists(e.ProjectRoot) })
+                .Select(e => e with { IsMissing = !_fileSystem.DirectoryExists(e.ProjectRoot) })
                 .ToList();
         }
     }
