@@ -74,6 +74,10 @@
 | 8 | [时间轴系统规格_v0.1.md](docs/时间轴系统规格_v0.1.md) | 时间刻度、事件挂载、回放、快照、分支 | 做时间 |
 | 9 | [事件与人物登记规格_v0.1.md](docs/事件与人物登记规格_v0.1.md) | 事件/人物登记流程、属性模板、关系网、联动 | 做登记系统 |
 | 10 | [界面与交互规格_v0.1.md](docs/界面与交互规格_v0.1.md) | 主界面布局、核心交互流 | 做 UI |
+| 11 | [美术资源规范_v0.1.md](docs/美术资源规范_v0.1.md) | 美术资源目录、命名、调色板、生成器、JRPG 内容美术契约 | 做美术 |
+| 12 | [美术资源审计清单_v0.1.md](docs/美术资源审计清单_v0.1.md) | 13 项资产合规审计项 + 失败处理协议 | 做美术审计 |
+| 13 | [美术指导借鉴方案_v0.1.md](docs/美术指导借鉴方案_v0.1.md) | 借鉴 CCGS 工作流方法论,落本仓最小可行包 | 做美术方法论 |
+| 14 | [AI生成模型清单_v0.1.md](docs/AI生成模型清单_v0.1.md) | 离线生成风格化美术资源所需模型清单 + 国内镜像下载脚本 + 本地缓存目录约定 | 做 AI 出图 |
 
 **事实来源优先级**（文档冲突时以此裁决）：
 
@@ -138,6 +142,7 @@ world-view/
 - 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1，详情见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)）。
 - UI 重设计规格（M2）：`.trae/specs/ui-redesign-simgame/`（spec v0.2 + tasks v0.3 + checklist v0.3）。**已定案**：UI 收敛为 **map-first + 单条 `BottomPalette`**（内部 rows → sections：事件播放条 / 小地图 + 自适应网格建筑面板 / 工具行）；建筑网格列数按可用宽高运行时推导（`items_per_page` 不落盘）；小地图进 M2；`Render/` 开唯一只读例外 `TerrainPalette.cs`。落地节奏见 spec §13（W1–W4）。设计层同步：`docs/界面与交互规格_v0.1.md` §1 加修订标记、两处文末「变更记录」追加一行。
 - **UI 重设计已落成（W1–W4）**：`scenes/Main.tscn` 改为三层结构——`BgLayer`（`CanvasLayer`，`layer = -1`，画布底色）/ `WorldCanvas`（留在**默认画布层**，继续受 `Camera2D` 平移缩放）/ `UiLayer`（`CanvasLayer`，`layer = 1`，`DockLayout` 及其下全部面板）。**动机**：`Camera2D` 的 canvas 变换作用于默认画布层的所有 `CanvasItem`（含 `Control`），此前 UI 被整体缩到约 38% 并错位——这正是 spec §1.2 里「左侧按钮被切掉一半」的真因；修复只换 UI 分层，`scripts/Render/**` 一行未改（spec §6 限制）。新增脚本在 `scripts/Ui/{Dock,Palette}/`、`scripts/Ui/{Inspector,LayerPanel,WorldDropSurface}.cs`，主题 `scripts/Ui/Theme/Dark.tres`，场景 `scenes/ui/*.tscn`。**地图初始拟合**（用户授权后已修，spec §6 的 `Render/` 只读限制在此处放宽一档）：`WorldCanvas.CenterCameraOnMap` 现按 `WorldCanvas.FitRect`（由 `EditorController.SyncMapToCanvasArea()` 每帧写入 `CanvasArea` 的屏幕矩形，并在首次布局完成后调一次 `RefitCamera()`）确定缩放、并把地图中心对准拟合区中心；`FitRect` 为空时退回旧的 `GetViewportRect()`（整个窗口）行为。实测 1152×648：画布区 (0,32,1152,416)，地图屏幕矩形 (326.4,52.8)–(825.6,427.2) 完全落在画布区内且居中，`Camera2D.Zoom = 0.24375 = min(0.9·1152/2048, 0.9·416/1536)`。
+- **UI 增量（W5，ProjectChrome 顶部条）**：项目管理面（[项目管理规格 v0.1](docs/项目管理规格_v0.1.md)）落定后，UiLayer **新增** 32px 顶部条 `ProjectChrome`（属 W5 增量而非 W1–W4 破坏）：BgLayer / WorldCanvas / UiLayer 三层结构与 BottomPalette **一律不动**；新条承载工程名 Label（点击 = 工程菜单下拉）+ 面包屑 Label（点击 = 工程内切换地图）+ 工程菜单 PopupMenu（打开项目 / 切换工程 / 新建项目 / 新增地图 / 关闭项目）。**画布挤压是显式约束**：顶部条 32px 把画布区起点从 y=0 改为 y=32，新画布区约 (0,64,1152,384) 量级（落地时按 `EditorController.SyncMapToCanvasArea()` 重新拟合为准），实现期**不得回退折叠 ProjectChrome** 偷回画布空间。WorldDropSurface（W1–W4 已落成）保留为次级打开入口，与 ProjectChrome 不冲突。详见 [项目管理规格 §4 UI 容器约束](docs/项目管理规格_v0.1.md) 与 [界面与交互规格 §1.7](docs/界面与交互规格_v0.1.md)。
 - 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`，已完成）；② 清理 §6.1 列出的旧栈骨架（待用户批准清理清单）；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度（已完成 v0.2，待 §6.3 工程模板 ready 后方可启动实现）。
 
 ### 6.3 本机外部依赖（agent 调用清单）
