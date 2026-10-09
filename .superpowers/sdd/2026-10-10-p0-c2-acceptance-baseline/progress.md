@@ -30,11 +30,19 @@ Spec (binding authority): `docs/superpowers/specs/2026-10-10-p0-c2-acceptance-ba
 
 | Task | 状态 | 产出 | commit |
 | --- | --- | --- | --- |
-| T1 B1 警告基线采集 | 待开工 | `task-1-report.md` | — |
+| T1 B1 警告基线采集 | ✅ 完成 | `task-1-report.md` | — |
 | T2 B2 测试基线采集 | 待开工 | `task-2-report.md` | — |
 | T3 失败定性核对（§6.4 已完成，只核对） | 待开工 | `task-3-report.md` | — |
 | T4 落盘 `docs/acceptance/baseline_v0.1.md` | 待开工 | 基线文档 | — |
 | T5 回写与提交 | 待开工 | §5 ST=done + progress 收口段 | — |
+
+### T1 结果摘要（2026-10-10）
+
+- 命令：`dotnet build WorldView.sln -c Debug --no-incremental`
+- **B1 基线 = 0 error / 184 warnings**（全量口径）
+- 构成：CS2002 ×137（`WorldView.csproj` 源文件重复指定，配置缺陷）+ 其余 11 类 ×47
+- **新增 Ruling R5**：警告数必须用 `--no-incremental` 采集——增量构建只报被重编项目的警告，同一棵树实测增量 19 / 全量 184，差 10 倍不可比。已回写 §0.5-B1。
+- **新增发现**：CS2002 重复编译项缺陷（137 文件）→ 登记《长期执行计划》§6.3，超出本项范围，不在 P0-C2 内修。
 
 ## 收口段（T5 完成后填写）
 
