@@ -2,10 +2,13 @@
 
 [ext_resource type="Script" uid="uid://3j71n7w2sjh2" path="res://scripts/Render/WorldCanvas.cs" id="1_worldcanvas"]
 [ext_resource type="Script" uid="uid://dnfyoa51ec3vb" path="res://scripts/Render/TerrainLayer.cs" id="2_terrainlayer"]
+[ext_resource type="Script" path="res://scripts/Render/TerrainDecor.cs" id="7_terraindecor"]
 [ext_resource type="Script" uid="uid://jxpmyadpxm33" path="res://scripts/Render/RoadLayer.cs" id="3_roadlayer"]
 [ext_resource type="Script" uid="uid://cm4qi7jb4l40" path="res://scripts/Render/BuildingLayer.cs" id="4_buildinglayer"]
 [ext_resource type="Script" uid="uid://bi7ooxoueosdo" path="res://scripts/Render/GridOverlay.cs" id="5_gridoverlay"]
 [ext_resource type="Script" uid="uid://brabufggg4mkt" path="res://scripts/Render/MarkerLayer.cs" id="6_markerlayer"]
+[ext_resource type="Script" path="res://scripts/Render/FactionLayer.cs" id="8_factionlayer"]
+[ext_resource type="Script" path="res://scripts/Render/RouteLayer.cs" id="9_routelayer"]
 
 [node name="WorldCanvas" type="Node2D" unique_id=2145757013]
 script = ExtResource("1_worldcanvas")
@@ -14,6 +17,9 @@ script = ExtResource("1_worldcanvas")
 
 [node name="TerrainLayer" type="TileMapLayer" parent="." unique_id=1948930466]
 script = ExtResource("2_terrainlayer")
+
+[node name="TerrainDecor" type="Node2D" parent="." unique_id=1948930467]
+script = ExtResource("7_terraindecor")
 
 [node name="RoadLayer" type="TileMapLayer" parent="." unique_id=1793910818]
 script = ExtResource("3_roadlayer")
@@ -26,3 +32,9 @@ script = ExtResource("5_gridoverlay")
 
 [node name="MarkerLayer" type="Node2D" parent="." unique_id=843031977]
 script = ExtResource("6_markerlayer")
+
+[node name="FactionLayer" type="Node2D" parent="." unique_id=1234567890]
+script = ExtResource("8_factionlayer")
+
+[node name="RouteLayer" type="Node2D" parent="." unique_id=1234567891]
+script = ExtResource("9_routelayer")

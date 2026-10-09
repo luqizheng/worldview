@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using WorldView.Ui;
+using WorldView.Ui.Components;
 using WorldView.Ui.Dock;
 
 namespace WorldView.Editor;
@@ -36,9 +37,12 @@ public partial class EditorController : Control
 	private Button? _undoBtn;
 	private Button? _redoBtn;
 	private Button? _fullscreenBtn;
-	private Label? _breadcrumbLabel;
+	private JrpgBreadcrumb? _breadcrumb;
 	private HBoxContainer? _topBar;
-	private Button? _mapSettingsBtn;
+	private JrpgButton? _mapSettingsBtn;
+	private JrpgScaleBar? _scaleBar;
+	private JrpgMapTabBar? _mapTabBar;
+	private JrpgReplayBar? _replayBar;
 
 	// ------------------------------------------------------------------ 状态
 	private EditorContext? _context;
@@ -60,6 +64,7 @@ public partial class EditorController : Control
 		CreateMapSettingsDialog();
 		ConnectSignals();
 		UpdateBreadcrumb();
+		UpdateMapTabBar();
 		UpdateUndoButtons(force: true);
 		TryAutoloadSampleProject();
 		SetProcess(true);
@@ -126,7 +131,10 @@ public partial class EditorController : Control
 		_undoBtn = GetNodeOrNull<Button>($"{TopBarPath}/UndoBtn");
 		_redoBtn = GetNodeOrNull<Button>($"{TopBarPath}/RedoBtn");
 		_fullscreenBtn = GetNodeOrNull<Button>($"{TopBarPath}/FullscreenBtn");
-		_breadcrumbLabel = GetNodeOrNull<Label>($"{TopBarPath}/BreadcrumbLabel");
+		_breadcrumb = GetNodeOrNull<JrpgBreadcrumb>($"{TopBarPath}/Breadcrumb");
+		_scaleBar = GetNodeOrNull<JrpgScaleBar>($"{CanvasAreaPath}/CanvasOverlay/ScaleBar");
+		_mapTabBar = GetNodeOrNull<JrpgMapTabBar>("UiLayer/DockLayout/Root/MapTabBar");
+		_replayBar = GetNodeOrNull<JrpgReplayBar>("UiLayer/DockLayout/Root/ReplayBar");
 		_topBar = GetNodeOrNull<HBoxContainer>(TopBarPath);
 		_canvasArea = GetNodeOrNull<Control>(CanvasAreaPath);
 		_worldCanvas = GetNodeOrNull<WorldView.Render.WorldCanvas>(WorldCanvasPath);
@@ -139,11 +147,20 @@ public partial class EditorController : Control
 		if (_undoBtn is not null) _undoBtn.Pressed += OnUndoPressed;
 		if (_redoBtn is not null) _redoBtn.Pressed += OnRedoPressed;
 		if (_fullscreenBtn is not null) _fullscreenBtn.Pressed += OnFullscreenPressed;
+		if (_breadcrumb is not null) _breadcrumb.MapJumpRequested += OnBreadcrumbJump;
+		if (_mapTabBar is not null) _mapTabBar.MapTabSelected += OnMapTabSelected;
+		if (_replayBar is not null)
+		{
+			_replayBar.Visible = _context?.Mode == "replay";
+		}
 
 		if (_context is not null)
 		{
 			_context.MapChanged += UpdateBreadcrumb;
 			_context.LayersChanged += UpdateBreadcrumb;
+			_context.MapChanged += UpdateMapTabBar;
+			_context.MouseMoved += OnMouseMoved;
+			_context.ModeChanged += OnModeChanged;
 		}
 	}
 
@@ -175,7 +192,7 @@ public partial class EditorController : Control
 			return;
 		}
 
-		_mapSettingsBtn = new Button
+		_mapSettingsBtn = new JrpgButton
 		{
 			Name = "MapSettingsBtn",
 			Text = "地图…",
@@ -224,14 +241,96 @@ public partial class EditorController : Control
 
 	private void UpdateBreadcrumb()
 	{
-		if (_breadcrumbLabel is null)
+		if (_breadcrumb is null)
 		{
 			return;
 		}
 
-		_breadcrumbLabel.Text = _context is { IsLoaded: true } ctx
-			? FormatBreadcrumbs(ctx)
-			: "未加载工程";
+		// §4.9.7 面包屑：工程名 / 地图1 / 地图2，每段可点击；末段=当前地图用 JrpgText 不可点
+		if (_context is { IsLoaded: true } ctx)
+		{
+			var crumbs = new List<JrpgBreadcrumb.Crumb>
+			{
+				new(ctx.World.Name, null),
+			};
+			foreach (var id in ctx.Breadcrumbs) crumbs.Add(new(ctx.DisplayNameOf(id), id));
+			crumbs.Add(new(ctx.DisplayNameOf(ctx.ActiveMapId), null));
+			_breadcrumb.SetCrumbs(crumbs);
+		}
+		else
+		{
+			_breadcrumb.SetCrumbs(new[] { new JrpgBreadcrumb.Crumb("未加载工程", null) });
+		}
+	}
+
+	private void OnBreadcrumbJump(string mapId)
+	{
+		// §4.9.7 面包屑：跳转到非当前地图；DrillBack 一路退到目标
+		var ctx = _context;
+		if (ctx is null) return;
+		while (ctx.ActiveMapId != mapId && ctx.CanDrillBack)
+		{
+			ctx.DrillBack();
+		}
+	}
+
+	private void OnMapTabSelected(string mapId)
+	{
+		// §4.9.7 多地图标签页：直接切活动地图
+		_context?.SetActiveMap(mapId);
+	}
+
+	private void OnModeChanged(string mode)
+	{
+		// §4.9.5 replay 顶条：仅 replay 模式显示
+		if (_replayBar is not null)
+		{
+			_replayBar.Visible = mode == "replay";
+			if (mode == "replay" && _context?.ActiveMap is { } map)
+			{
+				_replayBar.SetTitle(map.Name);
+				_replayBar.SetProgress(SimulateReplayProgress());
+			}
+		}
+	}
+
+	// v0.1 简化：用 Time.GetTicksMsec / 60000 取模当作 % 进度
+	// M3+ 时间轴实装后改用真实 TimeBar 位置
+	private float SimulateReplayProgress()
+	{
+		return (Time.GetTicksMsec() % 60_000) / 60_000f;
+	}
+
+	private void UpdateMapTabBar()
+	{
+		if (_mapTabBar is null || _context is null) return;
+		var tabs = new List<JrpgMapTabBar.Tab>();
+		foreach (var map in _context.Maps)
+		{
+			tabs.Add(new JrpgMapTabBar.Tab(map.Id, map.Name));
+		}
+		_mapTabBar.SetTabs(tabs, _context.ActiveMapId);
+
+		// §4.9.7 比例尺：按 GridSpec.CellDistance 换算"每格多少米"再格式化为距离文字
+		var activeMap = _context.ActiveMap;
+		if (activeMap is not null && _scaleBar is not null)
+		{
+			var cd = activeMap.Grid.CellDistance;
+			// 横线 60px = cd×2 格（按 v0.1 简化：固定 2 格），文字取整为 1 位小数
+			var text = FormatDistanceText(cd * 2, activeMap.Grid.DistanceUnit);
+			_scaleBar.SetDistance(text);
+		}
+	}
+
+	private static string FormatDistanceText(double distance, string unit) =>
+		distance >= 1000.0
+			? $"{distance / 1000.0:0.#} km"
+			: $"{distance:0.#} {unit}";
+
+	private void OnMouseMoved(Vector2I cell)
+	{
+		// §4.9.7 坐标显示：跟随鼠标更新
+		_scaleBar?.SetCell(cell.X, cell.Y);
 	}
 
 	private void UpdateUndoButtons(bool force)
@@ -252,6 +351,7 @@ public partial class EditorController : Control
 
 	private static string FormatBreadcrumbs(EditorContext ctx)
 	{
+		// 2026-10-09 收敛：面包屑改用 JrpgBreadcrumb 组件，文本拼接走 SetCrumbs；本方法保留签名以防外部调用，未在调用方使用。
 		var parts = new List<string>();
 		foreach (var id in ctx.Breadcrumbs) parts.Add(ctx.DisplayNameOf(id));
 		parts.Add(ctx.DisplayNameOf(ctx.ActiveMapId));

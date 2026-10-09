@@ -161,6 +161,8 @@ public sealed record MapDoc(
     [property: YamlMember(Alias = "terrain_data")] TerrainData TerrainData = null!,
     [property: YamlMember(Alias = "layers")] IReadOnlyList<LayerRef> Layers = null!,
     [property: YamlMember(Alias = "city_refs")] IReadOnlyList<CityRef> CityRefs = null!,
+    [property: YamlMember(Alias = "markers")] IReadOnlyList<MarkerDoc> Markers = null!,
+    [property: YamlMember(Alias = "routes")] IReadOnlyList<RouteDoc> Routes = null!,
     [property: YamlMember(Alias = "buildings")] IReadOnlyList<Building> Buildings = null!,
     [property: YamlMember(Alias = "generation")] GenerationSpec? Generation = null)
 {
@@ -177,6 +179,62 @@ public sealed record MapDoc(
         TerrainData: new TerrainData(),
         Layers: Array.Empty<LayerRef>(),
         CityRefs: Array.Empty<CityRef>(),
+        Markers: Array.Empty<MarkerDoc>(),
+        Routes: Array.Empty<RouteDoc>(),
         Buildings: Array.Empty<Building>(),
         Generation: null) { }
+}
+
+/// <summary>
+/// §4.9.2 标记与图标扩展（数据模型规格）。
+///
+/// 6 类 sprite 标记 — kind 取值:
+/// <list type="bullet">
+///   <item><c>event_point</c>   16×16 事件点（卷轴+金星+红蜡封）</item>
+///   <item><c>task_marker</c>   16×16 任务标记（金色卷轴+羽毛笔，放大 1.5× 视觉强调）</item>
+///   <item><c>danger_point</c>  16×16 危险点（红骷髅）</item>
+///   <item><c>character_dot</c> 8×8  人物点（暗棕实心点）</item>
+///   <item><c>vehicle_icon</c>  12×12 载具（马车/手推车）</item>
+///   <item><c>army_group</c>    16×16 军队群（3 红点+红三角旗）</item>
+/// </list>
+///
+/// v0.1 简化：time_window / faction / payload 等扩展字段留到 M5 路线（与 Faction 实体同批）。
+/// </summary>
+public sealed record MarkerDoc(
+    [property: YamlMember(Alias = "kind")] string Kind = "",
+    [property: YamlMember(Alias = "x")] int X = 0,
+    [property: YamlMember(Alias = "y")] int Y = 0,
+    [property: YamlMember(Alias = "label")] string? Label = null)
+{
+    /// <summary>YamlDotNet 反序列化所需的无参构造器。</summary>
+    public MarkerDoc() : this("", 0, 0, null) { }
+}
+
+/// <summary>
+/// §4.9.3 路线（数据模型规格）。
+///
+/// 7 种线型 — kind 取值:
+/// <list type="bullet">
+///   <item><c>land</c>        陆上实线 2px + 1px 中心高光</item>
+///   <item><c>path</c>        小径虚线 2px（每 4px 1px 间隔）</item>
+///   <item><c>trade_route</c> 商路双实线（red + blue）</item>
+///   <item><c>air_route</c>   航线点划线（8px 实 + 4px 间隔 + 2px 点）magic_glow</item>
+///   <item><c>water_route</c> 水上实线 + 1px 浪花边</item>
+///   <item><c>underground</c> 地下双实线 + 阴影偏移</item>
+///   <item><c>teleport</c>    传送点对点虚线 + 两端发光</item>
+/// </list>
+///
+/// waypoints 是有序格坐标列表（≥ 2 个点）；每条路线的端点用
+/// node_sprite (0-5) 标注 — 见 assets/icons/route_nodes_atlas.png (6 帧 atlas)。
+///
+/// v0.1 简化：time_window / faction / 控制点偏移 留到 M3+（与道路数据契约同批）。
+/// </summary>
+public sealed record RouteDoc(
+    [property: YamlMember(Alias = "kind")] string Kind = "",
+    [property: YamlMember(Alias = "waypoints")] IReadOnlyList<GridCoord> Waypoints = null!,
+    [property: YamlMember(Alias = "node_sprite")] int NodeSprite = 0,
+    [property: YamlMember(Alias = "label")] string? Label = null)
+{
+    /// <summary>YamlDotNet 反序列化所需的无参构造器。</summary>
+    public RouteDoc() : this("", Array.Empty<GridCoord>(), 0, null) { }
 }

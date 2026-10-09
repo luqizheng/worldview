@@ -1,0 +1,158 @@
+[gd_scene format=3 uid="uid://c3f27fso4h1u3"]
+
+[ext_resource type="PackedScene" path="res://scenes/WorldCanvas.tscn" id="1_worldcanvas"]
+[ext_resource type="Texture2D" uid="uid://cqnrklcjyn88b" path="res://assets/icons/icons_atlas.png" id="3_icons"]
+
+[sub_resource type="LabelSettings" id="DemoTitleSettings"]
+font_size = 18
+font_color = Color(0.165, 0.121, 0.062, 1)
+outline_size = 2
+outline_color = Color(0.96, 0.92, 0.78, 1)
+
+[sub_resource type="LabelSettings" id="DemoSubtitleSettings"]
+font_size = 11
+font_color = Color(0.48, 0.42, 0.32, 1)
+
+[node name="WorldCanvasDemo" type="Node2D" unique_id=591514273]
+
+[node name="Backdrop" type="ColorRect" parent="." unique_id=785485913]
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(0.91, 0.86, 0.72, 1)
+
+[node name="WorldCanvas" parent="." unique_id=883827081 instance=ExtResource("1_worldcanvas")]
+position = Vector2(40, 80)
+
+[node name="TitleLabel" type="Label" parent="." unique_id=160517373]
+offset_left = 40.0
+offset_top = 20.0
+offset_right = 1112.0
+offset_bottom = 48.0
+text = "World View — 资源样板演示（艾瑟兰大陆 64×48）"
+label_settings = SubResource("DemoTitleSettings")
+
+[node name="SubtitleLabel" type="Label" parent="." unique_id=5863261]
+offset_left = 40.0
+offset_top = 52.0
+offset_right = 1112.0
+offset_bottom = 72.0
+text = "Theme: parchment  ·  TileSet: jrpg (64×64)  ·  Icons: 7 marker frames (16×16)"
+label_settings = SubResource("DemoSubtitleSettings")
+
+[node name="MarkerLegend" type="VBoxContainer" parent="." unique_id=1904891187]
+offset_left = 820.0
+offset_top = 120.0
+offset_right = 1110.0
+offset_bottom = 600.0
+theme_override_constants/separation = 6
+
+[node name="LegendTitle" type="Label" parent="MarkerLegend" unique_id=1577953216]
+layout_mode = 2
+text = "Marker 图例（icons_atlas.png）"
+label_settings = SubResource("DemoSubtitleSettings")
+
+[node name="IconRow0" type="HBoxContainer" parent="MarkerLegend" unique_id=704413040]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon0" type="Sprite2D" parent="MarkerLegend/IconRow0" unique_id=1584365874]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(1, 1, 16, 16)
+
+[node name="Label0" type="Label" parent="MarkerLegend/IconRow0" unique_id=1761563828]
+layout_mode = 2
+text = "settlement_village"
+
+[node name="IconRow1" type="HBoxContainer" parent="MarkerLegend" unique_id=644326874]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon1" type="Sprite2D" parent="MarkerLegend/IconRow1" unique_id=558686130]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(18, 1, 16, 16)
+
+[node name="Label1" type="Label" parent="MarkerLegend/IconRow1" unique_id=1475013490]
+layout_mode = 2
+text = "settlement_town"
+
+[node name="IconRow2" type="HBoxContainer" parent="MarkerLegend" unique_id=897509036]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon2" type="Sprite2D" parent="MarkerLegend/IconRow2" unique_id=1888503063]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(35, 1, 16, 16)
+
+[node name="Label2" type="Label" parent="MarkerLegend/IconRow2" unique_id=1104976022]
+layout_mode = 2
+text = "settlement_capital"
+
+[node name="IconRow3" type="HBoxContainer" parent="MarkerLegend" unique_id=2089208306]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon3" type="Sprite2D" parent="MarkerLegend/IconRow3" unique_id=1381487266]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(52, 1, 16, 16)
+
+[node name="Label3" type="Label" parent="MarkerLegend/IconRow3" unique_id=1565654355]
+layout_mode = 2
+text = "ruins"
+
+[node name="IconRow4" type="HBoxContainer" parent="MarkerLegend" unique_id=1973966735]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon4" type="Sprite2D" parent="MarkerLegend/IconRow4" unique_id=1211243147]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(69, 1, 16, 16)
+
+[node name="Label4" type="Label" parent="MarkerLegend/IconRow4" unique_id=880474599]
+layout_mode = 2
+text = "event_point"
+
+[node name="IconRow5" type="HBoxContainer" parent="MarkerLegend" unique_id=1396216357]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon5" type="Sprite2D" parent="MarkerLegend/IconRow5" unique_id=1576512292]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(86, 1, 16, 16)
+
+[node name="Label5" type="Label" parent="MarkerLegend/IconRow5" unique_id=1888408379]
+layout_mode = 2
+text = "portal"
+
+[node name="IconRow6" type="HBoxContainer" parent="MarkerLegend" unique_id=1712741659]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon6" type="Sprite2D" parent="MarkerLegend/IconRow6" unique_id=1982719442]
+position = Vector2(24, 24)
+scale = Vector2(3, 3)
+texture = ExtResource("3_icons")
+region_enabled = true
+region_rect = Rect2(103, 1, 16, 16)
+
+[node name="Label6" type="Label" parent="MarkerLegend/IconRow6" unique_id=488228839]
+layout_mode = 2
+text = "faction_dot"

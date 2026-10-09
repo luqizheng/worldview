@@ -1,0 +1,40 @@
+# ink_wash_palette.yaml — 骨架文件,v0.1 仅占位
+#
+> 中式水墨内容美术风格调色板。字段名与 jrpg_palette.yaml 对齐,色值全 `[待标定]`。
+> 真源:docs/美术资源规范_v0.1.md §1.1 / §4.3
+> 落地:T-ART-8(资源 + 色值标定 + 拒绝清单;jrpg 后推迟)
+
+version: 1
+style_id: ink_wash
+status: placeholder        # v0.1 占位;资产未交付时通过 TileSetRegistry fallback 退回 jrpg + 纯色块
+
+# 地形主色(必须与 Domain.TerrainDefaults.ColorHex 一一对应;占位期间不强制校验)
+terrain:
+  plain:    "#xxxxxx [待标定]"   # 留纸白 + 淡墨晕染
+  mountain: "#xxxxxx [待标定]"   # 浓墨皴法 + 焦墨点苔
+  forest:   "#xxxxxx [待标定]"   # 中墨晕染 + 飞白笔触
+  coast:    "#xxxxxx [待标定]"   # 留纸白(无蓝绿)
+  # ... 其余 terrain 类型沿用 jrpg_palette.yaml 字段名,色值 [待标定]
+
+# Marker icon 语义主色(与 PALETTE 字符解耦;脚本生成时人工调色)
+marker:
+  settlement_village: "#xxxxxx [待标定]"
+  settlement_town:    "#xxxxxx [待标定]"
+  settlement_capital: "#xxxxxx [待标定]"
+  ruin_site:          "#xxxxxx [待标定]"
+  quest_marker:       "#xxxxxx [待标定]"
+  portal_arch:        "#xxxxxx [待标定]"
+  faction_marker:     "#xxxxxx [待标定]"
+
+# UI 主题色(与 parchment_theme.tres 解耦——art_style 只管内容,不管 UI)
+ui:
+  base:        "#xxxxxx [待标定]"   # 宣纸底
+  border:      "#xxxxxx [待标定]"   # 中墨
+  text:        "#xxxxxx [待标定]"   # 浓墨
+  accent:      "#xxxxxx [待标定]"   # 赭石点苔
+
+# 强调色(高光、火焰、徽记等;v0.1 占位,色值 [待标定])
+accent:
+  fire:        "#xxxxxx [待标定]"   # 朱砂点染(少量)
+  magic_glow:  "#xxxxxx [待标定]"   # 蓝灰晕染
+  faction_red: "#xxxxxx [待标定]"   # 印章朱砂

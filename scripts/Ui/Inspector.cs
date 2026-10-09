@@ -1,6 +1,7 @@
 using Godot;
 using WorldView.Editor;
 using WorldView.Ui.Dock;
+using WorldView.Ui.Theme;
 
 namespace WorldView.Ui;
 
@@ -116,8 +117,8 @@ public partial class Inspector : DockPanel
         };
         label.AddThemeFontSizeOverride("font_size", 11);
         label.AddThemeColorOverride("font_color", dim
-            ? new Color(0.56f, 0.56f, 0.63f)
-            : new Color(0.90f, 0.90f, 0.90f));
+            ? JrpgStyleFactory.JrpgTextPlaceholder
+            : JrpgStyleFactory.JrpgText);
         return label;
     }
 }

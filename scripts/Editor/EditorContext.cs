@@ -90,6 +90,10 @@ public partial class EditorContext : Node
     [Signal]
     public delegate void LayoutChangedEventHandler();
 
+    /// <summary>模式变化（§4.9.5 4 模式：edit / preview / replay / demo）。</summary>
+    [Signal]
+    public delegate void ModeChangedEventHandler(string mode);
+
     // ------------------------------------------------------------------ 工程数据
 
     /// <summary>工程根目录（绝对路径）。</summary>
@@ -149,6 +153,29 @@ public partial class EditorContext : Node
     /// （持久化留到多风格实装的那一轮）。</para>
     /// </summary>
     public string CurrentTilesetId { get; set; } = TileSetLoader.DefaultId;
+
+    // ------------------------------------------------------------------ 呈现模式
+
+    /// <summary>
+    /// 当前呈现模式（§4.9.5），取值 <c>edit</c> / <c>preview</c> / <c>replay</c> / <c>demo</c>。
+    /// 默认 <c>edit</c>。切换后由各 UI 组件 / 渲染层监听 <see cref="ModeChanged"/> 自行响应。
+    /// </summary>
+    public string Mode { get; private set; } = "edit";
+
+    /// <summary>设置呈现模式（同值时早返回；非法值回落到 <c>edit</c>）。</summary>
+    public void SetMode(string mode)
+    {
+        if (mode is not ("edit" or "preview" or "replay" or "demo"))
+        {
+            mode = "edit";
+        }
+        if (Mode == mode)
+        {
+            return;
+        }
+        Mode = mode;
+        EmitSignal(SignalName.ModeChanged, mode);
+    }
 
     // ------------------------------------------------------------------ 私有状态
 

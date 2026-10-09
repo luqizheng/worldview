@@ -1,13 +1,18 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/Editor/EditorController.cs" id="1_controller"]
-[ext_resource type="Theme" path="res://scripts/Ui/Theme/Dark.tres" id="2_theme"]
+[ext_resource type="Theme" path="res://assets/themes/parchment_theme.tres" id="2_theme"]
 [ext_resource type="Script" path="res://scripts/Ui/Dock/DockLayout.cs" id="3_docklayout"]
 [ext_resource type="PackedScene" uid="uid://dj5d55wiuin6s" path="res://scenes/WorldCanvas.tscn" id="4_worldcanvas"]
 [ext_resource type="Script" path="res://scripts/Ui/WorldDropSurface.cs" id="5_dropsurface"]
 [ext_resource type="PackedScene" path="res://scenes/ui/BottomPalette.tscn" id="6_bottompalette"]
 [ext_resource type="Script" path="res://scripts/Ui/Inspector.cs" id="7_inspector"]
 [ext_resource type="Script" path="res://scripts/Ui/LayerPanel.cs" id="8_layerpanel"]
+[ext_resource type="Script" path="res://scripts/Ui/Components/JrpgButton.cs" id="9_jrpgbtn"]
+[ext_resource type="Script" path="res://scripts/Ui/Components/JrpgBreadcrumb.cs" id="11_jrpgcrumb"]
+[ext_resource type="Script" path="res://scripts/Ui/Components/JrpgScaleBar.cs" id="12_jrpgbar"]
+[ext_resource type="Script" path="res://scripts/Ui/Components/JrpgMapTabBar.cs" id="13_jrpgtb"]
+[ext_resource type="Script" path="res://scripts/Ui/Components/JrpgReplayBar.cs" id="14_jrpgbar"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -69,38 +74,53 @@ theme_override_constants/separation = 6
 [node name="OpenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "打开工程…"
+script = ExtResource("9_jrpgbtn")
 
 [node name="SaveBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "保存"
+script = ExtResource("9_jrpgbtn")
 
 [node name="Sep" type="Label" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "│"
 
-[node name="BreadcrumbLabel" type="Label" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
+[node name="Breadcrumb" type="HBoxContainer" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "未加载工程"
-vertical_alignment = 1
+script = ExtResource("11_jrpgcrumb")
 
 [node name="UndoBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "⟲ 撤销"
+script = ExtResource("9_jrpgbtn")
 
 [node name="RedoBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "⟳ 重做"
+script = ExtResource("9_jrpgbtn")
 
 [node name="FullscreenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
 text = "全屏 F11"
+script = ExtResource("9_jrpgbtn")
 
 [node name="TopDock" type="VBoxContainer" parent="UiLayer/DockLayout/Root"]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 0
+
+[node name="MapTabBar" type="PanelContainer" parent="UiLayer/DockLayout/Root"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+script = ExtResource("13_jrpgtb")
+
+[node name="ReplayBar" type="PanelContainer" parent="UiLayer/DockLayout/Root"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+visible = false
+script = ExtResource("14_jrpgbar")
 
 [node name="MidRow" type="HBoxContainer" parent="UiLayer/DockLayout/Root"]
 layout_mode = 2
@@ -119,6 +139,30 @@ layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("5_dropsurface")
 
+[node name="CanvasOverlay" type="Control" parent="UiLayer/DockLayout/Root/MidRow/CanvasArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ScaleBar" type="VBoxContainer" parent="UiLayer/DockLayout/Root/MidRow/CanvasArea/CanvasOverlay"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -56.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("12_jrpgbar")
+
 [node name="RightDock" type="VBoxContainer" parent="UiLayer/DockLayout/Root/MidRow"]
 visible = false
 layout_mode = 2
@@ -130,6 +174,7 @@ layout_mode = 2
 
 [node name="Inspector" type="Control" parent="UiLayer/DockLayout"]
 visible = false
+; 2026-10-10 收敛: Inspector 默认折叠,避免遮挡 Minimap 视口验证
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

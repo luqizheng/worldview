@@ -1,0 +1,60 @@
+# World View — 羊皮纸调色板（YAML 唯一真源）
+#
+# 字段真源：docs/数据模型规格_v0.1.md §2.4
+# Domain 层真源：scripts/Domain/Terrain.cs:64 (TerrainDefaults.ColorHex)
+# C# 读取：WorldView.Storage.Yaml.PaletteLoader（待实现，T23+）
+# Godot 桥接：parchment_theme.tres 引用本文件的 hex 字符串
+#
+# 命名约定：
+#   terrain.<name>   — 11 种地形显示色（与 TerrainType 枚举一一对应）
+#   marker.<name>    — 7 种 marker icon 主色（与 icons_atlas.json 帧名一一对应）
+#   ui.<name>        — 通用 UI 色（与 Dark.tres 风格一致，覆盖在它之上）
+#
+# 颜色格式：#RRGGBB 或 #RRGGBBAA（缺省 AA=FF）
+
+version: 1
+description: 像素风 / 复古纸感 / 与现有 atlases 同色系
+
+# ---- 地形显示色（数据契约 §2.4） -------------------------------------------
+terrain:
+  plain:     "#c2b280"
+  mountain:  "#7a6f5c"
+  forest:    "#3f7a3f"
+  hill:      "#8a7a4a"
+  water:     "#3a6ea5"
+  desert:    "#d9c47a"
+  swamp:     "#5a6a3a"
+  tundra:    "#cfd6e0"
+  basin:     "#7a8aa6"
+  coast:     "#a8c3d6"
+  river:     "#5e8fc4"
+
+# ---- Marker icon 主色（与 icons_atlas.json 帧名一致，v1_draft 占位） --------
+# v1 frames 为 _tools/make_marker_icons.py 像素矩阵手绘的 wireframe 草稿，
+# 待美术替换为正式版（todo: replace_v1_draft_icons，见 docs/美术资源规范 §7）。
+marker:
+  village:          "#a88452"  # 羊皮底 tan
+  town:             "#a88452"
+  capital:          "#8b3a2e"  # 朱红（旗）
+  ruin_site:        "#a88452"
+  quest_marker:     "#f0c850"  # 暖黄（问号高亮）
+  portal_arch:      "#6098b8"  # 浅蓝（拱门魔法）
+  faction_marker:   "#8b3a2e"  # 朱红（核心点）
+
+# ---- 通用 UI 色（§4.5.1 12 token,2026-10-09 替换为 JRPG 契约） -------
+# 字段真源:docs/美术资源规范_v0.1.md §4.5.1
+# Godot 桥接:assets/themes/parchment_theme.tres 引用本文件 hex
+# 历史字段(bg/panel/text/accent_hover/warning 等)已被 §4.5.1 取代,如有旧引用需走 T-UI-7 组件脚本同步替换
+ui:
+  jrpg_bg:                 "#f4f0e4"  # 背景(羊皮底)
+  jrpg_card:               "#fff8e7"  # 卡片/输入框底
+  jrpg_fill:               "#f4e4c1"  # 控件填充(常规态)
+  jrpg_fill_pressed:       "#e8c89a"  # 控件填充(按下态)
+  jrpg_outline:            "#5a3a1a"  # 描边(焦褐)
+  jrpg_outline_focus:      "#e8c34a"  # 描边(焦点态,金黄)
+  jrpg_text:               "#3a2810"  # 文字
+  jrpg_text_placeholder:   "#a89878"  # 占位符文字
+  jrpg_text_disabled:      "#8a7a5a"  # disabled 文字
+  jrpg_link:               "#3a5a8a"  # 链接
+  jrpg_danger:             "#c8341a"  # 危险(删除/出错)
+  jrpg_success:            "#5a8a3a"  # 成功(保存/已通过)

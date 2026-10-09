@@ -3,7 +3,13 @@ default: jrpg
 styles:
   - id: jrpg
     path: .                          # 指向 assets/textures/tiles/ 自身（既有资源）
-    description: JRPG 16×16 风格
+    description: JRPG 16×16 像素风（已实装，默认）
+  - id: western_fantasy
+    path: _placeholder               # v0.1 占位；asset 目录未交付时退 fallback（jrpg + 纯色块）
+    description: 西幻写实（v0.1 占位；T-ART-7 落地资源 + Palette 色值 + 拒绝清单）
+  - id: ink_wash
+    path: _placeholder               # v0.1 占位；asset 目录未交付时退 fallback（jrpg + 纯色块）
+    description: 中式水墨（v0.1 占位；T-ART-8 落地资源 + Palette 色值 + 拒绝清单）
   - id: _fallback_solid_color
     path: solid                      # 若工程内不存在该目录，注册器降级到 TerrainTileSetFactory.Build() 的纯色块
     description: 纯色兜底（无资产时退化）

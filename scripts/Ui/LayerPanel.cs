@@ -1,6 +1,8 @@
 using Godot;
 using WorldView.Editor;
+using WorldView.Ui.Components;
 using WorldView.Ui.Dock;
+using WorldView.Ui.Theme;
 
 namespace WorldView.Ui;
 
@@ -98,7 +100,7 @@ public partial class LayerPanel : DockPanel
                 MouseFilter = MouseFilterEnum.Ignore,
             };
             empty.AddThemeFontSizeOverride("font_size", 11);
-            empty.AddThemeColorOverride("font_color", new Color(0.56f, 0.56f, 0.63f));
+            empty.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
             _body.AddChild(empty);
             _syncing = false;
             return;
@@ -115,7 +117,7 @@ public partial class LayerPanel : DockPanel
                 continue;
             }
 
-            var check = new CheckBox
+            var check = new JrpgCheckBox
             {
                 Text = $"{layer.Name} ({layer.Type})",
                 ButtonPressed = layer.Visible,

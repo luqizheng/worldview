@@ -53,12 +53,13 @@ public partial class MinimapSection : PaletteContent
         AddChild(_view);
 
         _viewportBox = new Panel { Name = "Viewport", MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        // §4.9.7 契约: 视口框 #c8341a 2px (--jrpg-danger, 1px 描边 + 半透明填充)
         var style = new StyleBoxFlat
         {
-            BgColor = new Color(0.45f, 0.55f, 0.85f, 0.16f),
-            BorderColor = new Color(0.45f, 0.55f, 0.85f, 1f),
+            BgColor = new Color(0.784f, 0.204f, 0.102f, 0.16f),    // #c8341a @ 16% alpha
+            BorderColor = new Color(0.784f, 0.204f, 0.102f, 1f),    // #c8341a full
         };
-        style.SetBorderWidthAll(1);
+        style.SetBorderWidthAll(2);
         style.SetCornerRadiusAll(2);
         _viewportBox.AddThemeStyleboxOverride("panel", style);
         _viewportBox.SetAnchorsPreset(LayoutPreset.TopLeft);

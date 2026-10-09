@@ -1,0 +1,70 @@
+# World View — JRPG 内容美术风格调色板（YAML 唯一真源）
+#
+> 字段真源：docs/美术资源规范_v0.1.md §4.8（JRPG 内容美术视觉契约）
+> 字段骨架：docs/美术资源规范_v0.1.md §4.3（与 parchment_palette.yaml 同构）
+> Domain 层真源：scripts/Domain/Terrain.cs:64（TerrainDefaults.ColorHex，11 项）
+> C# 读取：WorldView.Storage.Yaml.PaletteLoader（T23+，待实现）
+> 关联字段：Map.presentation.art_style = jrpg
+> 关联文件：assets/textures/tiles/styles.yaml:4（jrpg 已实装）
+> 关联工单：T-ART-1（marker 美化）/ T-ART-7 / T-ART-8（本文件只定 jrpg）
+>
+> 命名约定：
+>   terrain.<name>   — 11 种地形显示色（必须与 TerrainType 枚举一一对应）
+>   marker.<name>    — 7 种 marker icon 主色（与 icons_atlas.json 帧名一一对应）
+>   ui.<name>        — JRPG 内容美术专属 UI 高亮色（与 §4.5 UI token 互补,后者管控件,本节管内容层高亮）
+>   accent.<name>    — 强调色（火焰 / 魔法 / 势力色）
+>
+> 颜色格式：#RRGGBB 或 #RRGGBBAA（缺省 AA=FF）
+>
+> **字段借用声明**（v0.1 临时,M1+ 美术替换时建议细化 TerrainType 枚举）：
+>   `basin`  借用表达 `lava`（熔岩）  —— 原 basin 含义「盆地」与 JRPG 风熔岩视觉重合
+>   `hill`   借用表达 `void`（虚空）  —— 原 hill 含义「丘陵」在 JRPG 风表达为「无主暗域」
+>   `river`  借用表达 `snow`（雪地）  —— 原 river 含义「河流」与 JRPG 风雪地纹理共享暖白底
+> Domain 层 11 个字段名不变,只在本文件用注释指明借用关系。
+
+version: 1
+description: JRPG 童趣冒险像素风（已实装,默认内容美术风格）
+art_style_id: jrpg
+
+# ---- 地形显示色（必须与 Domain.TerrainDefaults.ColorHex 一一对应） ----
+terrain:
+  plain:     "#d4c898"  # 平原（主色,饱和度低,长时间阅读舒适）
+  mountain:  "#8a7a5a"  # 山地（深褐灰）
+  forest:    "#5a8a3a"  # 森林（草绿）
+  hill:      "#3a2810"  # [借用] 虚空（无主暗域）
+  water:     "#3a6a8a"  # 深水
+  desert:    "#e8c89a"  # 沙漠（沙黄）
+  swamp:     "#6a7a4a"  # 沼泽（暗绿）
+  tundra:    "#a8a898"  # 苔原（灰绿）
+  basin:     "#c8341a"  # [借用] 熔岩（JRPG 经典 HP 红）
+  coast:     "#7aacac"  # 海岸（青蓝,与原 #a8c3d6 对比,JRPG 风偏冷青）
+  river:     "#fff8e7"  # [借用] 雪地（暖白）
+
+# ---- Marker icon 主色（与 icons_atlas.json 帧名一致,v1_draft 占位） ----
+# v1 frames 为 _tools/make_marker_icons.py 像素矩阵手绘的 wireframe 草稿,
+# 待美术替换为正式版（todo: replace_v1_draft_icons,见 docs/美术资源规范 §7）
+marker:
+  village:         "#a89878"  # 村庄（灰褐,低饱和）
+  town:            "#8a6a3a"  # 城镇（中褐）
+  capital:         "#c8341a"  # 都城（HP 红,JRPG 经典强调）
+  ruin_site:       "#5a3a1a"  # 遗迹（焦褐）
+  quest_marker:    "#e8c34a"  # 任务点（金黄,主角色）
+  portal_arch:     "#8a4ac8"  # 传送门（蓝紫魔法）
+  faction_marker:  "#3a5a8a"  # 势力（任务蓝）
+
+# ---- JRPG 内容美术专属 UI 高亮色（与 §4.5 UI token 互补） ----
+# §4.5 UI token 管控件 / 边框 / 文字;本节管**内容层**的高亮（地图上选中 marker / 高亮城市 / 路径起点）
+# 二者字段名有意区分避免冲突
+ui:
+  highlight:         "#e8c34a"  # 内容层高亮（金黄,与 §4.5 --jrpg-outline-focus 同色,跨层一致）
+  selection:         "#f0d878"  # 内容层选中（半透明金黄,覆盖在 terrain 上不刺眼）
+  hover_marker:      "#fff8e7"  # marker 悬停描边（暖白）
+  disabled_content:  "#a89878"  # 内容层 disabled（灰褐）
+
+# ---- 强调色（火焰 / 魔法 / 势力） ----
+accent:
+  fire:                  "#e88834"  # 火（火系魔法橙）
+  magic_glow:            "#8a4ac8"  # 魔法光晕（蓝紫）
+  faction_red:           "#c8341a"  # 势力强调红
+  faction_blue:          "#3a5a8a"  # 势力强调蓝
+  vegetation_highlight:  "#a8c89a"  # 植被高亮（§4.9.1 地形表现层 植被点缀 30% 密度撒点）

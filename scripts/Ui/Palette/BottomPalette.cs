@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using WorldView.Ui.Components;
 using WorldView.Ui.Dock;
+using WorldView.Ui.Theme;
 
 namespace WorldView.Ui.Palette;
 
@@ -30,7 +32,7 @@ public partial class BottomPalette : Control, IPaletteHost
 
     private Panel? _background;
     private VBoxContainer? _rows;
-    private Button? _collapseButton;
+    private JrpgButton? _collapseButton;
     private HBoxContainer? _collapsedBar;
     private bool _defaultsBuilt;
     private bool _collapsed;
@@ -76,7 +78,7 @@ public partial class BottomPalette : Control, IPaletteHost
         _rows.OffsetRight = -28f;
         _rows.OffsetBottom = 0f;
 
-        _collapseButton = new Button
+        _collapseButton = new JrpgButton
         {
             Name = "Collapse",
             Text = "▾",
@@ -105,7 +107,7 @@ public partial class BottomPalette : Control, IPaletteHost
             Text = "面板已折叠",
             VerticalAlignment = VerticalAlignment.Center,
         };
-        collapsedHint.AddThemeColorOverride("font_color", new Color(0.56f, 0.56f, 0.63f));
+        collapsedHint.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
         collapsedHint.AddThemeFontSizeOverride("font_size", 11);
         _collapsedBar.AddChild(collapsedHint);
 
@@ -114,7 +116,7 @@ public partial class BottomPalette : Control, IPaletteHost
             Text = "Ctrl+B 展开 · T 播放条 · M 小地图",
             VerticalAlignment = VerticalAlignment.Center,
         };
-        expandHint.AddThemeColorOverride("font_color", new Color(0.56f, 0.56f, 0.63f));
+        expandHint.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
         expandHint.AddThemeFontSizeOverride("font_size", 11);
         _collapsedBar.AddChild(expandHint);
     }

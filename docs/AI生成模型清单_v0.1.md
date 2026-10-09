@@ -566,7 +566,7 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 | 4 | `EmptyLatentImage` | width / height / batch_size | 1024 / 1024 / 1 | HD-2D 严格正方形 |
 | 5 | `ControlNetLoader` | `control_net_name` | `controlnet-canny-sdxl-1.0.safetensors` | 见 §2.5.1 |
 | 6 | `ControlNetLoader` | `control_net_name` | `controlnet_depth_sdxl_1_0.safetensors` | **下划线命名** |
-| 7 | `LoadImage` | (无字段) | 上传参考图(map sketch) | 可选;无参考图时 Preprocessor 输入空图 |
+| 7 | `LoadImage` | `image` / `upload` | 上传参考图(map sketch) | 可选;无参考图时 Preprocessor 输入空图 → 控形 = 0;具体见 §3.5.8 LoadImage 上传规范(三档用法 / 自画草图 / 不传时怎么办 / 存放位置) |
 | 8 | `CannyEdgePreprocessor` | low_threshold / high_threshold | 默认 0.1 / 0.2 | 留默认 |
 | 9 | `DepthAnythingV2Preprocessor` | (无字段) | — | 自动下采到 latent 尺寸 |
 | 10 | `ApplyControlNet` | strength / start_percent / end_percent | **0.65** / 0.0 / 1.0 | Canny 强控形 |
@@ -778,6 +778,86 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 
 > **历史经验**:实测 2026-10-09,用户**未找到** `DepthAnythingV2Preprocessor` 节点,降级为 `MiDaSDepthMapPreprocessor` 后跑通(详见 T-AI-7 工单)。
 
+### 3.5.8 LoadImage 上传规范(参考图选什么图,怎么用)
+
+> **这一节回答**:`LoadImage` 节点(⑦⑧,各工作流一份)`upload` 按钮到底传什么图、不传会怎样、可省略吗。
+
+#### 3.5.8.1 三档使用方式(从省事到精细)
+
+| 档位 | 是否上传 | 出图结果 | 适用 |
+|---|---|---|---|
+| **档 A:不传** | 不点 upload 按钮 | Preprocessor 输入空图 → Canny 输出**全黑边图** → ControlNet 控形强度 ≈ 0 → 近似纯 txt2img 自由出图 | 看主模型自身风格(Blue Pencil XL v7 的 JRPG 基线);批量试提示词时省事 |
+| **档 B:传草图** | upload 一张手绘/简笔 sketch(线稿、方块图、甚至截图) | Preprocessor 把它转成 Canny 边缘图 → ControlNet 用 Canny 边缘 + P 提示词双重控形;**出图轮廓贴合草图** | 同一个场景批量试色 / 试光影;固定构图,变体风格 |
+| **档 C:传风格锚图** | upload 一张已出但满意的真图(其他 SDXL 出过的、网上的) | Canny 直接抄这张图的边缘 → ControlNet 0.65 控形 → 新出图**接近这张图的轮廓与构图**,但提示词决定内容 | 复刻特定景观 / 角色姿态;做素材库时风格统一化 |
+
+#### 3.5.8.2 推荐:档 B,自画草图(本工程首选)
+
+**自画草图参考图** 具体指南(给场景 tile / 角色图标 / 物品图标三类):
+
+| 内容类型 | 草图画法 | 推荐尺寸 |
+|---|---|---|
+| **场景 tile**(HD-2D 厚涂水彩) | 三段式天/地/中景,大致勾出建筑轮廓 + 主光源;不要细节 | 1024×576 或 1024×1024 |
+| **角色 marker 图标**(战斗场景头标) | 单人正面站姿,头身体简化几何;不要手臂细节 | 512×512 |
+| **物品图标**(背包 / 任务物品) | 单物件正面描线,无背景 | 512×512 |
+
+**画风口径**:**画的草图不需要好看,只需要边缘清晰**——Canny Edge 是边缘检测,**白底黑笔 / 黑底白笔**两种都能跑;**线条越清楚**,Canny 提取的边缘越准,ControlNet 控形越稳。
+
+#### 3.5.8.3 不传参考图时的注意事项
+
+**① 不上传图也能跑**(档 A),但要确认 Preprocessor 不崩溃。验证方法:
+
+```
+步骤:① 双击 LoadImage(upload 按钮不点)→ ② 点 Queue Prompt
+     → ③ 看 Terminal / 控制台日志:
+       - 正常:Canny 输出黑图、ControlNet 控形 ≈ 0、出图无 Reference
+       - 异常:Preprocessor 报 "No image input" → ComfyUI 不出图
+        ↑ 后者需要 fallback:在 LoadImage 前加 Reroute 节点强喂一张占位图
+```
+
+**② 不传时,工作流的"控形链路"还是连着**——只是输入空,不代表链路断开。这就是 §3.5.4 步骤 5 写"选填"的原因。
+
+**③ 简化版 §3.5.3.3(12 节点)只跑 Canny**:LoadImage(⑦)+ Canny Edge(⑨)+ ApplyAdvanced(⑪)是 Canny 主链路;**不传图也是档 A,不会中断主链路**——出图照样跑。
+
+#### 3.5.8.4 参考图存放位置(避免硬编码)
+
+**不要把参考图放到工程 `assets/` 内**(AGENTS.md §6.1 规定 `assets/` 仅放 PNG/YAML 出图成品)。三种推荐放法:
+
+| 放法 | 路径 | 适用 |
+|---|---|---|
+| **工程外(本机默认)** | `D:\kudi-project\comfyui-models\reference_maps\` | 单机工作;不进版本库,ComfyUI 可读 |
+| **ComfyUI input 标准目录** | `D:\ComfyUI\input\reference_maps\` | 标准便携版;ComfyUI 自动识别 |
+| **工程内临时** | `D:\kudi-project\world-view\.dsh_tmp\reference_maps\` | DSH 一次性截图;**不进版本库**,用完清理 |
+
+> **本工程默认**:`D:\kudi-project\comfyui-models\reference_maps\`,本机实测目录扁平化的扩展,与 §2.5.1 配置一致。
+
+#### 3.5.8.5 文件格式 / 命名规范
+
+| 项 | 推荐 |
+|---|---|
+| **格式** | PNG(无损,推荐)/ JPG(可,但 Canny 边缘会因压缩变粗糙)|
+| **命名** | `<内容类型>_<目标>_<用途>_<版本>.png`(例:`scene_village_layout_refmap_v1.png` / `char_knight_pose_refmap_v2.png`)|
+| **色彩空间** | RGB(灰度也可,白底黑笔最佳)|
+| **尺寸** | 长宽按 §3.5.8.2 表选;不要超过 2048×2048(ControlNet 输入限制)|
+| **是否标 alpha 通道** | 不需要;LoadImage 会按 RGB 处理 |
+
+#### 3.5.8.6 实测工作流的当前 widgets_values(参考)
+
+**简化版** `docs/comfyui/HD2D_simplified.json` 里 `LoadImage` 节点的 `widgets_values`:
+
+```
+[
+  "reference_map.png",   # 默认文件名(用户上传时改这个名,或上传时直接选别的图)
+  "image"                # widget type(固定不动)
+]
+```
+
+**实际用法**:
+1. ComfyUI 画布上**双击 LoadImage** 节点 → 弹出 upload 弹窗
+2. 点 `choose file to upload` 选图(我本机把要传的图就先放进 `D:\kudi-project\comfyui-models\reference_maps\`)
+3. `image` COMBO 显示选中的文件名 → 点 Queue Prompt,ComfyUI 自动从该路径读图
+
+> **关键**:`widgets_values[0]` 的字符串("reference_map.png")**只是显示文件名**,真正读图走 widget 第 2 个参数 `upload` 选的文件路径。**两个解耦**——改了第 1 个字符串不会重新加载图,只有重选 upload 才生效。
+
 ---
 
 ## 4. 验证清单(下载后回归)
@@ -834,3 +914,5 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 | 2026-10-09 | v0.1 补充 5 | **修复 §2 编号错乱**(§2.5 Linux/macOS 与 §2.6 ComfyUI 互换位置,统一为 §2.5=ComfyUI / §2.6=Linux/macOS);**新增 §3.5 ComfyUI HD-2D 工作流配置**(16 节点 / 3 分组:CheckpointLoaderSimple / CLIPTextEncode×2 / EmptyLatentImage / ControlNetLoader×2 / LoadImage / CannyEdgePreprocessor / DepthAnythingV2Preprocessor / ApplyControlNet×2 / KSampler / VAEDecode / SaveImage×2 / PreviewImage),含完整工作流 JSON 模板 + 节点字段表 + 5 步加载 + 6 项验证清单 + 与 §1.4.3 出图参数基线对照表(Canny 0.65 / Depth 0.45,**不**叠加 pixel-art-xl LoRA);新增 §6.2 工单 T-AI-7(双 ControlNet 配置验证)。**用户决策回查**:Q1=B(全新建 `hd2d_txt2img.json`)+ Q2=D(双 ControlNet)+ Q3=A(写进本清单 §3.5) |
 | 2026-10-09 | v0.1 补充 6 | **§3.5.3 改写为文字版**——原 JSON 模板实测无法在用户 ComfyUI 中 Load(节点类名因版本 / 汉化 / 预处理器包而异),改为 18 节点清单 + 17 条连线表 + 简化版(12 节点 9 连线,删 Depth 一支);**§3.5.4 改写为 6 步手动搭工作流**——双击画布加节点 + 拖线 + 填字段;**新增 §3.5.7 节点名兼容性与回退方案**(4 子节:主表 5 节点名别名 / 风险等级 5 类 / 缺失排错 4 步 / 字段值兼容性 4 节点);**关键修正**:`ConditioningCombine` 节点必须加(原 JSON 没加,导致 Canny/Depth 控形直接接 KSampler.positive 错位);`LoadImage` 不上传参考图时 `CannyEdge` / `MiDaSDepthMap` 输出黑图,ApplyControlNet 走 0 控形,近似 txt2img 自由出图 |
 | 2026-10-09 | v0.1 补充 7 | **`ControlNetApplyAdvanced` 节点替换**——用户实测 ComfyUI 已升级,`ApplyControlNet` 被新版 `ControlNetApplyAdvanced` 取代,**无 `conditioning` 输入,只接 `positive` / `negative` / `control_net` / `image`**,**内部完成叠加**;**§3.5.3 节点清单 18 节点 → 16 节点**(删 ⑬⑭ ConditioningCombine,加 ⑪⑫ 新版节点);**§3.5.3.2 连线表 17 条 → 17 条(重写 5/12/13/14/15)**——方案 1 分层控形(Canny 控 P,strength=0.65;Depth 控 N,strength=0.45;N 排除非等距视角);**§3.5.3.3 简化版 12 节点 → 11 节点 / 9 连线 → 11 连线**(无 N 控形,③ 直接接 ⑬.negative);**§3.5.7.1 主表 `ControlNetApplyAdvanced` 行**——加新旧版接口对比,标注缺失回退到老版 ApplyControlNet(需补 ConditioningCombine);**§3.5.7.4 字段值兼容性表**——加 `ControlNetApplyAdvanced` 行,标注"接口不兼容老版";**残留旧 JSON 代码块(行 688-881)整体删除**——早已被新版文字版取代;**用户决策回查**:分层控形(方案 1) |
+| 2026-10-09 | v0.1 补充 8 | **`docs/comfyui/HD2D_simplified.json` 落地**——删除 Depth 一支 + ID 与 §3.5.3.3 一一对应(① ② ③ ④ ⑤ ⑦ ⑨ ⑪ ⑬ ⑭ ⑮ ⑯),12 节点 / 11 条连线,新增 `③ → ⑬.negative` 直连线(link=50);§3.5.3.3 表头"11 节点 / 7 条连线"勘误为"12 节点 / 11 条连线";§3.5.3.3 表格末"11 条"加节点数 12 备注;自检脚本 `.dsh_tmp/verify_hd2d.py` 输出 ✅ 每条 link 两端都对应实际节点 |
+| 2026-10-09 | v0.1 补充 9 | **新增 §3.5.8 LoadImage 上传规范**(6 小节:三档用法 A/B/C / 自画草图三类型 / 不传时怎么验证 / 三种推荐存放位置 / 文件格式 + 命名 + 尺寸规范 / widgets_values 实测结构);§3.5.2 表行 7 同步指向 §3.5.8 |

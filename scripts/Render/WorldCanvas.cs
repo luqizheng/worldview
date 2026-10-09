@@ -51,12 +51,31 @@ public partial class WorldCanvas : Node2D
         }
     }
 
+    /// <summary>
+    /// §4.9.5 4 模式视觉差异：编辑模式全可见；预览/回放/演示模式隐藏网格与标记（保留地形与建筑）。
+    /// 实际 UI 显隐由 EditorController 调 <see cref="Editor.EditorController.SetMode"/> 统一驱动，
+    /// 本方法只管渲染层。改 visible 后 <c>queue_redraw</c> 即可。
+    /// </summary>
+    public void ApplyMode(string mode)
+    {
+        var showGrid = mode == "edit";
+        var showMarkers = mode == "edit" || mode == "preview";
+        if (_gridOverlay is not null) _gridOverlay.Visible = showGrid;
+        if (_markerLayer is not null) _markerLayer.Visible = showMarkers;
+        // RouteLayer 自身监听 ModeChanged（与 FactionLayer 同模式）— 这里不重复
+    }
+
+    private void OnModeChanged(string mode) => ApplyMode(mode);
+
     private Camera2D? _camera;
     private TerrainLayer? _terrainLayer;
+    private TerrainDecor? _terrainDecor;
     private RoadLayer? _roadLayer;
     private BuildingLayer? _buildingLayer;
     private GridOverlay? _gridOverlay;
     private MarkerLayer? _markerLayer;
+    private FactionLayer? _factionLayer;
+    private RouteLayer? _routeLayer;
 
     private readonly BrushController _brush = new();
     private BuildingPlaceController? _placer;
@@ -88,10 +107,13 @@ public partial class WorldCanvas : Node2D
     {
         _camera = GetNodeOrNull<Camera2D>("Camera2D");
         _terrainLayer = GetNodeOrNull<TerrainLayer>("TerrainLayer");
+        _terrainDecor = GetNodeOrNull<TerrainDecor>("TerrainDecor");
         _roadLayer = GetNodeOrNull<RoadLayer>("RoadLayer");
         _buildingLayer = GetNodeOrNull<BuildingLayer>("BuildingLayer");
         _gridOverlay = GetNodeOrNull<GridOverlay>("GridOverlay");
         _markerLayer = GetNodeOrNull<MarkerLayer>("MarkerLayer");
+        _factionLayer = GetNodeOrNull<FactionLayer>("FactionLayer");
+        _routeLayer = GetNodeOrNull<RouteLayer>("RouteLayer");
 
         // 第一次尝试：若 EditorController 已先 _Ready（场景里预设 EditorContext 节点时可能），
         // 直接绑信号 + 触发首次重建。
@@ -108,6 +130,7 @@ public partial class WorldCanvas : Node2D
         {
             context.MapChanged -= OnMapChanged;
             context.LayersChanged -= ApplyLayerVisibility;
+            context.ModeChanged -= OnModeChanged;
             _contextBound = false;
         }
     }
@@ -160,6 +183,13 @@ public partial class WorldCanvas : Node2D
         _terrainLayer?.Configure(tileSet, cellPixels);
         _terrainLayer?.Rebuild(map);
 
+        // §4.9.1 地形装饰层:高度阴影 / 海岸线 / 植被点缀 / 河流动画
+        if (_terrainDecor is not null)
+        {
+            _terrainDecor.CellPixels = cellPixels;
+            _terrainDecor.Rebuild(map);
+        }
+
         _roadLayer?.Configure(tileSet, cellPixels);
         _roadLayer?.Rebuild(map);
 
@@ -169,12 +199,26 @@ public partial class WorldCanvas : Node2D
             _buildingLayer.Rebuild(map);
         }
 
-        _gridOverlay?.Configure(map.Grid.Width, map.Grid.Height, cellPixels);
+        // §4.9.1 等高线:v0.1 简化实现,用 cellSize 当 step（每 1 个 cell_distance 画 1 条）,
+        // 真正的"按 height 数据画等高线"留到 M3+ 接入 TerrainCell.Height 后。
+        // GridSpec.HeightUnit 是 string "m",数值单位 hook 在 M3+ 才有。
+        _gridOverlay?.Configure(map.Grid.Width, map.Grid.Height, cellPixels, heightUnit: cellPixels);
 
         if (_markerLayer is not null)
         {
             _markerLayer.CellSize = cellPixels;
             _markerLayer.Rebuild(map);
+        }
+
+        if (_factionLayer is not null)
+        {
+            _factionLayer.Configure(cellPixels);
+        }
+
+        if (_routeLayer is not null)
+        {
+            _routeLayer.Configure(cellPixels);
+            _routeLayer.Rebuild(map);
         }
 
         // 加载地图后：让 Camera2D 居中到地图中心，并把当前 viewport 缩放到「整张地图刚好填满可见区」
@@ -197,6 +241,16 @@ public partial class WorldCanvas : Node2D
         if (_terrainLayer is not null)
         {
             _terrainLayer.Visible = context.IsLayerVisible(LayerKind.Terrain);
+        }
+
+        if (_terrainDecor is not null)
+        {
+            _terrainDecor.Visible = context.IsLayerVisible(LayerKind.Terrain);
+        }
+
+        if (_terrainDecor is not null)
+        {
+            _terrainDecor.Visible = context.IsLayerVisible(LayerKind.Terrain);
         }
 
         if (_roadLayer is not null)

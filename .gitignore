@@ -67,5 +67,14 @@ mono_crash.*.json
 .reasonix/
 .workbuddy/
 
+# ---- 一次性调试 / 临时数据 ----
+# .dsh_tmp 是 DSH agent 临时调试目录；.worldview/probe_ 是 R6 缩放验证子工程。
+.dsh_tmp/
+.worldview/probe_/
+# DSH image-gen 调试产物（已在审稿图清点外,留作历史参考可单独归档,不入版本库）
+dsh-image-gen/
+# Godot 运行截图(临时)
+screenshot.png
+
 # ---- 一次性清理/迁移文件 ----
 .trae/m1-cleanup-manifest.md

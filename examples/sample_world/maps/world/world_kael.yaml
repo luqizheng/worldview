@@ -52,4 +52,58 @@ city_refs:
     艾瑟兰大陆东南海岸的最大港口；面向永风洋，
 
     是创世历 1042 年「断潮夜」事件的发生地。
+markers:  # §4.9.2 6 类 marker 演示数据
+- kind: event_point
+  x: 32
+  y: 24
+  label: 断潮夜事件点
+- kind: task_marker
+  x: 30
+  y: 22
+  label: 寻找失踪船员
+- kind: danger_point
+  x: 36
+  y: 26
+  label: 海盗巢穴
+- kind: character_dot
+  x: 28
+  y: 20
+  label: 林羽
+- kind: vehicle_icon
+  x: 34
+  y: 28
+  label: 海岸商队
+- kind: army_group
+  x: 40
+  y: 30
+  label: 联盟巡逻队
 buildings: []
+routes:  # §4.9.3 7 种线型演示（land + trade + air + teleport）
+- kind: land
+  waypoints: [[32, 24], [28, 20], [24, 18], [20, 16]]
+  node_sprite: 0
+  label: 极光港-圣光镇陆路
+- kind: trade_route
+  waypoints: [[32, 24], [36, 26], [40, 28]]
+  node_sprite: 2
+  label: 海运商路
+- kind: air_route
+  waypoints: [[32, 24], [34, 20], [36, 16]]
+  node_sprite: 3
+  label: 风行航线
+- kind: teleport
+  waypoints: [[32, 24], [42, 14]]
+  node_sprite: 5
+  label: 联盟传送门
+- kind: path
+  waypoints: [[24, 18], [20, 22], [16, 24]]
+  node_sprite: 1
+  label: 山间小径
+- kind: water_route
+  waypoints: [[32, 24], [38, 30], [44, 34]]
+  node_sprite: 0
+  label: 永风洋航线
+- kind: underground
+  waypoints: [[28, 20], [26, 26], [24, 32]]
+  node_sprite: 0
+  label: 矮人地下通道

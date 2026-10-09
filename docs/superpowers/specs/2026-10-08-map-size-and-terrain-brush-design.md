@@ -329,7 +329,7 @@ sealed class ResizeMapCommand : IEditorCommand
 |---|---|---|
 | 笔刷半径控件类型 | 数字输入框 + 派生格数标签 | §4.2 |
 | 半径上限 `MaxRadiusCells` | 64（暂定） | §5.2；需性能实测标定 |
-| `MapSettingsDialog` 的视觉样式 | 跟随 ui-redesign 暗色主题 | §4.3 |
+| `MapSettingsDialog` 的视觉样式 | 跟随 `parchment_theme.tres`（**2026-10-09 更新**：原计划"暗色主题"已下线） | §4.3 |
 | swatch 形状与描边 | 沿用现状（圆角矩形 + 1px 描边，选中 2px 白色） | §4.1 |
 | `grid.scale_label` 是否随尺寸变更自动生成 | 不写（留空） | §3.2 |
 

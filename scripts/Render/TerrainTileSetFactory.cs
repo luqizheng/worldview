@@ -23,8 +23,12 @@ public static class TerrainTileSetFactory
     /// <summary>地形瓦片的 TileSet source id。</summary>
     public const int SourceId = 0;
 
-    /// <summary>单块瓦片像素边长（= 1 个世界单位，见 <see cref="CoordTransform.PixelsPerUnit"/>）。</summary>
-    public const int TilePixels = 32;
+    /// <summary>
+    /// 单块瓦片像素边长（= 1 个世界单位，见 <see cref="CoordTransform.PixelsPerUnit"/>）。
+    /// 与 <c>res://assets/textures/tiles/tileset.tres</c> 的 <c>tile_size</c> 保持一致（64）。
+    /// 资源真源：<c>examples/sample_world/assets/textures/tiles/terrain_atlas.png</c>（64×64 帧）。
+    /// </summary>
+    public const int TilePixels = 64;
 
     /// <summary>图集列顺序；索引即 <c>atlas_coords.x</c>。</summary>
     private static readonly TerrainType[] Order =

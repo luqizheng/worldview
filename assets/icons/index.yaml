@@ -1,0 +1,26 @@
+# World View — global marker icon atlas manifest
+#
+# 由 _tools/make_marker_icons.py 生成。
+# 命名约定：settlement_<size> / ruins / event_point / portal / faction_dot
+# 数据契约：Marker.icon（数据模型规格 §2.4）按 filename 引用本清单中的帧名。
+
+version: 1
+tile_size: 16
+padding: 1
+format: pixijs_spritesheet
+
+atlas:
+  id: marker_icons
+  png: icons_atlas.png
+  json: icons_atlas.json
+  cols: 7
+  rows: 1
+  frame_count: 7
+  frames:
+    - village
+    - town
+    - capital
+    - ruin_site
+    - quest_marker
+    - portal_arch
+    - faction_marker

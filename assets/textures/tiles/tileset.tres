@@ -1,0 +1,14 @@
+[gd_resource type="TileSet" format=3 uid="uid://cvem6bu4s8i4f"]
+
+[ext_resource type="Texture2D" uid="uid://nkbsocjowxwv" path="res://examples/sample_world/assets/textures/tiles/terrain_atlas.png" id="1_terrain"]
+
+[sub_resource type="TileSetAtlasSource" id="AtlasTerrain"]
+texture = ExtResource("1_terrain")
+texture_region_size = Vector2i(64, 64)
+margins = Vector2i(1, 1)
+separation = Vector2i(1, 1)
+use_texture_padding = false
+
+[resource]
+tile_size = Vector2i(64, 64)
+sources/0 = SubResource("AtlasTerrain")
