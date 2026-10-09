@@ -61,6 +61,14 @@ mono_crash.*.json
 *.binlog
 # Godot/.NET 工具链自动改写工程文件时留下的备份（如 WorldView.csproj.old.1）
 *.csproj.old*
+# 构建/测试日志与测试结果产物
+*.log
+TestResults/
+*.trx
+# 一次性脚本/探针残留（probe-temp.ps1、csc-line.txt、_tools/_b64_check.txt 等）
+probe-temp.ps1
+csc-line.txt
+**/_b64_check.txt
 
 # ---- IDE / 工具私有状态(DeepSeek / Reasonix / Workbuddy / ACL) ----
 .acl-report/
@@ -77,6 +85,9 @@ mono_crash.*.json
 dsh-image-gen/
 # Godot 运行截图(临时)
 screenshot.png
+screenshot.png.import
+# .worldview 根级运行时截图（测试/验证产生的 png；layouts/ 已由上面的 **/.worldview/layouts/ 忽略）
+.worldview/*.png
 
 # ---- 一次性清理/迁移文件 ----
 .trae/m1-cleanup-manifest.md
@@ -87,3 +98,14 @@ screenshot.png
 **/Palette.Designer.cs
 **/Palette.Designer.g.cs
 scenes/_demo/
+
+# ---- 例外：项目 autoload 的 GDScript 必须入库 ----
+# 上面的 *.gd 会忽略所有 gdscript；但 project.godot [autoload] 引用的
+# autoload/mcp_interaction_server.gd 是运行必需文件，跨机器 clone 缺它会启动失败。
+!autoload/*.gd
+!autoload/*.gd.uid
+
+# ---- 一次性探针文件 ----
+test-class.cs
+test-class.cs.uid
+
