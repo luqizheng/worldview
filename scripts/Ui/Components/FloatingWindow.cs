@@ -143,11 +143,21 @@ public partial class FloatingWindow : PanelContainer
     /// <summary>ClampRect:把窗口位置 clamp 到父容器视口内(防止拖出屏幕)。</summary>
     public void ClampToViewport(Vector2 viewportSize)
     {
-        var size = Size;
-        var pos = Position;
+        Position = ClampToViewport(Position, Size, viewportSize);
+    }
+
+    /// <summary>ClampRect 纯函数版(无 Godot 依赖,供 xUnit 验证)。</summary>
+    public static Vector2 ClampToViewport(Vector2 pos, Vector2 size, Vector2 viewportSize)
+    {
         pos.X = Mathf.Clamp(pos.X, 0, Mathf.Max(0, viewportSize.X - size.X));
         pos.Y = Mathf.Clamp(pos.Y, 0, Mathf.Max(0, viewportSize.Y - size.Y));
-        Position = pos;
+        return pos;
+    }
+
+    /// <summary>Esc 键关闭判定纯函数版(无 Godot 依赖,供 xUnit 验证)。</summary>
+    public static bool IsEscapeCloseKey(Key keycode, bool pressed, bool echo)
+    {
+        return pressed && keycode == Key.Escape && !echo;
     }
 
     /// <summary>标题条捕获输入 → 拖动 FloatingWindow。Body 区域不受影响(button 点击正常)。</summary>

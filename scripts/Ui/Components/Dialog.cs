@@ -130,6 +130,12 @@ public partial class Dialog : PanelContainer
         }
     }
 
+    /// <summary>Esc 键关闭判定纯函数版(无 Godot 依赖,供 xUnit 验证)。</summary>
+    public static bool IsEscapeCloseKey(Key keycode, bool pressed, bool echo)
+    {
+        return pressed && keycode == Key.Escape && !echo;
+    }
+
     /// <summary>语义化:fade-out 淡出后关闭(对齐 CloseButton 行为)。</summary>
     public void TriggerClose()
     {

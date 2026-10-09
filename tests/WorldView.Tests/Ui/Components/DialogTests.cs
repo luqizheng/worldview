@@ -1,6 +1,10 @@
 // <auto-not-in-spec />
-// Task 7 仓单 §8.1.7 — DialogTests(3 个)
-// 验证 Dialog 标题字号 FontSizeTitle,关闭 fade-out 走 FadeOutMs,不写手写 overlay。
+// Task 7 仓单 §8.1.7 — DialogTests(8 个)
+// 验证 Dialog 标题字号 FontSizeTitle,关闭 fade-out 走 FadeOutMs,
+// Esc 关闭走 IsEscapeCloseKey(keycode, pressed, echo) 纯函数 (不靠反射),overlay alpha 0.4。
+// 注释: 不直接构造 Dialog(Godot.Control 需 SceneTree;xunit 跑在无 Godot runtime 下),
+//       走 纯函数 + 反射读 const / 字段 的双层验证。
+//       也不构造 InputEventKey / InputEvent (Godot.native init 需要 SceneTree,会 AccessViolation)。
 
 using WorldView.Ui.Components;
 using WorldView.Ui.Theme;
@@ -35,7 +39,7 @@ public class DialogTests
     public void Dialog_Declares_CloseRequested_Signal()
     {
         // Dialog 暴露 [Signal] CloseRequestedEventHandler,父节点可订阅统一关闭
-        // Godot 4 [Signal] delegate 会被生成嵌套委托类型,EventHandlerType 是 CloseRequestedEventHandler 不是 System.Action
+        // Godot 4 [Signal] delegate 会被生成嵌套委托类型,EventHandlerType 是 CloseRequestedEventHandler
         var sig = typeof(Dialog).GetEvent("CloseRequested");
         Assert.NotNull(sig);
         Assert.Equal("CloseRequestedEventHandler", sig!.EventHandlerType!.Name);
@@ -49,12 +53,32 @@ public class DialogTests
     }
 
     [Fact]
-    public void Dialog_Override_UnhandledInput_Method_Exists()
+    public void Dialog_IsEscapeCloseKey_True_On_Pressed_Escape_NoEcho()
     {
-        // Dialog 必须有 _UnhandledInput 钩子,Esc 键关闭走的是该回调(ModalExclusive 强模态下 _Input 会被 overlay 吃)
-        var method = typeof(Dialog).GetMethod(
-            "_UnhandledInput",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-        Assert.NotNull(method);
+        // 纯函数:标准 Esc 关闭判定 — Pressed=true, Keycode=Escape, Echo=false
+        Assert.True(Dialog.IsEscapeCloseKey(Godot.Key.Escape, pressed: true, echo: false));
+    }
+
+    [Fact]
+    public void Dialog_IsEscapeCloseKey_False_On_Released_Escape()
+    {
+        // 按键松开 (Pressed=false) 不关闭,必须 Pressed=true 才触发
+        Assert.False(Dialog.IsEscapeCloseKey(Godot.Key.Escape, pressed: false, echo: false));
+    }
+
+    [Fact]
+    public void Dialog_IsEscapeCloseKey_False_On_Other_Key()
+    {
+        // 其他键 (Enter / 字母 / 数字) 不触发关闭
+        Assert.False(Dialog.IsEscapeCloseKey(Godot.Key.Enter, pressed: true, echo: false));
+        Assert.False(Dialog.IsEscapeCloseKey(Godot.Key.A, pressed: true, echo: false));
+        Assert.False(Dialog.IsEscapeCloseKey(Godot.Key.Key1, pressed: true, echo: false));
+    }
+
+    [Fact]
+    public void Dialog_IsEscapeCloseKey_False_On_Echo_AutoRepeat()
+    {
+        // 长按 Esc 重复触发 (Echo=true) 不会重复关 dialog,只第一次按能关
+        Assert.False(Dialog.IsEscapeCloseKey(Godot.Key.Escape, pressed: true, echo: true));
     }
 }
