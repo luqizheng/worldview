@@ -1,7 +1,7 @@
 # AGENTS.md — World View 项目导航（给 AI 编码代理）
 
 > 目标：让 AI 在最短读取量内建立正确心智模型。**首次进入先读本文件，再按第 4 节顺序读文档。**
-> 当前阶段：**设计文档阶段（v0.1）**。仓库尚无代码，只有文档。动手写代码前先读「3. 待决项」。
+> 当前阶段：**MVP 实现期（Godot 4.7.2 mono + C#）**，仓库已有可构建、可运行的三层 UI 基线代码与 344 条单测。动手改代码前先读「3. 待决项」，并读 [docs/长期执行计划_v0.1.md](docs/长期执行计划_v0.1.md) §0 执行协议与 §5 WBS 主表（工作项状态的唯一真源）。
 
 ## 1. 项目是什么
 
@@ -106,25 +106,38 @@
 ### 6.1 仓库布局决策（v0.1 起生效）
 
 - **同仓布局**：文档与代码并置于 `world-view/` 单仓库。理由：当前仓库正在使用；文档改动经常伴随示例与代码改动，单仓便于同步迭代。
-- **目录约定（2026-10-09 反转后；M1 落地前须按本约定清理旧栈骨架）**：
+- **目录约定（2026-10-12 实况校准；旧栈骨架已清理，见下方「已撤销的旧栈骨架」）**：
 
 ```
 world-view/
 ├── AGENTS.md                 # 本文件（AI 导航）
-├── docs/                     # 设计规格（v0.1 × 10 + 技术基调确认 + MVP 评估纪要）
+├── README.md                 # Godot 口径快速上手（B1–B4 命令）
+├── docs/                     # 设计规格（v0.1 × 10 + 技术基调确认 + MVP 评估纪要 + 长期执行计划 + superpowers/{specs,plans}）
 ├── .trae/specs/              # MVP / Task / Checklist 等任务定义（按需新增）
-├── project.godot             # Godot 4.7.2 mono 工程根
+├── project.godot             # Godot 4.7.2 mono 工程根（主场景 res://scenes/Main.tscn）
 ├── WorldView.sln / *.csproj  # .NET 解决方案 + Godot SDK C# 项目
-├── scripts/                  # C# 业务与 UI 代码（领域层、存储层、UI 控件）
-├── scenes/                   # Godot 场景文件（*.tscn）—主界面、地图编辑器、时间轴等
+├── global.json               # 固定 SDK 8.0.425 + Microsoft.Testing.Platform runner
+├── scripts/                  # C# 业务与 UI 代码（Domain / Storage / Render / Ui / Editor / Editing / Generator / ProjectManagement / _demo）
+├── scenes/                   # Godot 场景（*.tscn）：Main.tscn / WorldCanvas.tscn / ui/*.tscn / _demo/*.tscn
+├── autoload/                 # Godot autoload 脚本（mcp_interaction_server.gd —— 见 §6.1 关于 --quit-after 的说明）
+├── assets/                   # 美术与主题资源（icons / palettes / themes / textures / tilesets / sources）
+├── tests/                    # WorldView.Tests（xunit.v3 + Microsoft.Testing.Platform，OutputType=Exe）+ WorldView.Smoke（领域冒烟）
 ├── crates/                   # 【可选】Rust crates 骨架（world-view-core 等；v0.1 不参与主流程，M2+ 实测瓶颈再启用）
-├── examples/                 # 示例工程（含 sample_world）
-├── .worldview/               # 应用运行时私有目录（autosave / backup / cache / debug 探针与截图），不进版本库
-├── *.csproj.user / obj/ / bin/  # .NET 构建产物
-└── .gitignore                # 忽略 .worldview/、autosave/、build artifacts、.godot/、*.csproj.user
+├── examples/sample_world/    # 示例工程（一份独立世界工程）
+├── tools/ / _tools/          # 开发期辅助脚本与探针（非 Godot 产物；v0.1 不入库或按需 ignore）
+├── .worldview/               # 应用运行时私有目录（autosave / backup / cache / layouts），不进版本库
+├── *.csproj.user / obj/ / bin/  # .NET 构建产物（已 ignore）
+└── .gitignore                # 见下方「忽略策略」
 ```
 
-**已撤销的旧栈骨架**（M1 开工前清理）：`src/`（TS + Vite）、`src-tauri/`（Tauri 主进程）、`Cargo.toml`、`Cargo.lock`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`node_modules/`、`dist/`。清理动作**不进 v0.1 文档范围**,在仓库根清单更新任务中处理。清理清单与执行步骤见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)（待用户批准 A / B / C 选项后执行）。
+- **忽略与跟踪策略（2026-10-12 `P0-C0b` 定案，勿再逐次重议）**：
+  - **`.uid` = 提交跟踪**。Godot 4.7 用 `*.uid` 做资源跨机器稳定引用，克隆后缺 uid 会导致引用重绑；当前约 200 个 `.uid` 已入库，新增脚本/场景必须一并提交其 `.uid`。
+  - **`.godot/`、`.import/`、`addons/`、`[Bb]in/`、`[Oo]bj/`、`*.binlog`、`*.csproj.old*`、`screenshot.png`、`scenes/_demo/`、`**/Palette.Designer.cs` = 忽略**。
+  - **`.worldview/{cache,autosave,backup,layouts}` 与 `.dsh_tmp/`、`.tmp-pmtests/` = 忽略**。
+  - **构建/调试产物一律不得入库**：`*.log`、`TestResults/`、`*.trx`、`csc-line.txt`、`probe-temp.ps1`、`test-class.cs(.uid)`、`screenshot.png.import`、`**/_b64_check.txt`。
+  - **`*.gd` 默认忽略，但 `autoload/*.gd` 是负向例外**（`!autoload/*.gd` + `!autoload/*.gd.uid`）：`autoload/mcp_interaction_server.gd` 被 `project.godot` 引用，必须入库，否则跨机器 clone 后 F5 直接失败。
+
+**已撤销的旧栈骨架**（`src/` TS+Vite、`src-tauri/` Tauri 主进程、`Cargo.toml`、`build.rs`、`tauri.conf.json`、`tsconfig.json`、`vite.config.ts`、`index.html`、`package.json`、`pnpm-lock.yaml`、`node_modules/`、`dist/`）：**2026-10-12 已全部清理完毕**（`P0-C0a`，选项 A，用户显式授权自动 commit；`git ls-files` 对全部旧栈项零命中，提交 2217fdd）。清理清单与执行记录见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)。**`cargo` / `pnpm` / `tauri` 指令自此全部作废**，任何文档中出现即为残留，须删除。
 
 - **纪律**：
   - 文档与代码**同仓不同目录**；文档改动进 `docs/`，代码改动进 `scripts/` / `scenes/` / `crates/`，不要互窜。
@@ -139,11 +152,12 @@ world-view/
 - 文档阶段产物：`AGENTS.md` + `docs/` 下 **10** 份规格文档 + [技术基调确认_v0.1.md](docs/技术基调确认_v0.1.md)（P0 收敛官方记录,2026-10-09 反转一次）。
 - 已收敛：**P0-1 / P0-2 / P0-3**（技术栈 **Godot 4.7.2 mono + C#**，渲染 **Godot 内置 2D**，数据形态网格+矢量+二进制分块）；Tauri + TS + PixiJS 路线已作废。
 - MVP 任务定义：`.trae/specs/map-editor-mvp/`（spec + checklist + tasks；含 MVP / Task / Checklist,任务清单须按新栈重写 C# / Godot 节点对应项）。
-- 旧栈骨架待清理：`src/` `src-tauri/` `Cargo.toml` `package.json` `tsconfig.json` `tauri.conf.json` `vite.config.ts` 等（见 §6.1，详情见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)）。
+- 旧栈骨架**已清理完毕**（2026-10-12 `P0-C0a`，选项 A，用户显式授权自动 commit；`git ls-files` 全项零命中，提交 2217fdd）。清理记录见 [.trae/m1-cleanup-manifest.md](.trae/m1-cleanup-manifest.md)。**`cargo` / `pnpm` / `tauri` 指令自此作废**。
 - UI 重设计规格（M2）：`.trae/specs/ui-redesign-simgame/`（spec v0.2 + tasks v0.3 + checklist v0.3）。**已定案**：UI 收敛为 **map-first + 单条 `BottomPalette`**（内部 rows → sections：事件播放条 / 小地图 + 自适应网格建筑面板 / 工具行）；建筑网格列数按可用宽高运行时推导（`items_per_page` 不落盘）；小地图进 M2；`Render/` 开唯一只读例外 `TerrainPalette.cs`。落地节奏见 spec §13（W1–W4）。设计层同步：`docs/界面与交互规格_v0.1.md` §1 加修订标记、两处文末「变更记录」追加一行。
 - **UI 重设计已落成（W1–W4）**：`scenes/Main.tscn` 改为三层结构——`BgLayer`（`CanvasLayer`，`layer = -1`，画布底色）/ `WorldCanvas`（留在**默认画布层**，继续受 `Camera2D` 平移缩放）/ `UiLayer`（`CanvasLayer`，`layer = 1`，`DockLayout` 及其下全部面板）。**动机**：`Camera2D` 的 canvas 变换作用于默认画布层的所有 `CanvasItem`（含 `Control`），此前 UI 被整体缩到约 38% 并错位——这正是 spec §1.2 里「左侧按钮被切掉一半」的真因；修复只换 UI 分层，`scripts/Render/**` 一行未改（spec §6 限制）。新增脚本在 `scripts/Ui/{Dock,Palette}/`、`scripts/Ui/{Inspector,LayerPanel,WorldDropSurface}.cs`，主题 `scripts/Ui/Theme/Dark.tres`，场景 `scenes/ui/*.tscn`。**地图初始拟合**（用户授权后已修，spec §6 的 `Render/` 只读限制在此处放宽一档）：`WorldCanvas.CenterCameraOnMap` 现按 `WorldCanvas.FitRect`（由 `EditorController.SyncMapToCanvasArea()` 每帧写入 `CanvasArea` 的屏幕矩形，并在首次布局完成后调一次 `RefitCamera()`）确定缩放、并把地图中心对准拟合区中心；`FitRect` 为空时退回旧的 `GetViewportRect()`（整个窗口）行为。实测 1152×648：画布区 (0,32,1152,416)，地图屏幕矩形 (326.4,52.8)–(825.6,427.2) 完全落在画布区内且居中，`Camera2D.Zoom = 0.24375 = min(0.9·1152/2048, 0.9·416/1536)`。
 - **UI 增量（W5，ProjectChrome 顶部条）**：项目管理面（[项目管理规格 v0.1](docs/项目管理规格_v0.1.md)）落定后，UiLayer **新增** 32px 顶部条 `ProjectChrome`（属 W5 增量而非 W1–W4 破坏）：BgLayer / WorldCanvas / UiLayer 三层结构与 BottomPalette **一律不动**；新条承载工程名 Label（点击 = 工程菜单下拉）+ 面包屑 Label（点击 = 工程内切换地图）+ 工程菜单 PopupMenu（打开项目 / 切换工程 / 新建项目 / 新增地图 / 关闭项目）。**画布挤压是显式约束**：顶部条 32px 把画布区起点从 y=0 改为 y=32，新画布区约 (0,64,1152,384) 量级（落地时按 `EditorController.SyncMapToCanvasArea()` 重新拟合为准），实现期**不得回退折叠 ProjectChrome** 偷回画布空间。WorldDropSurface（W1–W4 已落成）保留为次级打开入口，与 ProjectChrome 不冲突。详见 [项目管理规格 §4 UI 容器约束](docs/项目管理规格_v0.1.md) 与 [界面与交互规格 §1.7](docs/界面与交互规格_v0.1.md)。
-- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`，已完成）；② 清理 §6.1 列出的旧栈骨架（待用户批准清理清单）；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度（已完成 v0.2，待 §6.3 工程模板 ready 后方可启动实现）。
+- **长期执行计划**：[docs/长期执行计划_v0.1.md](docs/长期执行计划_v0.1.md)（v0.1 起的主执行协议：§0 执行协议 + §5 WBS 主表 + §6 发现登记 + §11 交接卡）。**任何工作项的状态以该文件 §5 的 `ST` 列为准**。当前 P0 阶段：`P0-C0a` / `P0-C0b` / `P0-C0c` 已 `done`（2026-10-12，提交 2217fdd / 481a32e / 0e3ae50）；`P0-C1` 为 `verify`（C 轮三层重构的 F5 人工目检 6 项）；`P0-C2`（固化验收基线 `docs/acceptance/baseline_v0.1.md`）为 `backlog`。
+- 当前阶段：**进入 MVP 实现（M1 基线 + M2 部分 + M4 部分子集）**；其余 M3–M8 仍待办。**M1 开工前置动作**：① 用 Godot 工程模板初始化仓库根（`project.godot` + `WorldView.sln`，**已完成**）；② 清理 §6.1 列出的旧栈骨架（**已完成**，`P0-C0a`）；③ 重写 `.trae/specs/map-editor-mvp/` 任务清单至 C# / Godot 节点粒度（**已完成** v0.2）。**当前 P0 卡口**：C 轮 F5 人工目检（`P0-C1`）与验收基线固化（`P0-C2`）——两者完成前不启动 M1 编码任务。
 
 ### 6.3 本机外部依赖（agent 调用清单）
 
@@ -164,8 +178,14 @@ world-view/
   # 1. 打开工程（GUI）
   & $GODOT --path $ROOT
 
-  # 2. 无头校验（CI / agent 自检,验证场景节点与脚本引用正确,不需要显示窗口）
-  & $GODOT --headless --path $ROOT --check-only
+  # 2. 无头校验（CI / agent 自检，验证场景节点与脚本引用正确，不需要显示窗口）
+  #    【必须带 --quit-after】autoload/mcp_interaction_server.gd 是常驻 TCP 服务器，
+  #    不加它 --check-only 校验完成后引擎仍不退（会一直挂住）。
+  #    判据：超时内自然退出 + stderr 无场景/脚本解析错误；C# 运行时异常不计为失败。
+  & $GODOT --headless --path $ROOT --check-only --quit-after 120
+
+  # 2b. 等价简写（只要求引擎跑完即退，不做资源校验）
+  & $GODOT --headless --path $ROOT --quit
 
   # 3. 直接运行主场景（等价 F5,但需要先编译 C#）
   & $GODOT --path $ROOT  # 主场景由 project.godot 的 run/main_scene 指定
@@ -183,7 +203,7 @@ world-view/
 #### 6.3.2 .NET SDK 8.0+
 
 - **安装路径**：`C:\Program Files\dotnet\`（默认；如使用 `dotnet --list-sdks` 返回空，需先安装）
-- **用途**：`dotnet build WorldView.sln` / `dotnet test` / `dotnet restore` / `dotnet run --project tests/WorldView.Smoke`
+- **用途**：`dotnet build WorldView.sln` / `dotnet restore` / `dotnet run --project tests/WorldView.Smoke`；**单测不走 `dotnet test`**（见下）
 - **CLI 调用模板**：
 
   ```powershell
@@ -192,8 +212,15 @@ world-view/
   # 1. 构建解决方案（含 C# → .NET 8 → Godot 程序集）
   dotnet build $ROOT/WorldView.sln -c Debug
 
-  # 2. 跑 xUnit 套件（领域层 + 坐标转换）
-  dotnet test  $ROOT/WorldView.sln -c Debug --no-build
+  # 2. 跑单测 —— 【不要用 dotnet test】
+  #    测试项目已迁到 Microsoft.Testing.Platform + xunit.v3（OutputType=Exe，
+  #    global.json 的 test.runner 已声明），不是 VSTest 项目。
+  #    用 dotnet test 会因 vstest testhost 受沙箱进程限制而 Win32Exception 5 拉起即崩
+  #    （或报「找不到提供的测试源文件 ...WorldView.Tests.dll」）。
+  #    → 直接裸跑 MTP exe；别加 --output-format normal / --output detailed（无效选项，
+  #      会打帮助并以 exit 5 退出）。
+  & "$ROOT/tests/WorldView.Tests/bin/Debug/net8.0/WorldView.Tests.exe"
+  #    退出码：0 = 全绿；2 = 有失败。末尾摘要行含「总计 / 失败 / 成功 / 已跳过 / 持续时间」。
 
   # 3. 拉取 NuGet 依赖（YamlDotNet 16.3.0 等）
   dotnet restore $ROOT/WorldView.sln
