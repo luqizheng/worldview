@@ -148,6 +148,9 @@ public partial class DemoUiAtoms : Control
         buttonRow.AddChild(new CloseButton());
         root.AddChild(buttonRow);
 
+        // GrabFocus 让 F5 进去直接键盘 / 手柄能走 Tab + Enter + Esc, 不必先点鼠标
+        openFloatingBtn.GrabFocus();
+
         GD.Print("[DemoUiAtoms] ready — 验证 11 组件 + 4 Field 渲染");
     }
 }

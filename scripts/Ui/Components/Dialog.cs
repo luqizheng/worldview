@@ -119,6 +119,17 @@ public partial class Dialog : PanelContainer
         return this;
     }
 
+    /// <summary>Esc 键关闭(标准模态对话框契约,Windows / macOS / Godot 都一致)。</summary>
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!_modalOpen) return;
+        if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape, Echo: false })
+        {
+            TriggerClose();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     /// <summary>语义化:fade-out 淡出后关闭(对齐 CloseButton 行为)。</summary>
     public void TriggerClose()
     {

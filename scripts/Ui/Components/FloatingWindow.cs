@@ -89,6 +89,19 @@ public partial class FloatingWindow : PanelContainer
         AddChild(_contentRoot);
     }
 
+    /// <summary>Esc 键关闭(对齐 Dialog 契约;F5 时直接键盘走通)。</summary>
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!IsInsideTree()) return;
+        // 必须挂在父容器里(PopupCentered 之后)Esc 才生效,否则是脱离场景的孤儿
+        if (GetParent() == null) return;
+        if (@event is InputEventKey { Pressed: true, Keycode: Key.Escape, Echo: false })
+        {
+            TriggerClose();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     /// <summary>语义化:触发浮窗淡出 + QueueFree(对齐 CloseButton 行为)。</summary>
     public void TriggerClose()
     {

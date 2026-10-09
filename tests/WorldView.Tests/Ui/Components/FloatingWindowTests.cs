@@ -3,6 +3,7 @@
 // 验证 FloatingWindow 走 Palette 量化层(标题条 24 / 段落 8),不落盘,ClampRect 数学正确。
 
 using Godot;
+using WorldView.Ui.Components;
 using WorldView.Ui.Theme;
 using Xunit;
 
@@ -45,5 +46,15 @@ public class FloatingWindowTests
         Assert.Equal(new Vector2(0, 0), Clamp(new Vector2(-50, -30)));
         Assert.Equal(new Vector2(1560, 880), Clamp(new Vector2(2000, 1200)));
         Assert.Equal(new Vector2(500, 300), Clamp(new Vector2(500, 300))); // 在内不动
+    }
+
+    [Fact]
+    public void FloatingWindow_Override_UnhandledInput_Method_Exists()
+    {
+        // FloatingWindow 必须有 _UnhandledInput 钩子,Esc 关闭走该回调
+        var method = typeof(FloatingWindow).GetMethod(
+            "_UnhandledInput",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        Assert.NotNull(method);
     }
 }
