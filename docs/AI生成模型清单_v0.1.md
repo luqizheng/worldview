@@ -126,7 +126,7 @@
 | 项 | 值 |
 |---|---|
 | **本轮选择** | **ComfyUI**(本机已有实例,模型就位) |
-| **不**选 dsh-image-gen / gml-image | 用户原话:"不依赖 gml-image,价格有点高"——ComfyUI 一次部署、长期使用、零边际成本;`dsh-image-gen` 仅用于 §4.5 组件契约的 7 张审稿图与本清单 §6.2 工单 T-AI-3 的少量样张 |
+| **不**选 dsh-image-gen / gml-image | 用户原话:"不依赖 gml-image,价格有点高"——ComfyUI 一次部署、长期使用、零边际成本;`dsh-image-gen` 仅用于 §4.5 组件契约的 7 张审稿图与本清单 §6.2 工单 T-AI-3 的少量样张。**走法详见 §3.5.9 dsh-image-gen 集成方案** |
 | **ComfyUI 实例** | 用户已确认本机有 ComfyUI 实例;模型目录已实测存在,见 [§2.6.1](#261-本机实际目录d-kudi-projectcomfyui-models) 与 `D:\kudi-project\comfyui-models\`(8 个文件,见 [§2.6.5](#265-本机文件命名差异登记2026-01-xx-实测)) |
 | **工作流文件** | `D:\kudi-project\comfyui-models\workflows\test-txt2img.json`(本机已有,通用 txt2img 工作流);HD-2D 风格工单 T-AI-5 见 §6.2 |
 | **统一入口约定** | 出图 → `D:\ai-models\sdxl\outputs\raw\`,通过 §2.6.3 符号链接到 ComfyUI 输出目录 |
@@ -883,6 +883,88 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 
 > **关键**:`widgets_values[0]` 的字符串("reference_map.png")**只是显示文件名**,真正读图走 widget 第 2 个参数 `upload` 选的文件路径。**两个解耦**——改了第 1 个字符串不会重新加载图,只有重选 upload 才生效。
 
+### 3.5.9 dsh-image-gen 集成方案(2026-10-09 落,走法 A)
+
+> **目标**:让 DeepSeek Harness 的 dsh-image-gen 插件帮你出 HD-2D 风格的图——DSH 用提示词驱动(纯 txt2img,无图上传口),替代"出图都得手动开 ComfyUI"。
+
+#### 3.5.9.1 集成核心矛盾
+
+| 维度 | §3.5 ComfyUI 工作流 | dsh-image-gen |
+|---|---|---|
+| **驱动** | 参考图(图生图) + ControlNet 控形 + 提示词 | **纯提示词**(txt2img) |
+| **模型** | Blue Pencil XL v7 + SDXL 1.0(本地 GPU) | 云端 API(google/openai/xai/seadream 等) |
+| **控形** | Canny 0.65 控 P / Depth 0.45 控 N | 无控形 |
+| **可调节** | seed/CFG/steps/Canny strength 全可调 | 仅 prompt + aspect ratio + 几个 model 选项 |
+| **出图时间** | 35 步 × GPU 算 15-90 s | 几秒(云端) |
+
+**结论**:DSH 不能直接复刻 §3.5 工作流(它没法接 ComfyUI),但可以走"提示词驱动 + 近似风格"。
+
+#### 3.5.9.2 走法 A:让 DSH 跑 §1.4.3 提示词骨架 → 出"近似风格"图
+
+**步骤**(在 DSH 窗口或命令行):
+
+1. **复制 §1.4.3 正提示词骨架**(去掉 `1px dark outline` 这种像素专用,改成 `JRPG style, painterly`):
+
+```
+hd-2d, octopath traveler style, watercolor texture, paper texture,
+thick layered lighting, 2.5d perspective, isometric, jRPG,
+painterly, soft vignette, cel-shaded characters,
+JRPG village, stone house, thatched roof, cobblestone path,
+daytime, sunny
+```
+
+2. **DSH 用 `generate_image` 工具 / GUI 入口**(等价接口):
+
+```python
+generate_image(
+    prompt=<上面提示词>,
+    aspect_ratio="1:1",          # §1.4.3 默认 1024×1024
+    # 其他参数随 provider 选
+)
+```
+
+3. **DSH 出图后,图落到 `D:\kudi-project\world-view\dsh-image-gen\image-*.png`**(本机实测目录)→ 复制到 `D:\kudi-project\comfyui-models\outputs\dsh_raw\` 作为草稿库。
+
+4. **挑满意的图**(通常 1 张就够)→ 作为 **§3.5.3 LoadImage 档 C 风格锚图**(`comfyui-models/reference_maps/`),再到 ComfyUI 加载 `HD2D_simplified.json` 跑精细版。
+
+#### 3.5.9.3 走法 A 的预期效果
+
+| 项 | 期望 | 实际 |
+|---|---|---|
+| **风格统一性** | DSH 出图与 §1.4.6 实测图"近似"(80% 同气质) | 主色、构图、视角大致吻合;**笔触可能变**(因为模型不同) |
+| **构图** | 镜头布局相近 | ✓ 提示词锁住大部分 |
+| **单图成本** | 几秒 + 几美分 | 真出 |
+| **批量出图成本** | 10 张 ≈ 几毛钱 | 真出 |
+| **能用作最终 sprite?** | **不**能用 — 需 ComfyUI 精细版做最后把关 | 草稿级 |
+
+#### 3.5.9.4 注意事项
+
+- **DSH 模型** ≠ Blue Pencil XL v7:DSH 调的是云端模型(如 google 的 Imagen / openai 的 DALL-E / xai 的 Aurora),与 §3.5 用 Blue Pencil XL v7 出图**不可能 100% 一致**。**DSH 出图适合做"前期草稿 + 风格参考"**,最终地图 sprite 必须经 ComfyUI 精细化。
+- **DSH 出图可能违反 jrpg_palette 4 色封顶**:云端模型调色自由,出图饱和度可能突破 4 色。**预计超 4 色封顶 20-50%**;选图时人工筛选,弃饱和度过高的。
+- **不要把 DSH 出图直接 commit 进工程**:`D:\kudi-project\world-view\dsh-image-gen\` 是 DSH 私有缓冲目录,已 untracked,本工程 `assets/` 不放 AI 原图。
+
+#### 3.5.9.5 工作流备忘(典型顺序)
+
+```
+1. DSH(本对话窗口)→ 提示词出图 → 10 张草稿
+   ↓ 挑 1 张满意的
+2. 复制到 D:\kudi-project\comfyui-models\reference_maps\<name>_refmap.png
+   ↓ 打开 ComfyUI(浏览器 → localhost:8188)
+3. 拖 HD2D_simplified.json 进去(或新建工作流,按 §3.5.3 手动搭)
+   ↓ LoadImage 选这张参考图
+4. Queue Prompt → 35 步采样 → 出最终 sprite
+   ↓ 人工筛选 + 切 atlas
+5. 复制到 D:\kudi-project\world-view\assets\textures\tiles\jrpg\<name>.png
+   ↓ 写 index.yaml status: v1 → v2
+6. commit
+```
+
+#### 3.5.9.6 与 §3.5.3 工作流节点字段值同步
+
+DSH 出图时,提示词 = §3.5.2 表行 2 (CLIPTextEncode P)。其他字段(ControlNet 强度 / 采样器 / 步数)在 DSH 不可调,**都靠模型自身默认 + 提示词手调**。
+
+> **为什么这不是 bug**:DSH 出图本就是"草稿级",模型默认参数对**草稿**足够;精细化在 ComfyUI 阶段做。
+
 ---
 
 ## 4. 验证清单(下载后回归)
@@ -942,3 +1024,4 @@ Write-Host "Done. Models under $ROOT" -ForegroundColor Green
 | 2026-10-09 | v0.1 补充 8 | **`docs/comfyui/HD2D_simplified.json` 落地**——删除 Depth 一支 + ID 与 §3.5.3.3 一一对应(① ② ③ ④ ⑤ ⑦ ⑨ ⑪ ⑬ ⑭ ⑮ ⑯),12 节点 / 11 条连线,新增 `③ → ⑬.negative` 直连线(link=50);§3.5.3.3 表头"11 节点 / 7 条连线"勘误为"12 节点 / 11 条连线";§3.5.3.3 表格末"11 条"加节点数 12 备注;自检脚本 `.dsh_tmp/verify_hd2d.py` 输出 ✅ 每条 link 两端都对应实际节点 |
 | 2026-10-09 | v0.1 补充 9 | **新增 §3.5.8 LoadImage 上传规范**(6 小节:三档用法 A/B/C / 自画草图三类型 / 不传时怎么验证 / 三种推荐存放位置 / 文件格式 + 命名 + 尺寸规范 / widgets_values 实测结构);§3.5.2 表行 7 同步指向 §3.5.8 |
 | 2026-10-09 | v0.1 补充 10 | **新增 §1.4.6 实测参考图**——`image.png`(1024×1024,sha256:bb19de8a3c0f40da18db9698a8c4aae85181fb20e1a386e5b42c9757c6e72ceb)按 §1.4.3 基线出图,验证 7 项视觉特征与基线吻合;作为 LoadImage 档 C 风格锚图,文件落地路径 `D:\kudi-project\comfyui-models\reference_maps\char_girl_back_refmap_v1.png`(与 §3.5.8.4 推荐存放一致) |
+| 2026-10-09 | v0.1 补充 11 | **新增 §3.5.9 dsh-image-gen 集成方案**——走法 A(纯提示词 txt2img,接近 §3.5 风格的草稿级),含 6 子节:核心矛盾(列 DSH vs ComfyUI 5 维对比)/ 走法 A 4 步操作(复制提示词 → DSH 出图 → 复制到 refmap → ComfyUI 精细化)/ 预期效果 5 项 / 注意事项 3 条(模型不同 / 超 4 色封顶 / 不 commit)/ 工作流备忘 6 步 / 与 §3.5.3 字段值同步说明 |
