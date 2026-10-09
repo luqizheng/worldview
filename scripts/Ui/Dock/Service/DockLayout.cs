@@ -498,6 +498,11 @@ public partial class DockLayout : Control, IDockHost, IPanelRegistry
         _fullscreen = on;
         if (on)
         {
+            // 进 F11 前把真实可见状态立即落盘（此时 chrome/panel 还是用户看到的样子）。
+            // 否则进入全屏后才触发的防抖 flush 会把 `visible: false` 写进布局文件，
+            // 下次启动还原时 TopStrip / BottomPalette 全部消失。
+            FlushLayoutNow();
+
             _fullscreenSnapshot.Clear();
             foreach (var path in new[]
                      {
@@ -561,7 +566,10 @@ public partial class DockLayout : Control, IDockHost, IPanelRegistry
             host.Mode = on ? Window.ModeEnum.Fullscreen : Window.ModeEnum.Windowed;
         }
 
-        MarkLayoutChanged();
+        // 刻意【不】调 MarkLayoutChanged()：F11 的可见性隐藏是会话级状态，
+        // 由 _fullscreenSnapshot 还原，不写入磁盘布局文件。若标脏，防抖 flush 会把
+        // `visible: false` 落盘——下次启动布局还原时 BottomPalette / TopStrip 会消失。
+        // 真正的持久布局变化（拖动面板、折叠、改高度）另有各自的 MarkLayoutChanged 调用。
     }
 
     // ------------------------------------------------------------------ 持久化（spec §5）
