@@ -32,5 +32,5 @@ public abstract partial class PaletteContent : Control
     {
     }
 
-    protected void MarkLayoutChanged() => DockLayout.Instance?.MarkLayoutChanged();
+    protected void MarkLayoutChanged() => (DockLayout.Instance as IDockHost)?.MarkLayoutChanged();
 }

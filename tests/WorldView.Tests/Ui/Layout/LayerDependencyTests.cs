@@ -31,27 +31,26 @@ public class LayerDependencyTests
     }
 
     [Fact]
-    public void Leaf_不能_using_Service()
+    public void Leaf_不能_using_具体_DockLayout_类_或_Instance()
     {
-        // Task 2 才会拆 IDockHost 注入, 这里只断言"非 Service 业务类不能 using"
-        // 当前 DockPanel/DockZone/FloatWindow 因为 DockLayout.Instance 暂时 using, 留白名单
+        // Task 2 引入了 IDockHost / IPanelRegistry seam, Leaf 仍 using Service ns 拿接口,
+        // 但**不能**直接 reference DockLayout concrete class 或 DockLayout.Instance 单例。
+        // 这是 spec §1.2 「真反环」 破除的硬性证明。
+        //
+        // 允许: `(DockLayout.Instance as IFoo)?.X(...)` —— 这是 IDockHost/IPanelRegistry seam
+        // 唯一访问单例的标准 idiom。
         var leafFiles = FilesUnder("Dock/Leaf");
         Assert.True(leafFiles.Length >= 7, $"expected >= 7 files under Dock/Leaf/, found {leafFiles.Length}");
 
-        // 例外: 这 3 个文件暂时需要 DockLayout.Instance, Task 2 引入 IDockHost 后会清掉
-        var whitelist = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "DockPanel.cs", "DockZone.cs", "FloatWindow.cs",
-        };
-
         foreach (var file in leafFiles)
         {
-            var name = Path.GetFileName(file);
-            if (whitelist.Contains(name)) continue;
             var content = File.ReadAllText(file);
+
+            // 反环 1: 把 DockLayout 当变量类型（具体类作方法签名 / 字段类型）— 严禁
             Assert.False(
-                content.Contains("using WorldView.Ui.Dock.Service"),
-                $"{file} must not use WorldView.Ui.Dock.Service (leaf layer is dependency-bottom)");
+                System.Text.RegularExpressions.Regex.IsMatch(
+                    content, @"\bDockLayout\s+[a-zA-Z_]"),
+                $"{file} must not use DockLayout as a type (use IDockHost/IPanelRegistry)");
         }
     }
 

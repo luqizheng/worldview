@@ -15,7 +15,7 @@ namespace WorldView.Ui.Dock.Service;
 /// <para><b>不依赖 <c>WorldView.Ui.Palette</c></b>：底部容器通过
 /// <see cref="IPaletteHost"/> 接口交互，避免反向命名空间依赖。</para>
 /// </summary>
-public partial class DockLayout : Control
+public partial class DockLayout : Control, IDockHost, IPanelRegistry
 {
     /// <summary>全局单例。必须在 <c>_EnterTree</c> 赋值（父先于子），
     /// 否则子面板在 <c>_Ready</c> 里注册时拿不到实例。</summary>
@@ -116,7 +116,7 @@ public partial class DockLayout : Control
 
     // ------------------------------------------------------------------ 面板登记
 
-    /// <summary>面板在 <c>_Ready</c> 里登记自己（稳定 ID 跨会话复用）。</summary>
+    /// <summary>面板在 <c>_Ready</c> 里登记自己（稳定 ID 跨会话复用，保留旧 API）。</summary>
     public void RegisterPanel(DockPanel panel)
     {
         if (panel is null || !IsInstanceValid(panel) || string.IsNullOrEmpty(panel.PanelId))
@@ -130,6 +130,21 @@ public partial class DockLayout : Control
     /// <summary>按 ID 取面板（不存在返回 null）。</summary>
     public DockPanel? Panel(string panelId)
         => _panels.TryGetValue(panelId, out var panel) && IsInstanceValid(panel) ? panel : null;
+
+    // ---- IPanelRegistry seam (C 轮 Task 2) -------------------------------
+    // 替代 Leaf 用 DockLayout.Instance?.RegisterPanel(this) 的反环访问。
+    // DockPanel 子类（Inspector / LayerPanel / WorldDropSurface）只 using IPanelRegistry
+    // 接口，不直接 using DockLayout 类。
+
+    void IPanelRegistry.Register(DockPanel panel) => RegisterPanel(panel);
+
+    void IPanelRegistry.Unregister(DockPanel panel)
+    {
+        // 当前 DockLayout 没有 unregister 动作；保留为显式 seam hook，后续按需扩展。
+        _ = panel;
+    }
+
+    DockPanel? IPanelRegistry.Find(string panelId) => Panel(panelId);
 
     /// <summary>面板当前所在的停靠区：<c>left</c>/<c>right</c>/<c>top</c>/<c>bottom</c>/<c>center</c>。</summary>
     public string ZoneOf(Node? panel)

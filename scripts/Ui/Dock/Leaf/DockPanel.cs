@@ -69,7 +69,7 @@ public partial class DockPanel : Control
     public override void _Ready()
     {
         EnsureChrome();
-        DockLayout.Instance?.RegisterPanel(this);
+        (DockLayout.Instance as IPanelRegistry)?.Register(this);
     }
 
     // ------------------------------------------------------------------ chrome
@@ -230,7 +230,7 @@ public partial class DockPanel : Control
     private void OnClosePressed()
     {
         Visible = false;
-        DockLayout.Instance?.OnPanelClosed(PanelId);
+        (DockLayout.Instance as IDockHost)?.OnPanelClosed(PanelId);
     }
 
     // ------------------------------------------------------------------ 拖动
@@ -270,13 +270,12 @@ public partial class DockPanel : Control
     {
         _dragging = true;
 
-        DockLayout layout = DockLayout.Instance!;
-        layout?.NotifyPanelDragBegin(this);
+        (DockLayout.Instance as IDockHost)?.NotifyPanelDragBegin(this);
 
         var payload = new PanelDragData
         {
             PanelId = PanelId,
-            SourceZone = DockLayout.Instance?.ZoneOf(this) ?? string.Empty,
+            SourceZone = (DockLayout.Instance as IDockHost)?.ZoneOf(this) ?? string.Empty,
         };
 
         var data = Variant.From(payload);
@@ -324,7 +323,7 @@ public partial class DockPanel : Control
                 _dragging = false;
                 _pressing = false;
                 Modulate = Colors.White;
-                DockLayout.Instance?.NotifyPanelDragEnd();
+                (DockLayout.Instance as IDockHost)?.NotifyPanelDragEnd();
             }
         }
     }

@@ -371,7 +371,7 @@ public partial class EditorController : Control
 
 	private void OnRedoPressed() => _context?.UndoStack?.Redo();
 
-	private void OnFullscreenPressed() => DockLayout.Instance?.ToggleFullscreen();
+	private void OnFullscreenPressed() => (DockLayout.Instance as IDockHost)?.ToggleFullscreen();
 
 	// ------------------------------------------------------------------ 快捷键
 
@@ -426,7 +426,7 @@ public partial class EditorController : Control
 				GetViewport().SetInputAsHandled();
 				break;
 			case Key.F11:
-				DockLayout.Instance?.ToggleFullscreen();
+				(DockLayout.Instance as IDockHost)?.ToggleFullscreen();
 				GetViewport().SetInputAsHandled();
 				break;
 		}

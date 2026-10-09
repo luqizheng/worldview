@@ -415,7 +415,7 @@ public partial class BottomPalette : Control, IPaletteHost
     /// <summary>本容器不是 <see cref="PaletteContent"/>，转发到 DockLayout 标脏。</summary>
     private static void MarkLayoutChanged()
     {
-        DockLayout.Instance?.MarkLayoutChanged();
+        (DockLayout.Instance as IDockHost)?.MarkLayoutChanged();
     }
 
     private void ApplyRowStates(List<PanelState> states)

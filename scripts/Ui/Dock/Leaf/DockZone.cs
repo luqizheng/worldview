@@ -75,6 +75,6 @@ public partial class DockZone : Control
             return;
         }
 
-        DockLayout.Instance?.HandlePanelDrop(Edge, payload.PanelId, atPosition);
+        (DockLayout.Instance as IDockHost)?.HandlePanelDrop(Edge, payload.PanelId, atPosition);
     }
 }

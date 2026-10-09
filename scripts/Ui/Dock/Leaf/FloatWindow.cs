@@ -55,6 +55,6 @@ public partial class FloatWindow : Window
     private void OnCloseRequested()
     {
         Visible = false;
-        DockLayout.Instance?.OnPanelClosed(PanelId);
+        (DockLayout.Instance as IDockHost)?.OnPanelClosed(PanelId);
     }
 }
