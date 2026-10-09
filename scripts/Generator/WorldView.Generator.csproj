@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <NoWarn>$(NoWarn);CS0246</NoWarn>
+    <RootNamespace>WorldView.Generator</RootNamespace>
+    <AssemblyName>WorldView.Generator</AssemblyName>
+    <!--
+      Generator 同时是 analyzer(给消费方装到 Analyzer)和 compile 引用(Generator
+      自己也要用 Roslyn API)。所以 Roslyn package 不能 PrivateAssets=all。
+    -->
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      注意:不能加 PrivateAssets="all",否则本项目自己也找不到 Roslyn 类型。
+      Analyzers 是纯 metadata(只用于自身 analyzer rule 检查),这里也要放开。
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WorldView" />
+  </ItemGroup>
+</Project>

@@ -107,7 +107,7 @@ public partial class BottomPalette : Control, IPaletteHost
             Text = "面板已折叠",
             VerticalAlignment = VerticalAlignment.Center,
         };
-        collapsedHint.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
+        collapsedHint.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
         collapsedHint.AddThemeFontSizeOverride("font_size", 11);
         _collapsedBar.AddChild(collapsedHint);
 
@@ -116,7 +116,7 @@ public partial class BottomPalette : Control, IPaletteHost
             Text = "Ctrl+B 展开 · T 播放条 · M 小地图",
             VerticalAlignment = VerticalAlignment.Center,
         };
-        expandHint.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
+        expandHint.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
         expandHint.AddThemeFontSizeOverride("font_size", 11);
         _collapsedBar.AddChild(expandHint);
     }

@@ -8,15 +8,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!--
+      .NET 10 SDK 的 vstest.console 18.7 + testhost.x86 在 Windows 22H2+ 上
+      会因为 32-bit 子进程 OpenProcess 64-bit 父进程被拒而无法启动测试。
+      切到 Microsoft.Testing.Platform (MTP) + xunit.v3,直接编译成可执行测试 runner,
+      走 MTP 自己的 testhost,绕开 vstest 启动路径。
+    -->
+    <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-    <PackageReference Include="xunit.runner.console" Version="2.9.2">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" Version="2.4.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\WorldView.csproj" />

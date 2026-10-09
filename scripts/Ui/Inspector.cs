@@ -117,8 +117,8 @@ public partial class Inspector : DockPanel
         };
         label.AddThemeFontSizeOverride("font_size", 11);
         label.AddThemeColorOverride("font_color", dim
-            ? JrpgStyleFactory.JrpgTextPlaceholder
-            : JrpgStyleFactory.JrpgText);
+            ? WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder
+            : WorldView.Ui.Theme.Palette.Color.JrpgText);
         return label;
     }
 }

@@ -17,7 +17,7 @@ namespace WorldView.Ui.Components;
 public partial class JrpgCheckBox : CheckBox
 {
     /// <summary>JRPG 复选框字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>状态变化事件。</summary>
     [Signal] public delegate void ToggledEventHandler(bool pressed);
@@ -65,10 +65,10 @@ public partial class JrpgCheckBox : CheckBox
 public partial class JrpgDropDown : OptionButton
 {
     /// <summary>JRPG 下拉框高度。</summary>
-    public const int DefaultHeight = 28;
+    public const int DefaultHeight = WorldView.Ui.Theme.Palette.Metric.TextboxHeight;
 
     /// <summary>JRPG 下拉框字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>选择变化事件。</summary>
     [Signal] public delegate void SelectionChangedEventHandler(int index);

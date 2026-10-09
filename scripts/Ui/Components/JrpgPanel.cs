@@ -22,7 +22,7 @@ namespace WorldView.Ui.Components;
 public partial class JrpgPanel : PanelContainer
 {
     /// <summary>JRPG 面板标题条高度。</summary>
-    public const int TitleBarHeight = 24;
+    public const int TitleBarHeight = WorldView.Ui.Theme.Palette.Metric.PanelTitleHeight;
 
     private readonly Label _titleLabel = new();
     private readonly VBoxContainer _contentRoot = new();
@@ -60,10 +60,10 @@ public partial class JrpgPanel : PanelContainer
 
         _titleLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _titleLabel.VerticalAlignment = VerticalAlignment.Center;
-        _titleLabel.AddThemeFontSizeOverride("font_size", JrpgButton.DefaultFontSize);
+        _titleLabel.AddThemeFontSizeOverride("font_size", WorldView.Ui.Theme.Palette.Metric.FontSizeBody);
         _titleBar.AddChild(_titleLabel);
 
-        _contentRoot.AddThemeConstantOverride("separation", JrpgRichBox.DefaultParagraphSpacing);
+        _contentRoot.AddThemeConstantOverride("separation", WorldView.Ui.Theme.Palette.Metric.ParagraphSpacing);
         _contentRoot.AddChild(_titleBar);
 
         AddChild(_contentRoot);

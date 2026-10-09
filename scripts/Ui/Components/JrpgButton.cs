@@ -24,10 +24,10 @@ namespace WorldView.Ui.Components;
 public partial class JrpgButton : Button
 {
     /// <summary>JRPG 按钮推荐高度（与 §4.5.2 契约一致）。</summary>
-    public const int DefaultHeight = 32;
+    public const int DefaultHeight = WorldView.Ui.Theme.Palette.Metric.ButtonHeight;
 
     /// <summary>JRPG 按钮推荐字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>JRPG 按钮主题路径。</summary>
     public const string ThemePath = "res://assets/themes/parchment_theme.tres";

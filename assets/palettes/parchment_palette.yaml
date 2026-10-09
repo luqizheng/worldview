@@ -46,15 +46,56 @@ marker:
 # Godot 桥接:assets/themes/parchment_theme.tres 引用本文件 hex
 # 历史字段(bg/panel/text/accent_hover/warning 等)已被 §4.5.1 取代,如有旧引用需走 T-UI-7 组件脚本同步替换
 ui:
-  jrpg_bg:                 "#f4f0e4"  # 背景(羊皮底)
-  jrpg_card:               "#fff8e7"  # 卡片/输入框底
-  jrpg_fill:               "#f4e4c1"  # 控件填充(常规态)
-  jrpg_fill_pressed:       "#e8c89a"  # 控件填充(按下态)
-  jrpg_outline:            "#5a3a1a"  # 描边(焦褐)
-  jrpg_outline_focus:      "#e8c34a"  # 描边(焦点态,金黄)
-  jrpg_text:               "#3a2810"  # 文字
-  jrpg_text_placeholder:   "#a89878"  # 占位符文字
-  jrpg_text_disabled:      "#8a7a5a"  # disabled 文字
-  jrpg_link:               "#3a5a8a"  # 链接
-  jrpg_danger:             "#c8341a"  # 危险(删除/出错)
-  jrpg_success:            "#5a8a3a"  # 成功(保存/已通过)
+  # ====== 色（jrpg_* / accent_* 命名，#RRGGBB，AA 缺省 FF） ======
+  color:
+    jrpg_bg:                 "#f4f0e4"  # 背景(羊皮底)
+    jrpg_card:               "#fff8e7"  # 卡片/输入框底
+    jrpg_fill:               "#f4e4c1"  # 控件填充(常规态)
+    jrpg_fill_pressed:       "#e8c89a"  # 控件填充(按下态)
+    jrpg_fill_hover:         "#f8ecd0"  # 控件填充(hover 提亮,§4.5.2)
+    jrpg_outline:            "#5a3a1a"  # 描边(焦褐)
+    jrpg_outline_focus:      "#e8c34a"  # 描边(焦点态,金黄)
+    jrpg_text:               "#3a2810"  # 文字
+    jrpg_text_placeholder:   "#a89878"  # 占位符文字
+    jrpg_text_disabled:      "#8a7a5a"  # disabled 文字
+    jrpg_link:               "#3a5a8a"  # 链接
+    jrpg_danger:             "#c8341a"  # 危险(删除/出错)
+    jrpg_success:            "#5a8a3a"  # 成功(保存/已通过)
+    accent_vegetation_highlight: "#a8c89a"  # 植被高亮(§4.5.1 补充)
+
+  # ====== 量化层（int / float）======
+  metric:
+    font_size_body: 14         # 通用正文字号
+    font_size_title: 16        # 标题字号
+    font_size_caption: 12      # 注释/标签字号
+    line_height: 22            # 行高（px）
+    paragraph_spacing: 8       # 段落间距（px）
+    button_height: 32          # 按钮固定高
+    textbox_height: 28         # 输入框固定高
+    list_row_height: 28        # 列表行高
+    panel_title_height: 24     # Panel 标题条高
+    corner_radius: 2           # 圆角统一 2px
+    border_width: 2            # 描边统一 2px
+    icon_size_xs: 16           # Icon 最小档
+    icon_size_sm: 24           # Icon 中档
+    icon_size_md: 32           # Icon 大档
+    padding_inline: 8          # 通用内边距
+    padding_inline_button: 16  # 按钮水平内边距
+    form_label_width: 100      # Form Label 列宽
+    form_button_width: 96      # Form Button 列宽
+
+  # ====== 阴影（int / float）======
+  shadow:
+    offset_x: 1                # 阴影水平偏移
+    offset_y: 1                # 阴影垂直偏移
+    size: 2                    # 阴影模糊半径
+    opacity: 0.4               # 阴影透明度(0-1)
+
+  # ====== 模态（float）======
+  modal:
+    overlay_opacity: 0.4       # 模态遮罩不透明度
+
+  # ====== 动画（int ms）======
+  animation:
+    fade_out_ms: 150           # 关闭按钮淡出耗时
+    hover_lift_ms: 100         # hover 提亮过渡耗时

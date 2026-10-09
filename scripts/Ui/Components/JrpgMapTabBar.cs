@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using WorldView.Ui.Theme;
+using Palette = WorldView.Ui.Theme.Palette;
 
 namespace WorldView.Ui.Components;
 
@@ -103,9 +104,9 @@ public partial class JrpgMapTabBar : PanelContainer
         // 选中/未选样式
         var styleNormal = new StyleBoxFlat
         {
-            BgColor = isActive ? JrpgStyleFactory.JrpgCard : JrpgStyleFactory.JrpgBg,
+            BgColor = isActive ? WorldView.Ui.Theme.Palette.Color.JrpgCard : WorldView.Ui.Theme.Palette.Color.JrpgBg,
             BorderWidthBottom = isActive ? UnderlineHeight : 0,
-            BorderColor = isActive ? JrpgStyleFactory.JrpgOutlineFocus : JrpgStyleFactory.JrpgOutline,
+            BorderColor = isActive ? WorldView.Ui.Theme.Palette.Color.JrpgOutlineFocus : WorldView.Ui.Theme.Palette.Color.JrpgOutline,
             CornerRadiusTopLeft = 2,
             CornerRadiusTopRight = 2,
             CornerRadiusBottomLeft = 0,
@@ -120,9 +121,9 @@ public partial class JrpgMapTabBar : PanelContainer
         btn.AddThemeStyleboxOverride("pressed", styleNormal);
         btn.AddThemeStyleboxOverride("focus", styleNormal);
 
-        btn.AddThemeColorOverride("font_color", isActive ? JrpgStyleFactory.JrpgText : JrpgStyleFactory.JrpgTextPlaceholder);
-        btn.AddThemeColorOverride("font_hover_color", isActive ? JrpgStyleFactory.JrpgText : JrpgStyleFactory.JrpgTextPlaceholder);
-        btn.AddThemeColorOverride("font_pressed_color", isActive ? JrpgStyleFactory.JrpgText : JrpgStyleFactory.JrpgTextPlaceholder);
+        btn.AddThemeColorOverride("font_color", isActive ? WorldView.Ui.Theme.Palette.Color.JrpgText : WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
+        btn.AddThemeColorOverride("font_hover_color", isActive ? WorldView.Ui.Theme.Palette.Color.JrpgText : WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
+        btn.AddThemeColorOverride("font_pressed_color", isActive ? WorldView.Ui.Theme.Palette.Color.JrpgText : WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
 
         btn.Flat = true;
         btn.Pressed += () => EmitSignal(SignalName.MapTabSelected, tab.MapId);

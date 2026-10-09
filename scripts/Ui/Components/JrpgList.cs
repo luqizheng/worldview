@@ -26,10 +26,10 @@ namespace WorldView.Ui.Components;
 public partial class JrpgList : ItemList
 {
     /// <summary>JRPG 列表行高。</summary>
-    public const int RowHeight = 28;
+    public const int RowHeight = WorldView.Ui.Theme.Palette.Metric.ListRowHeight;
 
     /// <summary>JRPG 列表字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>选中事件（语义化包装）。</summary>
     [Signal] public delegate void ItemSelectedEventHandler(int index);

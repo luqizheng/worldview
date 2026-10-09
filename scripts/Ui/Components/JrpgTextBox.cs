@@ -20,10 +20,10 @@ namespace WorldView.Ui.Components;
 public partial class JrpgTextBox : LineEdit
 {
     /// <summary>JRPG 输入框高度。</summary>
-    public const int DefaultHeight = 28;
+    public const int DefaultHeight = WorldView.Ui.Theme.Palette.Metric.TextboxHeight;
 
     /// <summary>JRPG 输入框字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>文本变化事件。</summary>
     [Signal] public delegate void TextChangedEventHandler(string newText);

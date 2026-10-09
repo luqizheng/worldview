@@ -23,6 +23,39 @@
 
   <ItemGroup>
     <Compile Include="scripts/**/*.cs" />
+    <Compile Include="scripts\**\*.cs" />
+    <!--
+      显式列出 Theme/Palette.cs:MSBuild glob 在某些环境下不匹配该文件。
+      它的存在对 Generator 至关重要,不能丢。
+    -->
+    <Compile Include="scripts/Ui/Theme/Palette.cs" />
+    <Compile Include="scripts\Ui\Theme\Palette.cs" />
+    <!--
+      scripts/Generator 是源生成器项目,只由独立 csproj 编译并通过 ProjectReference
+      OutputItemType=Analyzer 引入分析器。绝不能让主项目直接编译它(否则 Generator.dll
+      还没生成,它内部的 Roslyn API 类型也找不到)。
+    -->
+    <Compile Remove="scripts/Generator/**/*.cs" />
+    <Compile Remove="scripts\Generator\**\*.cs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Analyzer Include="$(MSBuildThisFileDirectory)scripts\Generator\bin\$(Configuration)\net8.0\WorldView.Generator.dll" />
+    <!--
+      AdditionalFiles 路径是相对 WorldView.csproj 所在目录的(不是 sln 根)。
+      Godot 项目内 assets/ 在 WorldView.csproj 旁,直接用相对路径。
+    -->
+    <AdditionalFiles Include="assets\palettes\parchment_palette.yaml" />
+  </ItemGroup>
+
+  <Target Name="EnsureGeneratorBuilt" BeforeTargets="CoreCompile" Condition="'$(SkipGeneratorBuild)' != 'true'">
+    <PropertyGroup>
+      <GeneratorProjectPath>$(MSBuildThisFileDirectory)scripts\Generator\WorldView.Generator.csproj</GeneratorProjectPath>
+    </PropertyGroup>
+    <Message Text="==> EnsureGeneratorBuilt: building $(GeneratorProjectPath)" Importance="high" />
+    <MSBuild Projects="$(GeneratorProjectPath)"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)" />
+  </Target>
 
 </Project>

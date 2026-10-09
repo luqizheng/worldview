@@ -1,0 +1,14 @@
+<!--
+  世界视图仓库共用的 MSBuild 属性。
+  只用于本地环境差异修复,不改全局行为,不开启/关闭任何项目警告。
+-->
+<Project>
+  <PropertyGroup>
+    <!--
+      沙箱/离线环境下,NuGet 漏洞数据源 (https://api.nuget.org/v3/index.json) 不可达,
+      .NET 10 SDK 升级 NU1900 为错误。线下 CI 也常出现,只静音这一条,
+      不影响其它警告升级规则。
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
+  </PropertyGroup>
+</Project>

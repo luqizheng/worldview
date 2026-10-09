@@ -66,7 +66,7 @@ public partial class JrpgScaleBar : VBoxContainer
         _coordLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _coordLabel.VerticalAlignment = VerticalAlignment.Center;
         _coordLabel.AddThemeFontSizeOverride("font_size", DefaultFontSize);
-        _coordLabel.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgText);
+        _coordLabel.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgText);
         _coordLabel.Text = "—,—";
         AddChild(_coordLabel);
 
@@ -82,7 +82,7 @@ public partial class JrpgScaleBar : VBoxContainer
         _distanceLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _distanceLabel.VerticalAlignment = VerticalAlignment.Center;
         _distanceLabel.AddThemeFontSizeOverride("font_size", DefaultFontSize);
-        _distanceLabel.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgText);
+        _distanceLabel.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgText);
         _distanceLabel.Text = "—";
         AddChild(_distanceLabel);
     }
@@ -106,7 +106,7 @@ public partial class JrpgScaleBar : VBoxContainer
 
     private void DrawScaleBar()
     {
-        var outline = JrpgStyleFactory.JrpgOutline;
+        var outline = WorldView.Ui.Theme.Palette.Color.JrpgOutline;
         // 1. 横线：60x2px 实心矩形
         var lineRect = new Rect2(0, EndCapHeight - BarHeight, BarWidth, BarHeight);
         _barArea.DrawRect(lineRect, outline, filled: true);

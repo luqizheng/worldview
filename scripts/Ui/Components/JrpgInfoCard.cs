@@ -32,10 +32,10 @@ public partial class JrpgInfoCard : PanelContainer
     public const int MaxCardHeight = 360;
 
     /// <summary>信息卡字号（与 §4.5 一致）。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
-    /// <summary>势力色（可在 Show 时覆盖）。</summary>
-    public Color FactionColor { get; set; } = new Color(0.784f, 0.204f, 0.102f, 1f);
+    /// <summary>势力色（可在 Show 时覆盖,默认朱红以匹配世界地图首都 marker 配色）。</summary>
+    public Color FactionColor { get; set; } = WorldView.Ui.Theme.Palette.Color.JrpgDanger;
 
     /// <summary>关闭事件。</summary>
     [Signal] public delegate void CardClosedEventHandler();
@@ -107,11 +107,11 @@ public partial class JrpgInfoCard : PanelContainer
         _titleLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _titleLabel.VerticalAlignment = VerticalAlignment.Center;
         _titleLabel.AddThemeFontSizeOverride("font_size", DefaultFontSize);
-        _titleLabel.AddThemeColorOverride("font_color", new Color(1f, 0.973f, 0.906f, 1f));
+        _titleLabel.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgCard);
         _titleBar.AddChild(_titleLabel);
 
         // 字段区
-        _fieldRoot.AddThemeConstantOverride("separation", JrpgRichBox.DefaultParagraphSpacing);
+        _fieldRoot.AddThemeConstantOverride("separation", WorldView.Ui.Theme.Palette.Metric.ParagraphSpacing);
         _fieldRoot.SizeFlagsVertical = SizeFlags.ExpandFill;
 
         // 按钮行
@@ -138,7 +138,7 @@ public partial class JrpgInfoCard : PanelContainer
         var lbl = new Label
         {
             Text = label,
-            Modulate = new Color(0.659f, 0.596f, 0.471f, 1f),
+            Modulate = WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder,
         };
         lbl.AddThemeFontSizeOverride("font_size", DefaultFontSize);
         lbl.CustomMinimumSize = new Vector2(80, 0);
@@ -149,7 +149,7 @@ public partial class JrpgInfoCard : PanelContainer
             HorizontalAlignment = HorizontalAlignment.Right,
         };
         val.AddThemeFontSizeOverride("font_size", DefaultFontSize);
-        val.AddThemeColorOverride("font_color", new Color(0.227f, 0.157f, 0.063f, 1f));
+        val.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgText);
         row.AddChild(lbl);
         row.AddChild(val);
         return row;
@@ -161,7 +161,7 @@ public partial class JrpgInfoCard : PanelContainer
         {
             BgColor = FactionColor,
             BorderWidthBottom = 2,
-            BorderColor = new Color(0.353f, 0.227f, 0.102f, 1f),
+            BorderColor = WorldView.Ui.Theme.Palette.Color.JrpgOutline,
             CornerRadiusTopLeft = 2,
             CornerRadiusTopRight = 2,
             CornerRadiusBottomLeft = 0,

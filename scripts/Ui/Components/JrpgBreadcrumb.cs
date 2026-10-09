@@ -26,7 +26,7 @@ namespace WorldView.Ui.Components;
 public partial class JrpgBreadcrumb : HBoxContainer
 {
     /// <summary>JRPG 面包屑字号（与 §4.5 一致）。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>面包屑条目。</summary>
     public sealed record Crumb(string Label, string? MapId);
@@ -94,11 +94,11 @@ public partial class JrpgBreadcrumb : HBoxContainer
 
         if (isLast)
         {
-            label.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgText);
+            label.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgText);
         }
         else
         {
-            label.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgLink);
+            label.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgLink);
             // 1px 下划线提示可点
             label.AddThemeConstantOverride("underline", 1);
             label.GuiInput += @event =>
@@ -125,7 +125,7 @@ public partial class JrpgBreadcrumb : HBoxContainer
             MouseFilter = MouseFilterEnum.Ignore,
         };
         sep.AddThemeFontSizeOverride("font_size", DefaultFontSize);
-        sep.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
+        sep.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
         sep.VerticalAlignment = VerticalAlignment.Center;
         return sep;
     }

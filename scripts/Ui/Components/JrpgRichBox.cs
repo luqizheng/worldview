@@ -22,13 +22,13 @@ namespace WorldView.Ui.Components;
 public partial class JrpgRichBox : RichTextLabel
 {
     /// <summary>JRPG 富文本字号。</summary>
-    public const int DefaultFontSize = 14;
+    public const int DefaultFontSize = WorldView.Ui.Theme.Palette.Metric.FontSizeBody;
 
     /// <summary>JRPG 富文本行高。</summary>
-    public const int DefaultLineHeight = 22;
+    public const int DefaultLineHeight = WorldView.Ui.Theme.Palette.Metric.LineHeight;
 
     /// <summary>JRPG 富文本段间距。</summary>
-    public const int DefaultParagraphSpacing = 8;
+    public const int DefaultParagraphSpacing = WorldView.Ui.Theme.Palette.Metric.ParagraphSpacing;
 
     /// <summary>链接点击事件（meta 为用户在 [url] 标签里设的 id）。</summary>
     [Signal] public delegate void LinkClickedEventHandler(string meta);

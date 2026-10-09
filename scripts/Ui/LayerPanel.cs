@@ -100,7 +100,7 @@ public partial class LayerPanel : DockPanel
                 MouseFilter = MouseFilterEnum.Ignore,
             };
             empty.AddThemeFontSizeOverride("font_size", 11);
-            empty.AddThemeColorOverride("font_color", JrpgStyleFactory.JrpgTextPlaceholder);
+            empty.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
             _body.AddChild(empty);
             _syncing = false;
             return;
