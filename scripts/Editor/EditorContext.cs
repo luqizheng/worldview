@@ -349,6 +349,23 @@ public partial class EditorContext : Node
         EmitSignal(SignalName.MapChanged);
     }
 
+    /// <summary>
+    /// W5：卸载当前工程（C-M跨 / 关闭项目）。清空 ProjectRoot / World / Maps / Layers / ActiveMapId / Breadcrumbs，
+    /// 广播 MapChanged / LayersChanged / StatusHint「已关闭工程」。
+    /// </summary>
+    public void UnloadProject()
+    {
+        ProjectRoot = string.Empty;
+        World = null!;
+        _maps.Clear();
+        _layers.Clear();
+        ActiveMapId = string.Empty;
+        _breadcrumbs.Clear();
+        EmitSignal(SignalName.MapChanged);
+        EmitSignal(SignalName.LayersChanged);
+        EmitSignal(SignalName.StatusHint, "已关闭工程");
+    }
+
     public void SetLayerVisible(string layerId, bool visible)
     {
         var index = _layers.FindIndex(l => l.Id == layerId);

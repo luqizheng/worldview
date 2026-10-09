@@ -16,7 +16,9 @@ public sealed record World(
     [property: YamlMember(Alias = "map_index")] IReadOnlyList<MapIndexEntry> MapIndex = null!,
     [property: YamlMember(Alias = "character_index")] IReadOnlyList<MapIndexEntry> CharacterIndex = null!,
     AssetsSpec? Assets = null,
-    WorldSettings? Settings = null)
+    WorldSettings? Settings = null,
+    [property: YamlMember(Alias = "kind")] string Kind = "world_view_project",
+    [property: YamlMember(Alias = "schema_version")] int SchemaVersion = 1)
 {
     /// <summary>
     /// 防御性默认值。

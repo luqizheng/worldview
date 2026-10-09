@@ -18,6 +18,7 @@ public enum ProjectErrorCode
     DirectoryNotEmpty,
     DirectoryNotEmptyForCreate,
     NameConflict,
+    ServiceNotInitialized,
 }
 
 /// <summary>
@@ -57,8 +58,8 @@ public class ProjectException : Exception
     public static ProjectException RecoveryFailed(string message, Exception? inner = null)
         => new(ProjectErrorCode.RecoveryFailed, message, inner);
 
-    public static ProjectException RecentProjectsCorrupted(string message)
-        => new(ProjectErrorCode.RecentProjectsCorrupted, message);
+    public static ProjectException RecentProjectsCorrupted(string message, Exception? inner = null)
+        => new(ProjectErrorCode.RecentProjectsCorrupted, message, inner);
 
     public static ProjectException DirectoryNotEmptyForCreate(string message)
         => new(ProjectErrorCode.DirectoryNotEmptyForCreate, message);
@@ -68,4 +69,7 @@ public class ProjectException : Exception
 
     public static ProjectException DirectoryNotEmpty(string message)
         => new(ProjectErrorCode.DirectoryNotEmpty, message);
+
+    public static ProjectException ServiceNotInitialized()
+        => new(ProjectErrorCode.ServiceNotInitialized, "ProjectManagementService 尚未 Initialize。");
 }

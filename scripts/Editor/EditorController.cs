@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using WorldView.ProjectManagement;
 using WorldView.Ui;
 using WorldView.Ui.Components;
 using WorldView.Ui.Dock;
@@ -32,7 +33,7 @@ public partial class EditorController : Control
 	/// <summary>地图节点（唯一名；位于默认画布层，仍受 Camera2D 变换）。</summary>
 	private const string WorldCanvasPath = "%WorldCanvas";
 
-	private Button? _openBtn;
+	private ProjectChromeEntry? _chrome;
 	private Button? _saveBtn;
 	private Button? _undoBtn;
 	private Button? _redoBtn;
@@ -46,7 +47,6 @@ public partial class EditorController : Control
 
 	// ------------------------------------------------------------------ 状态
 	private EditorContext? _context;
-	private FileDialog? _fileDialog;
 	private MapSettingsDialog? _mapSettingsDialog;
 	private Control? _canvasArea;
 	private WorldView.Render.WorldCanvas? _worldCanvas;
@@ -60,12 +60,13 @@ public partial class EditorController : Control
 	{
 		_context = EditorContext.Instance ?? EnsureContext();
 		CacheNodes();
-		CreateFileDialog();
 		CreateMapSettingsDialog();
 		ConnectSignals();
+		InitializeProjectManagement();
 		UpdateBreadcrumb();
 		UpdateMapTabBar();
 		UpdateUndoButtons(force: true);
+		_chrome?.RefreshState();
 		TryAutoloadSampleProject();
 		SetProcess(true);
 	}
@@ -126,7 +127,7 @@ public partial class EditorController : Control
 
 	private void CacheNodes()
 	{
-		_openBtn = GetNodeOrNull<Button>($"{TopBarPath}/OpenBtn");
+		_chrome = GetNodeOrNull<ProjectChromeEntry>($"{TopBarPath}/ProjectChrome");
 		_saveBtn = GetNodeOrNull<Button>($"{TopBarPath}/SaveBtn");
 		_undoBtn = GetNodeOrNull<Button>($"{TopBarPath}/UndoBtn");
 		_redoBtn = GetNodeOrNull<Button>($"{TopBarPath}/RedoBtn");
@@ -142,7 +143,6 @@ public partial class EditorController : Control
 
 	private void ConnectSignals()
 	{
-		if (_openBtn is not null) _openBtn.Pressed += OnOpenPressed;
 		if (_saveBtn is not null) _saveBtn.Pressed += OnSavePressed;
 		if (_undoBtn is not null) _undoBtn.Pressed += OnUndoPressed;
 		if (_redoBtn is not null) _redoBtn.Pressed += OnRedoPressed;
@@ -164,22 +164,8 @@ public partial class EditorController : Control
 		}
 	}
 
-	private void CreateFileDialog()
-	{
-		_fileDialog = new FileDialog
-		{
-			Access = FileDialog.AccessEnum.Filesystem,
-			FileMode = FileDialog.FileModeEnum.OpenDir,
-			Title = "选择工程根目录（含 project.yaml）",
-			Size = new Vector2I(720, 480),
-			CurrentDir = EditorContext.ResolvePath("res://examples"),
-		};
-		_fileDialog.DirSelected += path => _context?.LoadProject(path);
-		AddChild(_fileDialog);
-	}
-
 	/// <summary>
-	/// 地图设置对话框（Task 13）。沿用 <see cref="CreateFileDialog"/> 的「动态创建 + AddChild」手法；
+	/// 地图设置对话框（Task 13）。沿用「动态创建 + AddChild」手法；
 	/// 顶栏按钮也在代码里建，避免为了一个入口去改 <c>Main.tscn</c>（本任务文件范围只有 2 个）。
 	/// </summary>
 	private void CreateMapSettingsDialog()
@@ -220,8 +206,26 @@ public partial class EditorController : Control
 	}
 
 	/// <summary>
+	/// W5：构造并绑定 <see cref="ProjectManagementService"/>，让它拿到 <see cref="EditorContext"/> 句柄
+	/// 与 recents / dirty / backup 工厂。必须放在 <c>CacheNodes / ConnectSignals</c> 之后、
+	/// <see cref="TryAutoloadSampleProject"/> 之前——后者会触发 <c>EditorContext.LoadProject</c>。
+	/// </summary>
+	private void InitializeProjectManagement()
+	{
+		if (_context is null) return;
+
+		var clock = new SystemClock();
+		var appData = new SystemAppDataLocator();
+		var recent = new RecentProjectService(appData, clock);
+		var dirty = new DirtyStateService();
+		// 每次打开新工程都 new 一份 BackupService，绑定到「旧工程根」路径。
+		Func<string, BackupService> backupFactory = root => new BackupService(root, clock);
+		ProjectManagementService.Initialize(new EditorContextProjectOps(_context), recent, backupFactory, dirty);
+	}
+
+	/// <summary>
 	/// 启动时若 <c>res://examples/sample_world/project.yaml</c> 存在，自动加载；
-	/// 失败不阻塞编辑器（用户可点「打开工程…」重试）。对应 D1 验收：F5 启动后立即看到示例世界。
+	/// 失败不阻塞编辑器（用户可点 ProjectChrome 菜单的「打开项目」重试）。对应 D1 验收：F5 启动后立即看到示例世界。
 	/// </summary>
 	private void TryAutoloadSampleProject()
 	{
@@ -359,8 +363,6 @@ public partial class EditorController : Control
 	}
 
 	// ------------------------------------------------------------------ 槽
-
-	private void OnOpenPressed() => _fileDialog?.Popup(new Rect2I(8, 8, 720, 480));
 
 	private void OnSavePressed() => _context?.SaveProject();
 

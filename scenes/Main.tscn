@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/Editor/EditorController.cs" id="1_controller"]
 [ext_resource type="Theme" path="res://assets/themes/parchment_theme.tres" id="2_theme"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgScaleBar.cs" id="12_jrpgbar"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgMapTabBar.cs" id="13_jrpgtb"]
 [ext_resource type="Script" path="res://scripts/Ui/Components/JrpgReplayBar.cs" id="14_jrpgbar"]
+[ext_resource type="Script" path="res://scripts/Ui/ProjectChromeEntry.cs" id="15_projchrome"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -71,10 +72,11 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="OpenBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
+[node name="ProjectChrome" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2
-text = "打开工程…"
-script = ExtResource("9_jrpgbtn")
+text = "未打开工程"
+script = ExtResource("15_projchrome")
+EditorContextPath = NodePath("../../../../../Editor")
 
 [node name="SaveBtn" type="Button" parent="UiLayer/DockLayout/Root/TopStrip/TopBar"]
 layout_mode = 2

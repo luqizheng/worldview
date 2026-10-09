@@ -71,6 +71,8 @@ mono_crash.*.json
 # .dsh_tmp 是 DSH agent 临时调试目录；.worldview/probe_ 是 R6 缩放验证子工程。
 .dsh_tmp/
 .worldview/probe_/
+# ProjectManagement 测试临时目录（ProjectManagementTemp.NewDir 在 CWD 下创建）
+.tmp-pmtests/
 # DSH image-gen 调试产物（已在审稿图清点外,留作历史参考可单独归档,不入版本库）
 dsh-image-gen/
 # Godot 运行截图(临时)
