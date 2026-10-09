@@ -1,15 +1,14 @@
 # World View
 
-> 双层世界地图编辑器 — **Tauri (Rust) + React + PixiJS v8** 桌面应用。
+> 双层世界地图编辑器 — **Godot 4.7.2 (mono) + C#（.NET 8）** 桌面应用。
 
-`World View` 是一个桌面端地图编辑器：
+`World View` 是一个**单机、离线优先**的桌面地图编辑器：
 
-- **世界层** — 64×48 网格，艾瑟兰大陆风格的色块地形 + 城市标记；
-- **城市层** — 64×64 网格，进入建筑 / 单元级编辑。
+- **世界层** — 大陆 / 区域级网格地图：地形、高度、道路、路线、建筑、疆界与影响力；
+- **城市层** — 从世界地图下钻的城市网格，进一步进入建筑 / 室内编辑；
+- **工程即目录** — 一个文件夹就是一个完整世界工程，YAML 为主数据格式，仅大网格走二进制分块。
 
-MVP 阶段聚焦核心数据契约层（YAML）+ PixiJS v8 渲染管线 + Tauri 桌面壳；人物 / 时间轴等模块按 spec 推到 M5 之后。
-
-详细规范见 [`docs/`](./docs/)（设计文档 v0.1、数据模型规格、验收记录等）；任务定义见 [`.trae/specs/map-editor-mvp/`](./.trae/specs/map-editor-mvp/)。
+详细规范见 [`docs/`](./docs/)（**字段定义以《数据模型规格》为唯一真源**）；任务与验收定义见 [`.trae/specs/`](./.trae/specs/)。
 
 ---
 
@@ -19,81 +18,52 @@ MVP 阶段聚焦核心数据契约层（YAML）+ PixiJS v8 渲染管线 + Tauri 
 
 | 工具 | 版本 | 说明 |
 |---|---|---|
-| Rust | ≥ 1.77（推荐 1.97） | `rustup default stable` |
-| Node | ≥ 20（推荐 24.x） | 用 [nvm-windows](https://github.com/coreybutler/nvm-windows) 切换 |
-| pnpm | ≥ 11 | `npm i -g pnpm` |
-| Windows | MSVC Build Tools + Edge WebView2 | macOS / Linux 也可，命令一致 |
+| Godot | **4.7.2 stable mono** | 必须是 mono / .NET 版；路径见 [§ 本机环境](#本机环境) |
+| .NET SDK | **8.0**（本机 8.0.425） | `dotnet --list-sdks` 校验 |
+| Windows | 10 / 11 | 当前目标平台 |
 
-> 注：`cargo` workspace 根只包含两个领域 crate；`src-tauri` 独立成 crate 通过 path dep 引用，避免 Tauri 工具链 resolver 冲突（spec §T1.2）。
+NuGet 依赖由构建自动还原：`YamlDotNet 16.3.0`、`Godot.NET.Sdk 4.7.2`。
 
-### 1. 拉取与安装
+### 1. 构建（B1）
 
-```bash
+```powershell
 git clone <repo>
 cd world-view
-pnpm install
+dotnet build WorldView.sln -c Debug
 ```
 
-### 2. 验证领域层（30 秒）
+预期：**0 个错误**（警告为已知噪音，主要是测试项目的 `xUnit1051` 提示）。
 
-```bash
-cargo test --workspace
+### 2. 跑单元测试（B2）
+
+```powershell
+& "tests\WorldView.Tests\bin\Debug\net8.0\WorldView.Tests.exe"
 ```
 
-预期：24 / 24 ✅（17 core + 7 io）。
+> 需先跑 B1 产出 exe。本项目测试已切到 **xunit.v3 + Microsoft.Testing.Platform**（`OutputType=Exe`，编译成可执行 runner），**不要用 `dotnet test`** —— vstest testhost 在本机会因沙箱进程限制拉起即崩（`Win32Exception 5`），且 MTP 项目由 VSTest 驱动时找不到测试 dll。
 
-### 3. 验证前端类型（10 秒）
+### 3. Godot 场景校验（B3）
 
-```bash
-pnpm typecheck
+```powershell
+& "C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe" `
+    --headless --path . --check-only --quit-after 120
 ```
 
-预期：零错误。
+预期：在超时内**自然退出**，且 stderr 无场景 / 脚本解析错误。
 
-### 4. 跑端到端冒烟脚本（10 秒）
+> `--quit-after` 不可省：`autoload/mcp_interaction_server.gd` 是一个常驻 TCP 服务器，单独使用 `--check-only` 时它会在校验完成后挂住主循环不退出。C# 运行时异常（不阻塞场景解析）不计入本项。
 
-```bash
-pnpm run smoke
+### 4. 领域冒烟（B4 之外的端到端检查）
+
+```powershell
+dotnet run --project tests\WorldView.Smoke
 ```
 
-预期：9 / 9 ✅（覆盖 G3 / G4 / K1 / J2 等 spec §7 demo 点）。
+覆盖 `scripts/Domain/**` + `scripts/Storage/**` 的落盘 / 重载闭环。
 
-### 5. 启动 demo 桌面应用
+### 5. 启动编辑器
 
-**方式 A — 直接跑已编译二进制**（最快）
-
-```bash
-# 在已编译过 `pnpm tauri build --debug` 的机器上：
-src-tauri/target/debug/world-view.exe          # Windows
-# 或对应的 macOS / Linux 二进制
-```
-
-**方式 B — 启 dev server（带 dev-tools）**
-
-```bash
-pnpm tauri dev
-```
-
-应用窗口弹出后（默认 1280×800）：
-
-1. 顶栏 → **「打开工程」** → 弹系统原生文件夹选择器 → 选 `examples/sample_world/`
-   （Tauri 桌面端走 `pick_directory` 命令；纯浏览器预览则 `window.prompt` 让你手敲路径）
-2. 中央渲染 64×48 世界地图，山地 / 河流 / 森林色块 + 「极光港」标记
-3. 点击「极光港」 → 城市卡 → **进入编辑**
-4. 顶栏 **ToolPanel** 切笔刷 → 在网格拖动 → 改地形
-5. `Ctrl+Z` / `Ctrl+Y` 撤销 / 重做
-6. **Save** → 写回 `examples/sample_world/maps/aurora_harbor/terrain.yaml`
-7. **New City Map** → 选建筑模板 → 写入 `characters/`
-
-详细的 D1–D8 验收对照表见 [`docs/acceptance/map_editor_mvp_check.md`](./docs/acceptance/map_editor_mvp_check.md)。
-
-### 6. 重新编译桌面二进制
-
-```bash
-pnpm tauri build --debug       # 15 MB 左右，~30s（增量）
-# 或
-pnpm tauri build               # release，最小且最优
-```
+用 Godot mono 打开本目录（含 `project.godot`），主场景为 `scenes/Main.tscn`，直接 **F5** 运行。
 
 ---
 
@@ -101,58 +71,80 @@ pnpm tauri build               # release，最小且最优
 
 ```
 world-view/
-├── crates/                # Rust workspace
-│   ├── world-view-core/   # 领域模型（Project / Map / Layer / Terrain / Character / 校验）
-│   └── world-view-io/     # YAML 读写 + 路径校验 + 自带 tempfile 测试夹具
-├── src-tauri/             # Tauri 主进程壳（独立 crate，避免工具链冲突）
-│   ├── src/lib.rs         # #[tauri::command] open_project / save_project / create_city_map / pick_directory
-│   ├── capabilities/      # 默认权限（仅 core:*）
-│   └── tauri.conf.json    # 1280×800、CSP、beforeDevCommand 等
-├── src/                   # React 前端
-│   ├── app/App.tsx        # 应用根
-│   ├── render/            # 渲染层：Grid / Terrain / Marker / Building Layer（PixiJS v8）
-│   ├── editing/           # 笔刷 / Commands / UndoStack
-│   ├── ui/                # TopBar / ToolPanel / LayerPanel / Inspector / StatusBar / Dialogs
-│   ├── state/             # zustand stores
-│   └── bridge/tauri.ts    # hasTauri() 探测 + mock fallback（无 Tauri 时也能 demo）
-├── examples/sample_world/ # 示例工程「艾瑟兰大陆」
-├── docs/                  # 设计文档 + 数据模型 + 验收记录
-├── .trae/specs/map-editor-mvp/  # MVP 任务定义（spec / checklist / tasks）
-└── package.json           # pnpm workspace
+├── project.godot              # Godot 工程入口（main_scene = scenes/Main.tscn）
+├── WorldView.sln / .csproj    # C# 主项目（Godot.NET.Sdk 4.7.2，只编 scripts/）
+├── scripts/                   # 全部 C# 源码
+│   ├── Domain/                # 领域模型 + 校验（纯 C#，不依赖 Godot，可裸测）
+│   ├── Storage/               # YAML 读写、工程加载 / 保存、校验器
+│   ├── Editing/               # 命令模式撤销栈（含批处理）+ 笔刷形状 / 控制器
+│   ├── Editor/                # 编辑器上下文、地图尺寸与单位换算
+│   ├── Render/                # 渲染层（Terrain / Marker / Road / Grid 等）
+│   ├── Ui/                    # 界面：Chrome / Palette / Components / Theme
+│   ├── ProjectManagement/     # 工程管理：IFileSystem 抽象、最近项目、自动保存、备份
+│   └── Generator/             # Roslyn 源生成器（编译期产出主题 token）
+├── scenes/                    # Godot 场景（Main.tscn + ui/ + _demo/）
+├── autoload/                  # Godot autoload（GDScript）
+├── assets/                    # 主题 / 调色板 / 图标 / 纹理 / 图块集
+├── tests/
+│   ├── WorldView.Tests/       # 单元测试（xunit.v3 + MTP，独立 csproj）
+│   └── WorldView.Smoke/       # 领域端到端冒烟运行器
+├── examples/sample_world/     # 示例工程「艾瑟兰大陆」
+├── crates/                    # Rust 骨架（v0.1 不启用）
+├── docs/                      # 设计文档 v0.1 + 验收记录
+└── .trae/specs/               # MVP / UI 任务定义（spec / checklist / tasks）
 ```
 
----
-
-## 关键设计原则（v0.1 收敛）
-
-1. **Tauri + Rust + TS 前后端分工**：Rust 持有领域模型与 IO，TS 只做渲染 / UI / 编辑，不持有真源。
-2. **PixiJS v8 渲染**：WebGL2 优先、WebGPU 兜底、Canvas 兜兜底；网格 + 矢量 + 二进制分块三态（`encoding: grid | sparse`，chunked 暂留）。
-3. **数据契约**：`project.yaml` + `maps/<kind>/<name>.yaml` + `characters/<name>.yaml` 三层；MVP 不引数据库。
-4. **校验前置**：保存前 `world-view-core::validate` 跑全套规则（ID 唯一、cells_ref 可达、坐标范围、路径越界）。
-5. **mock 兜底**：`src/bridge/tauri.ts` 在浏览器无 Tauri 时走 mock，让任何机器都能跑前端 demo。
-6. **示例工程是契约样例**：`examples/sample_world/characters/` 不进 UI，是 M5 的契约参考。
-7. **不引外网依赖**：所有数据 / 资源本地化。
+> 主项目 `WorldView.csproj` 设了 `EnableDefaultCompileItems=false`，只编译 `scripts/**`；`tests/` 由各自的 csproj 编译。不要改成默认收集，否则 `obj/`、`bin/` 会被卷进编译。
 
 ---
 
-## 已知约束与排期
+## 关键设计原则（v0.1 收敛，七条不可动摇）
 
-- **MVP 不支持 chunked 二进制分块**：`encoding: chunked` 在 `world-view-io::save_project` 显式拒绝；待 M3+ 引入。
-- **人物编辑面板 / 时间轴联动 / 关系网**：M5+ 才上 UI；当前数据契约已就绪。
-- **样例工程是中文 / 东方奇幻风格**：`examples/sample_world/` 的人物与地名属于"虚构数据"演示。
+1. **单机可运行** — 无需服务器，直接读写本地目录。
+2. **目录即工程** — 一个文件夹 = 一个完整世界工程，可拷贝、可压缩、可 Git。
+3. **YAML 为主格式** — 元数据 / 配置 / 矢量 / 所有对象一律 YAML，人类可读、可手改、可版本管理。**唯一例外**：超大地图的网格数组（地形 / 高度）允许以**二进制分块**作为一等源格式，但必须遵循《二进制格式规格》并在索引 YAML 中显式声明；**禁止对元数据使用二进制**。
+4. **多地图层级** — 世界地图 → 区域地图 → 城市地图 → 建筑 / 室内地图，逐层引用。
+5. **图层化编辑** — 地形 / 疆界 / 影响力 / 道路 / 事件点等分层，可独立开关、锁定、调透明度与顺序。
+6. **非破坏编辑** — 笔刷 / 选区可撤销、可重做、可保存快照。
+7. **时间轴驱动** — 拖动时间轴，地图图层、人物状态、势力范围随之变化。
+
+技术栈（P0 收敛结论）：Godot 4.7.2 mono + C#（.NET 8）、Godot 内置 2D、网格 + 矢量 + 二进制分块三态编码。
+
+---
+
+## 已知约束与范围
+
+- **时间轴分支**不在当前范围（待决项 D-2）。
+- **第三方插件**不进（待决项 D-3）。
+- **疆界贴合范围**待定（待决项 D-1）。
+- **`crates/` 下的 Rust 骨架不启用**，v0.1 不构建、不测试。
+- **历史遗留**：本仓曾用 Tauri + React + PixiJS 实现，已整体移除（旧栈清理见 `.trae/m1-cleanup-manifest.md`）。任何 `cargo` / `pnpm` 指令都已作废。
 
 ---
 
 ## 测试与验收
 
-```bash
-cargo test --workspace        # Rust 领域层单测
-pnpm typecheck                # 前端 TS 类型
-pnpm run smoke                # Node 冒烟脚本（领域端到端）
-pnpm tauri build --debug      # 桌面二进制
+每次提交前应跑完整基线自检（B1–B4），命令即上面「快速上手」的第 1 / 2 / 3 步，外加：
+
+```powershell
+git status --short      # B4：工作树不该出现产物类噪音
 ```
 
-每次 PR 之前应保证：领域层 24/24、typecheck 0 错、smoke 9/9。完整验收记录见 [`docs/acceptance/map_editor_mvp_check.md`](./docs/acceptance/map_editor_mvp_check.md)。
+> **当前存在已知基线失败**，清单、分类与判定口径统一记录在 [`docs/长期执行计划_v0.1.md`](./docs/长期执行计划_v0.1.md) §5 / §6 —— 校验基线时以该文档为准，不要在本文件里硬编码测试计数（计数会随任务推进变化）。
+
+M1 验收对照表见 [`docs/acceptance/map_editor_mvp_check.md`](./docs/acceptance/map_editor_mvp_check.md)。
+
+---
+
+## 本机环境
+
+| 项 | 路径 / 版本 |
+|---|---|
+| Godot | `C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe` |
+| .NET SDK | `8.0.425`（另有 10.0.401，被 `global.json` 的 `rollForward: latestFeature` 挡在项目外） |
+| 测试 runner | `tests\WorldView.Tests\bin\Debug\net8.0\WorldView.Tests.exe`（MTP 直跑） |
+
+工程协作者（含 agent）请先读 [`AGENTS.md`](./AGENTS.md)：仓库约定、外部依赖硬编码路径、文档索引与事实来源优先级都在那里。
 
 ---
 
