@@ -31,6 +31,12 @@ public partial class BottomPalette : Control, IPaletteHost
     private const string BuildRowId = "build_row";
     private const string ToolRowId = "tool_row";
 
+    /// <summary>工具方块区 section 的 ID（spec §4 row1：小地图 + 工具方块区）。</summary>
+    public const string ToolsSectionId = "tools";
+
+    /// <summary>工具行 section 的 ID（折叠态由它常驻）。</summary>
+    private const string ToolStripSectionId = "tool_strip";
+
     private Panel? _background;
     private VBoxContainer? _rows;
     private JrpgButton? _collapseButton;
@@ -148,7 +154,7 @@ public partial class BottomPalette : Control, IPaletteHost
 
         timelineRow.AddSection(CreateSection("timeline", "时间轴", PaletteSection.SectionSizeMode.Flex, 1, false, "TimelineStrip"));
         buildRow.AddSection(CreateSection("minimap", "小地图", PaletteSection.SectionSizeMode.Fixed, 1, true, "MinimapSection"));
-        buildRow.AddSection(CreateSection("build_palette", "建筑", PaletteSection.SectionSizeMode.Flex, 1, false, "BuildPaletteSection"));
+        buildRow.AddSection(CreateSection(ToolsSectionId, "工具", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolPaletteSection"));
         toolRow.AddSection(CreateSection("tool_strip", "工具栏", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolStrip"));
     }
 

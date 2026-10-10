@@ -18,7 +18,7 @@ namespace WorldView.Ui.Dock.Leaf;
 /// </summary>
 public sealed class PanelState
 {
-    /// <summary>面板稳定 ID（如 <c>build_palette</c>），跨会话复用。</summary>
+    /// <summary>面板稳定 ID（如 <c>minimap</c>），跨会话复用。</summary>
     public string Id { get; set; } = string.Empty;
 
     /// <summary><c>dock_edge</c> / <c>dock_container</c> / <c>dock_child</c> / <c>float</c>。</summary>
@@ -71,16 +71,16 @@ public sealed class PanelState
 
     public int? Y { get; set; }
 
-    /// <summary>建筑格边长（仅 <c>build_palette</c>，<c>[待标定]</c> 40–96）。</summary>
+    /// <summary>建筑格边长（建筑面板私有状态，内嵌在 <c>tools</c> 工具方块区，经 ToolPaletteSection 转发；<c>[待标定]</c> 40–96）。</summary>
     public int? CellSize { get; set; }
 
-    /// <summary>建筑格间距（仅 <c>build_palette</c>）。</summary>
+    /// <summary>建筑格间距（建筑面板私有状态，内嵌在 <c>tools</c> 工具方块区，经 ToolPaletteSection 转发）。</summary>
     public int? CellGap { get; set; }
 
-    /// <summary>当前分类（仅 <c>build_palette</c>）。</summary>
+    /// <summary>当前分类（建筑面板私有状态，内嵌在 <c>tools</c> 工具方块区，经 ToolPaletteSection 转发）。</summary>
     public string? ActiveCategory { get; set; }
 
-    /// <summary>每分类记住的页码（仅 <c>build_palette</c>；<c>items_per_page</c> 不落盘）。</summary>
+    /// <summary>每分类记住的页码（建筑面板私有状态，内嵌在 <c>tools</c> 工具方块区，经 ToolPaletteSection 转发；<c>items_per_page</c> 不落盘）。</summary>
     public Dictionary<string, int>? PagesByCategory { get; set; }
 
     // ---------------------------------------------------------------- 读侧便利属性
@@ -309,7 +309,7 @@ public sealed class LayoutState
                             },
                             new()
                             {
-                                Id = "build_palette",
+                                Id = "tools",
                                 Order = 1,
                                 SizeMode = "flex",
                                 Flex = 1,
