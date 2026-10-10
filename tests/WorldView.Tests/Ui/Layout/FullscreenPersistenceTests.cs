@@ -145,6 +145,36 @@ public class FullscreenPersistenceTests
     }
 
     [Fact]
+    public void MarkLayoutChanged_全屏期间必须提前返回不标脏()
+    {
+        // 容器级护栏：MarkLayoutChanged() 必须在 `_fullscreen` 时提前返回。
+        // 否则 F11 期间任何标脏（Ctrl+B / M 键 / 拖动面板）都会经防抖 flush 把
+        // Root/TopStrip、Root/BottomPalette 与 dock 容器的 visible: false 落盘，
+        // 下次启动整个底部工具区不可见——只能手改 YAML 才能恢复。
+        var body = StripCommentsAndLiterals(ExtractMethod(DockLayoutSource, "public void MarkLayoutChanged()"));
+
+        // 去掉全部空白后做位置比较：容忍换行 / 缩进 / `if(_fullscreen)` 这类排版差异。
+        var compact = System.Text.RegularExpressions.Regex.Replace(body, @"\s+", string.Empty);
+
+        const string guard = "if(_fullscreen){return;";
+        var guardIndex = compact.IndexOf(guard, StringComparison.Ordinal);
+        Assert.True(
+            guardIndex >= 0,
+            "MarkLayoutChanged() must start with `if (_fullscreen) { return; }`: while F11 hides "
+            + "Root/TopStrip, Root/BottomPalette and the dock containers, any dirty-mark makes "
+            + "CaptureLayout() persist `visible: false` and the next launch restores an empty bottom "
+            + "tool zone — the container-level twin of the 2026-10-10 F11 incident.");
+
+        var dirtyIndex = compact.IndexOf("_layoutDirty=true", StringComparison.Ordinal);
+        Assert.True(dirtyIndex >= 0, "MarkLayoutChanged() must still mark the layout dirty (persist path missing).");
+
+        Assert.True(
+            guardIndex < dirtyIndex,
+            "the `_fullscreen` early-return must come BEFORE `_layoutDirty = true`; otherwise it is "
+            + "dead code for the persist path and `visible: false` is still flushed to .worldview/layouts/.");
+    }
+
+    [Fact]
     public void _ExitTree_仍会_flush_落盘_真实布局()
     {
         // 关窗路径必须保留：否则 F11 之外的正常改动在退出时会丢。

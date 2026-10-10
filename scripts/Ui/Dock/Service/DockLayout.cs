@@ -574,9 +574,20 @@ public partial class DockLayout : Control, IDockHost, IPanelRegistry
 
     // ------------------------------------------------------------------ 持久化（spec §5）
 
-    /// <summary>布局变化：发信号 + 防抖落盘。</summary>
+    /// <summary>
+    /// 布局变化：发信号 + 防抖落盘。F11 全屏期间（<c>_fullscreen</c>）直接提前返回，
+    /// 既不标脏也不发信号——此时 chrome / 面板被临时隐藏，落盘会写出 <c>visible: false</c>。
+    /// </summary>
     public void MarkLayoutChanged()
     {
+        // F11 全屏期间 chrome / 面板被临时隐藏：此时任何标脏都会把「不可见」写进布局文件
+        // （2026-10-10 F11 事故的容器级版本）。进全屏前已 FlushLayoutNow() 落盘真实可见状态，
+        // 退出时由 _fullscreenSnapshot 还原；全屏期间一律不标脏。
+        if (_fullscreen)
+        {
+            return;
+        }
+
         if (!_applying)
         {
             Editor.EditorContext.Instance?.NotifyLayoutChanged();
