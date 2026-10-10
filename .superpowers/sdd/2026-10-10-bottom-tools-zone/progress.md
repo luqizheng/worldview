@@ -121,7 +121,8 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 | A2 | `e4b758f` + `f4a7bd8` | 默认 section 配置 `build_palette` → `tools`（+ R17/R18 fix） |
 | A3 | `784a5b6` | 地形色块迁入工具方块区；`ToolStrip` 分组化 + `SetCollapsedMode` |
 | A4 | `706841c` | 折叠态改 `tool_row` 常驻紧凑行 + `CaptureLayout` 落盘守卫 + R15 常量替换 |
-| A5 | `980b956`（+ fix 1） | 文档同步：§7 T8 折叠态、`spec.md:128` 树、`docs:401/517/721` |
+| A5 | `980b956`（+ fix 1 `d9d1f2d`） | 文档同步：§7 T8 折叠态、`spec.md:128` 树、`docs:401/517/721`（+ G8/tool_row/折叠分支指向/实现提示时态） |
+| FW | `b7761b6` + `9da1d42` | 最终评审唯一一次 fix wave：W1 基线重设为 185；W2 互斥护栏位置耦合；W3 常驻工具 section 不可关闭 + 折叠自愈；W4 `base._Ready()`；W5 比例尺→校验；W6 `docs:418` 完成时；W7 三处陈旧引用 |
 
 ### 门（每个 task 之后复测）
 
@@ -154,6 +155,23 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 - **R42 — `PaletteSection.Closable` 平台策略裁定：机制代码不改（§0.1），本 wave 只把常驻工具 section 设为不可关闭并在折叠时自愈。** 「平台内没有重新打开已关闭 section 的入口」作为后续建议上报（评审 R-5：至少加一个「视图」菜单入口），不在本计划修。Cost if wrong：用户仍可能关掉 minimap 等其它 section 而无法在平台内恢复（既有行为）。
 - **R43 — 不采纳评审 R-6 的「给旧 `ui-redesign` spec 盖『已被取代』横幅」。** `docs/主界面布局规格_v0.1.md` 头部自述其定位是旧 spec v0.2 的**增量修订稿**（明确「不是独立新稿…不推翻已落地的架构与代码」），加横幅会把二者关系写错。Cost if wrong：读者仍可能把旧 spec 当唯一真相，但新文档头部已说明关系。
 - **台账数字订正**：评审指出收尾段曾写「3 个新 `.uid`」却列出 4 个、实际 diff 有 5 个（含 `BottomToolsZoneDefaultsTests.cs.uid`）——控制器直接改对（同 R19 手法）。
+
+### 唯一一次 fix wave（W1–W7，实现者 `5d8ce409`）
+
+**结论：DONE，无阻塞，未扩范围，未起任何子代理。** 2 个提交、9 文件 / +114−15（base 记录为 `2fbcd57`，实际提交时 HEAD 为并行的台账提交 `692767c`，两者零文件重叠）：
+
+| commit | 内容 |
+| --- | --- |
+| `b7761b6` | `fix(ui): 常驻工具 section 不可关闭 + 互斥护栏位置耦合（最终评审 W2-W4）` —— `scripts/Ui/Chrome/BottomPalette.cs`（`CreateSection` 增 `bool closable = true` → `Closable = closable,`；`tool_strip` 以 `closable: false` 创建；`SetCollapsed` 内无条件 `toolSection.Visible = true;` + K1 中文注释）、`scripts/Ui/Chrome/ToolPaletteSection.cs`（`_Ready` 首条 `base._Ready();`）、`tests/WorldView.Tests/Ui/Chrome/ToolPaletteSectionTests.cs`（分组切换改为 `SelectGroup` 方法体位置耦合切片）、`tests/WorldView.Tests/Ui/Chrome/BottomPaletteCollapsedTests.cs`（+2 事实） |
+| `9da1d42` | `docs: 基线重设为 185 警告并清理陈旧措辞（最终评审 W1/W5-W7）` —— `AGENTS.md`（B1→185 + 成因括注）、`docs/acceptance/baseline_v0.1.md`（:18/:25/:30/:34 + 变更记录新行；CS2002 137→138）、`docs/主界面布局规格_v0.1.md`（:346 比例尺→校验、:418 未来时→**已**）、`.trae/specs/ui-redesign-simgame/spec.md`（:117 移除 `Terrain:Grass` 占位、:587 删「地形」）、`scripts/Ui/Dock/Leaf/PanelDragData.cs`（:15 `<c>build_palette</c>`→`<c>tools</c>`） |
+
+验证（均在最终内容上）：构建 `-m:1 --no-incremental` = **0 error / 185 warnings**（CS2002 = 138 个唯一文件、日志 276 行 = ×2 内联+汇总，其余 11 类 ×47 → 138+47=185）；全量裸 exe = **377 总 / 失败 7 / 成功 370 / 跳过 0 / exit 2**；`--filter-class ToolPaletteSectionTests` 7/7 exit 0、`--filter-class BottomPaletteCollapsedTests` 8/8 exit 0；**护栏变异实验 5/5 被捕获**（`!isTerrain`→`isTerrain`、`closable:false`→`true`、`Closable = closable,`→`Closable = true,`、删 `toolSection.Visible = true;`、把两行可见性搬去 `CaptureState`）；`.trae/.../spec.md` 首三字节 **239,187,191**、LF 828、**无 `spec.md:1` hunk**；`docs/主界面布局规格_v0.1.md` 首三字节 35,32,228（无 BOM）、LF 721；Godot console `--editor` = exit 0、`Parse Error`/`SCRIPT ERROR` 命中 0。
+
+- **R44 — fix wave 自报的遗留 1（load-bearing，park 并上报用户）**：`docs/长期执行计划_v0.1.md:92` §0.5-B1 的自检门仍写「警告数不高于 **184**」（另 `:284`/`:428`/`:429`/`:561`，以及本计划文件 `docs/superpowers/plans/2026-10-10-bottom-tools-zone.md:26,:65` 同）。fix wave 的 brief 只授权改 `AGENTS.md` + `docs/acceptance/baseline_v0.1.md`，故它**未动**——**这是控制器派单时的范围遗漏**，不是实现者的问题。按技能「There is no second fix wave — residual load-bearing findings surface to your human partner」，**park 并在收尾时作为首要待办上报用户**（建议一次性把上述 5+2 处 184 改为 185）。Cost if wrong：下一工作项的 §0.5 自检会拿 184 比对，误报 +1 警告。
+- **R45 — fix wave 自报的遗留 2（无害，接受）**：`AGENTS.md` 成因说明以 `；` 追加在原括号内（避免并列第二括号破坏句法）；`baseline_v0.1.md:34` 与 `:30` 的同表行一并改 137→138；W3 测试额外加了一条 `Closable = closable,` 透传断言；`spec.md:117` 用等长空单元占位（列宽与分隔符字节不变）。**R46**：`docs/主界面布局规格_v0.1.md` §2 线框 `:337-347` 本就参差（边界 65 vs 内容 66–69 显示宽），按「该行其余不动」未补对齐——park。
+- **R47 — fix wave 的 scoped re-review 派单 `d82d723e`**（range `692767c..9da1d42`，2 commits / 9 files / +114−15）：要求逐条判定 W1–W7，并**正面**核实 `spec.md` 的 BOM（首三字节 `EF BB BF`）与无 `spec.md:1` hunk、184→185 重编号的内部一致性；特别要求判断 W2/W3 的护栏测试是否**真的非空**（破坏其命名的行为时是否必然失败）。控制器已把 out-of-scope 项（全屏洞、csproj 双 glob、`Closable` 平台策略、旧 spec 横幅、`ActiveGroup` 持久化、`SetProcess`、每帧轮询）与已裁定的 `docs/长期执行计划_v0.1.md` 184 遗留（R44）写进派单，避免被当成缺口重复上报。
+- **观察（控制器，未处理）**：工作区出现一个**用户新建的未跟踪文件** `docs/主界面布局规格_v0.5_工具栏三分草案.md`（14930 字节、GBK 编码、创建于 2026/10/10 11:31:20，**非任何子代理创建**）。**这不是本计划的产物：控制器不读、不改、不提交**；收尾时作为线索告知用户（可能影响后续计划方向）。
+- **R48 — fix wave 的 scoped re-review 首派 `d82d723e` 完成前失败且无报告 → 重派 `d0f4bb0e`（同 range/包/判定要求）。** 与 R27（A4 评审首派失败）/R34（最终评审首派失败）同类：本环境 subagent 偶发失败，三次均以重派解决。Cost if wrong：多一次评审开销。
 
 ## Ledger
 
@@ -205,3 +223,15 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 - `Task A5: minor (deferred): `spec.md:587` 仍以「工具 / 笔刷 / 地形 / 撤销（进 `tool_row`）」描述 `ToolStrip.cs`，与已修正的 `spec.md:129` 矛盾（A1–A4 之前即存在的陈旧表述，非 A5 编辑引入）。`
 - `Task A5: minor (deferred): `spec.md:117` 的 §3.1 线框仍在 row 2 的 `ToolStrip` 里画 `Terrain:Grass ▼`，与 `docs/主界面布局规格_v0.1.md:402`「`ToolStrip` 只留笔刷半径 / 坐标 / 状态 / 校验」矛盾。`
 - `Task A5: minor (deferred): `docs/主界面布局规格_v0.1.md:418` 仍用将来时描述折叠分支改动（「折叠态渲染分支由**当前的两行文本提示**改为**紧凑工具行**」），A1–A4 已落地。`
+
+## 收尾验收（2026-10-10）
+
+### fix wave 的 scoped re-review（`d0f4bb0e`，range `692767c..9da1d42`）
+
+**Verdict：All findings addressed, no new Critical/Important breakage** —— W1/W2/W3/W4/W5/W6/W7 **全部 ADDRESSED**（逐条给了 file:line 证据）。并**正面**核实：`.trae/specs/ui-redesign-simgame/spec.md` 首三字节 `239,187,191`（BOM 在）、纯 LF 828、只有 `@@ -107,21` 与 `@@ -577,21` 两个 hunk、**无 `spec.md:1` hunk**；`docs/主界面布局规格_v0.1.md` 首三字节 `35,32,228`（无 BOM）、纯 LF 721；184→185 重编号内部自洽（`138 + 47 = 185`，且用磁盘上 `scripts/**/*.cs` 去 `scripts/Generator` = 138 个文件独立佐证 CS2002=138）。
+
+- **R49 — 不删除整个工作区：只删未跟踪的过程件，保留已入库台账。** 技能要求「final review 干净后删除本计划工作区（git 历史即记录）」，但 AGENTS.md §6.1 明确把 `.superpowers/sdd/{progress.md,task-*-report.md}` 列为**白名单入库**、目的为「跨机器可查每个工作项做过什么」，且既有各计划的台账均仍在树中（`git ls-files .superpowers/sdd` 已确认）。裁定：删除工作区内**未被跟踪**的过程件（`task-*-brief.md`、`review-*.diff`、`plan-path`、`baseline.ps1`、`final-fix-report.md`——它们都能由 `git diff <range>` 重新生成），**保留** `progress.md` + 5 份 `task-A*-report.md`。Cost if wrong：工作区多留几百 KB 已跟踪台账文本（此前就已入库）；过程件已删但可随时由 git 重建。
+- **R50 — 本次改动直接落在 `deepseek-build`，没有另建特性分支，故 finishing-a-development-branch 的「合并回 base / 开 PR / 保留分支」三选项不适用。** 事实：工作全程在用户当前开发分支 `deepseek-build` 上提交（非 main/master），备份 tag `backup/ui-redesign-bottom-tools` → `6e7ee75` 已作为还原点；`git worktree` 从未使用，`GIT_DIR == GIT_COMMON`（普通仓库、无 worktree 需清理）。**push 与「另建分支/开 PR」属 worktree 之外的副作用，按技能与用户偏好需其明确要求，控制器不主动执行**——在最终回复里把该决定交给用户。Cost if wrong：若用户本意要独立分支/PR，需事后 `git branch` + cherry-pick 或从 tag 重放。
+- **R51 — re-review 的 3 条 Minor 全部 park（交后续清理，不阻塞）。** ① `docs/acceptance/baseline_v0.1.md:150-151` 新增的带日期条目是空行后的裸 bullet，使 §5 变更记录混了表格与孤立列表项（内容与日期都在）；② `tests/WorldView.Tests/Ui/Chrome/BottomPaletteCollapsedTests.cs:97` 的注释**夸大**了 W3 第 2 条护栏的强度（把 `:292-295` 包进 `if (!collapsed)` 两个断言串仍存在、测试仍会通过；声称的只是「位于 `SetCollapsed` 内」，不是「无条件」——**代码本身确实是无条件的**，仅注释不准）；③ `ExtractMethodBody` 在 `ToolPaletteSectionTests.cs:33-63` 与 `BottomPaletteCollapsedTests.cs:104-131` 逐字重复（仅漂移风险）。Cost if wrong：文档格式小瑕疵 + 一处注释过度声称 + 两处 helper 需同步维护。
+- **R52 — re-review 的 out-of-scope 观察「自愈只在 `SetCollapsed` 内，布局加载器写回的 `tool_strip visible:false` 仍可能零入口直到下次折叠」判为不成立。** 依据：`DockLayout.ApplyLayout` 在 `if (document.Find("bottom_palette") is { } palette)` 分支内**无条件**依次调用 `host.ApplyLayout(palette)` 与 `host.SetCollapsed(palette.Collapsed ?? false)`（`DockLayout.cs:624-628`），而新版 `SetCollapsed` 无早退、必执行 `toolSection.Visible = true;` → 启动还原路径上自愈**必然**执行；若布局文档根本没有 `bottom_palette` 条目，则 section 由 `EnsureDefaultRows` 建出、默认 `Visible = true`，同样不会零入口。Cost if wrong：手改 YAML 把 `tool_strip` 设为 `visible: false` 且布局文档缺 `bottom_palette` 条目的极端组合下仍需手动改回——但那需要删掉布局文件的容器条目，属自造。
+- **R53 — re-review 未独立复现的三项门由控制器在最终 HEAD 独立复跑补齐。** HEAD `9da1d42`：构建 `dotnet build WorldView.sln -c Debug -m:1 --no-incremental` = **0 error / 185 warnings**；全量裸 exe = **377 总 / 失败 7 / 成功 370 / 跳过 0 / exit 2**；四个新测试类逐个 `--filter-class` = `ToolPaletteSectionTests` 7/7、`BottomToolsZoneDefaultsTests` 7/7、`ToolZoneMigrationTests` 4/4、`BottomPaletteCollapsedTests` 8/8，**全部 exit 0（共 26 个 Fact）**；Godot console `--headless --editor --quit-after 600` = **exit 0**，`Parse Error`/`SCRIPT ERROR` 命中 **0**；5 个新 `.uid` 全部 `git ls-files` 命中。（`5/5 变异实验` 未由控制器复跑——它由 fix wave 实现者执行并逐字节还原，re-review 已用「两个定向类逐条跑通 + CS2002=138 独立佐证」交叉验证。）
