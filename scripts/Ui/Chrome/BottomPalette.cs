@@ -16,7 +16,8 @@ namespace WorldView.Ui.Chrome;
 /// 否则折叠时播放条会与容器错位（tasks.md T11）。</para>
 ///
 /// <para>展开 200px ↔ 折叠 40px（spec §2：折叠后画布占比 93.3%）。
-/// 折叠时整行（含 timeline_row）一起收起，由本容器统一驱动。</para>
+/// 折叠态（spec §4 C3 = K1）不是整体收起，而是只收起 <c>timeline_row</c> / <c>build_row</c>，
+/// 由常驻的 <c>tool_row</c> 显示 <see cref="ToolStrip"/> 紧凑变体（工具切换图标 + 坐标）。</para>
 /// </summary>
 public partial class BottomPalette : Control, IPaletteHost
 {
@@ -40,7 +41,6 @@ public partial class BottomPalette : Control, IPaletteHost
     private Panel? _background;
     private VBoxContainer? _rows;
     private JrpgButton? _collapseButton;
-    private HBoxContainer? _collapsedBar;
     private bool _defaultsBuilt;
     private bool _collapsed;
     private int _expandedHeight = ExpandedHeight;
@@ -99,33 +99,6 @@ public partial class BottomPalette : Control, IPaletteHost
         _collapseButton.OffsetTop = 2f;
         _collapseButton.OffsetBottom = 22f;
         _collapseButton.Pressed += () => SetCollapsed(!_collapsed);
-
-        _collapsedBar = new HBoxContainer { Name = "CollapsedBar", Visible = false };
-        _collapsedBar.AddThemeConstantOverride("separation", 8);
-        AddChild(_collapsedBar);
-        _collapsedBar.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _collapsedBar.OffsetLeft = 10f;
-        _collapsedBar.OffsetRight = -30f;
-        _collapsedBar.OffsetTop = 8f;
-        _collapsedBar.OffsetBottom = -8f;
-
-        var collapsedHint = new Label
-        {
-            Text = "面板已折叠",
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        collapsedHint.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
-        collapsedHint.AddThemeFontSizeOverride("font_size", 11);
-        _collapsedBar.AddChild(collapsedHint);
-
-        var expandHint = new Label
-        {
-            Text = "Ctrl+B 展开 · T 播放条 · M 小地图",
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        expandHint.AddThemeColorOverride("font_color", WorldView.Ui.Theme.Palette.Color.JrpgTextPlaceholder);
-        expandHint.AddThemeFontSizeOverride("font_size", 11);
-        _collapsedBar.AddChild(expandHint);
     }
 
     // ------------------------------------------------------------------ 默认三行
@@ -155,7 +128,7 @@ public partial class BottomPalette : Control, IPaletteHost
         timelineRow.AddSection(CreateSection("timeline", "时间轴", PaletteSection.SectionSizeMode.Flex, 1, false, "TimelineStrip"));
         buildRow.AddSection(CreateSection("minimap", "小地图", PaletteSection.SectionSizeMode.Fixed, 1, true, "MinimapSection"));
         buildRow.AddSection(CreateSection(ToolsSectionId, "工具", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolPaletteSection"));
-        toolRow.AddSection(CreateSection("tool_strip", "工具栏", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolStrip"));
+        toolRow.AddSection(CreateSection(ToolStripSectionId, "工具栏", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolStrip"));
     }
 
     private PaletteRow CreateRow(string rowId, bool fullWidth, int height, int flex, int order, bool timelineOnly = false)
@@ -282,19 +255,43 @@ public partial class BottomPalette : Control, IPaletteHost
         MarkLayoutChanged();
     }
 
-    /// <summary>切换折叠态（200 ↔ 40）。</summary>
+    /// <summary>
+    /// 切换折叠态（展开 200px ↔ 折叠 40px）。
+    ///
+    /// <para>K1（spec §4）：折叠态 = <see cref="ToolStrip"/> 紧凑常驻变体。
+    /// 折叠时<b>不</b>整体收起 <c>Rows</c>，而是只收起 <c>timeline_row</c> 与 <c>build_row</c>，
+    /// 保留 <c>tool_row</c> 常驻并让 <see cref="ToolStrip"/> 切到紧凑变体（工具切换图标 + 坐标）；
+    /// 这样折叠后仍有工具入口，避免「属性面板默认隐藏 + 底部折叠 = 零入口」。</para>
+    /// </summary>
     public void SetCollapsed(bool collapsed)
     {
         _collapsed = collapsed;
 
-        if (_rows is not null)
+        if (RowOf(TimelineRowId) is { } timelineRow)
         {
-            _rows.Visible = !collapsed;
+            timelineRow.Visible = !collapsed;
         }
 
-        if (_collapsedBar is not null)
+        if (RowOf(BuildRowId) is { } buildRow)
         {
-            _collapsedBar.Visible = collapsed;
+            buildRow.Visible = !collapsed;
+        }
+
+        if (RowOf(ToolRowId) is { } toolRow)
+        {
+            toolRow.Visible = true;
+        }
+
+        if (SectionOf(ToolStripSectionId)?.Content is ToolStrip toolStrip)
+        {
+            toolStrip.SetCollapsedMode(collapsed);
+        }
+
+        if (_rows is not null)
+        {
+            // 折叠态 Rows 高 40px 而 tool_row 只占 20px：上下各留 10px 让它纵向居中。
+            _rows.OffsetTop = collapsed ? 10f : 0f;
+            _rows.OffsetBottom = collapsed ? -10f : 0f;
         }
 
         if (_collapseButton is not null)
@@ -361,7 +358,9 @@ public partial class BottomPalette : Control, IPaletteHost
             rowState.Order = rowIndex++;
             rowState.Layout = row.FullWidth ? "full_width" : "horizontal";
             rowState.Flex = row.FullWidth ? null : row.FlexWeight;
-            rowState.Visible = row.Visible;
+            // 折叠态下 timeline_row / build_row 被 SetCollapsed 临时隐藏，这不是用户意图，
+            // 绝不能落盘（同 2026-10-10 F11 全屏事故）。折叠时一律记 true。
+            rowState.Visible = _collapsed ? true : row.Visible;
             if (row.FullWidth)
             {
                 rowState.Height = row.BaseHeight;
