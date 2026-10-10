@@ -62,7 +62,7 @@
 | G5 | 拖建筑图标到地图 → 在落点放置 | 单元 + 集成 |
 | G6 | 关闭 / 重启 → 上次布局恢复 | 退出 → 启动比对 |
 | G7 | F11 → 全屏地图模式（隐藏所有面板） | 手动验证 |
-| G8 | `BottomPalette` 可折叠成 40px 图标条 | 手动验证 |
+| G8 | `BottomPalette` 可折叠成 40px 紧凑工具行（`ToolStrip` 紧凑常驻变体） | 手动验证 |
 | G9 | 编辑器核心（笔刷 / 撤销 / 切换工具 / 保存 / 时间）功能不变 | 既有 D1–D8 demo 仍通过 |
 | G10 | 小地图显示全图 + 点击跳转 + 视口框实时同步 | 手动验证 + 截图 |
 | G11 | 编辑地形后小地图 ≤ 200ms 内刷新 | 计时 |
@@ -126,7 +126,7 @@
 BottomPalette (dock_container, edge=bottom)
 ├─ row 0  timeline_row    layout=full_width  28px   ← 事件播放条
 ├─ row 1  build_row       layout=horizontal  flex   ← [minimap | tools（工具方块区）]
-└─ row 2  tool_row        layout=full_width  20px   ← 工具 / 笔刷 / 地形 / 撤销
+└─ row 2  tool_row        layout=full_width  20px   ← 工具 / 笔刷 / 撤销
 ```
 
 - `row`：纵向堆叠单元，`layout` 为 `full_width`（独占一行）或 `horizontal`（行内并排 section）
