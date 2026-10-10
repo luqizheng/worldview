@@ -62,7 +62,7 @@ git tag --list "backup/*"
 dotnet build WorldView.sln -c Debug --no-incremental 2>&1 | Select-String -Pattern "Warning|Error|警告|错误" | Select-Object -Last 8
 ```
 
-期望：0 error / 184 warnings。**数值记进执行日志**；若与基线不符，先停下来报告，不要继续。
+期望：0 error / 48 warnings。**数值记进执行日志**；若与基线不符，先停下来报告，不要继续。
 
 - [ ] **Step 3: 记录测试基线（B2 / B3）**
 
