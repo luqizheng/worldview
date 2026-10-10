@@ -131,10 +131,29 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 | 测试 | **375 总 / 稳定失败 7（与基线同名，未变）/ 368 成功 / exit 2（预期）** |
 | 新增测试 | **24 个新 Fact 全绿**：`ToolPaletteSectionTests` 7/7、`BottomToolsZoneDefaultsTests` 7/7、`ToolZoneMigrationTests` 4/4、`BottomPaletteCollapsedTests` 6/6（逐个 `--filter-class` 跑，均 exit 0） |
 | 无头校验 | 见 R25：`--check-only` 沙箱漂移为 EXIT=-1；改用 console `--headless --editor --quit-after 600` = **EXIT 0**，且输出中无 `Parse Error` / `SCRIPT ERROR` / 目标文件命中 |
-| `.uid` | 4 个新 `.uid` 全部由 console Godot 生成并入库（`ToolPaletteSection.cs.uid`、`ToolPaletteSectionTests.cs.uid`、`ToolZoneMigrationTests.cs.uid`、`BottomPaletteCollapsedTests.cs.uid`） |
+| `.uid` | **5 个**新 `.uid` 全部由 console Godot 生成并入库：`scripts/Ui/Chrome/ToolPaletteSection.cs.uid`、`tests/WorldView.Tests/Ui/Chrome/ToolPaletteSectionTests.cs.uid`、`BottomToolsZoneDefaultsTests.cs.uid`、`ToolZoneMigrationTests.cs.uid`、`BottomPaletteCollapsedTests.cs.uid` |
 | 工作区 | `git status --short` 除台账 `progress.md` 外干净 |
 
 > **R37 — 上表由控制器在 HEAD `a114d1f` 独立复跑取得**（不依赖各实现者报告）：日志见本次会话的 `pwsh-444` 作业输出。四类新测试逐个用 `--filter-class` 单跑确认全绿。
+
+### 最终全分支评审（`ab59aab8`，range `7af25a9..d9d1f2d`）
+
+**Verdict：Ready to merge: With fixes** —— **0 Critical** / 3 Important / 7 Minor / 17 条 `minor (deferred)` triage（其中 1 条判 must-fix）。交付包 `review-final-7af25a9..d9d1f2d.diff`。
+
+- **R38 — 并入唯一一次 fix wave 的 7 项（W1–W7）**，派给新实现者 `5d8ce409`（BASE `2fbcd57`）：
+  - **W1 = triage #11（must-fix）**：`AGENTS.md` §6.2 与 `docs/acceptance/baseline_v0.1.md` 的 B1 由 **184 重设为 185**（CS2002 137→138 + 其余 47），并给基线文档追加变更记录行。理由：本分支合法 +1（A1 新增 `scripts/Ui/Chrome/ToolPaletteSection.cs` 触发 `WorldView.csproj` 重复 glob），而这两处自称「一切基线数字以此为准」，下一任务的「警告不得超基线」判据会误判。
+  - **W2 = Important #2**：`tests/WorldView.Tests/Ui/Chrome/ToolPaletteSectionTests.cs:50-55` 的互斥护栏只断言两串存在（写错配对或挪进死代码仍绿），改为**位置耦合**（切出 `SelectGroup` 方法体后同时断言 `isTerrain` 与 `!isTerrain` 两行），与 R17 手法一致。这是计划 Review Focus 第 3 条点名的风险。
+  - **W3 = Important #3**：折叠行可能变空——`tool_strip` section 的 × 可关（`DockPanel.Closable = true`）且其可见性会落盘（`BottomPalette.cs:396`），误关后 Ctrl+B 只剩 `│` 与 ▴，正是 K1 要消灭的「零入口」。修法：`CreateSection` 增可选 `bool closable = true`，`tool_strip` 传 `false`；`SetCollapsed` 内**无条件**把常驻 section 恢复 `Visible = true`（自愈手改/旧布局）。并补两条护栏测试。
+  - **W4 = Minor 2**：`ToolPaletteSection._Ready()` 首行补 `base._Ready()`（`ToolStrip`/`BuildPaletteSection` 都调了；现在无害，基类将来长出初始化会静默失灵）。
+  - **W5 = Minor 6**：`docs/主界面布局规格_v0.1.md:341`（§2 row2）的「比例尺」→「校验」——§4 `:390` 与实现（`ToolStrip.cs` 只有校验标签、全仓无比例尺）都是校验，**属规格内部缺陷而非实现偏差**。
+  - **W6 = Minor 5**：`docs/主界面布局规格_v0.1.md:418` 的将来时改为完成时（`:401` 已改，同行自相矛盾）。
+  - **W7 = R-6 文档 pass（三处）**：`scripts/Ui/Dock/Leaf/PanelDragData.cs:15` 示例 `build_palette` → `tools`；`.trae/specs/ui-redesign-simgame/spec.md:117`（§3.1 线框 row2 里的 `Terrain:Grass ▼`）与 `:587`（`ToolStrip.cs` 承载清单里的「地形」）。**改 `spec.md` 后必须复查首三字节 `EF BB BF` 且无 `spec.md:1` hunk（R32）。**
+- **R39 — Important #1（全屏期间任何标脏都会把 `bottom_palette: visible: false` 落盘）判为「真实但分支前既存」，按技能 breaker「Real, but nothing downstream builds on it」park，并作为独立工作项上报用户。** 依据：评审已核基线 `7af25a9` 的 `CaptureLayout` 同样无守卫（本分支既未引入也未加重，A4 只修了行级那一半）；`DockLayout` 属 spec §0.1 明令不动的机制性代码；触发需用户在 F11 期间做标脏动作。**不在本计划改**。Cost if wrong：F11 期间按 Ctrl+B 或 `M` 会把 `bottom_palette: visible: false` 落盘，下次启动整个底部工具区不可见、只能改/删布局 YAML 恢复——这是既有缺陷，已明确上报并建议登记《长期执行计划》§6。
+- **R40 — Minor 1（升级首启丢建筑面板记忆：旧文件的 `build_palette` 整节被 `continue` 跳过，面板复位为 residences/56/4）park。** 观感级、下次保存自愈，评审亦判其修法「cheap」而非必须。Cost if wrong：升级后首启建筑面板回到默认分类与格尺寸。
+- **R41 — Minor 3/4（`SetProcess(true)` 冗余 + 每帧轮询 `PaintTerrain` 永不停止；`SetCollapsed` 在启动路径被调两次）park。** 幂等无害、与迁移前 `ToolStrip` 同范式，属清理类；本 wave 不再扩大。Cost if wrong：多一次调用与一点每帧开销。
+- **R42 — `PaletteSection.Closable` 平台策略裁定：机制代码不改（§0.1），本 wave 只把常驻工具 section 设为不可关闭并在折叠时自愈。** 「平台内没有重新打开已关闭 section 的入口」作为后续建议上报（评审 R-5：至少加一个「视图」菜单入口），不在本计划修。Cost if wrong：用户仍可能关掉 minimap 等其它 section 而无法在平台内恢复（既有行为）。
+- **R43 — 不采纳评审 R-6 的「给旧 `ui-redesign` spec 盖『已被取代』横幅」。** `docs/主界面布局规格_v0.1.md` 头部自述其定位是旧 spec v0.2 的**增量修订稿**（明确「不是独立新稿…不推翻已落地的架构与代码」），加横幅会把二者关系写错。Cost if wrong：读者仍可能把旧 spec 当唯一真相，但新文档头部已说明关系。
+- **台账数字订正**：评审指出收尾段曾写「3 个新 `.uid`」却列出 4 个、实际 diff 有 5 个（含 `BottomToolsZoneDefaultsTests.cs.uid`）——控制器直接改对（同 R19 手法）。
 
 ## Ledger
 
