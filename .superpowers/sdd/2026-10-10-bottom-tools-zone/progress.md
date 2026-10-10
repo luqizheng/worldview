@@ -74,6 +74,9 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
   提交信息：`docs: 工具方块区措辞收尾（G8/tool_row/折叠分支指向 + 实现提示时态）（A5 fix 1）`。改带 BOM 的 `spec.md` 后必须复查首三字节 `EF BB BF` 且无 `spec.md:1` hunk（R32）。Cost if wrong：四处旧措辞留存，读者需自行判断。
 - **R32 — BOM 教训（本仓 `edit` 工具会静默剥离文件 UTF-8 BOM）。** `.trae/specs/ui-redesign-simgame/spec.md` 带 BOM（首三字节 `EF BB BF`）；A5 首次编辑因此多出 `spec.md:1` 越界 hunk（`--stat` 曾读作 `8 ++++----`），实现者读全量 diff 时发现并逐字节写回修复（44608 → 44611 字节），提交前已复原（控制器复核提交后文件首三字节 = 239,187,191）。**规则：任何编辑带 BOM 的文件之后，必须复查首个 hunk 与首三字节。** Cost if wrong：BOM 被无声删除、diff 多出无关行、破坏该文件既有 BOM 约定。**A5 fix round 1 再次复现同一现象**（编辑工具又把 `spec.md` 剥成 44641 B / `35,32,85`），实现者再次逐字节写回 44644 B / `239,187,191`，提交后控制器复核首三字节 = 239,187,191、全部 hunk 无 `:1`。规则得到第二次验证。
 - **R33 — `spec.md:636` 的 DoD 行确认保持不改。** 复核 R30 的裁定：该行只含「手动验证（G8 / G13）」与「折叠态画布 ≥ 90%」，不含任何与 K1 冲突的措辞；K1 折叠仍 40px（`spec.md:58`/`:77` 给出 1008/1080 = 93.3% ≥ 90%），G13「播放条与折叠状态始终同步」在 `timeline_row` 与 `build_row` 一同收起后依然成立。A5 评审也判该决定「正确而非回避」。Cost if wrong：无（无冲突可不改）。
+- **R34 — 最终全分支评审首次派单 `cbcbec21` 完成前失败且无报告 → 按技能「chase any that finished without reporting」，重派 `ab59aab8`（同 range/包/台账要求）。** 与 R27 同类（task A4 评审首次派单也失败过），疑为本环境 subagent 偶发失败。Cost if wrong：多一次评审开销。
+- **R35 — 台账入库与评审 range 的差异说明。** R22 的台账提交 `a114d1f` 落在评审 HEAD `d9d1f2d` 之后，只新增 `.superpowers/sdd/2026-10-10-bottom-tools-zone/` 下的 `progress.md` + 5 份 `task-A*-report.md`（AGENTS.md 白名单项），**不含任何代码/文档改动**，故最终评审的 range `7af25a9..d9d1f2d` 仍覆盖全部产品改动；评审要求「读台账」走工作区文件，不受 range 影响。Cost if wrong：无。
+- **R36 — A5 scoped re-review 的 3 条 out-of-scope 观察按技能规定**不**延长 fix 循环，全部登记为 deferred minor 交最终评审 triage**（`spec.md:587` 仍把「地形」列在 `ToolStrip.cs` 的承载清单里、`spec.md:117` 的 §3.1 线框仍画 `Terrain:Grass ▼` 在 row 2、`docs/主界面布局规格_v0.1.md:418` 仍用将来时描述折叠分支改动）。理由：技能明确「Out-of-scope observations go to the ledger as deferred minors — they never extend the loop」；且这三处都是**A1–A4 之前就存在**的陈旧表述，不是 A5 编辑引入的（与 `:129` 不同——那处就在被改 hunk 的上下文里）。若最终评审判其 load-bearing，则并入最终评审后的**唯一一次** fix wave。Cost if wrong：三处旧措辞留存到下一轮文档整理。
 
 
 ### 基线（2026-10-10 实测）
@@ -126,8 +129,12 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 | --- | --- |
 | 构建 | `dotnet build WorldView.sln -c Debug -m:1 --no-incremental` = **0 error / 185 warnings**（基线 184 + A1 新增脚本的 CS2002 一条，见 R12） |
 | 测试 | **375 总 / 稳定失败 7（与基线同名，未变）/ 368 成功 / exit 2（预期）** |
-| 无头校验 | 见 R25：`--check-only` 沙箱漂移为 EXIT=-1；改用 console `--headless --editor --quit-after 600` = EXIT 0 |
-| `.uid` | 3 个新 `.uid` 全部由 console Godot 生成并入库（`ToolPaletteSection.cs.uid`、`ToolPaletteSectionTests.cs.uid`、`ToolZoneMigrationTests.cs.uid`、`BottomPaletteCollapsedTests.cs.uid` 共 4 个） |
+| 新增测试 | **24 个新 Fact 全绿**：`ToolPaletteSectionTests` 7/7、`BottomToolsZoneDefaultsTests` 7/7、`ToolZoneMigrationTests` 4/4、`BottomPaletteCollapsedTests` 6/6（逐个 `--filter-class` 跑，均 exit 0） |
+| 无头校验 | 见 R25：`--check-only` 沙箱漂移为 EXIT=-1；改用 console `--headless --editor --quit-after 600` = **EXIT 0**，且输出中无 `Parse Error` / `SCRIPT ERROR` / 目标文件命中 |
+| `.uid` | 4 个新 `.uid` 全部由 console Godot 生成并入库（`ToolPaletteSection.cs.uid`、`ToolPaletteSectionTests.cs.uid`、`ToolZoneMigrationTests.cs.uid`、`BottomPaletteCollapsedTests.cs.uid`） |
+| 工作区 | `git status --short` 除台账 `progress.md` 外干净 |
+
+> **R37 — 上表由控制器在 HEAD `a114d1f` 独立复跑取得**（不依赖各实现者报告）：日志见本次会话的 `pwsh-444` 作业输出。四类新测试逐个用 `--filter-class` 单跑确认全绿。
 
 ## Ledger
 
@@ -176,3 +183,6 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 - `Task A4: minor (deferred): plan-mandated — `BottomPaletteCollapsedTests.cs:32` 起 6 个 Fact 全为 `File.ReadAllText` + 字符串断言，没有任何测试真正执行 `SetCollapsed` / `CaptureLayout`，故 brief 自称的「真正的陷阱」（折叠 → flush → 重载）只被字符串存在性守着。` 裁定 R3 接受；若要真覆盖，需用 fake host 做 `CaptureLayout`/`ApplyRowStates` 往返测试。
 - `Task A4: minor (deferred): `BottomPalette.cs:363` 折叠时对**每一行**写 `visible: true`，且 `SetCollapsed` 每次 `ApplyLayout` 都强制三行可见（`:270-283`），因此手工改过 YAML 的行级 `visible: false` 会被抹掉（A4 之前只切 `_rows.Visible`，行级值会保留）。` 裁定 R28 保留现状；仅影响手改 YAML。
 - `Task A4: minor (deferred): `BottomPaletteCollapsedTests.cs:59-62` 的精确源码断言会在 `dotnet format` / 重命名后变成假失败（全仓护栏共性）。`
+- `Task A5: minor (deferred): `spec.md:587` 仍以「工具 / 笔刷 / 地形 / 撤销（进 `tool_row`）」描述 `ToolStrip.cs`，与已修正的 `spec.md:129` 矛盾（A1–A4 之前即存在的陈旧表述，非 A5 编辑引入）。`
+- `Task A5: minor (deferred): `spec.md:117` 的 §3.1 线框仍在 row 2 的 `ToolStrip` 里画 `Terrain:Grass ▼`，与 `docs/主界面布局规格_v0.1.md:402`「`ToolStrip` 只留笔刷半径 / 坐标 / 状态 / 校验」矛盾。`
+- `Task A5: minor (deferred): `docs/主界面布局规格_v0.1.md:418` 仍用将来时描述折叠分支改动（「折叠态渲染分支由**当前的两行文本提示**改为**紧凑工具行**」），A1–A4 已落地。`
