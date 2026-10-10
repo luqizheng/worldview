@@ -23,7 +23,7 @@
 - 测试：直接裸跑 `tests/WorldView.Tests/bin/Debug/net8.0/WorldView.Tests.exe`（退出码 0 = 全绿）——**不要用 `dotnet test`**（MTP + xunit.v3，`OutputType=Exe`）。
 - 无头校验：`& "C:\App\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe" --headless --path <repo> --check-only --quit-after 120`（**必须带 `--quit-after`**，`autoload/mcp_interaction_server.gd` 是常驻 TCP 服务）。
 - UI 测试是**源码 / 场景文本护栏**：`File.ReadAllText` 读 `scripts/**/*.cs` 或 `scenes/*.tscn` 后断言子串，**不实例化 Godot 节点**（测试进程没有 Godot 运行时）。
-- 验收基线（`docs/acceptance/baseline_v0.1.md`，P0-C2 done）：B1 = 0 error / 184 warnings（必须 `--no-incremental` 全量口径）；B2 = 351 总 / 343 成功 / 稳定失败 7 / flaky 1~4；B3 = 退出码 0。
+- 验收基线（`docs/acceptance/baseline_v0.1.md`，P0-C2 done）：B1 = 0 error / 48 warnings（必须 `--no-incremental` 全量口径；2026-10-10 重复 glob 修复后重设）；B2 = 351 总 / 343 成功 / 稳定失败 7 / flaky 1~4；B3 = 退出码 0。
 
 ## Review Focus
 

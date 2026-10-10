@@ -15,23 +15,23 @@
 dotnet build D:\kudi-project\world-view\WorldView.sln -c Debug --no-incremental
 ```
 
-> **`--no-incremental` 是强制项**（Ruling R5）。增量构建只报被重编项目的警告：同一棵树增量得 **19** 条、全量得 **185** 条，相差 10 倍，不可比。任何「警告数不高于基线」的判据都必须基于全量口径。
+> **`--no-incremental` 是强制项**（Ruling R5）。增量构建只报被重编项目的警告，数量随「哪些项目恰好被重编」浮动，与全量口径不可比（同一棵树可差一个量级）。任何「警告数不高于基线」的判据都必须基于全量口径。
 
 ### 结果（2026-10-10 采集）
 
 | 项 | 值 |
 | --- | --- |
 | **error** | **0** |
-| **warning（基线值）** | **185** |
+| **warning（基线值）** | **48** |
 | 构建耗时 | 约 1 分钟（全量） |
 
 ### 警告构成
 
-185 = **138（CS2002）** + **47（其余 11 类）**
+48 = **1（CS2002）** + **47（其余 11 类）**
 
 | 警告码 | 条数 | 含义 | 归属 | 处置 |
 | --- | --- | --- | --- | --- |
-| **CS2002** | **138** | 源文件指定多次（`WorldView.csproj` 重复编译项） | 配置缺陷 | 已登记《长期执行计划》§6.3，待后续工作项清理（预计可降至 47） |
+| **CS2002** | **1** | 源文件指定多次（`scripts/Ui/Theme/Palette.cs` 同时被 `scripts/**/*.cs` 与显式 Include 项收录） | 配置缺陷（主因已修） | 2026-10-10：删掉 `WorldView.csproj` 的两条反斜杠重复 include，**138 → 1**；余 1 条恒定，不随脚本数增长 |
 | xUnit1051 | 18 | 未使用 `TestContext.Current.CancellationToken` | `WorldView.Tests` | 未排期 |
 | CS0108 | 14 | 成员隐藏继承成员（缺 `new`） | `WorldView` | 未排期 |
 | RS2008 | 7 | 分析器规则缺 release tracking | `scripts/Generator` | 未排期 |
@@ -149,3 +149,4 @@ git status --short
 | 2026-10-10 | 首版：`P0-C2` 采集并落盘。B1 = 0 error / 184 warnings（全量）；B2 = 351 总 / 343 成功 / 稳定失败 7 / flaky 1~4；B3 退出码 0；确立 B1 全量口径（Ruling R5）与「失败 = 稳定 7 + flaky」表述（Ruling R6）。 |
 
 - 2026-10-10：B1 由 184 重设为 **185**（底部工具区重构新增 `scripts/Ui/Chrome/ToolPaletteSection.cs`，`WorldView.csproj` 重复 glob 导致每新增 `scripts/**/*.cs` 恰 +1 CS2002；见 `.superpowers/sdd/2026-10-10-bottom-tools-zone/progress.md` R12）。
+- 2026-10-10（追加修复）：B1 由 **185** 重设为 **48**（= CS2002 ×1 + 其余 11 类 ×47）。根因：`WorldView.csproj` 用 `scripts\**\*.cs` 与 `scripts\Ui\Theme\Palette.cs` 把同一批源文件重复 include，于是每新增一个 `scripts/**/*.cs` 恰 +1 CS2002；删掉这两条反斜杠重复项后 CS2002 **138 → 1**（余 1 条来自 `scripts/Ui/Theme/Palette.cs` 被 `scripts/**/*.cs` 与显式 Include 同时收录，恒定）。采集命令 `dotnet build WorldView.sln -c Debug -m:1 --no-incremental`：冷树实测 **48 个警告 / 0 个错误**（exit 0）；`WorldView.Generator` 已是最新时同命令只重报 40（少 CS0219 ×1 + RS2008 ×7，两者都属该生成器项目），门是「不高于」，故基线取完整值 48。
