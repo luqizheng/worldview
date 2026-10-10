@@ -125,7 +125,7 @@
 ```
 BottomPalette (dock_container, edge=bottom)
 ├─ row 0  timeline_row    layout=full_width  28px   ← 事件播放条
-├─ row 1  build_row       layout=horizontal  flex   ← [minimap | build_palette]
+├─ row 1  build_row       layout=horizontal  flex   ← [minimap | tools（工具方块区）]
 └─ row 2  tool_row        layout=full_width  20px   ← 工具 / 笔刷 / 地形 / 撤销
 ```
 
@@ -629,8 +629,8 @@ world-view/
 
 ### T8 — BottomPalette 折叠
 
-- [ ] `BottomPalette` 展开 200px ↔ 折叠 40px（折叠后只露一行图标）
-- [ ] **折叠时 `timeline_row` 一起收起**，不出现「palette 收了但播放条还在」的错位（G13）
+- [ ] 折叠态（40px）= `ToolStrip` 紧凑常驻变体：`timeline_row` 与 `build_row`（小地图 + 工具方块区）收起，`tool_row` 常驻，其中 `ToolStrip` 只保留工具切换图标与坐标；展开恢复全部。
+- [ ] 折叠态下行的 `visible` 不落盘。
 - [ ] 折叠 / 展开按钮在 palette 右上角；快捷键 `Ctrl+B`
 
 **DoD**：手动验证（G8 / G13）。折叠态画布 ≥ 90%。
