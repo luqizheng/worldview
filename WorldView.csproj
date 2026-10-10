@@ -23,13 +23,11 @@
 
   <ItemGroup>
     <Compile Include="scripts/**/*.cs" />
-    <Compile Include="scripts\**\*.cs" />
     <!--
       显式列出 Theme/Palette.cs:MSBuild glob 在某些环境下不匹配该文件。
       它的存在对 Generator 至关重要,不能丢。
     -->
     <Compile Include="scripts/Ui/Theme/Palette.cs" />
-    <Compile Include="scripts\Ui\Theme\Palette.cs" />
     <!--
       scripts/Generator 是源生成器项目,只由独立 csproj 编译并通过 ProjectReference
       OutputItemType=Analyzer 引入分析器。绝不能让主项目直接编译它(否则 Generator.dll
