@@ -10,8 +10,9 @@ namespace WorldView.Ui.Chrome;
 /// <summary>
 /// 工具条（spec §3.1 row 2 / tasks.md T3 + T11 + T9）：BottomPalette 的 <c>row 2</c>，高 20px。
 ///
-/// <para>承载原来散落在 TopStrip / 状态栏的信息：工具（V / B / P）、笔刷半径、地形、
-/// 撤销 / 重做、鼠标格坐标、状态提示、校验结果。</para>
+/// <para>承载原来散落在 TopStrip / 状态栏的信息：工具（V / B / P）、笔刷半径、
+/// 撤销 / 重做、鼠标格坐标、状态提示、校验结果。地形色块已迁入工具方块区
+/// （<see cref="ToolPaletteSection"/>），本类不再承载。</para>
 ///
 /// <para><b>只有 3 个工具按钮</b>：<see cref="ToolState"/> 只有 <c>Selected / Brush / Building</c>
 /// 三个值，spec §3.1 图里的第 4 个 <c>E</c> 在 MVP 枚举中不存在，不得新造枚举值。</para>
@@ -19,8 +20,6 @@ namespace WorldView.Ui.Chrome;
 public partial class ToolStrip : PaletteContent
 {
     private readonly Dictionary<ToolState, Button> _toolButtons = new();
-
-    private readonly List<TerrainSwatch> _terrainSwatches = new();
 
     private HBoxContainer? _bar;
     private SpinBox? _radiusSpin;
@@ -33,6 +32,10 @@ public partial class ToolStrip : PaletteContent
     private Label? _statusLabel;
     private Label? _validationLabel;
 
+    private HBoxContainer? _brushGroup;
+    private HBoxContainer? _historyGroup;
+    private HBoxContainer? _stateGroup;
+
     private EditorContext? _context;
     private bool _bound;
     private bool _syncing;
@@ -40,9 +43,6 @@ public partial class ToolStrip : PaletteContent
     private bool? _lastCanUndo;
     private bool? _lastCanRedo;
     private string? _lastActiveMapId;
-
-    /// <summary>地形取值顺序（与 <see cref="TerrainSwatch"/> 的色块条一致）。</summary>
-    private static readonly TerrainType[] TerrainOrder = (TerrainType[])Enum.GetValues(typeof(TerrainType));
 
     public override void _Ready()
     {
@@ -54,6 +54,28 @@ public partial class ToolStrip : PaletteContent
 
         BuildUi();
         SetProcess(true);
+    }
+
+    /// <summary>
+    /// 折叠态紧凑变体（spec §4 折叠态 C3 = K1）：只保留工具切换三键与坐标，
+    /// 隐藏笔刷半径、撤销 / 重做、状态与校验。展开态恢复全部。
+    /// </summary>
+    public void SetCollapsedMode(bool collapsed)
+    {
+        if (_brushGroup is not null)
+        {
+            _brushGroup.Visible = !collapsed;
+        }
+
+        if (_historyGroup is not null)
+        {
+            _historyGroup.Visible = !collapsed;
+        }
+
+        if (_stateGroup is not null)
+        {
+            _stateGroup.Visible = !collapsed;
+        }
     }
 
     // ------------------------------------------------------------------ 构建
@@ -74,9 +96,18 @@ public partial class ToolStrip : PaletteContent
         AddToolButton(group, "B", ToolState.Brush, "地形笔刷 (B)");
         AddToolButton(group, "P", ToolState.Building, "放置建筑 (P)");
 
-        AddSeparator();
+        // 三个分组容器（spec §4 折叠态 K1）：折叠时整组隐藏，展开时恢复全部。
+        // 垂直用 ShrinkCenter 与原先单个控件的取值一致，保证 row 仍按 20px 布局。
+        _brushGroup = new HBoxContainer
+        {
+            Name = "BrushGroup",
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        _brushGroup.AddThemeConstantOverride("separation", 6);
+        _bar.AddChild(_brushGroup);
 
-        _bar.AddChild(MakeCaption("笔刷"));
+        _brushGroup.AddChild(NewSeparator());
+        _brushGroup.AddChild(MakeCaption("笔刷"));
         _radiusSpin = new SpinBox
         {
             MinValue = 0.1,
@@ -89,15 +120,15 @@ public partial class ToolStrip : PaletteContent
         // SpinBox 继承 Range（非 Control），没有 TooltipText —— 提示挂到它内部的 LineEdit 上。
         _radiusSpin.Ready += OnRadiusSpinReady;
         _radiusSpin.ValueChanged += OnRadiusChanged;
-        _bar.AddChild(_radiusSpin);
+        _brushGroup.AddChild(_radiusSpin);
 
         _radiusUnit = MakeCaption("格");
-        _bar.AddChild(_radiusUnit);
+        _brushGroup.AddChild(_radiusUnit);
 
         _radiusValue = MakeCaption("= 1 格");
         _radiusValue.CustomMinimumSize = new Vector2(52f, 0f);
         _radiusValue.TooltipText = "按当前地图的单格距离换算后实际生效的格半径（上限 64 格）";
-        _bar.AddChild(_radiusValue);
+        _brushGroup.AddChild(_radiusValue);
 
         _refineCheck = new CheckButton
         {
@@ -109,54 +140,51 @@ public partial class ToolStrip : PaletteContent
         _refineCheck.AddThemeFontSizeOverride("font_size", 10);
         ApplyCompactStyle(_refineCheck, flat: true);
         _refineCheck.Toggled += OnRefineToggled;
-        _bar.AddChild(_refineCheck);
+        _brushGroup.AddChild(_refineCheck);
 
-        AddSeparator();
-
-        _bar.AddChild(MakeCaption("地形"));
-        var terrainStrip = new HBoxContainer
+        _historyGroup = new HBoxContainer
         {
-            Name = "TerrainStrip",
+            Name = "HistoryGroup",
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
-        terrainStrip.AddThemeConstantOverride("separation", 2);
-        _bar.AddChild(terrainStrip);
+        _historyGroup.AddThemeConstantOverride("separation", 6);
+        _bar.AddChild(_historyGroup);
 
-        foreach (var terrain in TerrainOrder)
-        {
-            var swatch = new TerrainSwatch { Name = "Swatch" + terrain, TerrainType = terrain };
-            var captured = terrain;
-            // 色块既能拖到画布（§4.2），也能单击选为当前笔刷地形。
-            swatch.Pressed += () => OnSwatchPressed(captured);
-            terrainStrip.AddChild(swatch);
-            _terrainSwatches.Add(swatch);
-        }
-
-        AddSeparator();
+        _historyGroup.AddChild(NewSeparator());
 
         _undoButton = MakeIconButton("⟲", "撤销 (Ctrl+Z)", () => _context?.UndoStack.Undo());
-        _bar.AddChild(_undoButton);
+        _historyGroup.AddChild(_undoButton);
 
         _redoButton = MakeIconButton("⟳", "重做 (Ctrl+Shift+Z)", () => _context?.UndoStack.Redo());
-        _bar.AddChild(_redoButton);
+        _historyGroup.AddChild(_redoButton);
 
-        AddSeparator();
+        _bar.AddChild(NewSeparator());
 
         _coordLabel = MakeCaption("坐标(-,-)");
         _coordLabel.CustomMinimumSize = new Vector2(96f, 0f);
         _bar.AddChild(_coordLabel);
 
-        AddSeparator();
+        _stateGroup = new HBoxContainer
+        {
+            Name = "StateGroup",
+            // 状态标签原先靠 ExpandFill 顶到行右端；嵌套一层后要靠容器继续把它撑开。
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        _stateGroup.AddThemeConstantOverride("separation", 6);
+        _bar.AddChild(_stateGroup);
+
+        _stateGroup.AddChild(NewSeparator());
 
         _statusLabel = MakeCaption("就绪");
         _statusLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _bar.AddChild(_statusLabel);
+        _stateGroup.AddChild(_statusLabel);
 
         _validationLabel = MakeCaption("校验 —");
         _validationLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _validationLabel.CustomMinimumSize = new Vector2(110f, 0f);
-        _bar.AddChild(_validationLabel);
+        _stateGroup.AddChild(_validationLabel);
     }
 
     private void AddToolButton(ButtonGroup group, string text, ToolState tool, string tooltip)
@@ -186,11 +214,11 @@ public partial class ToolStrip : PaletteContent
         _bar!.AddChild(button);
     }
 
-    private void AddSeparator()
+    private static Label NewSeparator()
     {
         var separator = MakeCaption("│");
         separator.AddThemeColorOverride("font_color", new Color(0.30f, 0.30f, 0.36f));
-        _bar!.AddChild(separator);
+        return separator;
     }
 
     private static Label MakeCaption(string text)
@@ -328,8 +356,6 @@ public partial class ToolStrip : PaletteContent
             _refineCheck.ButtonPressed = context.RefineOnStroke;
             _syncing = false;
         }
-
-        SyncTerrain(context.PaintTerrain);
 
         RefreshValidation();
     }
@@ -565,25 +591,5 @@ public partial class ToolStrip : PaletteContent
             MapType.City => "m",
             _ => "m",
         };
-    }
-
-    private void OnSwatchPressed(TerrainType terrain)
-    {
-        if (_context is null)
-        {
-            return;
-        }
-
-        _context.SetPaintTerrain(terrain);
-        _context.SetTool(ToolState.Brush);
-        SyncTerrain(terrain);
-    }
-
-    private void SyncTerrain(TerrainType terrain)
-    {
-        foreach (var swatch in _terrainSwatches)
-        {
-            swatch.SetSelected(swatch.TerrainType == terrain);
-        }
     }
 }
