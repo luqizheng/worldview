@@ -1,4 +1,4 @@
-﻿# UI 重新设计 — SimCity / RTS 风格（v0.2 增量）
+# UI 重新设计 — SimCity / RTS 风格（v0.2 增量）
 
 > **目标**：把当前 4 区 IDE 风格的 `Main.tscn` 重做成「地图占满 + 功能集中底部 Palette」的可玩编辑器。
 > **范围**：仅改 UI 与场景树；不动 `Domain/` 数据契约、不动 `Storage/`。`Render/` 只开**一个只读例外**（`TerrainPalette.cs`，见 §9 N7）。
@@ -159,6 +159,8 @@ BottomPalette (dock_container, edge=bottom)
 - 可折叠 / 可隐藏（`M` 键）
 
 ### 3.5 建筑面板 BuildPaletteSection（row 1 · section 1）
+
+> **2026-10-10 底部工具区重构**：`BuildPaletteSection` 现**内嵌于 `tools`（工具方块区）**，由 `ToolPaletteSection` 承载并转发其私有状态（`PanelState`）；本节描述的分类 Tab + 自适应网格 + 分页逻辑不变，但它的父 section 由「`build_palette`」改为「`tools`」。详见 §13 布局树与 §14 T8 折叠态。
 
 - 顶部：分类 `TabBar`（民居 / 城堡 / 宗教 / 军事 / 自然 / 设施 / 自定义 …）
 - 中部：**自适应网格**（列数 / 行数由可用宽高实时推导，见 §3.5.1）
