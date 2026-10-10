@@ -224,6 +224,21 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 - `Task A5: minor (deferred): `spec.md:117` 的 §3.1 线框仍在 row 2 的 `ToolStrip` 里画 `Terrain:Grass ▼`，与 `docs/主界面布局规格_v0.1.md:402`「`ToolStrip` 只留笔刷半径 / 坐标 / 状态 / 校验」矛盾。`
 - `Task A5: minor (deferred): `docs/主界面布局规格_v0.1.md:418` 仍用将来时描述折叠分支改动（「折叠态渲染分支由**当前的两行文本提示**改为**紧凑工具行**」），A1–A4 已落地。`
 
+## Task F5 七项 godot_command 直测（2026-10-10，控制器独立复核）
+
+在 subagent `b3b55d4c` 的 wincu UIA + 变体单测 PASS 基础上，控制器用 `godot_command` 的 `get_property` / `call_method` / `get_node_info` 对同一个运行中的 `Main` 场景（绝对路径 `/root/Main/UiLayer/DockLayout/Root/BottomPalette`）做了**逐控件真值直测**，七项全部 PASS：
+
+- **F5-1 折叠 40px**：展开 BottomPalette `size=(1152,200)`；`call SetCollapsed(true)` 后 `size=(1152,40)`；折叠后 Row_timeline_row `visible=false`、Row_build_row `visible=false`、Row_tool_row `visible=true size=(1124,20)`、Collapse Button `visible=true size=(33,32)`。
+- **F5-2 build_row = [minimap | tools]**：Section_minimap `size=(104,152)` + MinimapSection 内 View/Viewport 都 `(94,70.5)`；Section_tools `size=(1004,152)`；ToolPaletteSection/Root/Groups/TerrainGrid/Cells `size=(224,44)` 与 BuildPalette/Root `size=(996,124)` 二分；TerrainGrid 色块 44x44、Building_House 56x56、Tabs (74,24)、Pager (58,21) 都到位。
+- **F5-3 折叠紧凑 K1**：SetCollapsed(true) 后 ToolStrip `size=(1114,20)`，Bar `(1104,24)` 只留 ToolSelected/ToolBrush/ToolBuilding 三个按钮 `visible=true`；BuildPalette/TerrainGrid 不在 tool_row 里。
+- **F5-4 SetCollapsedMode 三组隐藏**：折叠态 BrushGroup/HistoryGroup/StateGroup 全部 `visible=false`；展开后三个 `visible=true`；ToolSelected/ToolBrush/ToolBuilding 始终 `visible=true`。
+- **F5-5 CaptureLayout 落盘守卫**：折叠 `SetCollapsed(true)` -> 展开 `SetCollapsed(false)` 往返后，Row_timeline_row/Row_build_row `visible=true`、BottomPalette `size=(1152,200)` 完整恢复；三组 `visible=true`。
+- **F5-6 三组分组布局**：ToolStrip.Bar 内 BrushGroup `size=(262,24)` / HistoryGroup `size=(64,18)` / StateGroup `size=(566,14)` 三组水平并列，校验标签贴右（StateGroup Width 566 远超另两组）。
+- **F5-7 Ctrl+B 只剩一行**：折叠后 Row_tool_row (1124,20) 唯一可见，ToolStrip (1114,20) / Bar (1104,24) 只剩三工具按钮，无 BuildPalette/TerrainGrid 残留。
+
+**附**：SelectGroup("terrain") / SelectGroup("building") 双向切换互斥可见（TerrainGrid.visible=false <-> BuildPalette.visible=true）；BuildPalette/Root/EmptyHint 文案「该分类暂无条目（建筑类型待扩充）」；Building_House `text="农舍"`。
+
+**证据来源**：`godot_run_project` 启动 `Main.tscn` -> `get_property` / `call_method` / `get_node_info` 绝对路径查询；全部 `success:true`，无 `Node not found` 误报。与 wincu UIA 变体单测的结论一致，形成**双通道交叉复核**。
 ## 收尾验收（2026-10-10）
 
 **全部工作已完成、门全绿、集成按用户指示保持不动。** 本次会话的完整提交链（分支 `deepseek-build`）：
