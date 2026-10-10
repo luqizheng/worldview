@@ -226,6 +226,24 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 
 ## 收尾验收（2026-10-10）
 
+**全部工作已完成、门全绿、集成按用户指示保持不动。** 本次会话的完整提交链（分支 `deepseek-build`）：
+
+| 段 | commit | 内容 |
+| --- | --- | --- |
+| 计划 | `7af25a9` | 实施计划入库 |
+| A1 | `fc706dc` + `9e25157` | 新增 `ToolPaletteSection` 工具方块区容器（`PaletteContent` 子类）+ 场景 + 7 条护栏测试 + 2 个 `.uid` |
+| A2 | `e4b758f` + `f4a7bd8` | 默认 section 配置 `build_palette` → `tools`（两处同改）+ R17 空断言修 + R18 `LayoutState.Default()` 真行为断言 |
+| A3 | `784a5b6` | 地形色块迁出 `ToolStrip`；三组容器 + `SetCollapsedMode(bool)` |
+| A4 | `706841c` | 折叠态改 K1（`tool_row` 常驻紧凑行）+ `CaptureLayout` 落盘守卫 + R15 常量替换 |
+| A5 | `980b956` + `d9d1f2d` | 文档同步（§7 T8 折叠态、`spec.md:128` 树、`docs:401/517/721`）+ R31 四处措辞收尾 |
+| fix wave | `b7761b6` + `9da1d42` | 最终评审唯一一次修复：W1 基线重设、W2 互斥护栏位置耦合、W3 常驻工具 section 不可关闭 + 自愈、W4 `base._Ready()`、W5/W6/W7 文档 |
+| 追加 | `4d19345` + `b2af1f1` + `514356d` | `WorldView.csproj` 去重复 glob；B1 基线重设为 **48**（清掉全部 184/185 遗留）；`DockLayout` 全屏不标脏 + 守卫测试 |
+| 台账 | `a114d1f` / `2fbcd57` / `692767c` / `4160041` / `352d1f7` | `.superpowers/sdd/2026-10-10-bottom-tools-zone/`（`progress.md` + 5 份 `task-A*-report.md` + `followup-report.md`） |
+
+**最终门（控制器在 HEAD 复测）**：构建 `dotnet build WorldView.sln -c Debug -m:1 --no-incremental` = **0 error / 48 warnings**（冷树；热树 40，见 R61）；全量裸 exe = **378 总 / 稳定失败 7 / 成功 371 / exit 2**；定向 `ToolPaletteSectionTests` 7/7、`BottomToolsZoneDefaultsTests` 7/7、`ToolZoneMigrationTests` 4/4、`BottomPaletteCollapsedTests` 8/8、`FullscreenPersistenceTests` 4/4（**共 30 个 Fact 全绿**）；Godot `--check-only` 与 `--editor` 均 **exit 0**；`.uid` 全入库；工作区除用户草稿外干净。
+
+**已 park / 交后续**（详见 Rulings 各条）：R39 全屏洞**已修**（追加批次 ③）；R44 的 184 遗留**已清**（追加批次 ②）；R12 的 csproj 双 glob**已修**（追加批次 ①）；R42 的 `PaletteSection.Closable` 平台策略与「重新打开已关闭 section 的入口」仍待定；R23/R29 的 **F5 目检 7 项**待用户；R51 的三条 Minor（基线变更记录格式、`BottomPaletteCollapsedTests.cs:97` 注释夸大、`ExtractMethodBody` 重复）待清理。
+
 ### fix wave 的 scoped re-review（`d0f4bb0e`，range `692767c..9da1d42`）
 
 **Verdict：All findings addressed, no new Critical/Important breakage** —— W1/W2/W3/W4/W5/W6/W7 **全部 ADDRESSED**（逐条给了 file:line 证据）。并**正面**核实：`.trae/specs/ui-redesign-simgame/spec.md` 首三字节 `239,187,191`（BOM 在）、纯 LF 828、只有 `@@ -107,21` 与 `@@ -577,21` 两个 hunk、**无 `spec.md:1` hunk**；`docs/主界面布局规格_v0.1.md` 首三字节 `35,32,228`（无 BOM）、纯 LF 721；184→185 重编号内部自洽（`138 + 47 = 185`，且用磁盘上 `scripts/**/*.cs` 去 `scripts/Generator` = 138 个文件独立佐证 CS2002=138）。
@@ -249,3 +267,6 @@ Spec（绑定权威）：`docs/主界面布局规格_v0.1.md`（§4 底部=工�
 - **R62 — 追加批次的 task review 派单 `e0f67fff`（range `4160041..514356d`，3 commits / 7 文件 / +52−12）。** 评审重点：① csproj 删掉的两行是否正是「反斜杠 glob」与「重复的 `Palette.cs` Include」且仍收录同一组文件；② `docs/acceptance/baseline_v0.1.md` 的组成表是否与总数自洽、有没有漏改的冻结 B1 值；③ `SetFullscreen`/`CaptureLayout` 是否未被动、`MarkLayoutChanged` 的早退是否真在 `_layoutDirty = true` 之前；④ 守卫测试是否**非空**（删掉早退或把它挪到 dirty-set 之后都必须失败）。Cost if wrong：多一次评审开销。
 - **R63 — 追加批次的 6 项门由控制器在 `514356d` 复测。** 构建汇总 **48 警告 / 0 错误**；全量裸 exe **378 总 / 失败 7 / 成功 371 / exit 2**；`FullscreenPersistenceTests` **4/4 exit 0**；Godot `--check-only` 与 `--editor` 均 **exit 0**；`git status` 只余控制器台账与用户草稿。**BOM 复核**：`AGENTS.md` 首三字节 `35,32,65`（无 BOM，前后一致）、`docs/长期执行计划_v0.1.md` `35,32,87`（无 BOM）、`docs/acceptance/baseline_v0.1.md` `35,32,87`（无 BOM）—— 三份文档均未被 R32 的 BOM 陷阱波及。
 - **R56 — 用户的 v0.5 草案只作观察，不在本计划内动。** `docs/主界面布局规格_v0.5_工具栏三分草案.md`（235 行，**实测是 UTF-8**，非先前误判的 GBK）是用户自行撰写、定位为 v0.1 的**增量修订**：工具方块区二分（地形/建筑）→**三分（地形/地标/道路）**、地形 tab 收窄到 3 类、建筑面板迁出底部到对象上下文面板、新增 `LandmarkType`/`RoadType`、`ToolState` 扩 5 值、`MapDoc.landmarks`/`road_segments`、`PanelState.schema_version` 1→2，并自带 **§G Q1–Q5 五项待评审问题**与「**审完前不动代码**」的明确约束。控制器**不读改实现、不提交**；仅在收尾回复里告知用户：① 它建立在 A1 的 `ToolPaletteSection` 容器之上（引用 `ToolPaletteSection.cs:24-30` 与 `:60-67` 与实际实现吻合）；② 其 §D.2 引用的 `scripts/Domain/ToolState.cs:7-17` **路径有误**——实际是 `scripts/Editor/ToolState.cs`（`namespace WorldView.Editor`，3 值 `Selected/Brush/Building`）。Cost if wrong：无（纯观察）。
+- Task F1: fix round 1/5 — 控制器直接改 `docs/superpowers/plans/2026-10-10-bottom-tools-zone.md:65` `0 error / 184 warnings` -> `0 error / 48 warnings`（控制器自修的理由：这是纯文档、单行数字，且控制器是该计划文件的作者/维护者；代码类 findings 仍严格禁止自修）。re-review（`e0f67fff`）：`Item 2 (plan:65): ADDRESSED` / `new breakage: none` -> **裁定更新为 Approved**（唯一 Important 消除）。事实澄清：fix 当时在工作树未提交，故 `git diff 514356d..HEAD --stat` 只含台账提交；提交后即为 1 文件 1 行。
+- R65 — **NUL 字节污染陷阱**：subagent 往台账 append 的行里，`0 error` 的 `0` 被写成了 NUL 字节（`0x00`），导致 `edit` 工具拒绝打开（`binary file`）。**判据**：`edit` 报 `binary file` 而文件明明是 UTF-8 文本 -> 先用 `ReadAllBytes` 扫 NUL 计数（本次 `NUL_COUNT=1`，`NUL_AT_INDEX=68322`），再用 `WriteAllText` + `Replace` 逐字节修掉（`NUL_COUNT_AFTER=0`，大小不变）。Cost if wrong：留一个 NUL 会让后续所有 `edit`/`read` 失效。
+- **R66 — 两个工具层陷阱的判据与解法。** ① `edit` 工具对「文件自上次读后已被外部改动」会持续报 `file changed since it was read`（即使先用 `grep` 看过也不算「读过」，只有 `read` 工具的调用才算）→ 解法：改用 `pwsh` 的 `ReadAllText`/`WriteAllText` 直接改，或先 `read` 一次再 `edit`。② 在 `pwsh` 命令里嵌入的中文/破折号字面量会被宿主编码路径误解析（实测 em-dash `U+8212` 被解析成两个字符、或与 `>` 粘连成奇怪序列），导致 `IndexOf`/`Replace` 静默匹配失败（`OLD_IDX=-1` 但内容明明在）→ 解法：在 PowerShell 里拼接非 ASCII 一律用 `[string][char]<码点>` 构造，改完必查 `NUL` 计数与 `HAS_BOM`。Cost if wrong：静默写坏台账（NUL 或错字符），后续 `edit`/`read` 失效或内容失真。
