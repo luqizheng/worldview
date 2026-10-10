@@ -45,6 +45,8 @@ public partial class ToolPaletteSection : PaletteContent
 
     public override void _Ready()
     {
+        base._Ready();
+
         MouseFilter = MouseFilterEnum.Pass;
         ClipContents = true;
         CustomMinimumSize = new Vector2(180f, 72f);

@@ -128,7 +128,7 @@ public partial class BottomPalette : Control, IPaletteHost
         timelineRow.AddSection(CreateSection("timeline", "时间轴", PaletteSection.SectionSizeMode.Flex, 1, false, "TimelineStrip"));
         buildRow.AddSection(CreateSection("minimap", "小地图", PaletteSection.SectionSizeMode.Fixed, 1, true, "MinimapSection"));
         buildRow.AddSection(CreateSection(ToolsSectionId, "工具", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolPaletteSection"));
-        toolRow.AddSection(CreateSection(ToolStripSectionId, "工具栏", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolStrip"));
+        toolRow.AddSection(CreateSection(ToolStripSectionId, "工具栏", PaletteSection.SectionSizeMode.Flex, 1, false, "ToolStrip", closable: false));
     }
 
     private PaletteRow CreateRow(string rowId, bool fullWidth, int height, int flex, int order, bool timelineOnly = false)
@@ -154,7 +154,8 @@ public partial class BottomPalette : Control, IPaletteHost
         PaletteSection.SectionSizeMode mode,
         int flex,
         bool square,
-        string contentScene)
+        string contentScene,
+        bool closable = true)
     {
         var section = new PaletteSection
         {
@@ -165,7 +166,7 @@ public partial class BottomPalette : Control, IPaletteHost
             FlexWeight = flex,
             SquareAspect = square,
             Compact = true,
-            Closable = true,
+            Closable = closable,
         };
 
         if (LoadContent(contentScene) is { } content)
@@ -285,6 +286,12 @@ public partial class BottomPalette : Control, IPaletteHost
         if (SectionOf(ToolStripSectionId)?.Content is ToolStrip toolStrip)
         {
             toolStrip.SetCollapsedMode(collapsed);
+        }
+
+        // K1：折叠态必须保留工具入口；常驻 section 不允许被隐藏/关闭。
+        if (SectionOf(ToolStripSectionId) is { } toolSection)
+        {
+            toolSection.Visible = true;
         }
 
         if (_rows is not null)
