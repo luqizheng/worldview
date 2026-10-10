@@ -114,7 +114,7 @@
 |  +-------------+ | +----+----+----+----+----+----+----+----+  |
 |                                                                |
 |  ── row 2 · ToolStrip (20px, 满宽) ──────────────────────────  |
-|  V B P E │ Brush:1 │ Terrain:Grass ▼ │ ⟲ ⟳ │ 坐标(32,24) │ 就绪 |
+|  V B P E │ Brush:1 │                 │ ⟲ ⟳ │ 坐标(32,24) │ 就绪 |
 +================================================================+
 ```
 
@@ -584,7 +584,7 @@ world-view/
 
 ### T3 — 抽出 ToolStrip / Inspector / LayerPanel
 
-- [ ] `scripts/Ui/Palette/ToolStrip.cs`：工具 / 笔刷 / 地形 / 撤销（进 `tool_row`）
+- [ ] `scripts/Ui/Palette/ToolStrip.cs`：工具 / 笔刷 / 撤销（进 `tool_row`）
 - [ ] `scripts/Ui/Inspector.cs`：抽出 `RebuildInspector`（默认浮动）
 - [ ] `scripts/Ui/LayerPanel.cs`：抽出 `RebuildLayerList`（默认浮动）
 - [ ] `EditorController` 移除三个面板的构建代码

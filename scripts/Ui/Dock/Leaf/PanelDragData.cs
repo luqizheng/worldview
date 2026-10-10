@@ -12,7 +12,7 @@ namespace WorldView.Ui.Dock.Leaf;
 /// </summary>
 public partial class PanelDragData : RefCounted
 {
-    /// <summary>面板稳定 ID（如 <c>build_palette</c>），跨会话复用。</summary>
+    /// <summary>面板稳定 ID（如 <c>tools</c>），跨会话复用。</summary>
     public string PanelId { get; set; } = string.Empty;
 
     /// <summary>来源区域（<c>left</c> / <c>right</c> / <c>top</c> / <c>bottom</c> / <c>center</c>）。</summary>
