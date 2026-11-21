@@ -189,7 +189,7 @@ A descriptor extension is not adopted merely because its JSON parses. It must pa
 
 ## 9. Current disposition
 
-- P2-09-37 V0.2: Core Domain adoption architecture proposal.
+- P2-09-37 V0.3: Core Domain adoption architecture proposal.
 - P2-09-38 V0.2: Building typed aggregate schema draft.
 - P2-09-39 V0.2: Cave System typed aggregate schema draft.
 - P2-09-40 V0.2: 39 design-only validation vectors; not executed.
