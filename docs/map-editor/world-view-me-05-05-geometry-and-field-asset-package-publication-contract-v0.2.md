@@ -177,4 +177,4 @@ This document does not claim that any package format, provider behavior, impleme
 - P2-09-12 SQLite Provider / Transaction Proof V0.6.
 - P2-09-19 Geometry Component Identity and Payload Contract V0.2.
 - P2-09-25 V1 Geometry Asset Encoding and Coordinate Precision Decision V0.1.
-- ME-02-F Calculation Contracts V0.3.
+- ME-02-F Calculation Contracts V0.4.
