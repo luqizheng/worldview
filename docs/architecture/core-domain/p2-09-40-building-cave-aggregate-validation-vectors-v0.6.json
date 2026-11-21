@@ -468,10 +468,10 @@
             "dimension": 2,
             "coordinate_context_id": "hframe-1",
             "child_context": {
-              "boundary_id": "boundary-duplicate"
+              "boundary_id": "boundary-hall"
             },
             "asset_id": "asset-duplicate",
-            "geometry_component_id": "component-footprint",
+            "geometry_component_id": "component-boundary-hall",
             "geometry_role": "boundary",
             "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
             "spatial_reference_id": "spatial-ref-map-1",
