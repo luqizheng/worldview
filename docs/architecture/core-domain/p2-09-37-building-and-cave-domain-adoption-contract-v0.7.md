@@ -424,7 +424,7 @@ The immutable geometry Asset follows the ME-05-04/P2-09-25 envelope. Mutable Obj
 
 ## 16. V0.6 Asset-link and conformance-audit alignment
 
-P2-09-44 V0.1 records the focused conformance audit. For the Building/Cave adoption profile, `core_object_definition_asset` is required because formal Geometry Component Assets are referenced by the current definition payload. `core_command_asset` remains required for History geometry Commands. `core_map_initial_object_asset` remains unnecessary under the current Initial State payload, which contains membership/placement rather than distinct geometry Assets.
+P2-09-44 V0.2 records the focused conformance audit. For the Building/Cave adoption profile, `core_object_definition_asset` is required because formal Geometry Component Assets are referenced by the current definition payload. `core_command_asset` remains required for History geometry Commands. `core_map_initial_object_asset` remains unnecessary under the current Initial State payload, which contains membership/placement rather than distinct geometry Assets.
 
 The typed link row carries owner identity, `asset_id` and `role`; it does not carry `geometry_component_id` or a duplicate content hash. The owner payload retains the component-to-Asset mapping and expected hash. The publication service verifies the typed link and resolves the authoritative hash from `core_asset`.
 
