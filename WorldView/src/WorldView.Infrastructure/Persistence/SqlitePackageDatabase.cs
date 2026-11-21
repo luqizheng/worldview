@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Bootstrap;
+using WorldView.Infrastructure.Persistence.CoreDomain;
 
 namespace WorldView.Infrastructure.Persistence;
 
@@ -46,10 +47,12 @@ internal static class SqliteBootstrapSchema
 /// <summary>
 /// Microsoft.Data.Sqlite 实现的包数据库访问。
 /// 连接策略：禁用连接池（Pool=False）——打开/关闭/目录重命名与临时清理的句柄行为
-/// 完全确定；每个连接显式启用外键（PRAGMA foreign_keys=ON，对齐 P2-09-12 TX-03）。
+/// 完全确定；每个连接显式启用外键（PRAGMA foreign_keys=ON，对齐 P2-09-12 TX-03）
+/// 与有界 busy_timeout=5000ms（P2-09-12 §10：有界且与单写流程一致；journal_mode
+/// 保持默认——WAL 依赖备份/恢复证明，属未关闭的 open gate，CD-01 不启用）。
 /// 单实例串行使用：同一会话内所有操作经由本实例顺序执行（V1 单写者约束）。
 /// </summary>
-public sealed class SqlitePackageDatabase : IPackageDatabase
+public sealed class SqlitePackageDatabase : IPackageDatabase, ISqliteConnectionProvider
 {
     private readonly object _gate = new();
     private SqliteConnection? _connection;
@@ -93,8 +96,23 @@ public sealed class SqlitePackageDatabase : IPackageDatabase
                 fk.ExecuteNonQuery();
             }
 
+            using (var busy = connection.CreateCommand())
+            {
+                busy.CommandText = "PRAGMA busy_timeout = 5000;";
+                busy.ExecuteNonQuery();
+            }
+
             _connection = connection;
             return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>向同程序集的 Core Domain 适配器暴露已打开连接（显式接口实现，不进入公共面）。</summary>
+    SqliteConnection ISqliteConnectionProvider.GetOpenConnection()
+    {
+        lock (_gate)
+        {
+            return _connection ?? throw new InvalidOperationException("数据库未打开。");
         }
     }
 

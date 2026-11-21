@@ -9,4 +9,9 @@
     <ProjectReference Include="..\WorldView.Application\WorldView.Application.csproj" />
   </ItemGroup>
 
+  <!-- 真实持久化测试需要访问 internal 连接提供接口做数据注入/篡改（仅测试程序集）。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="WorldView.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>
