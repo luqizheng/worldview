@@ -146,6 +146,14 @@ P2-09-37 translates ME-04-H into a minimum Core Domain extension proposal. It do
 | ME-05-J | **Complete as working implementation contract** — Field Package Parser / Writer | ME-05-10 V0.1; P2-09-36 | .NET API boundary, reader/writer algorithms, integrity/error/resource/concurrency rules and 41 acceptance vectors; code and execution evidence remain open |
 | ME-05-K | **Complete as developer handoff** — Parser / Writer implementation and test strategy | ME-05-11 V0.1 | S0–S10 developer sequence, test matrix, fixture/dependency policy, platform proof and delivery checklist; implementation remains open |
 
+## ME-06 — Shared Interaction & Tool Contracts (design workstream started)
+
+| ID | Document | Version | Status | Responsibility |
+|---|---|---:|---|---|
+| ME-06-00 | [Shared Interaction & Tool Contracts](world-view-me-06-shared-interaction-and-tool-contracts-v0.1.md) | 0.1 | Specialist Workstream Scope / Design Plan | Shared tool capability declarations, input routing, gesture lifecycle, typed-intent mapping, query freshness, Candidate review and acceptance package |
+
+ME-06 refines the conceptual interaction architecture in ME-01-06 using the concrete creator workflows in ME-02-G, ME-03-G and ME-04-G. It does not create a second editor runtime or authorize domain/API/schema changes. The workstream is planned as ME-06-A tool/operation inventory, ME-06-B input routing and gesture lifecycle, ME-06-C spatial query freshness, ME-06-D typed intent/formal operation routing, ME-06-E Candidate review, ME-06-F recovery/accessibility/acceptance, and ME-06-G cross-architecture review. V1 remains a finite built-in tool set; arbitrary plug-in loading, scripting and collaborative interaction are out of scope.
+
 ## Subsequent specialist workstreams
 
 | Workstream | Planned responsibility | Entry condition |
@@ -153,7 +161,7 @@ P2-09-37 translates ME-04-H into a minimum Core Domain extension proposal. It do
 | ME-03 Settlements & Urban Geography | **Complete as design working baseline** — Settlements, political/administrative regions, land use, roads and spatial validation | ME-01 shared baseline; ME-02 natural geography constraints; implementation gates tracked in ME-03-H |
 | ME-04 Buildings & Interior Spaces | Building/site association, floors, rooms, entrances, vertical and underground spaces | Shared Object/geometry and local coordinate contracts |
 | ME-05 Shared Geometry & Spatial Operations | Component identity, geometry operations, topology, physical field/Asset persistence and spatial service contracts | ME-05-01 Field Dataset authority contract; findings from ME-01/ME-02/ME-03/ME-04 |
-| ME-06 Shared Interaction / Tool Contracts | Concrete tool-to-operation mapping, gesture/query freshness and Candidate review contracts | Specialist editor workflows |
+| ME-06 Shared Interaction / Tool Contracts | **Started** — concrete tool-to-operation mapping, gesture/query freshness and Candidate review contracts | Specialist editor workflows; scope baseline ME-06-00 |
 | ME-07 Rendering / Technical Architecture | Renderer/geometry/raster library evaluation, Avalonia integration, performance and Windows/macOS validation | Renderer-neutral contracts and representative workloads |
 
 The ordering may be refined where dependencies require it. Do not reopen settled Core Domain authority, stable Object identity, Branch/history semantics, local-first product shape or the shared spatial model without an explicit architecture finding.
