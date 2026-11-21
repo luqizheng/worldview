@@ -1,0 +1,233 @@
+{
+  "suite": "World View V1 Field Package / Tiling Validation Vectors",
+  "version": "0.1",
+  "contract": "ME-05-02 Field Payload Package & Tiling Contract V0.1",
+  "status": "design fixtures only; not executed",
+  "cases": [
+    {
+      "id": "FPV-001",
+      "expect": "valid",
+      "scenario": "Read manifest and one tile from a valid package without decoding unrelated tiles."
+    },
+    {
+      "id": "FPV-002",
+      "expect": "valid",
+      "scenario": "Read a tile by stable integer tile_x/tile_y address independent of filesystem path."
+    },
+    {
+      "id": "FPV-003",
+      "expect": "invalid",
+      "scenario": "Reject an unsupported package magic or required format version."
+    },
+    {
+      "id": "FPV-004",
+      "expect": "invalid",
+      "scenario": "Reject a header section offset/length that overflows integer arithmetic."
+    },
+    {
+      "id": "FPV-005",
+      "expect": "invalid",
+      "scenario": "Reject a manifest section or tile payload range extending beyond package length."
+    },
+    {
+      "id": "FPV-006",
+      "expect": "invalid",
+      "scenario": "Reject overlapping tile payload byte ranges."
+    },
+    {
+      "id": "FPV-007",
+      "expect": "invalid",
+      "scenario": "Reject duplicate tile coordinates in the tile directory."
+    },
+    {
+      "id": "FPV-008",
+      "expect": "invalid",
+      "scenario": "Reject a missing tile entry intersecting the declared storage grid."
+    },
+    {
+      "id": "FPV-009",
+      "expect": "invalid",
+      "scenario": "Reject tile coordinates outside the declared grid."
+    },
+    {
+      "id": "FPV-010",
+      "expect": "invalid",
+      "scenario": "Reject a directory whose entries are not in canonical order."
+    },
+    {
+      "id": "FPV-011",
+      "expect": "invalid",
+      "scenario": "Reject tile dimensions inconsistent with the grid or edge-tile valid dimensions."
+    },
+    {
+      "id": "FPV-012",
+      "expect": "invalid",
+      "scenario": "Reject a decoded byte count inconsistent with dimensions and value encoding."
+    },
+    {
+      "id": "FPV-013",
+      "expect": "invalid",
+      "scenario": "Reject a tile whose uncompressed content hash does not match its directory entry."
+    },
+    {
+      "id": "FPV-014",
+      "expect": "invalid",
+      "scenario": "Reject a package whose full Core Asset hash does not match its exact bytes."
+    },
+    {
+      "id": "FPV-015",
+      "expect": "invalid",
+      "scenario": "Reject an unknown required codec or unsupported codec version."
+    },
+    {
+      "id": "FPV-016",
+      "expect": "invalid",
+      "scenario": "Reject a compressed tile whose declared or decoded size exceeds safe limits."
+    },
+    {
+      "id": "FPV-017",
+      "expect": "valid",
+      "scenario": "Read an uncompressed none-codec fixture with exact expected values."
+    },
+    {
+      "id": "FPV-018",
+      "expect": "valid",
+      "scenario": "Read row-major tile values with X-fastest ordering and deterministic edge-tile dimensions."
+    },
+    {
+      "id": "FPV-019",
+      "expect": "invalid",
+      "scenario": "Reject NaN or infinity in elevation tile payload."
+    },
+    {
+      "id": "FPV-020",
+      "expect": "invalid",
+      "scenario": "Reject an elevation precision profile whose quantization metadata is absent or inconsistent."
+    },
+    {
+      "id": "FPV-021",
+      "expect": "invalid",
+      "scenario": "Reject a land/water tile containing an unregistered category code."
+    },
+    {
+      "id": "FPV-022",
+      "expect": "invalid",
+      "scenario": "Reject a payload that conflates no-data with valid zero or a registered category."
+    },
+    {
+      "id": "FPV-023",
+      "expect": "valid",
+      "scenario": "Preserve land, water, unknown, outside_coverage and no-data as distinct sample outcomes."
+    },
+    {
+      "id": "FPV-024",
+      "expect": "valid",
+      "scenario": "Read partial coverage without inferring a coastline from a tile, grid or coverage edge."
+    },
+    {
+      "id": "FPV-025",
+      "expect": "valid",
+      "scenario": "Assemble calculation halo by reading neighboring storage tiles without storing duplicate halo cells."
+    },
+    {
+      "id": "FPV-026",
+      "expect": "invalid",
+      "scenario": "Do not return a seamless/global calculation result when required neighbor or basin context is unavailable."
+    },
+    {
+      "id": "FPV-027",
+      "expect": "valid",
+      "scenario": "Build a new package after editing one tile while preserving all other tile logical content exactly."
+    },
+    {
+      "id": "FPV-028",
+      "expect": "valid",
+      "scenario": "Stream package creation with bounded memory without materializing the complete field in RAM."
+    },
+    {
+      "id": "FPV-029",
+      "expect": "invalid",
+      "scenario": "Attempt to modify a tile payload in a previously published immutable package."
+    },
+    {
+      "id": "FPV-030",
+      "expect": "invalid",
+      "scenario": "Attempt to reuse encoded tile bytes with a different codec version or encoding profile."
+    },
+    {
+      "id": "FPV-031",
+      "expect": "valid",
+      "scenario": "Reuse exact encoded tile blocks only when codec and all interpretation parameters match."
+    },
+    {
+      "id": "FPV-032",
+      "expect": "valid",
+      "scenario": "Cancel package construction before publication; leave formal Field Revision and current pointer unchanged."
+    },
+    {
+      "id": "FPV-033",
+      "expect": "invalid",
+      "scenario": "Publish package bytes but fail the SQLite transaction; do not expose a Field Revision/current pointer update."
+    },
+    {
+      "id": "FPV-034",
+      "expect": "invalid",
+      "scenario": "Attempt publication against a stale expected Field Revision; reject CAS and require rebase/review."
+    },
+    {
+      "id": "FPV-035",
+      "expect": "valid",
+      "scenario": "Two concurrent readers access the same immutable package without mutable buffer interference."
+    },
+    {
+      "id": "FPV-036",
+      "expect": "valid",
+      "scenario": "Evict a decoded tile cache entry and rebuild it from the immutable package."
+    },
+    {
+      "id": "FPV-037",
+      "expect": "invalid",
+      "scenario": "Use a stale cache entry keyed without the package hash or decoder compatibility version."
+    },
+    {
+      "id": "FPV-038",
+      "expect": "valid",
+      "scenario": "Verify equal canonical manifest/tile inputs produce identical package bytes under the same writer/codec version."
+    },
+    {
+      "id": "FPV-039",
+      "expect": "valid",
+      "scenario": "Verify a codec/format version change produces a distinct package compatibility identity."
+    },
+    {
+      "id": "FPV-040",
+      "expect": "invalid",
+      "scenario": "Attempt to perform package I/O, decompression or hashing inside a renderer callback."
+    },
+    {
+      "id": "FPV-041",
+      "expect": "valid",
+      "scenario": "Verify Windows and macOS readers decode the same canonical tile values and category states."
+    },
+    {
+      "id": "FPV-042",
+      "expect": "valid",
+      "scenario": "Compare 128x128, 256x256 and 512x512 tile candidates on representative read/edit/calculation workloads."
+    },
+    {
+      "id": "FPV-043",
+      "expect": "valid",
+      "scenario": "Compare elevation 32-bit, 64-bit and quantized profiles against declared precision/error bounds."
+    },
+    {
+      "id": "FPV-044",
+      "expect": "invalid",
+      "scenario": "Infer a multi-resolution overview as an authoritative source level without an explicit Field Revision."
+    },
+    {
+      "id": "FPV-045",
+      "expect": "valid",
+      "scenario": "Resample a source field explicitly and publish the resampled content as a new Field Revision with transformation provenance."
+    }
+  ]
+}
