@@ -2,7 +2,7 @@
 
 - Version: 0.10
 - Date: 2026-11-21
-- Status: **Object Type / Geometry Component reconciled physical-schema proposal — recommended relational ownership, key strategy and constraint intent; not executable DDL or implementation authorization**
+- Status: **Object Type / Geometry Component / Relationship reconciled physical-schema proposal — recommended relational ownership, key strategy and constraint intent; not executable DDL or implementation authorization**
 - Supersedes: P2-09-11 V0.9 for relationship descriptor/fingerprint integration; V0.9 is retained as history
 - Depends on: P2-09-01~10; P2-09-03 V0.2; P2-09-04 V0.2; P2-09-05 V0.3; P2-09-13 V0.4; P2-09-16 V0.1; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.1; P2-09-15 V0.4; P2-09-17 V0.4; ADR-001/002/003 Amendment V1.3/005; P2-08 V0.3; AI Assistant Logical Schema V1.16
 
@@ -294,6 +294,7 @@ Each uses composite FKs and a unique key on its owner/asset/role tuple. `core_co
 - CHECK target day is non-negative and target offset is in `[0,86399]`. A Checkpoint is usable only when complete, payload hash-valid, and both fingerprints match the current Core Domain reconstruction inputs.
 - `lineage_fingerprint` covers the selected Map/History inheritance path, each Branch fork boundary, and the exact inherited History path for the target.
 - `reconstruction_input_fingerprint` covers: Map Initial State and referenced immutable Asset hashes; every applicable Command and its descriptor schema/version plus exact execution-handler semantics identifier; applicable Event Effects and only those Event payload/schema/semantics portions that can affect the reconstructed World State; explicit ordering constraints; every reachable current Shared Object definition (stable identity, definition schema version, canonical definition hash) and its immutable Asset hashes; each referenced Object's pinned Object Type descriptor schema/semantics identifiers; and the reconstruction algorithm/compatibility identifier.
+- It also includes the relationship type schema/semantics identifiers and the identity/origin/endpoint/typed-attribute inputs for formal relationships that affect reconstructed World State, whether supplied by Initial State, current Shared Object definition or applicable History Commands. A narration-only Event association does not create a relationship input.
 - Exclude transaction timestamps, audit text, UI/presentation metadata, narration-only Event content, and Calendar display configuration when they do not affect World State. A narration-only edit or Calendar Configuration edit must not invalidate World State Checkpoints. If an Event payload participates in deterministic state effects, include the effect-relevant payload and semantics in the fingerprint.
 - Canonical serialization, field normalization and hash algorithm must be deterministic and versioned. The fingerprint is a derived cache-validation value, not a new authoritative revision/version entity.
 - A Shared Object definition edit invalidates every affected Map/Branch Checkpoint, including historical target times. A Map-local definition edit affects only its owner Map and descendant Branch paths.
@@ -416,7 +417,7 @@ No LLM generation, long validation, geometry processing, user interaction or net
 
 ## 11. Status
 
-V0.10 is the recommended reconciled relational design baseline for the next bounded schema review. It retains the V0.9 ownership, Object Type compatibility pins, Geometry Component Asset/reference requirements and Checkpoint freshness decisions, and incorporates the relationship identity/temporal contract without adding a relationship table. It does not add any new baseline domain table.
+V0.10 is the recommended reconciled relational design baseline for the next bounded schema review. It retains the V0.9 ownership, Object Type compatibility pins, Geometry Component Asset/reference requirements and Checkpoint freshness decisions, and incorporates relationship identity/temporal inputs without adding a relationship table. It does not add any new baseline domain table.
 
 Open gates remain: final Object Type display grammar and first built-in type seed set; first enabled Relationship Type seed set and per-type cardinality/cycle rules; precise Calendar conversion and configuration gap/overlap behavior; machine-readable payload schemas and canonical serialization for enabled Command descriptors; final conditional definition/Initial State/Event typed-link selection; SQLite CHECK/trigger/provider validation; and packaged Windows/macOS shared-transaction proof.
 
