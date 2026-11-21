@@ -1,4 +1,4 @@
-# World View Core Domain — P2-09-08 Command Descriptor and Deterministic Replay Contract
+# World View P2-09-08 — Command Descriptor and Deterministic Replay Contract V0.2
 
 - Version: 0.2
 - Date: 2026-11-21
