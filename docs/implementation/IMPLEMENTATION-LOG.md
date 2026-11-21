@@ -155,3 +155,12 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **ME-05-07 V0.3:** integrates the byte-level envelope into the logical Field Package/tiling contract. Parser/writer, codec, tile-size and precision proof remain open.
 - **ME-05-05 V0.3 / ME-05-06 V0.4 / ME-05-01 V0.5:** cross-document package ownership, integration review and Field Dataset status aligned to the new specification.
 - **Remaining:** implement reader/writer and run all package fixtures; benchmark 128/256/512 tile sizes; choose codec and elevation precision from measured results; complete provider/runtime and Windows/macOS validation.
+
+## 2026-11-21 CD-01 Core Domain persistence implemented
+
+- **CD-01 V0.1 (design/report/handoff):** `docs/core-domain/` — minimal real Core Domain persistence landed in `WorldView/`: 6 domain tables (`core_project`, `core_map`, `core_history`, `core_branch`, `core_calendar`, `core_calendar_configuration`) via 4 `core-domain` module migrations through the shared `schema_migration` ledger (P2-09-11 V0.11 minimal subset; checksum-managed, fail-closed).
+- **Real chain lit up:** create project → persist identity → reopen → read identity → project-scoped map query → Branch lineage + canonical Historical Time (`day:offset`) workspace resolution → open workspace. AF-02's four boundary ports wired to real implementations in the composition root; Application/Session layer unchanged.
+- **ADR-0003:** records schema-subset adoption, single-transaction structural writes, PRAGMA policy (fk=ON + bounded busy_timeout, journal mode default), and explicit open-gate placeholders (Calendar structural row with `rules_schema_version=0`/`'{}'`, `lifecycle_status='active'`, no auto initial map).
+- **Convergence:** `MapProject` sample trio deleted (shadow model superseded); domain model now lives in `WorldView.Domain`.
+- **Verification:** Debug/Release builds 0 errors; 139/139 tests (Domain 58 / Application 44 / Infrastructure 37, real SQLite end-to-end and two-project isolation included); Windows Release smoke run OK. macOS unverified; P2-09-12 transaction-proof suite remains to be executed (next stages).
+- Earlier log row "正式 Core Domain 实现 | 尚未在当前工程骨架中体现" is superseded by this entry.

@@ -49,23 +49,26 @@ scripts/run.sh
 或直接使用 dotnet CLI：`dotnet build WorldView.sln` / `dotnet test WorldView.sln` /
 `dotnet run --project src/WorldView.Desktop`。
 
-## 当前状态（2026-11-21 AF-02 应用基础实施后）
+## 当前状态（2026-11-21 CD-01 Core Domain 持久化实施后）
 
 - **应用基础（AF-01/AF-02）已实现**：`.wvproject` 目录式 Project Package（manifest v1 +
   SQLite 数据库 + 内容寻址 Asset Store + Staging/Backups）、分阶段包校验（fail-closed）、
   Project Session / Map Workspace Session 生命周期与进程内隔离、启动面
   （创建/打开/最近项目）。详见 [ADR-0002](docs/decisions/ADR-0002-application-foundation-package-bootstrap.md)
-  与 `docs/application/AF-02_IMPLEMENTATION_REPORT_v0.1.md`。
-- **Core Domain 集成为显式门槛**：`IProjectIdentityReader` / `IMapQueryService` /
-  `IWorkspaceContextResolver` / `IProjectCreationService` 四个边界端口尚无真实实现，
-  创建/打开在 bootstrap 边界如实报告阻塞项；正式 Core Domain 持久化落地后注册真实实现
-  即可点亮真实读路径。真实 Map 读路径**尚未打通**。
-- Domain/Application/Infrastructure 中的 `MapProject` 相关类型是**架构示例代码**，仅用于建立
-  分层与测试基线；正式领域模型以 Phase 2 历史状态引擎设计为准，实现阶段可替换或删除。
+  与仓库根 `docs/application/AF-02_IMPLEMENTATION_REPORT_v0.1.md`。
+- **Core Domain 最小持久化（CD-01）已实现**：6 张领域表经 4 条 core-domain ledger 迁移落地
+  （P2-09-11 V0.11 最小子集）；Project Identity 真实创建/读取；项目范围 Map 查询；
+  Branch 世系 + 规范历史时间（`"day:offset"`）Workspace 上下文解析；AF-02 四个边界端口
+  全部接入真实实现并在组合根注册（Map Query / Context Resolver 会话绑定）。
+  真实链路 **Create → Open → Identity → Maps → Workspace 已打通**。
+  详见 [ADR-0003](docs/decisions/ADR-0003-core-domain-persistence-cd01.md) 与仓库根
+  `docs/core-domain/CD-01_IMPLEMENTATION_REPORT_v0.1.md`。
+- 早期 `MapProject` 架构示例代码已删除（CD-01 影子模型收敛）；领域模型以
+  `WorldView.Domain` 为准。
 - 平台验证状态：
-  - **Windows**：7/7 项目 Debug/Release 构建通过；70/70 测试通过（SDK 11.0.100）；
-    Debug/Release 桌面应用启动、启动面渲染、WM_CLOSE 干净退出（exit 0）均已在
-    Windows 实机验证（证据见 AF-02 实施报告）。
+  - **Windows**：7/7 项目 Debug/Release 构建通过（0 错误）；139/139 测试通过
+    （SDK 11.0.100；Domain 58 / Application 44 / Infrastructure 37）；Release 桌面应用
+    启动冒烟正常。
   - **macOS**：**未验证**（当前无 macOS 环境）。工程配置按双平台要求编写（无平台专有代码、
     使用 Avalonia 跨平台模板基线），首次在 macOS 上构建时需按开发文档确认。
 
@@ -81,6 +84,7 @@ scripts/run.sh
 
 - [docs/decisions/ADR-0001-project-bootstrap.md](docs/decisions/ADR-0001-project-bootstrap.md) — 工程初始化决策
 - [docs/decisions/ADR-0002-application-foundation-package-bootstrap.md](docs/decisions/ADR-0002-application-foundation-package-bootstrap.md) — AF-02 应用基础决策
+- [docs/decisions/ADR-0003-core-domain-persistence-cd01.md](docs/decisions/ADR-0003-core-domain-persistence-cd01.md) — CD-01 Core Domain 持久化决策
 - [docs/architecture/initial-tech-baseline.md](docs/architecture/initial-tech-baseline.md) — 技术基线（已定/未定）
 - [docs/development/dev-environment.md](docs/development/dev-environment.md) — 开发环境（含 Smart App Control 事件记录）
 - [docs/development/build-and-test.md](docs/development/build-and-test.md) — 构建与测试
