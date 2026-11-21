@@ -15,7 +15,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-03-A Domain Inventory & Descriptor Reconciliation V0.1](map-editor/world-view-me-03-a-domain-inventory-and-descriptor-reconciliation-v0.1.md) — exact Settlement/Road/PoliticalRegion capabilities, enabled relationship endpoint pairs and urban-domain gaps.
 - [ME-03 Settlements & Urban Geography Editor V0.1](map-editor/world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) — specialist workstream scope, inherited Core Domain vocabulary, settlement/political/land-use/road semantics, work packages and open gates.
 - `map-generation/`: map generation specification, generation session lifecycle, and related source README.
-- `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, and Unit animation.
+- `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, Unit animation, and production presentation architecture. Key current documents: [Production Renderer Architecture V0.2](map-engine/PRODUCTION_RENDERER_ARCHITECTURE_v0.2.md), [PRA-01 Presentation Context & Immutable Scene Snapshot Contract V0.1](map-engine/PRA-01_PRESENTATION_CONTEXT_AND_IMMUTABLE_SCENE_SNAPSHOT_CONTRACT_v0.1.md), and [PRA-01 Developer Handoff V0.1](map-engine/PRA-01_DEVELOPER_HANDOFF_v0.1.md).
 - `history/`: reserved for superseded or historical source documents retained for traceability.
 - `README-implementation-handoff-v1.0.md`: implementation handoff guidance and scope boundary.
 
@@ -80,7 +80,7 @@ This repository is the version-controlled documentation baseline for the World V
 - Local-first, single-user/small-team, low-concurrency operating model.
 - Core Domain is the authority for formal map state, Commands, and history semantics.
 - AI Assistant coordinates analysis and proposals; it does not directly mutate formal Core Domain data.
-- Map rendering, geospatial computation, and renderer technology remain separately evaluated. No final rendering-engine selection is implied here.
+- Production map presentation target: Avalonia 12 + Skia for the map viewport, as defined by [Production Renderer Architecture V0.2](map-engine/PRODUCTION_RENDERER_ARCHITECTURE_v0.2.md). Geospatial algorithms and data providers remain separately evaluated.
 
 ## Migration status
 
