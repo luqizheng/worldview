@@ -55,8 +55,8 @@ ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through
 | ID | Document | Version | Status | Responsibility |
 |---|---|---:|---|---|
 | ME-05-01 | [Field Dataset Authority & Persistence Contract](world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.4.md) | 0.4 | **Adopted Domain Contract — product semantics confirmed; not frozen ADR or executable schema** | Map-owned source Field Dataset identity, immutable revisions, typed Core Asset ownership, Map-wide retroactive Branch/History semantics and calculation/checkpoint integration |
-| ME-05-05 | [Geometry & Field Asset Package and Publication Contract](world-view-me-05-05-geometry-and-field-asset-package-and-publication-contract-v0.1.md) | 0.1 | Recommended V1 asset publication contract | Immutable geometry/field payload distinction, typed ownership, atomic publication, stale-write rejection, retention and recovery |
-| ME-05-06 | [Cross-architecture Integration Review & V1 Gates](world-view-me-05-06-cross-architecture-integration-review-v0.1.md) | 0.1 | Cross-architecture review | Core Domain/Map Engine/editor ownership reconciliation, design findings and implementation acceptance gates |
+| ME-05-05 | [Geometry & Field Asset Package and Publication Contract](world-view-me-05-05-geometry-and-field-asset-package-publication-contract-v0.2.md) | 0.2 | Recommended V1 asset publication contract | Immutable geometry/field payload distinction, typed ownership, atomic publication, stale-write rejection, retention and recovery |
+| ME-05-06 | [Cross-architecture Integration Review & V1 Gates](world-view-me-05-06-cross-architecture-integration-review-v0.2.md) | 0.2 | Cross-architecture review | Core Domain/Map Engine/editor ownership reconciliation, design findings and implementation acceptance gates |
 | ME-05-07 | [Field Payload Package & Tiling Contract](world-view-me-05-07-field-payload-package-and-tiling-contract-v0.1.md) | 0.1 | Recommended V1 technical contract; byte layout and codec proof open | Seekable immutable package Asset, canonical tile directory, random reads, streaming edits, halo and cache behavior |
 | ME-05-02 | [Shared Geometry Model & Component Operations](world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) | 0.1 | Recommended V1 shared geometry contract | Component identity/lifecycle, typed geometry operations, three formal write contexts, immutable Asset ownership and interaction boundary |
 | ME-05-03 | [Topology & Spatial Predicate Contract](world-view-me-05-03-topology-and-spatial-predicate-contract-v0.1.md) | 0.1 | Recommended V1 spatial-query contract | Predicate vocabulary, boundary semantics, geometric adjacency candidates, topology-vs-relationship separation, numerical certainty and query freshness |
@@ -73,11 +73,11 @@ ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through
 
 | Work item | Focus | Main output |
 |---|---|---|
-| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.3 |
+| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.4 |
 | ME-05-B | **Complete as working contract** — Shared Geometry Model and Component Operations | ME-05-02 V0.1 |
 | ME-05-C | **Complete as working contract** — Topology and Spatial Predicates | ME-05-03 V0.1 |
 | ME-05-D | **Complete as working contract** — Coordinate Reference, Precision & Measurement | ME-05-04 V0.1 |
-| ME-05-E | **Complete as working contract** — Geometry/Field Asset Package & Publication Integration | ME-05-05 V0.1 |
+| ME-05-E | **Complete as working contract** — Geometry/Field Asset Package & Publication Integration | ME-05-05 V0.2 |
 | ME-05-G | **Complete as logical technical contract** — Field Payload Package & Tiling | ME-05-07 V0.1; byte-level layout, codec/precision and performance proof remain open |
 | ME-05-F | Map Engine / Core Domain Integration & Cross-architecture Verification | Typed API boundaries, specialist constraints, acceptance matrix and implementation gates |
 
