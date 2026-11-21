@@ -287,19 +287,19 @@ The following must be enforced in Domain Services and covered by database/integr
 2. A Branch owns exactly one History, references one parent History, inherits the parent time axis, and has no ancestry cycle.
 3. Every Branch-owned Command precision interval must begin strictly after its exact `parent_at` boundary; every runtime State Change generated from it must also be later than that boundary.
 4. A `core_map_initial_object` must have a matching Map/Object reference.
-5. Project-shared Object definition edits update the single current definition and invalidate every referencing Map/Branch Checkpoint; Map-local definition edits affect only the owner Map and its descendants.
-6. A Project-shared Object can exist at Project scope without being present in any Map's Initial State.
-7. `core_object.sharing_scope='project_shared'` requires `owner_map_id IS NULL`; `sharing_scope='map_local'` requires a valid same-Project `owner_map_id`.
-8. A Map-local Object may be registered only to its owner Map; a Project-shared Object may be referenced by multiple Maps in the same Project. Domain Services enforce this, with INSERT/UPDATE trigger defense-in-depth.
-7. A reservation's Project/Object Type matches its Object; one reservation binds at most one Object; one Object has at most one reservation provenance. A Reserved reservation has no identity; a Bound reservation has a draft identity; an Inserted reservation has an active identity; a Bound reservation abandoned later retains an abandoned identity tombstone. Draft/abandoned identities are not visible in Map membership or Initial State.
-8. `Inserted` reservation and formal Object insertion commit atomically.
-9. Command, Event and State Change History ownership is consistent; Event/State Change associations are explanatory and do not override ordering.
-10. A Branch-owned ordering relation may reference only Commands visible on its effective inheritance path; inherited relations cannot be overwritten.
-11. A Checkpoint is published only after payload integrity and full current lineage/reconstruction-input validation.
-12. No AI Assistant repository writes Core Domain tables directly.
-14. A Calendar Configuration source Command belongs to the same History; deleting/retiming that Command updates only its own command-managed Calendar Configuration and affected adjacent intervals.
-15. Calendar Configurations for the same Calendar/History scope must not overlap; gaps/default fallback are handled by Core Domain validation.
-16. Calendar Configuration edits never invalidate World State Checkpoints or trigger World State reconstruction.
+5. `core_object.sharing_scope='project_shared'` requires `owner_map_id IS NULL`; `sharing_scope='map_local'` requires a valid same-Project `owner_map_id`.
+6. A Map-local Object may be registered only to its owner Map; a Project-shared Object may be referenced by multiple Maps in the same Project. Domain Services enforce this, with INSERT/UPDATE trigger defense-in-depth.
+7. A Project-shared Object can exist at Project scope without being present in any Map's Initial State.
+8. Project-shared Object definition edits update the single current definition and invalidate every referencing Map/Branch Checkpoint; Map-local definition edits affect only the owner Map and descendant Branch paths.
+9. A reservation's Project/Object Type matches its Object; one reservation binds at most one Object; one Object has at most one reservation provenance. A Reserved reservation has no identity; a Bound reservation has a draft identity; an Inserted reservation has an active identity; a Bound reservation abandoned later retains an abandoned identity tombstone. Draft/abandoned identities are not visible in Map membership or Initial State.
+10. `Inserted` reservation and formal Object insertion commit atomically.
+11. Command, Event and State Change History ownership is consistent; Event/State Change associations are explanatory and do not override ordering.
+12. A Branch-owned ordering relation may reference only Commands visible on its effective inheritance path; inherited relations cannot be overwritten.
+13. A Checkpoint is published only after payload integrity and full current lineage/reconstruction-input validation. The final revalidation and metadata publication must be serialized against concurrent relevant edits.
+14. No AI Assistant repository writes Core Domain tables directly.
+15. A Calendar Configuration source Command belongs to the same History; deleting/retiming that Command updates only its own command-managed Calendar Configuration and affected adjacent intervals.
+16. Calendar Configurations for the same Calendar/History scope must not overlap; gap/default fallback behavior remains subject to explicit Calendar validation.
+17. Calendar Configuration edits never invalidate World State Checkpoints or trigger World State reconstruction.
 
 ## 6. AI Assistant V1.15 integration and FK policy
 
