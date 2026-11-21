@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Reconciled payload contract — canonical envelope and descriptor-level validation baseline; concrete Object Type and Geometry Component schemas remain domain-owned extensions
 - Supersedes: P2-09-17 V0.1; V0.1 is retained as history
-- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.8; P2-09-15 V0.1; P2-09-14 V0.1; P2-09-04 V0.2; ME-01-05 V0.1
+- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.8; P2-09-15 V0.2; P2-09-14 V0.1; P2-09-04 V0.2; ME-01-05 V0.1
 
 ## 1. Purpose
 
@@ -122,12 +122,12 @@ Required operation fields:
 |---|---|---|
 | object_identity_id | Opaque ID | Exactly one active target Object |
 | deactivation_reason_code | Stable enum | Optional only if Object Type permits omission |
-| retirement_attributes | Typed object | Optional descriptor-approved terminal facts; no arbitrary patch |
+| deactivation_attributes | Typed object | Optional descriptor-approved terminal facts; no arbitrary patch |
 
 Rules:
 - Only an active Object visible to the target History can be deactivated in that History.
 - Deactivation changes only the selected Map/Branch runtime state. It must not mutate the Project-level `core_object.lifecycle_status`, Shared Object definition, physical identity row or reservation. The same Project-shared Object may remain active in another Map/History.
-- Existing historical references remain resolvable. Whether an Object can be retired while referenced by active relationships is Object Type/relationship validation, not a generic database cascade.
+- Existing historical references remain resolvable. Whether an Object can be deactivated while referenced by active relationships is Object Type/relationship validation, not a generic database cascade.
 - The Command must not erase unrelated relationships or Assets implicitly. Reactivation, if supported, is a separate explicit history operation and is not implied by deleting/editing this Command.
 
 ### 5.3 `core.object.attribute.change`

@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Reconciled recommended V1 catalog baseline — descriptor families and scope decisions; payload schemas and handler algorithms remain subject to bounded follow-up design
 - Supersedes: P2-09-15 V0.1; V0.1 is retained as history
-- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.1; P2-09-11 V0.8; P2-09-14 V0.1; P2-01-D01 D01-01~16 and D01-50~64; ME-01-05 V0.1; Spatial Presentation & Geometry Interaction Contract V0.1
+- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.8; P2-09-14 V0.1; P2-01-D01 D01-01~16 and D01-50~64; ME-01-05 V0.1; Spatial Presentation & Geometry Interaction Contract V0.1
 
 ## 1. Purpose and authority
 
@@ -40,6 +40,8 @@ The catalog distinguishes four operation classes:
 
 A single user workflow may cross more than one class, but each persisted fact must use its correct authority.
 
+**History-locality rule:** every post-zero Command in this catalog changes runtime state only in the selected Map/Branch History. It must not mutate the Project-level Shared Object current definition or globally change `core_object.lifecycle_status`. Project-level Shared Object definition edits use the separate Shared Object definition Domain Service and follow the accepted retroactive-current-definition rule. A Project-shared Object may therefore have different runtime states in different Maps.
+
 ## 4. Recommended V1 Command catalog
 
 ### 4.1 Core Object lifecycle and semantic state
@@ -47,14 +49,14 @@ A single user workflow may cross more than one class, but each persisted fact mu
 | Proposed Command Type ID | Display intent | V1 recommendation | Target and time | Primary references | State Change behavior |
 |---|---|---|---|---|---|
 | `core.object.create` | Create a semantic Object in the world | Include, with strict preconditions | One Map/Branch History; post-zero only | Object Type, Bound reservation/Object identity, optional immutable geometry/assets, optional relationship endpoints | Usually one creation/availability transition plus zero or more descriptor-derived initialization effects |
-| `core.object.deactivate` | Deactivate an Object in this Map/Branch History | Include as retirement, not physical deletion | One History; post-zero only | Existing Object identity and optional reason/evidence | One lifecycle/availability transition; references and historical provenance remain |
+| `core.object.deactivate` | Deactivate an Object in this Map/Branch History | Include as a History-local runtime operation, not identity retirement | One History; post-zero only | Existing Object identity and optional reason/evidence | One History-local availability transition; identity and provenance remain |
 | `core.object.attribute.change` | Change a typed semantic attribute | Include only for Object-Type-declared mutable attributes | One History; post-zero only | One Object identity; typed before-condition/expected value where required | Zero or one semantic attribute transition; reject unknown fields and untyped arbitrary patches |
 
 Rules:
 - Object identity and Object ID allocation remain Core Domain responsibilities. Creation must use the existing reservation lifecycle; the editor or AI cannot invent an Object ID.
 - A reservation becomes Bound before insertion as required by P2-09-04. The transition to Inserted and formal creation Command application must be atomic under the Core Domain/Application transaction contract.
 - Initial membership and initial attributes at time zero are authored through the Initial State baseline path, not by creating a time-zero Command.
-- Retirement is the recommended normal post-zero removal semantic. Do not physically delete identity rows or historical provenance.
+- Deactivation is the recommended post-zero removal semantic. It changes only runtime availability in the selected History. Do not mutate the Project-level `core_object.lifecycle_status`, Shared Object current definition, identity row, reservation or historical provenance.
 - Attribute changes are not a generic JSON patch. Each Object Type declares the allowed attribute keys, value types, invariants and deterministic effect semantics. If an attribute is not historically mutable, it is not exposed through this descriptor.
 
 ### 4.2 Geometry Operations
