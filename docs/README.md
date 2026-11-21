@@ -23,9 +23,10 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-16 Shared Definition / Checkpoint Coherence V0.1](architecture/core-domain/world-view-core-domain-p2-09-16-shared-definition-checkpoint-coherence-contract-v0.1.md) — retroactive current-definition and Checkpoint freshness rules.
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 - [P2-09-05 Historical Time / Calendar Contract V0.3](architecture/core-domain/world-view-core-domain-p2-09-05-historical-time-ordering-persistence-contract-v0.3.md) — current canonical-time and Calendar persistence baseline.
+- [P2-09-14 Historical Time / Calendar Validation Contract V0.1](architecture/core-domain/p2-09-14-historical-time-calendar-validation-contract-v0.1.md) — validation matrix for Calendar conversion, precision intervals, reforms, Branch inheritance and sustained Commands; recommended, not a frozen ADR.
 - [P2-09-12 Provider / Transaction Proof Spec V0.2](architecture/core-domain/world-view-core-domain-p2-09-12-provider-transaction-proof-test-spec-v0.2.md) — required development verification; tests have not been claimed as executed.
 
-**Source mismatch note:** the preserved README V1.38 snapshot mentions a standalone P2-09-14 Calendar validation contract, but the repository path previously assigned to it contained a duplicate README snapshot, and no matching standalone source artifact was located during the audit. Until that contract is authored and reviewed, use P2-09-05 V0.3 as the current Calendar persistence source and keep the remaining Calendar validation gates open.
+**Source provenance note:** the earlier repository path assigned to P2-09-14 contained a duplicate README snapshot, not the validation contract. No matching standalone source artifact was located during the audit, so P2-09-14 V0.1 has now been authored as a new validation contract from P2-09-05 V0.3 and the current persistence baseline; it is not represented as a recovered Library original. Its unresolved Calendar semantics remain explicit.
 
 ## Authority and document status
 

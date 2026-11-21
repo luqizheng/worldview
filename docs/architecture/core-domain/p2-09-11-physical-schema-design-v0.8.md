@@ -301,7 +301,7 @@ The following must be enforced in Domain Services and covered by database/integr
 16. Calendar Configurations for the same Calendar/History scope must not overlap; gap/default fallback behavior remains subject to explicit Calendar validation.
 17. Calendar Configuration edits never invalidate World State Checkpoints or trigger World State reconstruction.
 
-## 6. AI Assistant V1.15 integration and FK policy
+## 6. AI Assistant V1.16 integration and FK policy
 
 AI Assistant Logical Schema V1.16's exact 28 AI-owned domain-table inventory is the integration baseline. Do not duplicate Core Domain entities. UUID text is the proposed Core entity key format, but **not every AI reference should become a database FK**. Core Commands and some target entities can be edited/deleted/retired under Core Domain rules; AI authorization and submission evidence must remain immutable after those lifecycle changes.
 
