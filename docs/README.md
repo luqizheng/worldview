@@ -40,7 +40,11 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-27 V1 Relationship Type Descriptor Registry V0.1](architecture/core-domain/p2-09-27-v1-relationship-type-descriptor-registry-v0.1.json) — endpoint matrices, direction, cardinality, cycle and endpoint-activity policies for five candidate Relationship Types.
 - [P2-09-28 Domain Descriptor Validation Vectors V0.2](architecture/core-domain/p2-09-28-domain-descriptor-validation-vectors-v0.2.json) — reconciled positive/negative Object, Relationship and cross-cutting fixtures; design-only, not executed.
 - [P2-09-29 Domain Descriptor Cross-Registry Consistency Contract V0.1](architecture/core-domain/p2-09-29-domain-descriptor-cross-registry-consistency-contract-v0.1.md) — Object/Relationship/Command scope alignment, endpoint/cardinality semantics, Map/Branch isolation and checkpoint compatibility.
-- [ME-02-F Calculation Contracts V0.1](map-editor/world-view-me-02-calculation-contracts-v0.1.md) — deterministic calculation requests, provenance, freshness, dependency invalidation, checkpoint coherence, validation severity and atomic output publication.
+- [ME-02-F Calculation Contracts V0.2](map-editor/world-view-me-02-calculation-contracts-v0.2.md) — deterministic calculation requests, provenance, freshness, dependency invalidation, derived-artifact/Core Asset separation, source Field Dataset authority gate, validation and atomic publication.
+- [ME-02-G UX Scenarios & Acceptance V0.2](map-editor/world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) — end-to-end natural-geography creator journeys, Inspector, diagnostics, formal authoring targets, failure/recovery and Figma handoff.
+- [ME-02-H Cross-architecture Review V0.1](map-editor/world-view-me-02-cross-architecture-review-v0.1.md) — Core Domain/Map Engine/Map Generation/ME-01 reconciliation, implementation gates and ME-02 package disposition.
+- [ME-02 Overall Baseline V0.6](map-editor/world-view-me-02-terrain-and-natural-geography-editor-v0.6.md) — reconciled natural-geography product/domain baseline through ME-02-H.
+- [Map Editor Work Plan V0.9](map-editor/ME-01-work-plan-and-document-status-v0.9.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
