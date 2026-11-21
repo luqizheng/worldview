@@ -101,7 +101,9 @@ CD-01 完成 Core Domain 最小真实持久化并点亮 AF-02 四端口：
 
 | Commit | 内容 |
 |---|---|
-| `1b3850d` | refactor(WorldView): replace MapProject sample with core domain model and CD-01 schema |
-| `00373cc` | feat(WorldView.Infrastructure): implement CD-01 core domain SQLite persistence |
-| `786b8aa` | feat(WorldView.Desktop): register CD-01 core domain services; end-to-end chain and isolation tests |
-| （本提交） | docs(core-domain): CD-01 设计/报告/交接 + ADR-0003 + 索引 |
+| [`c744771`](https://github.com/luqizheng/worldview/commit/c744771) | refactor(WorldView): replace MapProject sample with core domain model and CD-01 schema |
+| [`8b6da8f`](https://github.com/luqizheng/worldview/commit/8b6da8f) | feat(WorldView.Infrastructure): implement CD-01 core domain SQLite persistence |
+| [`b63cde2`](https://github.com/luqizheng/worldview/commit/b63cde2) | feat(WorldView.Desktop): register CD-01 core domain services; end-to-end chain and isolation tests |
+| [`886ad24`](https://github.com/luqizheng/worldview/commit/886ad24) | docs(core-domain): CD-01 设计/报告/交接 + ADR-0003 + 索引 |
+
+注：四个提交在推送前经 rebase 对齐远端（远端新增了无关的文档提交），SHA 以 rebase 后为准。
