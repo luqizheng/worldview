@@ -10,7 +10,7 @@ This repository is the version-controlled documentation baseline for the World V
 - `adr/`: accepted, frozen, amended, and rejected architecture decisions.
 - `P2-01-D01/`: historical-state and command-domain discussion record.
 - `ai-assistant/`: AI product architecture, task planning/execution, context, tools, providers, authorization, proposal/application, database schemas, and recovery.
-- `map-editor/`: desktop editor architecture, world-knowledge/story-spatial bridge, Guided Initialization, multi-scale spatial consistency, map Object/geometry/presentation model, Canvas-centered interaction framework, cross-architecture consistency review and ME-01 work plan.
+- `map-editor/`: shared desktop editor architecture (ME-01), Terrain & Natural Geography Editor (ME-02), world-knowledge/story-spatial bridge, Guided Initialization, multi-scale spatial consistency, map Object/geometry/presentation model, Canvas-centered interaction framework, cross-architecture consistency review and specialist work plan.
 - `map-generation/`: map generation specification, generation session lifecycle, and related source README.
 - `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, and Unit animation.
 - `history/`: reserved for superseded or historical source documents retained for traceability.
