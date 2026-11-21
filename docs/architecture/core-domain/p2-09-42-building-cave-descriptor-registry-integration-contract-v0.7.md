@@ -1,9 +1,9 @@
 # World View P2-09-42 — Building/Cave Descriptor Registry Integration Contract
 
-- Version: 0.7
+- Version: 0.8
 - Date: 2026-11-21
 - Status: Registry integration proposal — not a frozen ADR, adopted registry version, DDL or implementation authorization
-- Depends on: P2-09-18 V0.2; P2-09-19 V0.2; P2-09-26 V0.2; P2-09-37 V0.6; P2-09-38 V0.5; P2-09-39 V0.5; P2-09-40 V0.6; P2-09-41 V0.4
+- Depends on: P2-09-18 V0.2; P2-09-19 V0.2; P2-09-26 V0.2; P2-09-37 V0.6; P2-09-38 V0.5; P2-09-39 V0.5; P2-09-40 V0.6; P2-09-41 V0.4; P2-09-45 V0.1; P2-09-46 V0.1; P2-09-47 V0.1
 
 ## 1. Purpose
 
@@ -11,7 +11,7 @@ P2-09-41 proposes Building and Cave System Object Type descriptors using the exi
 
 This document checks that proposal against P2-09-18 and P2-09-26 and defines the minimum registry-format integration required before those descriptors can be merged into the compiled Core Domain registry.
 
-**Disposition:** keep P2-09-41 as a proposal extension. Do not append it directly to P2-09-26 V0.2. The current registry format does not yet declare all three additional blocks, and the new payload schemas/vectors remain design artifacts rather than executed proof.
+**Disposition:** keep P2-09-41 as a proposal extension. Do not append it directly to P2-09-26 V0.2. Registry Format V2 is now specified by P2-09-45/46/47. However, P2-09-41 remains incomplete as a typed_v2 descriptor and the new payload schemas/vectors remain design artifacts rather than executed proof.
 
 ## 2. Existing descriptor shape
 
@@ -176,7 +176,7 @@ Building/Cave may participate in a future cross-domain Relationship only after t
 ## 8. Required amendments before registry merge
 
 Before publishing a new P2-09-26 registry version:
-1. Define the registry-format schema additions: definition_schema_ref, asset_contract and child_aggregate_contract.
+1. Execute and refine the Registry Format V2 contract/schema/vectors (P2-09-45/46/47), including legacy-profile compatibility and typed_v2 cross-record compiler checks.
 2. Refine the Building/Cave JSON Schemas so geometry role/context combinations are strict.
 3. Validate all 55 P2-09-40 vectors and add missing cases discovered by implementation.
 4. Define exact Object definition and Map Initial State geometry Asset-link roles.
@@ -196,7 +196,7 @@ A descriptor extension is not adopted merely because its JSON parses. It must pa
 - P2-09-41 V0.4: proposed Building/Cave Object Type descriptor extension.
 - P2-09-42 V0.7: this registry integration and compatibility review.
 
-The next step is a focused conformance pass: execute the 55 P2-09-40 vectors and existing P2-09-28 registry suite, finalize typed Asset-link semantics, and resolve any contradictions before generating the proposed P2-09-26 registry V0.3. Do not create DDL or implementation work from the current drafts.
+The next step is a focused conformance pass: execute the 55 P2-09-40 vectors and existing P2-09-28 registry suite, finalize typed Asset-link semantics, and resolve any contradictions before promoting the P2-09-26 V0.3 Registry Format V2 migration preview. Do not create DDL or implementation work from the current drafts.
 
 
 ## 10. V0.6 — Canonical Geometry Component owner metadata reconciliation
@@ -262,3 +262,19 @@ For this adoption profile:
 The current adoption therefore enables the existing `core_object_definition_asset` link; it does not add a component ID column or a new table. The Initial State Asset link remains out of scope unless a future Initial State payload introduces distinct immutable geometry Assets.
 
 P2-09-40 V0.6 models the relational link projection separately from `core_asset` hash metadata. It also distinguishes spatial and measurement semantics tests from schema/aggregate validation. The exact runner contract and audit limitations are recorded in P2-09-44 V0.1.
+
+
+## 13. V0.8 — Registry Format V2 contract and migration preview
+
+P2-09-45 V0.1 now defines Registry Format V2 as an explicit dual-profile migration:
+
+- `legacy_compact_v1` is restricted to the existing ten P2-09-26 V0.2 Object Type keys and preserves their current `schema_version`, `semantics_id`, field catalogs, geometry declarations, policies and Command capabilities.
+- `typed_v2` requires the complete P2-09-18 descriptor surface, including metadata, identity/allocation, separate definition/runtime/Initial State schema references, geometry, Relationship participation, lifecycle, Commands, Asset contract, child aggregate contract and compatibility behavior.
+
+P2-09-26 V0.3 Proposal is a migration preview containing only the ten existing types tagged as `legacy_compact_v1`. It deliberately does not add Building or Cave System.
+
+P2-09-46 V0.1 is the strict Draft 2020-12 registry JSON Schema. P2-09-47 V0.1 contains 34 design-only vectors covering registry schema, cross-record references, compatibility and offline bundle packaging. The vectors have not been executed by a production validator/compiler.
+
+P2-09-41 V0.4 is not yet a complete `typed_v2` descriptor: it lacks explicit metadata/identity blocks, runtime and Initial State schema references, Relationship participation and typed descriptor-structure version. These must be completed before Building/Cave can enter a V2 registry.
+
+The V2 migration does not alter persisted Object pins or require a Core Domain table/migration. Do not replace P2-09-26 V0.2 or activate the V0.3 preview until the schema meta-validation, all 34 vectors, P2-09-28 regressions, existing ten-type compatibility suite, command/relationship reference checks and offline Windows/macOS bundle evidence pass.
