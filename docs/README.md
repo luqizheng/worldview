@@ -22,7 +22,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-15 Command Descriptor Catalog V0.2](architecture/core-domain/p2-09-15-command-descriptor-catalog-v0.2.md) — bounded V1 catalog, deferred families and non-Command operation boundaries.
 - [P2-09-17 Command Payload / Validation Contract V0.2](architecture/core-domain/p2-09-17-command-payload-envelope-and-validation-contract-v0.2.md) — canonical payload envelope, typed Object/Asset references and descriptor-level validation.
 - [P2-09-11 Physical Schema V0.8](architecture/core-domain/p2-09-11-physical-schema-design-v0.8.md) — current reconciled Core Domain relational proposal; not executable DDL.
-- [P2-09-13 Integrated Schema Inventory V0.2](architecture/core-domain/p2-09-13-integrated-schema-inventory-migration-graph-v0.2.md) — Core/AI table inventory and corrected migration dependency graph.
+- [P2-09-13 Integrated Schema Inventory V0.3](architecture/core-domain/p2-09-13-integrated-schema-inventory-migration-graph-v0.3.md) — Core/AI table inventory and corrected migration dependency graph.
 - [P2-09-16 Shared Definition / Checkpoint Coherence V0.1](architecture/core-domain/world-view-core-domain-p2-09-16-shared-definition-checkpoint-coherence-contract-v0.1.md) — retroactive current-definition and Checkpoint freshness rules.
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 - [P2-09-05 Historical Time / Calendar Contract V0.3](architecture/core-domain/world-view-core-domain-p2-09-05-historical-time-ordering-persistence-contract-v0.3.md) — current canonical-time and Calendar persistence baseline.
