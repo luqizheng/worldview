@@ -343,7 +343,7 @@ If the product must support “the same Map has different elevation/land-water f
 
 ## 16. Status and next steps
 
-This adopted contract defines the formal authority and logical persistence boundary for H-G01. The product-semantic gate is closed. Physical-schema reconciliation, descriptor/validation artifacts, provider proof and implementation remain separate gates.
+This adopted contract defines the formal authority and logical persistence boundary for H-G01. The product-semantic gate is closed. Physical-schema, descriptor/validation and provider-proof design artifacts are documented; payload packaging, implementation and actual provider/platform test execution remain open.
 
 Follow-up disposition:
 1. **Completed as design artifacts:** P2-09-11 V0.11 physical schema reconciliation; P2-09-12 V0.6 provider proof specification; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset validation vectors V0.1; ME-02-F V0.3 calculation fingerprint/freshness alignment.
