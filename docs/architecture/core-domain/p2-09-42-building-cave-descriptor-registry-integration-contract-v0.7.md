@@ -178,7 +178,7 @@ Building/Cave may participate in a future cross-domain Relationship only after t
 Before publishing a new P2-09-26 registry version:
 1. Define the registry-format schema additions: definition_schema_ref, asset_contract and child_aggregate_contract.
 2. Refine the Building/Cave JSON Schemas so geometry role/context combinations are strict.
-3. Validate all 51 P2-09-40 vectors and add missing cases discovered by implementation.
+3. Validate all 53 P2-09-40 vectors and add missing cases discovered by implementation.
 4. Define exact Object definition and Map Initial State geometry Asset-link roles.
 5. Confirm that the existing 20 Core Domain tables remain sufficient; update P2-09-13 only if an actual integrity/query requirement demands a new table.
 6. Reconcile the Building/Cave Command capability map with P2-09-15/17 and the actual geometry handler contracts.
@@ -194,9 +194,9 @@ A descriptor extension is not adopted merely because its JSON parses. It must pa
 - P2-09-39 V0.5: Cave System typed aggregate schema draft aligned to P2-09-19 geometry metadata.
 - P2-09-40 V0.6: 53 design-only validation vectors; not executed.
 - P2-09-41 V0.4: proposed Building/Cave Object Type descriptor extension.
-- P2-09-42 V0.6: this registry integration and compatibility review.
+- P2-09-42 V0.7: this registry integration and compatibility review.
 
-The next step is a focused conformance pass: execute the 51 P2-09-40 vectors and existing P2-09-28 registry suite, finalize typed Asset-link semantics, and resolve any contradictions before generating the proposed P2-09-26 registry V0.3. Do not create DDL or implementation work from the current drafts.
+The next step is a focused conformance pass: execute the 53 P2-09-40 vectors and existing P2-09-28 registry suite, finalize typed Asset-link semantics, and resolve any contradictions before generating the proposed P2-09-26 registry V0.3. Do not create DDL or implementation work from the current drafts.
 
 
 ## 10. V0.6 — Canonical Geometry Component owner metadata reconciliation
@@ -237,7 +237,7 @@ The owner payload `asset_id/content_hash` pair and relational typed link must ag
 ### 11.2 Remaining adoption gate
 
 Before proposing P2-09-26 V0.3:
-1. Execute all 51 P2-09-40 V0.6 vectors against the strict schemas and aggregate validator.
+1. Execute all 53 P2-09-40 V0.6 vectors against the strict schemas and aggregate validator.
 2. Execute P2-09-28 V0.2 and all existing ten-type registry regression vectors.
 3. Verify `core_object_definition_asset` and `core_command_asset` in actual Core Domain persistence, and confirm `core_map_initial_object_asset` remains unnecessary under the current Initial State payload.
 4. Verify descriptor-format extension and offline schema hash pinning.
