@@ -194,7 +194,7 @@ A descriptor extension is not adopted merely because its JSON parses. It must pa
 - P2-09-39 V0.5: Cave System typed aggregate schema draft aligned to P2-09-19 geometry metadata.
 - P2-09-40 V0.6: 55 design-only validation vectors; not executed.
 - P2-09-41 V0.4: proposed Building/Cave Object Type descriptor extension.
-- P2-09-42 V0.7: this registry integration and compatibility review.
+- P2-09-42 V0.8: this registry integration and compatibility review.
 
 The next step is a focused conformance pass: execute the 55 P2-09-40 vectors and existing P2-09-28 registry suite, finalize typed Asset-link semantics, and resolve any contradictions before promoting the P2-09-26 V0.3 Registry Format V2 migration preview. Do not create DDL or implementation work from the current drafts.
 
