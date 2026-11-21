@@ -4,16 +4,19 @@ using System.Collections.Generic;
 namespace WorldView.Domain.Persistence;
 
 /// <summary>
-/// Core Domain 模块（module_id="core-domain"）的迁移内容（CD-01 子集）。
+/// Core Domain 模块（module_id="core-domain"）的迁移内容（CD-01 + CD-02-B 子集）。
 /// 表结构取自 P2-09-11 V0.11 §4（提案；本文件是其最小可执行子集的正式落地），
 /// 迁移槽位顺序遵循 P2-09-13 V0.6 §5 依赖图（ledger → core_project → core_map →
-/// core_history/core_branch → core_calendar）。
+/// core_history/core_branch → core_calendar → core_object_type → core_object 系 →
+/// core_map_object_ref → core_map_initial_state 系；CD-02-A §15）。
 /// 约定（P2-09-11 §2/§3）：canonical 小写连字符 UUID TEXT 主键；snake_case；
 /// 运营时间戳 *_utc_ms INTEGER；历史时间为 (day_number, offset_seconds) 整数对；
 /// 每连接 PRAGMA foreign_keys=ON；正式身份/历史表不用 ON DELETE CASCADE（默认 NO ACTION）；
 /// 同 Project 归属以 UNIQUE(project_id, entity_id) + 复合外键防跨库误引用。
-/// 刻意排除的表（open gate，未授权落地）：core_map_initial_state（payload 形状未定）、
-/// core_object 系、core_command 系、core_asset/core_checkpoint、全部 AI Assistant 表。
+/// 仍刻意排除的表（open gate，未授权落地）：core_command 系、core_event 系、
+/// core_asset/core_checkpoint、core_object_definition_asset/core_map_initial_object_asset
+/// （条件性 typed link，启用触发条件见 CD-02-A §17）、field dataset 系、
+/// state change 系、全部 AI Assistant 表、任何 Building/Cave 或 per-child 表。
 /// </summary>
 public static class CoreDomainSchema
 {
@@ -144,12 +147,221 @@ public static class CoreDomainSchema
         );
         """;
 
-    /// <summary>迁移清单（顺序即依赖序：project → map → history/branch → calendar）。</summary>
+    /// <summary>
+    /// 005：core_object_type（P2-09-11 §4.2；CD-02-A §7/§8）。Project 级 Object Type
+    /// 配置权威：稳定 type_key + 可变显示名 + 分配格式配置。可执行 descriptor schema/
+    /// semantics 由编译期 registry 提供，此行不是可执行 schema（P2-09-18 §4.2）。
+    /// 十内置类型在 Project 创建事务内播种（OD-4 建议案；P2-09-21 V0.1 种子目录）。
+    /// </summary>
+    public const string Migration005CoreObjectType = """
+        CREATE TABLE core_object_type (
+            object_type_id            TEXT    NOT NULL PRIMARY KEY,
+            project_id                TEXT    NOT NULL,
+            type_key                  TEXT    NOT NULL,
+            display_name              TEXT    NOT NULL,
+            allocatable               INTEGER NOT NULL CHECK (allocatable IN (0, 1)),
+            allocation_format_json    TEXT    NOT NULL,
+            allocation_format_version INTEGER NOT NULL,
+            created_at_utc_ms         INTEGER NOT NULL,
+            updated_at_utc_ms         INTEGER NOT NULL,
+            UNIQUE (project_id, object_type_id),
+            UNIQUE (project_id, type_key),
+            FOREIGN KEY (project_id) REFERENCES core_project (project_id)
+        );
+        """;
+
+    /// <summary>
+    /// 006：core_object + core_object_definition + core_object_id_allocator +
+    /// core_object_id_reservation（P2-09-11 §4.2；CD-02-A §5/§6/§8）。
+    /// core_object 持身份级状态（P1 存在层）；CHECK 强制 scope/owner 配对
+    /// （project_shared⇒owner_map_id 为空，map_local⇒非空；owner_map_id 复合 FK
+    /// 在 NULL 时跳过校验为 SQLite 语义，map_local 侧由 CHECK 保证强制）。
+    /// core_object_definition 每 identity 至多一行当前定义（PK/FK 复合键天然防重）。
+    /// allocator 的 next_sequence 仅在与 reservation 插入同事务内前进。
+    /// reservation 状态机 CHECK：Reserved⇒identity 为空、Bound/Inserted⇒非空、
+    /// Abandoned 皆可；identity 溯源复合 FK + 非空 UNIQUE（每 identity 至多一条）。
+    /// request_key 求值 UNIQUE 在 SQLite 下 NULL 互相不冲突，等价"提供时唯一"。
+    /// </summary>
+    public const string Migration006CoreObjectIdentity = """
+        CREATE TABLE core_object (
+            object_identity_id         TEXT    NOT NULL PRIMARY KEY,
+            project_id                 TEXT    NOT NULL,
+            object_type_id             TEXT    NOT NULL,
+            object_type_schema_version INTEGER NOT NULL,
+            object_type_semantics_id   TEXT    NOT NULL,
+            sharing_scope              TEXT    NOT NULL CHECK (sharing_scope IN ('project_shared', 'map_local')),
+            owner_map_id               TEXT    NULL,
+            lifecycle_status           TEXT    NOT NULL CHECK (lifecycle_status IN ('draft', 'active', 'abandoned', 'retired')),
+            created_at_utc_ms          INTEGER NOT NULL,
+            updated_at_utc_ms          INTEGER NOT NULL,
+            CHECK (
+                (sharing_scope = 'project_shared' AND owner_map_id IS NULL)
+                OR (sharing_scope = 'map_local' AND owner_map_id IS NOT NULL)
+            ),
+            UNIQUE (project_id, object_identity_id),
+            UNIQUE (project_id, object_type_id, object_identity_id),
+            FOREIGN KEY (project_id) REFERENCES core_project (project_id),
+            FOREIGN KEY (project_id, object_type_id) REFERENCES core_object_type (project_id, object_type_id),
+            FOREIGN KEY (project_id, owner_map_id) REFERENCES core_map (project_id, map_id)
+        );
+
+        CREATE TABLE core_object_definition (
+            project_id                TEXT    NOT NULL,
+            object_identity_id        TEXT    NOT NULL,
+            definition_schema_version INTEGER NOT NULL,
+            definition_payload_json   TEXT    NOT NULL,
+            definition_hash           TEXT    NOT NULL,
+            updated_at_utc_ms         INTEGER NOT NULL,
+            PRIMARY KEY (project_id, object_identity_id),
+            FOREIGN KEY (project_id, object_identity_id) REFERENCES core_object (project_id, object_identity_id)
+        );
+
+        CREATE TABLE core_object_id_allocator (
+            project_id               TEXT    NOT NULL,
+            object_type_id           TEXT    NOT NULL,
+            next_sequence            INTEGER NOT NULL CHECK (next_sequence >= 1),
+            allocator_format_version INTEGER NOT NULL,
+            created_at_utc_ms        INTEGER NOT NULL,
+            updated_at_utc_ms        INTEGER NOT NULL,
+            PRIMARY KEY (project_id, object_type_id),
+            FOREIGN KEY (project_id, object_type_id) REFERENCES core_object_type (project_id, object_type_id)
+        );
+
+        CREATE TABLE core_object_id_reservation (
+            reservation_id     TEXT    NOT NULL PRIMARY KEY,
+            project_id         TEXT    NOT NULL,
+            object_type_id     TEXT    NOT NULL,
+            object_identity_id TEXT    NULL,
+            allocated_sequence INTEGER NOT NULL CHECK (allocated_sequence >= 1),
+            allocated_id_value TEXT    NOT NULL,
+            reservation_state  TEXT    NOT NULL CHECK (reservation_state IN ('Reserved', 'Bound', 'Inserted', 'Abandoned')),
+            request_key        TEXT    NULL,
+            abandon_reason     TEXT    NULL,
+            created_at_utc_ms  INTEGER NOT NULL,
+            updated_at_utc_ms  INTEGER NOT NULL,
+            CHECK (
+                (reservation_state = 'Reserved' AND object_identity_id IS NULL)
+                OR (reservation_state IN ('Bound', 'Inserted') AND object_identity_id IS NOT NULL)
+                OR (reservation_state = 'Abandoned')
+            ),
+            CHECK (abandon_reason IS NULL OR reservation_state = 'Abandoned'),
+            UNIQUE (project_id, reservation_id),
+            UNIQUE (project_id, object_type_id, allocated_sequence),
+            UNIQUE (project_id, object_type_id, allocated_id_value),
+            UNIQUE (project_id, request_key),
+            UNIQUE (project_id, object_type_id, object_identity_id),
+            FOREIGN KEY (project_id) REFERENCES core_project (project_id),
+            FOREIGN KEY (project_id, object_type_id) REFERENCES core_object_type (project_id, object_type_id),
+            FOREIGN KEY (project_id, object_type_id, object_identity_id)
+                REFERENCES core_object (project_id, object_type_id, object_identity_id)
+        );
+        """;
+
+    /// <summary>
+    /// 007：core_map_object_ref（P2-09-11 §4.1；CD-02-A §9）。Map 对正式 Object 的
+    /// 显式注册（P2 存在层）；不复制 sharing_scope/owner_map_id（scope 从 core_object
+    /// 解析）。map_local 跨 Map 注册拒绝由 Domain 服务强制；INSERT/UPDATE 触发器为
+    /// 纵深防御（P2-09-11 §4.1 要求）。注册≠Initial State 成员。
+    /// </summary>
+    public const string Migration007CoreMapObjectRef = """
+        CREATE TABLE core_map_object_ref (
+            map_object_ref_id  TEXT    NOT NULL PRIMARY KEY,
+            project_id         TEXT    NOT NULL,
+            map_id             TEXT    NOT NULL,
+            object_identity_id TEXT    NOT NULL,
+            created_at_utc_ms  INTEGER NOT NULL,
+            UNIQUE (project_id, map_object_ref_id),
+            UNIQUE (project_id, map_id, object_identity_id),
+            FOREIGN KEY (project_id, map_id) REFERENCES core_map (project_id, map_id),
+            FOREIGN KEY (project_id, object_identity_id) REFERENCES core_object (project_id, object_identity_id)
+        );
+
+        CREATE TRIGGER trg_core_map_object_ref_insert_scope
+        BEFORE INSERT ON core_map_object_ref
+        WHEN EXISTS (
+            SELECT 1 FROM core_object o
+            WHERE o.project_id = NEW.project_id
+              AND o.object_identity_id = NEW.object_identity_id
+              AND o.sharing_scope = 'map_local'
+              AND o.owner_map_id <> NEW.map_id
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'core_map_object_ref: map_local object may only be registered in its owner map.');
+        END;
+
+        CREATE TRIGGER trg_core_map_object_ref_update_scope
+        BEFORE UPDATE OF project_id, map_id, object_identity_id ON core_map_object_ref
+        WHEN EXISTS (
+            SELECT 1 FROM core_object o
+            WHERE o.project_id = NEW.project_id
+              AND o.object_identity_id = NEW.object_identity_id
+              AND o.sharing_scope = 'map_local'
+              AND o.owner_map_id <> NEW.map_id
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'core_map_object_ref: map_local object may only be registered in its owner map.');
+        END;
+        """;
+
+    /// <summary>
+    /// 008：core_map_initial_state + core_map_initial_object（P2-09-11 §4.1；
+    /// CD-02-A §10）。每 Map 恰一个逻辑 Initial State（UNIQUE(project_id,map_id)）。
+    /// 成员行复合 FK 指向 core_map_object_ref——数据库层直接强制"成员必须有注册行"
+    /// 跨表不变量；内容层 typed schema 为 open decision（CD-02-A OD-1），本阶段仅
+    /// 结构层（canonical JSON + fingerprint）。placement payload 与 schema version
+    /// 成对可空；relationship payload 留待 Relationship 阶段。
+    /// </summary>
+    public const string Migration008CoreMapInitialState = """
+        CREATE TABLE core_map_initial_state (
+            initial_state_id        TEXT    NOT NULL PRIMARY KEY,
+            project_id              TEXT    NOT NULL,
+            map_id                  TEXT    NOT NULL,
+            baseline_schema_version INTEGER NOT NULL,
+            content_fingerprint     TEXT    NOT NULL,
+            created_at_utc_ms       INTEGER NOT NULL,
+            updated_at_utc_ms       INTEGER NOT NULL,
+            UNIQUE (project_id, map_id),
+            UNIQUE (project_id, initial_state_id),
+            UNIQUE (project_id, map_id, initial_state_id),
+            FOREIGN KEY (project_id, map_id) REFERENCES core_map (project_id, map_id)
+        );
+
+        CREATE TABLE core_map_initial_object (
+            project_id                       TEXT    NOT NULL,
+            map_id                           TEXT    NOT NULL,
+            initial_state_id                 TEXT    NOT NULL,
+            object_identity_id               TEXT    NOT NULL,
+            initial_membership_payload_json  TEXT    NOT NULL,
+            initial_placement_payload_json   TEXT    NULL,
+            initial_placement_schema_version INTEGER NULL,
+            created_at_utc_ms                INTEGER NOT NULL,
+            PRIMARY KEY (initial_state_id, object_identity_id),
+            CHECK (
+                (initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL)
+                OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)
+            ),
+            FOREIGN KEY (project_id, map_id, initial_state_id)
+                REFERENCES core_map_initial_state (project_id, map_id, initial_state_id),
+            FOREIGN KEY (project_id, map_id, object_identity_id)
+                REFERENCES core_map_object_ref (project_id, map_id, object_identity_id),
+            FOREIGN KEY (project_id, object_identity_id)
+                REFERENCES core_object (project_id, object_identity_id)
+        );
+        """;
+
+    /// <summary>
+    /// 迁移清单（顺序即依赖序：project → map → history/branch → calendar →
+    /// object_type → object 系 → map_object_ref → initial_state 系）。
+    /// </summary>
     public static IReadOnlyList<(string MigrationId, string Sql)> Migrations { get; } =
     [
         ("001_core_project", Migration001CoreProject),
         ("002_core_map_identity", Migration002CoreMapIdentity),
         ("003_core_history_branch", Migration003CoreHistoryBranch),
         ("004_core_calendar", Migration004CoreCalendar),
+        ("005_core_object_type", Migration005CoreObjectType),
+        ("006_core_object_identity", Migration006CoreObjectIdentity),
+        ("007_core_map_object_ref", Migration007CoreMapObjectRef),
+        ("008_core_map_initial_state", Migration008CoreMapInitialState),
     ];
 }
