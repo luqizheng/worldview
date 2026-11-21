@@ -22,7 +22,7 @@ ME-02-A through ME-02-G form a coherent Natural Geography editor product and dom
 
 **No new top-level subsystem or distributed infrastructure is required.** Calculation execution belongs inside the Map Engine / Spatial Services boundary. UX uses the existing Editor and AI Map Task lifecycle.
 
-The original review identified one unresolved domain boundary: the authority and persistence lifecycle of creator-authored/imported source Field Datasets. This has now been resolved by ME-05-01 V0.2, adopted on 2026-11-21: Core Domain owns Map-scoped Field Dataset identity, immutable Field Revisions and typed Core Asset references; each new current revision applies retroactively to every Branch and Historical Time of its Map. It is not a Command/Event/State Change and does not affect another Map. P2-09-11 V0.11 and P2-09-12 V0.6 reconcile the logical schema and provider-proof design; ME-02-F V0.3 aligns calculation fingerprints and freshness. Implementation, Field Descriptor Registry, payload package/tiling and actual provider/platform tests remain open.
+The original review identified one unresolved domain boundary: the authority and persistence lifecycle of creator-authored/imported source Field Datasets. This has now been resolved by ME-05-01 V0.3, adopted on 2026-11-21: Core Domain owns Map-scoped Field Dataset identity, immutable Field Revisions and typed Core Asset references; each new current revision applies retroactively to every Branch and Historical Time of its Map. It is not a Command/Event/State Change and does not affect another Map. P2-09-11 V0.11 and P2-09-12 V0.6 reconcile the logical schema and provider-proof design; ME-02-F V0.3 aligns calculation fingerprints and freshness. Implementation, Field Descriptor Registry, payload package/tiling and actual provider/platform tests remain open.
 
 The package is suitable for the next bounded design/implementation-planning phase. The H-G01 product/domain authority gate is closed; implementation readiness remains subject to the explicit sub-gates below.
 
@@ -73,7 +73,7 @@ This review evaluates design compatibility and stated authority. It does not cla
 | Shared Object definition | P2-09-16 | Capture current definition in calculation input identity; map-local runtime remains separate | Aligned |
 | Branch/history/checkpoints | P2-09-08/11/16 | Historical context and lineage participate in freshness identity | Aligned |
 | Immutable formal Assets | P2-09-11/17/19/25 | Formal adopted payloads use Core Asset and typed owner links | Aligned |
-| Source physical Field Dataset | ME-05-01 V0.2 adopted contract | Core owner, Map-wide retroactive baseline semantics and typed Asset ownership defined; implementation still pending | **Domain gate closed; implementation sub-gates open** |
+| Source physical Field Dataset | ME-05-01 V0.3 adopted contract | Core owner, Map-wide retroactive baseline semantics and typed Asset ownership defined; implementation still pending | **Domain gate closed; implementation sub-gates open** |
 | Derived calculation outputs | ME-02-F V0.3 | Map Engine-owned derived artifact catalog/file namespace, not Core Asset by default | Clarified |
 | Calculation execution | Map Engine / Spatial Services | Bounded local calculation subsystem | Aligned |
 | AI task and Candidate | Map Generation V0.2 | Calculation Run is an internal execution unit; Candidate only for formal adoption | Aligned |
@@ -89,7 +89,7 @@ This review evaluates design compatibility and stated authority. It does not cla
 
 **Disposition: P0 product/domain gate CLOSED; implementation gate remains**
 
-ME-02-B initially left the Field Dataset owner and persistence lifecycle open. ME-05-01 V0.2 now defines the adopted Map-owned Dataset/immutable Revision contract and typed Asset ownership. P2-09-11 V0.11 adds the two Core tables and same-Dataset current-revision composite FK; P2-09-12 V0.6 adds provider-level verification cases. The product-semantic decision is accepted: publishing a new Field Revision updates the Map Source Field Baseline retroactively for every Branch and Historical Time of that Map, without creating a Command, Event or State Change and without affecting another Map.
+ME-02-B initially left the Field Dataset owner and persistence lifecycle open. ME-05-01 V0.3 now defines the adopted Map-owned Dataset/immutable Revision contract and typed Asset ownership. P2-09-11 V0.11 adds the two Core tables and same-Dataset current-revision composite FK; P2-09-12 V0.6 adds provider-level verification cases. The product-semantic decision is accepted: publishing a new Field Revision updates the Map Source Field Baseline retroactively for every Branch and Historical Time of that Map, without creating a Command, Event or State Change and without affecting another Map.
 
 **Disposition:**
 1. **Closed:** ME-05/Core Domain have defined and adopted the bounded Field Dataset authority, Map ownership and Map-wide retroactive Branch/Time semantics.
@@ -307,7 +307,7 @@ Map Engine V0.3 recommends a renderer-neutral scene architecture and an Avalonia
 
 | Gate | Owner | Blocks |
 |---|---|---|
-| H-G01 — Field Dataset authority and Map/Branch/History semantics | **Closed by ME-05-01 V0.2** | Domain contract adopted; no longer blocks schema design |
+| H-G01 — Field Dataset authority and Map/Branch/History semantics | **Closed by ME-05-01 V0.3** | Domain contract adopted; no longer blocks schema design |
 | H-G01-I — Field payload package, physical provider implementation and cross-platform validation | ME-05 + Core Domain + Map Engine + Development | Production field publication and editing |
 | H-G02 — Derived Artifact storage namespace and catalog implementation | Map Engine | Derived field production/publication implementation |
 | H-G03 — Exact Calculation Definition/input fingerprint serialization | Map Engine + Core Domain | Reproducibility and cache identity implementation |
@@ -336,7 +336,7 @@ Older versions remain in the repository for traceability. Newer documents supers
 | Work item | Disposition |
 |---|---|
 | ME-02-A Domain Inventory | Complete — working baseline |
-| ME-02-B Land/Water & Elevation | Complete — logical authoring baseline; formal Field Dataset authority adopted by ME-05-01 V0.2 |
+| ME-02-B Land/Water & Elevation | Complete — logical authoring baseline; formal Field Dataset authority adopted by ME-05-01 V0.3 |
 | ME-02-C Terrain Feature Authoring | Complete — working baseline |
 | ME-02-D Hydrology & Drainage | Complete — specialist workflow baseline; exact algorithms and descriptors remain gated |
 | ME-02-E Climate & Ecology | Complete — specialist workflow baseline; exact calibration and field persistence remain gated |
