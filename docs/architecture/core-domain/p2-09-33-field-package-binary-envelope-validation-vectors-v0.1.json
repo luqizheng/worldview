@@ -1,0 +1,148 @@
+{
+  "suite": "World View V1 Field Package Binary Envelope Validation Vectors",
+  "version": "0.1",
+  "contract": "ME-05-08 Field Package Binary Envelope & Directory Specification V0.1",
+  "status": "design fixtures only; not executed",
+  "cases": [
+    {
+      "id": "FPB-001",
+      "expect": "valid",
+      "scenario": "Parse a valid 72-byte header with format 1.0 and exact package length."
+    },
+    {
+      "id": "FPB-002",
+      "expect": "invalid",
+      "scenario": "Reject a short header or wrong 8-byte magic."
+    },
+    {
+      "id": "FPB-003",
+      "expect": "invalid",
+      "scenario": "Reject a header length other than 72 or nonzero reserved/header flags."
+    },
+    {
+      "id": "FPB-004",
+      "expect": "invalid",
+      "scenario": "Reject package_length that differs from actual file length."
+    },
+    {
+      "id": "FPB-005",
+      "expect": "invalid",
+      "scenario": "Reject section offsets or lengths that overflow checked arithmetic."
+    },
+    {
+      "id": "FPB-006",
+      "expect": "invalid",
+      "scenario": "Reject manifest offset other than 72 or section order that overlaps."
+    },
+    {
+      "id": "FPB-007",
+      "expect": "invalid",
+      "scenario": "Reject a directory length inconsistent with 16 + entry_count × 72."
+    },
+    {
+      "id": "FPB-008",
+      "expect": "invalid",
+      "scenario": "Reject directory version/entry size/flags unsupported by the reader."
+    },
+    {
+      "id": "FPB-009",
+      "expect": "invalid",
+      "scenario": "Reject duplicate or non-canonically ordered tile coordinates."
+    },
+    {
+      "id": "FPB-010",
+      "expect": "invalid",
+      "scenario": "Reject a tile entry whose valid dimensions exceed tile dimensions."
+    },
+    {
+      "id": "FPB-011",
+      "expect": "invalid",
+      "scenario": "Reject missing tile entries for cells intersecting the declared grid."
+    },
+    {
+      "id": "FPB-012",
+      "expect": "invalid",
+      "scenario": "Reject payload offsets not aligned to 8 bytes."
+    },
+    {
+      "id": "FPB-013",
+      "expect": "invalid",
+      "scenario": "Reject overlapping, out-of-range or truncated payload ranges."
+    },
+    {
+      "id": "FPB-014",
+      "expect": "invalid",
+      "scenario": "Reject decoded_length inconsistent with manifest sample and mask layout."
+    },
+    {
+      "id": "FPB-015",
+      "expect": "valid",
+      "scenario": "Read codec 0 payload where stored_length equals decoded_length."
+    },
+    {
+      "id": "FPB-016",
+      "expect": "invalid",
+      "scenario": "Reject codec 0 when stored_length differs from decoded_length."
+    },
+    {
+      "id": "FPB-017",
+      "expect": "invalid",
+      "scenario": "Reject codec_id not present in the manifest codec registry."
+    },
+    {
+      "id": "FPB-018",
+      "expect": "invalid",
+      "scenario": "Reject tile hash mismatch after decode."
+    },
+    {
+      "id": "FPB-019",
+      "expect": "invalid",
+      "scenario": "Reject complete package Asset hash mismatch."
+    },
+    {
+      "id": "FPB-020",
+      "expect": "valid",
+      "scenario": "Read one requested tile without decoding unrelated tile payloads."
+    },
+    {
+      "id": "FPB-021",
+      "expect": "valid",
+      "scenario": "Verify zero-filled alignment padding and canonical section placement."
+    },
+    {
+      "id": "FPB-022",
+      "expect": "invalid",
+      "scenario": "Reject nonzero reserved bytes or unknown required flags."
+    },
+    {
+      "id": "FPB-023",
+      "expect": "valid",
+      "scenario": "Verify package owner IDs in diagnostic manifest fields match Core Domain owner metadata when present."
+    },
+    {
+      "id": "FPB-024",
+      "expect": "invalid",
+      "scenario": "Reject manifest that attempts to override Core Domain Field Dataset/Revision identity."
+    },
+    {
+      "id": "FPB-025",
+      "expect": "valid",
+      "scenario": "Produce byte-identical package output from equal canonical input on Windows and macOS."
+    },
+    {
+      "id": "FPB-026",
+      "expect": "invalid",
+      "scenario": "Reject unsupported major version and unsupported required minor extension."
+    },
+    {
+      "id": "FPB-027",
+      "expect": "valid",
+      "scenario": "Verify one-level V1 directory has no resolution-level ambiguity."
+    },
+    {
+      "id": "FPB-028",
+      "expect": "invalid",
+      "scenario": "Reject a package that appends trailing bytes beyond package_length."
+    }
+  ]
+}
