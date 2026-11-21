@@ -1,7 +1,7 @@
 {
   "suite": "World View V1 Field Package / Tiling Validation Vectors",
   "version": "0.1",
-  "contract": "ME-05-07 Field Payload Package & Tiling Contract V0.1",
+  "contract": "ME-05-07 Field Payload Package & Tiling Contract V0.3",
   "status": "design fixtures only; not executed",
   "cases": [
     {
