@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "World View V1 Built-in Relationship Type Descriptor Registry",
   "registry_version": "0.1",
   "status": "recommended; not a frozen ADR",
@@ -199,5 +198,8 @@
     "schema_change": "Increment schema_version and provide explicit compatibility/migration behavior.",
     "semantics_change": "Change semantics_id; retain original reader/semantics for historical relationships.",
     "endpoint_matrix_change": "Breaking semantic change; do not silently reinterpret existing relationships."
-  }
+  },
+  "format": "world-view-domain-descriptor-registry",
+  "format_version": 1,
+  "validation_note": "This file is a machine-readable domain catalog, not a JSON Schema validation document. Runtime validation rules are expressed as descriptor data and must be implemented by Core Domain validators."
 }
