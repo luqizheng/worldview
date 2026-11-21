@@ -174,6 +174,13 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Verification:** 33 new real-SQLite tests (16 concurrency: shared connection/write-write/write-race/partial-write visibility, transactions incl. midway rollback + paired-count isolation, dispose races, migrations incl. two-connection same-file exactly-once; 15 integrity: two-package project isolation, composite-FK cross-project writes, planted corruption — cycle/dangling/ownerless/cross-map root/initial-own/depth-limit, schema CHECK/FK/UNIQUE/partial-index negatives; 2 domain lineage). Full suite 172/172; Debug and Release builds 0 errors.
 - **Verdict:** PASS WITH CONDITIONS — cross-call composite writes rely on V1 append-only semantics (revisit when delete/update lands); coordinator is serial per connection (mind long transactions); new adapters must go through the coordinator; P2-09-12/WAL open gates unchanged.
 
+## 2026-11-22 CD-02 complete — final acceptance recorded
+
+- **Verdict:** PASS WITH CONDITIONS ([CD-02 Final Implementation Report V1.0](../core-domain/CD-02_FINAL_IMPLEMENTATION_REPORT_v1.0.md)).
+- **Final HEAD:** master with commits 13bd8cd/60af79b/95f22e4/648f9dd/cb85f67/ae64daa/2e79fc4/0bf8bf7 (+ final report commit).
+- **Verification:** 381/381 tests Debug AND Release; both builds zero errors; architecture boundary review clean (single write port, no second authority, no duplicate state, composite FKs everywhere, coordinator bypass absent, registry compat locked, geometry/object identity separation tested).
+- **Deferred (all registered):** Command/Event write paths (CD-03+), relationships, field datasets, checkpoints, Registry V2 activation gates, geometry split/merge design, macOS verification, P2-09-12 full proof suite.
+
 ## 2026-11-22 CD-02-F Map editor domain integration audited
 
 - **Evidence:** Cd02MapEditorIntegrationTests — ME-04 building authoring path end-to-end on real SQLite (bootstrap -> seeding -> reserve/bind -> typed Building aggregate definition -> registration -> initial state -> geometry asset publish/register/link -> CAS edit -> branch creation touching nothing) and ME-03 primitives (settlement/road/river full chain). All through Domain services; UI-direct writes architecturally impossible (single write port).
