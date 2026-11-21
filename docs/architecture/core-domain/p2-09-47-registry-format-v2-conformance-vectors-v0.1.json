@@ -3279,7 +3279,14 @@
       "validation_layer": "build_packaging",
       "expected": "invalid",
       "error_code": "CD_REG_SCHEMA_HASH_INVALID",
-      "reason": "The actual bundled schema bytes must match the pinned lowercase SHA-256 hash."
+      "reason": "The actual bundled schema bytes must match the pinned lowercase SHA-256 hash.",
+      "external_context": {
+        "artifact_id": "test.building.definition",
+        "artifact_bytes_available": true,
+        "computed_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "descriptor_pinned_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_behavior": "reject exact-byte hash mismatch"
+      }
     },
     {
       "id": "RGS-029",
@@ -3348,7 +3355,14 @@
       "validation_layer": "compatibility",
       "expected": "invalid",
       "error_code": "CD_REG_SEMANTICS_MIGRATION_REQUIRED",
-      "reason": "A deterministic meaning change requires a new semantics_id and explicit compatibility handling."
+      "reason": "A deterministic meaning change requires a new semantics_id and explicit compatibility handling.",
+      "external_context": {
+        "previous_semantics_id": "world-view.object-type.building.v1",
+        "proposed_semantics_id": "world-view.object-type.building.v1",
+        "deterministic_meaning_changed": true,
+        "migration_registered": false,
+        "expected_behavior": "reject because semantic meaning changed without a new semantics_id and explicit migration"
+      }
     },
     {
       "id": "RGS-034",
