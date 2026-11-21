@@ -16,7 +16,7 @@ This audit found and corrected four contract-level issues:
 3. Cave local-versus-absolute altitude interpretation and geometric crossing/connectivity are semantic checks, not ordinary aggregate schema failures.
 4. Cave Survey Frame identity was described as a child-context field even though the schemas correctly carry it as `coordinate_context_id`.
 
-The revised corpus is P2-09-40 V0.6 with 53 design-only vectors. Structural checks have been performed; no production validator or Core Domain test runner has executed them.
+The revised corpus is P2-09-40 V0.6 with 55 design-only vectors. Structural checks have been performed; no production validator or Core Domain test runner has executed them.
 
 ## 2. Schema review
 
@@ -57,7 +57,7 @@ This check did not evaluate JSON Schema validity or Core Domain semantics.
 
 ### 3.2 V0.6 corrections
 
-P2-09-40 V0.6 contains 53 design-only vectors and introduces an explicit vector contract.
+P2-09-40 V0.6 contains 55 design-only vectors and introduces an explicit vector contract.
 
 - `external_asset_links` models the actual typed-link row projection: `asset_id` and `role` only.
 - `asset_catalog` models `core_asset` identity and content hash separately.
@@ -141,7 +141,7 @@ No production test is reported as passed.
 ## 8. Required next gates
 
 1. Developer repository preflight must confirm the actual migration/table state for `core_object_definition_asset` and `core_command_asset`.
-2. Implement the test runner contract and execute all 53 P2-09-40 V0.6 vectors.
+2. Implement the test runner contract and execute all 55 P2-09-40 V0.6 vectors.
 3. Execute the existing P2-09-28 registry suite and current Core Domain geometry regression suite.
 4. Verify the exact definition Asset-link role and owner/asset/role uniqueness behavior in SQLite.
 5. Prove canonical payload/hash and Asset publication behavior on Windows and macOS.
