@@ -1,0 +1,993 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://worldview.local/schemas/core-domain/object-type-descriptor-registry-v2.schema.json",
+  "title": "World View Object Type Descriptor Registry Format V2",
+  "description": "Strict registry envelope supporting explicitly tagged legacy compact descriptors and complete typed V2 descriptors. Cross-record and compatibility invariants are validated by the Core Domain registry compiler.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "format",
+    "format_version",
+    "registry_version",
+    "status",
+    "authority",
+    "common_rules",
+    "compatibility_policy",
+    "schema_artifacts",
+    "object_types",
+    "validation_note"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "format": {
+      "const": "world-view-domain-descriptor-registry"
+    },
+    "format_version": {
+      "const": 2
+    },
+    "registry_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authority": {
+      "const": "Core Domain static registry"
+    },
+    "common_rules": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "compatibility_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_change",
+        "semantics_change",
+        "enum_removal_or_reinterpretation",
+        "runtime_candidate",
+        "registry_schema_change",
+        "legacy_profile_allowlist",
+        "legacy_semantics_pins",
+        "legacy_profile_new_types_allowed",
+        "typed_profile_min_descriptor_schema_version",
+        "semantics_pinning_required",
+        "schema_artifact_hash_algorithm",
+        "runtime_resolution",
+        "unknown_fields",
+        "schema_migration",
+        "semantic_migration"
+      ],
+      "properties": {
+        "schema_change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "semantics_change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enum_removal_or_reinterpretation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime_candidate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registry_schema_change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "legacy_profile_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/typeKey"
+          }
+        },
+        "legacy_semantics_pins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type_key",
+              "schema_version",
+              "semantics_id"
+            ],
+            "properties": {
+              "type_key": {
+                "$ref": "#/$defs/typeKey"
+              },
+              "schema_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "semantics_id": {
+                "$ref": "#/$defs/semanticsId"
+              }
+            }
+          }
+        },
+        "legacy_profile_new_types_allowed": {
+          "const": false
+        },
+        "typed_profile_min_descriptor_schema_version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "semantics_pinning_required": {
+          "const": true
+        },
+        "schema_artifact_hash_algorithm": {
+          "const": "sha256"
+        },
+        "runtime_resolution": {
+          "const": "compiled_bundle_only"
+        },
+        "unknown_fields": {
+          "const": "reject"
+        },
+        "schema_migration": {
+          "const": "explicit_only"
+        },
+        "semantic_migration": {
+          "const": "explicit_only"
+        }
+      }
+    },
+    "schema_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/schemaArtifact"
+      }
+    },
+    "object_types": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/typeKey"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/legacyDescriptor"
+          },
+          {
+            "$ref": "#/$defs/typedDescriptor"
+          }
+        ]
+      }
+    },
+    "validation_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "typeKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "semanticsId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "commandId": {
+      "type": "string",
+      "pattern": "^core\\.[a-z0-9_.]+$"
+    },
+    "schemaArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "path",
+        "schema_version",
+        "sha256",
+        "schema_dialect"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]*$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schema_dialect": {
+          "const": "https://json-schema.org/draft/2020-12/schema"
+        }
+      }
+    },
+    "legacyGeometryValue": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min",
+            "max",
+            "families"
+          ],
+          "properties": {
+            "min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "families": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "dimension": {
+              "type": "integer",
+              "enum": [
+                2,
+                3
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "legacyCommandPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "scope",
+        "policy"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string"
+        },
+        "identity_reservation_required": {
+          "type": "boolean"
+        },
+        "allowed_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "definition_fields_route": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "legacyDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_profile",
+        "type_key",
+        "schema_version",
+        "semantics_id",
+        "allocatable",
+        "geometry",
+        "definition",
+        "runtime",
+        "invariants",
+        "command_capabilities",
+        "definition_edit_policy",
+        "initial_state_policy",
+        "runtime_attribute_change_policy"
+      ],
+      "properties": {
+        "descriptor_profile": {
+          "const": "legacy_compact_v1"
+        },
+        "type_key": {
+          "$ref": "#/$defs/typeKey"
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "semantics_id": {
+          "$ref": "#/$defs/semanticsId"
+        },
+        "allocatable": {
+          "type": "boolean"
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/legacyGeometryValue"
+          }
+        },
+        "definition": {
+          "type": "object"
+        },
+        "runtime": {
+          "type": "object"
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command_capabilities": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/commandId"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/legacyCommandPolicy"
+          }
+        },
+        "definition_edit_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "route_by_scope",
+            "project_shared_semantics",
+            "excluded_from_history_commands"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "route_by_scope": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "project_shared_semantics": {
+              "type": "string"
+            },
+            "excluded_from_history_commands": {
+              "type": "boolean"
+            },
+            "update_policy": {
+              "type": "string"
+            }
+          }
+        },
+        "initial_state_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "time_boundary",
+            "includes",
+            "command_allowed"
+          ],
+          "properties": {
+            "route": {
+              "type": "string"
+            },
+            "time_boundary": {
+              "type": "string"
+            },
+            "includes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "command_allowed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "runtime_attribute_change_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "route",
+            "scope",
+            "mutable_fields",
+            "reason"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "route": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string"
+            },
+            "mutable_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "schema_version",
+        "sha256"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]*$"
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "typedGeometryRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max",
+        "families",
+        "dimension"
+      ],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "point",
+              "line_string",
+              "multi_line_string",
+              "polygon",
+              "multi_polygon",
+              "curve"
+            ]
+          }
+        },
+        "dimension": {
+          "const": 2
+        }
+      }
+    },
+    "typedCommandPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "scope",
+        "policy"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "scope": {
+          "enum": [
+            "history_local",
+            "history_local_only"
+          ]
+        },
+        "policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string"
+        },
+        "identity_reservation_required": {
+          "type": "boolean"
+        },
+        "allowed_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "definition_fields_route": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "assetLinkContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table",
+        "required",
+        "allowed_roles"
+      ],
+      "properties": {
+        "table": {
+          "enum": [
+            "core_object_definition_asset",
+            "core_map_initial_object_asset",
+            "core_command_asset"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "allowed_roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "childAggregateDisabled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "const": false
+        }
+      }
+    },
+    "childAggregateEnabled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "sections",
+        "child_identity_scope",
+        "child_ids_never_reused",
+        "copy_semantics",
+        "cross_reference_policy",
+        "retirement_policy",
+        "post_zero_child_lifecycle_commands"
+      ],
+      "properties": {
+        "enabled": {
+          "const": true
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "child_identity_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "child_ids_never_reused": {
+          "const": true
+        },
+        "copy_semantics": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cross_reference_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retirement_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "post_zero_child_lifecycle_commands": {
+          "const": false
+        }
+      }
+    },
+    "typedDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_profile",
+        "descriptor_schema_version",
+        "type_key",
+        "schema_version",
+        "semantics_id",
+        "metadata",
+        "identity",
+        "schemas",
+        "geometry",
+        "relationship_participation",
+        "lifecycle",
+        "command_capabilities",
+        "definition_edit_policy",
+        "initial_state_policy",
+        "runtime_attribute_change_policy",
+        "asset_contract",
+        "child_aggregate_contract"
+      ],
+      "properties": {
+        "descriptor_profile": {
+          "const": "typed_v2"
+        },
+        "descriptor_schema_version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "type_key": {
+          "$ref": "#/$defs/typeKey"
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "semantics_id": {
+          "$ref": "#/$defs/semanticsId"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "default_display_name",
+            "description",
+            "category",
+            "localization_key"
+          ],
+          "properties": {
+            "default_display_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "category": {
+              "type": "string",
+              "minLength": 1
+            },
+            "localization_key": {
+              "type": "string",
+              "pattern": "^[a-z0-9_.-]+$"
+            }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "allocatable",
+            "allocation_namespace",
+            "reservation_policy"
+          ],
+          "properties": {
+            "allocatable": {
+              "type": "boolean"
+            },
+            "allocation_namespace": {
+              "const": "project_object_type"
+            },
+            "reservation_policy": {
+              "const": "core_object_reservation_v1"
+            }
+          }
+        },
+        "schemas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "definition",
+            "runtime",
+            "initial_state"
+          ],
+          "properties": {
+            "definition": {
+              "$ref": "#/$defs/schemaRef"
+            },
+            "runtime": {
+              "$ref": "#/$defs/schemaRef"
+            },
+            "initial_state": {
+              "$ref": "#/$defs/schemaRef"
+            }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "roles"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "roles": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/typedGeometryRole"
+              }
+            }
+          }
+        },
+        "relationship_participation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "incoming",
+            "outgoing"
+          ],
+          "properties": {
+            "incoming": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "outgoing": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity_policy",
+            "history_presence"
+          ],
+          "properties": {
+            "identity_policy": {
+              "const": "core_object_identity_v1"
+            },
+            "history_presence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "create",
+                "activate",
+                "deactivate"
+              ],
+              "properties": {
+                "create": {
+                  "$ref": "#/$defs/commandId"
+                },
+                "activate": {
+                  "$ref": "#/$defs/commandId"
+                },
+                "deactivate": {
+                  "$ref": "#/$defs/commandId"
+                }
+              }
+            }
+          }
+        },
+        "command_capabilities": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/commandId"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/typedCommandPolicy"
+          }
+        },
+        "definition_edit_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "route_by_scope",
+            "project_shared_semantics",
+            "excluded_from_history_commands"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "route_by_scope": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "project_shared_semantics": {
+              "type": "string"
+            },
+            "excluded_from_history_commands": {
+              "type": "boolean"
+            },
+            "update_policy": {
+              "type": "string"
+            }
+          }
+        },
+        "initial_state_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "time_boundary",
+            "includes",
+            "command_allowed"
+          ],
+          "properties": {
+            "route": {
+              "type": "string"
+            },
+            "time_boundary": {
+              "type": "string"
+            },
+            "includes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "command_allowed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "runtime_attribute_change_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "route",
+            "scope",
+            "mutable_fields",
+            "reason"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "route": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string"
+            },
+            "mutable_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        },
+        "asset_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "payload_ownership",
+            "immutable_payload_bytes",
+            "definition_asset_link",
+            "initial_state_asset_link",
+            "command_asset_link",
+            "hash_algorithm",
+            "reference_integrity"
+          ],
+          "properties": {
+            "payload_ownership": {
+              "const": "top_level_semantic_object"
+            },
+            "immutable_payload_bytes": {
+              "const": true
+            },
+            "definition_asset_link": {
+              "$ref": "#/$defs/assetLinkContract"
+            },
+            "initial_state_asset_link": {
+              "$ref": "#/$defs/assetLinkContract"
+            },
+            "command_asset_link": {
+              "$ref": "#/$defs/assetLinkContract"
+            },
+            "hash_algorithm": {
+              "const": "sha256"
+            },
+            "reference_integrity": {
+              "const": "typed_link_and_core_asset_hash"
+            }
+          }
+        },
+        "child_aggregate_contract": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/childAggregateDisabled"
+            },
+            {
+              "$ref": "#/$defs/childAggregateEnabled"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
