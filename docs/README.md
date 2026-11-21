@@ -4,6 +4,8 @@ This repository is the version-controlled documentation baseline for the World V
 
 ## Documentation map
 
+- [Migration Manifest](MIGRATION-MANIFEST.md) — source scope, imported inventory, and remaining binary archives.
+
 - `architecture/core-domain/`: Core Domain, Map/Branch history, persistence, Historical Time, schema and reconstruction contracts.
 - `adr/`: accepted, frozen, amended, and rejected architecture decisions.
 - `P2-01-D01/`: historical-state and command-domain discussion record.
