@@ -16,6 +16,17 @@ This repository is the version-controlled documentation baseline for the World V
 - `history/`: reserved for superseded or historical source documents retained for traceability.
 - `README-implementation-handoff-v1.0.md`: implementation handoff guidance and scope boundary.
 
+## Current persistence design baseline
+
+- [P2-09-11 Physical Schema V0.8](architecture/core-domain/p2-09-11-physical-schema-design-v0.8.md) — current reconciled Core Domain relational proposal; not executable DDL.
+- [P2-09-13 Integrated Schema Inventory V0.2](architecture/core-domain/p2-09-13-integrated-schema-inventory-migration-graph-v0.2.md) — Core/AI table inventory and corrected migration dependency graph.
+- [P2-09-16 Shared Definition / Checkpoint Coherence V0.1](architecture/core-domain/world-view-core-domain-p2-09-16-shared-definition-checkpoint-coherence-contract-v0.1.md) — retroactive current-definition and Checkpoint freshness rules.
+- [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
+- [P2-09-05 Historical Time / Calendar Contract V0.3](architecture/core-domain/world-view-core-domain-p2-09-05-historical-time-ordering-persistence-contract-v0.3.md) — current canonical-time and Calendar persistence baseline.
+- [P2-09-12 Provider / Transaction Proof Spec V0.2](architecture/core-domain/world-view-core-domain-p2-09-12-provider-transaction-proof-test-spec-v0.2.md) — required development verification; tests have not been claimed as executed.
+
+**Source mismatch note:** the preserved README V1.38 snapshot mentions a standalone P2-09-14 Calendar validation contract, but the repository path previously assigned to it contained a duplicate README snapshot, and no matching standalone source artifact was located during the audit. Until that contract is authored and reviewed, use P2-09-05 V0.3 as the current Calendar persistence source and keep the remaining Calendar validation gates open.
+
 ## Authority and document status
 
 - Accepted/Frozen ADRs define binding domain semantics unless explicitly amended by a later accepted amendment.
