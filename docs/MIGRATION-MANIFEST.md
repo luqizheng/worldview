@@ -13,14 +13,14 @@ The repository also retains the pre-existing ADR and P2-01-D01 packages.
 
 ## Repository inventory
 
-At the last verification, the repository contained 106 files in total, including 105 files under `docs/`.
+At the last verification, the repository contained 105 files in total, including 104 files under `docs/`.
 
 | Area | Directory | Files |
 |---|---|---:|
 | Architecture decisions | `docs/adr/` | 6 |
 | P2-01-D01 discussion | `docs/P2-01-D01/` | 21 |
 | AI Assistant | `docs/ai-assistant/` | 24 |
-| Core Domain and persistence | `docs/architecture/core-domain/` | 22 |
+| Core Domain and persistence | `docs/architecture/core-domain/` | 21 |
 | Map Editor | `docs/map-editor/` | 4 |
 | Map Engine | `docs/map-engine/` | 6 |
 | Map Generation | `docs/map-generation/` | 6 |
@@ -60,3 +60,8 @@ This migration is a documentation consolidation, not an implementation activity.
 - all binary archives or every historical Library revision have been mirrored.
 
 For navigation, see [Documentation Index](README.md).
+
+
+## 2026-11-21 path and identity audit
+
+A targeted audit found three repository path/content mismatches in the P2-09 area. The physical schema and integrated inventory files have been restored from their matching Library source documents. A duplicate path that contained the README V1.38 baseline rather than a P2-09-14 contract was removed; the authoritative README snapshot remains at `docs/baseline/README-v1.38.md`. The P2-09-14 Historical Time / Calendar validation contract was not found as a standalone source artifact during this audit; its current validation requirements remain represented in P2-09-05 V0.3 and the remaining-gates list. Do not treat the removed mislabeled path as evidence that a P2-09-14 contract exists.
