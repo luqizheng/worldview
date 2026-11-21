@@ -343,11 +343,11 @@ If the product must support “the same Map has different elevation/land-water f
 
 ## 16. Status and next steps
 
-This adopted contract defines the formal authority and logical persistence boundary for H-G01. The product-semantic gate is closed. Physical-schema, descriptor/validation and provider-proof design artifacts are documented; package/tile logical design is documented in ME-05-07 V0.1; ME-05-08 V0.1 now specifies the byte-level header/directory and P2-09-33 provides 28 design vectors; parser/writer implementation, codec/precision selection, implementation and actual provider/platform test execution remain open.
+This adopted contract defines the formal authority and logical persistence boundary for H-G01. The product-semantic gate is closed. Physical-schema, descriptor/validation and provider-proof design artifacts are documented; package/tile logical design is documented in ME-05-07 V0.3; ME-05-08 V0.1 now specifies the byte-level header/directory and P2-09-33 provides 28 design vectors; parser/writer implementation, codec/precision selection, implementation and actual provider/platform test execution remain open.
 
 Follow-up disposition:
 1. **Completed as design artifacts:** P2-09-11 V0.11 physical schema reconciliation; P2-09-12 V0.6 provider proof specification; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset validation vectors V0.1; ME-05-07 Field Payload Package & Tiling Contract V0.3; ME-05-08 Field Package Binary Envelope & Directory Specification V0.1; P2-09-33 Field Package Binary Envelope Validation V0.1; ME-05-05 Geometry & Field Asset Package/Publication V0.2; P2-09-32 Field Package/Tiling validation vectors V0.1; ME-02-F V0.4 calculation package-input/freshness alignment.
-2. **Open:** implement and test the ME-05-08 header/directory parser and writer; benchmark tile dimensions and select codec/precision profiles under ME-05-07 V0.2.
+2. **Open:** implement and test the ME-05-08 header/directory parser and writer; benchmark tile dimensions and select codec/precision profiles under ME-05-07 V0.3.
 3. **Open:** implement Core Domain Field Dataset/Revision services, typed Asset ownership, publication compare-and-swap and safe orphan recovery.
 4. **Open:** execute Windows/macOS provider/runtime publication, recovery, integrity and Checkpoint-invalidation tests.
 5. These documents remain design artifacts. No executable DDL, production implementation or passing test result is implied.
