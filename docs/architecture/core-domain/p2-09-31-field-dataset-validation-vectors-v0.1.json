@@ -181,7 +181,7 @@
     {
       "id": "FDV-030",
       "field_key": "all",
-      "expect": "valid",
+      "expect": "invalid",
       "case": "Fail the SQLite publication transaction after Asset file publication; leave no revision/pointer commit and reconcile the file as an orphan."
     },
     {
