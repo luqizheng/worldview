@@ -73,10 +73,10 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 - ME-01 共享编辑器产品与架构工作基线已建立。
 - ME-02-A 至 ME-02-H 已完成为产品、领域、UX 和跨架构设计工作基线。
 - 当前 ME-02 总体基线为 V0.6，Map Editor 工作计划为 V1.0。
-- ME-02-F V0.3 已按 ME-05-01 V0.2 对齐 source Field Dataset、Derived Artifact、Core Asset、Map-wide baseline fingerprint 与 freshness。
+- ME-02-F V0.4 已按 ME-05-01 V0.4 对齐 source Field Dataset、Derived Artifact、Core Asset、Map-wide baseline fingerprint 与 freshness。
 - ME-02-G V0.2 已明确 Initial State、History-local、Project-shared 三种正式写入目标。
 - ME-02-H V0.2 已将原 H-G01 产品/领域权威门槛标记为关闭；Field Dataset 的开发实现门槛仍保留。
-- ME-05-01 V0.3 已更新（V0.2 首次采纳产品语义） Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership；用户于 2026-11-21 确认 Field Revision 更新作为 Map-wide baseline，追溯影响该 Map 全部 Branches 与 Historical Times。
+- ME-05-01 V0.4 已更新（V0.2 首次采纳产品语义） Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership；用户于 2026-11-21 确认 Field Revision 更新作为 Map-wide baseline，追溯影响该 Map 全部 Branches 与 Historical Times。
 
 ## 5. 关键未关闭门槛
 
@@ -127,3 +127,14 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **P2-09-31 V0.1:** 32 Field Dataset/Revision validation vectors covering descriptor, manifest, no-data/coverage, CAS, immutability, cross-Map isolation, retroactive Branch/Time behavior, adoption and Checkpoint freshness. Design fixtures only; not executed.
 - **ME-05-01 V0.3:** records the descriptor/validation artifacts and remaining implementation work.
 - **Remaining:** immutable field payload package/tiling, Core Domain service implementation, actual bundled SQLite deferred-FK/trigger validation, Asset orphan recovery, and Windows/macOS runtime test execution.
+
+
+## 2026-11-21 Field Package and Tiling design
+
+- **ME-05-07 V0.1:** recommends one seekable immutable Field Package Asset per Field Revision, with canonical manifest, deterministic tile directory and independently decodable tile payloads. Tiles are storage/processing partitions, not Core Domain identities.
+- **Package direction:** random tile reads; bounded-memory streaming; local edits build a complete new immutable package; unchanged tiles may be copied through only when encoding compatibility is exact. No published package is mutated.
+- **Tile direction:** one native source grid in V1, 256 × 256 candidate tile size benchmarked against 128 and 512; row-major X-fastest cell order; explicit edge dimensions; no authoritative stored pyramids; halo cells are read from neighbors, not duplicated in source storage.
+- **Codec/precision:** no compression library or elevation numeric width selected. Independent per-tile compression and a none-codec fixture are required; production choice waits for deterministic cross-platform and performance evidence.
+- **P2-09-32 V0.1:** 45 package/tile validation vectors; design fixtures only, not executed.
+- **ME-02-F V0.4:** pins package format and package Asset identity in calculation provenance; V1 freshness conservatively invalidates Dataset-dependent calculations on a new Field Revision. Tile hashes are not used to silently narrow freshness.
+- **Remaining:** byte-level header/directory specification, tile-size and codec/precision benchmarks, Core Domain publication/provider validation, implementation and Windows/macOS execution.
