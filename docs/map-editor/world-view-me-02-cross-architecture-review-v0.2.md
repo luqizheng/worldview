@@ -2,7 +2,7 @@
 
 - Version: 0.2
 - Date: 2026-11-21
-- Status: **Cross-architecture Review Working Baseline** — ME-02 design package reconciled against current Core Domain, Map Engine, Map Generation and ME-01 contracts; the source-field product/domain authority gate is closed by ME-05-01 V0.2; implementation gates remain
+- Status: **Cross-architecture Review Working Baseline** — ME-02 design package reconciled against current Core Domain, Map Engine, Map Generation and ME-01 contracts; the source-field product/domain authority gate is closed by ME-05-01 V0.3; implementation gates remain
 - Parent: ME-02 Terrain & Natural Geography Editor V0.5
 - Reviewed package: ME-02-A through ME-02-G; ME-02-F V0.3; ME-02-G V0.2
 - Scope: Formal authority, physical/derived field persistence, calculation lifecycle, history/Branch/shared definitions, spatial and renderer boundaries, AI task integration, specialist semantics and implementation gates
@@ -93,7 +93,7 @@ ME-02-B initially left the Field Dataset owner and persistence lifecycle open. M
 
 **Disposition:**
 1. **Closed:** ME-05/Core Domain have defined and adopted the bounded Field Dataset authority, Map ownership and Map-wide retroactive Branch/Time semantics.
-2. **Open:** Field Descriptor Registry and canonical manifest schema; immutable payload package/tiling; actual SQLite provider validation of deferred composite FKs, immutability triggers and compare-and-swap; development implementation and Windows/macOS test execution.
+2. **Open:** immutable payload package/tiling; actual SQLite provider validation of deferred composite FKs, immutability triggers and compare-and-swap; development implementation and Windows/macOS test execution.
 
 A creator-authored elevation field or land/water mask is a source input, not a Derived Artifact and not merely a renderer cache. Formal publication must use the Core Domain Field Dataset Domain Service and typed immutable Core Asset ownership. It must not use generic Asset CRUD, overwrite published bytes, create Branch-local field copies or represent a baseline correction as a historical Command.
 
@@ -308,7 +308,7 @@ Map Engine V0.3 recommends a renderer-neutral scene architecture and an Avalonia
 | Gate | Owner | Blocks |
 |---|---|---|
 | H-G01 — Field Dataset authority and Map/Branch/History semantics | **Closed by ME-05-01 V0.2** | Domain contract adopted; no longer blocks schema design |
-| H-G01-I — Field Descriptor, payload package and provider implementation | ME-05 + Core Domain + Map Engine + Development | Production field publication and editing |
+| H-G01-I — Field payload package, physical provider implementation and cross-platform validation | ME-05 + Core Domain + Map Engine + Development | Production field publication and editing |
 | H-G02 — Derived Artifact storage namespace and catalog implementation | Map Engine | Derived field production/publication implementation |
 | H-G03 — Exact Calculation Definition/input fingerprint serialization | Map Engine + Core Domain | Reproducibility and cache identity implementation |
 | H-G04 — Hydrology/climate influence and coverage declarations | ME-02 specialists + Map Engine | Production incremental recomputation |
