@@ -74,7 +74,7 @@ The canonical field manifest is authoritative for interpretation and declares, a
 - tile/chunk manifest and per-payload fingerprints;
 - provenance, derivation information and package content fingerprint.
 
-The logical Field Package and tiling rules are now defined by ME-05-07 V0.1: one seekable immutable package Asset per Field Revision, canonical manifest, deterministic tile directory, independently decodable tile payloads, bounded random reads and streaming new-package construction for local edits. The byte-level header/directory are specified by ME-05-08 V0.1. Parser/writer fixtures, production codec, tile-size benchmark and elevation precision profile remain implementation gates. A tile boundary is never a semantic coastline, region boundary, watershed divide or no-data boundary by implication.
+The logical Field Package and tiling rules are now defined by ME-05-07 V0.3: one seekable immutable package Asset per Field Revision, canonical manifest, deterministic tile directory, independently decodable tile payloads, bounded random reads and streaming new-package construction for local edits. The byte-level header/directory are specified by ME-05-08 V0.1. Parser/writer fixtures, production codec, tile-size benchmark and elevation precision profile remain implementation gates. A tile boundary is never a semantic coastline, region boundary, watershed divide or no-data boundary by implication.
 
 ### 4.2 Domain authority
 
