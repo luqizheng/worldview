@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- P2-09-12 V0.6 证明目标：Microsoft.Data.Sqlite 11.x + 捆绑 SQLitePCLRaw e_sqlite3。 -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WorldView.Application\WorldView.Application.csproj" />
   </ItemGroup>
 

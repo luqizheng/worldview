@@ -12,6 +12,7 @@
 | UI 框架 | Avalonia UI | 12.1.6（稳定版） | 官方模板 `Avalonia.Templates@12.1.6`；Win + macOS 桌面 |
 | UI 组织模式 | MVVM | CommunityToolkit.Mvvm 8.4.2 | 源生成器（ObservableProperty / RelayCommand） |
 | 依赖注入 | Microsoft.Extensions.DependencyInjection | 11.0.0 | 组合根位于 `WorldView.Desktop` Program.cs |
+| 本地数据库（AF-02 范围） | Microsoft.Data.Sqlite | 11.0.0 | 2026-11-21 ADR-0002：P2-09-12 V0.6 证明目标 11.x；禁用池化；领域 schema 仍未实施 |
 | 单元测试 | xUnit.v3 | 4.0.3 + Test.Sdk 18.12.0 | 2026-11-21 升级：.NET 11 SDK 下 `dotnet test` 需经 `global.json` 启用 Microsoft.Testing.Platform；coverlet.collector 10.1.1 |
 | 解决方案格式 | 经典 `.sln` | — | 兼容性优于 `.slnx`（.NET 11 SDK 默认生成 slnx，已改用 sln） |
 | Nullable | 全局开启 | — | `Directory.Build.props` |
@@ -37,8 +38,11 @@ Desktop ──► Application ──► Domain
 3. 几何计算引擎。
 4. 地理空间数据处理引擎。
 5. 空间索引。
-6. 本地数据库。
-7. 地图项目文件格式。
+6. 本地数据库 —— **2026-11-21 部分落定**：SQLite provider（Microsoft.Data.Sqlite 11.0.0）
+   已由 AF-01/AF-02 授权引入用于 Project Package 数据库（见 ADR-0002）；
+   正式领域 schema 与迁移仍以 Core Domain 实现授权为准。
+7. 地图项目文件格式 —— **2026-11-21 部分落定**：`.wvproject` 目录式包 + manifest v1
+   已由 AF-01/AF-02 授权落地（见 ADR-0002）。
 8. AI 模型接入方式。
 9. AI Agent 运行时。
 10. Task Planning & Execution Engine 的最终实现细节。

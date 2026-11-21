@@ -4,4 +4,9 @@
     <ProjectReference Include="..\WorldView.Domain\WorldView.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 会话生命周期的内部状态转移仅供测试工程断言使用。 -->
+    <InternalsVisibleTo Include="WorldView.Application.Tests" />
+  </ItemGroup>
+
 </Project>

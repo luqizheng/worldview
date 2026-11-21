@@ -2,13 +2,10 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
-using WorldView.Desktop.ViewModels;
 using WorldView.Desktop.Views;
 
 namespace WorldView.Desktop;
 
-// 注意：必须完整限定 Avalonia.Application——裸写 Application 会被解析为同层级的
-// WorldView.Application 命名空间（CS0118）。
 public partial class App : Avalonia.Application
 {
     /// <summary>
@@ -26,13 +23,9 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var services = Services
-                ?? throw new InvalidOperationException("DI 容器未初始化：Program 必须在启动前为 App.Services 赋值。");
-
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = services.GetRequiredService<MainViewModel>(),
-            };
+            // 启动面（创建/打开/最近项目）为唯一主窗口；项目工作区以独立窗口打开。
+            // 项目会话的关闭由 Program.Main 在生命周期结束后统一编排。
+            desktop.MainWindow = new StartWindow();
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -49,15 +49,23 @@ scripts/run.sh
 或直接使用 dotnet CLI：`dotnet build WorldView.sln` / `dotnet test WorldView.sln` /
 `dotnet run --project src/WorldView.Desktop`。
 
-## 当前状态（2026-11-20 初始化基线）
+## 当前状态（2026-11-21 AF-02 应用基础实施后）
 
-- 最小可运行桌面应用：主窗口显示产品名、菜单栏占位、状态栏与一个「创建示例项目」按钮，
-  用于验证 UI → Application → Domain → Infrastructure 完整链路（MVVM + DI）。
+- **应用基础（AF-01/AF-02）已实现**：`.wvproject` 目录式 Project Package（manifest v1 +
+  SQLite 数据库 + 内容寻址 Asset Store + Staging/Backups）、分阶段包校验（fail-closed）、
+  Project Session / Map Workspace Session 生命周期与进程内隔离、启动面
+  （创建/打开/最近项目）。详见 [ADR-0002](docs/decisions/ADR-0002-application-foundation-package-bootstrap.md)
+  与 `docs/application/AF-02_IMPLEMENTATION_REPORT_v0.1.md`。
+- **Core Domain 集成为显式门槛**：`IProjectIdentityReader` / `IMapQueryService` /
+  `IWorkspaceContextResolver` / `IProjectCreationService` 四个边界端口尚无真实实现，
+  创建/打开在 bootstrap 边界如实报告阻塞项；正式 Core Domain 持久化落地后注册真实实现
+  即可点亮真实读路径。真实 Map 读路径**尚未打通**。
 - Domain/Application/Infrastructure 中的 `MapProject` 相关类型是**架构示例代码**，仅用于建立
   分层与测试基线；正式领域模型以 Phase 2 历史状态引擎设计为准，实现阶段可替换或删除。
 - 平台验证状态：
-  - **Windows**：6/7 项目构建通过；Desktop 项目构建、`dotnet test`、应用运行因环境问题
-    （Smart App Control，见开发文档）待重启后验证。
+  - **Windows**：7/7 项目 Debug/Release 构建通过；70/70 测试通过（SDK 11.0.100）；
+    Debug/Release 桌面应用启动、启动面渲染、WM_CLOSE 干净退出（exit 0）均已在
+    Windows 实机验证（证据见 AF-02 实施报告）。
   - **macOS**：**未验证**（当前无 macOS 环境）。工程配置按双平台要求编写（无平台专有代码、
     使用 Avalonia 跨平台模板基线），首次在 macOS 上构建时需按开发文档确认。
 
@@ -72,6 +80,7 @@ scripts/run.sh
 ## 文档索引
 
 - [docs/decisions/ADR-0001-project-bootstrap.md](docs/decisions/ADR-0001-project-bootstrap.md) — 工程初始化决策
+- [docs/decisions/ADR-0002-application-foundation-package-bootstrap.md](docs/decisions/ADR-0002-application-foundation-package-bootstrap.md) — AF-02 应用基础决策
 - [docs/architecture/initial-tech-baseline.md](docs/architecture/initial-tech-baseline.md) — 技术基线（已定/未定）
 - [docs/development/dev-environment.md](docs/development/dev-environment.md) — 开发环境（含 Smart App Control 事件记录）
 - [docs/development/build-and-test.md](docs/development/build-and-test.md) — 构建与测试
