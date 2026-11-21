@@ -38,7 +38,8 @@ This repository is the version-controlled documentation baseline for the World V
 
 - [P2-09-26 V1 Object Type Descriptor Registry V0.1](architecture/core-domain/p2-09-26-v1-object-type-descriptor-registry-v0.1.json) — machine-readable descriptors for ten built-in Object Types, typed fields, geometry roles and Command capability boundaries.
 - [P2-09-27 V1 Relationship Type Descriptor Registry V0.1](architecture/core-domain/p2-09-27-v1-relationship-type-descriptor-registry-v0.1.json) — endpoint matrices, direction, cardinality, cycle and endpoint-activity policies for five candidate Relationship Types.
-- [P2-09-28 Domain Descriptor Validation Vectors V0.1](architecture/core-domain/p2-09-28-domain-descriptor-validation-vectors-v0.1.json) — positive/negative Object, Relationship and cross-cutting validation fixtures; design-only, not executed.
+- [P2-09-28 Domain Descriptor Validation Vectors V0.2](architecture/core-domain/p2-09-28-domain-descriptor-validation-vectors-v0.2.json) — reconciled positive/negative Object, Relationship and cross-cutting fixtures; design-only, not executed.
+- [P2-09-29 Domain Descriptor Cross-Registry Consistency Contract V0.1](architecture/core-domain/p2-09-29-domain-descriptor-cross-registry-consistency-contract-v0.1.md) — Object/Relationship/Command scope alignment, endpoint/cardinality semantics, Map/Branch isolation and checkpoint compatibility.
 - [ME-02-F Calculation Contracts V0.1](map-editor/world-view-me-02-calculation-contracts-v0.1.md) — deterministic calculation requests, provenance, freshness, dependency invalidation, checkpoint coherence, validation severity and atomic output publication.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.

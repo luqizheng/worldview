@@ -1,0 +1,267 @@
+{
+  "title": "World View V1 Built-in Relationship Type Descriptor Registry",
+  "registry_version": "0.2",
+  "status": "recommended; endpoint, cardinality and ownership scopes reconciled with ME-02; not a frozen ADR",
+  "authority": "Core Domain static registry",
+  "common_rules": {
+    "identity": "Core Domain-generated stable relationship_id; never reused.",
+    "endpoints": "Exactly one source and one target Object; same Project and valid target Map context.",
+    "symmetric": "Canonicalize endpoint order deterministically; never persist inverse duplicate.",
+    "storage": "Each relationship has exactly one owning scope: shared_object_definition, map_initial_state or history_local Command. Never duplicate authoritative ownership.",
+    "temporal": "Each descriptor declares allowed_storage_scopes. Shared definition is retroactive current-definition; Initial State is Map-specific at time zero; post-zero Commands are selected-History-local.",
+    "geometry": "Coincidence, intersection, adjacency and snapping never auto-create a formal relationship.",
+    "endpoint_activity": "Deactivation never cascades relationship termination.",
+    "unknown_fields": "reject",
+    "scope_isolation": "History-local relationship changes follow Map/Branch inheritance and never mutate another Map, parent or sibling History outside the inherited fork boundary.",
+    "shared_definition": "Only stable base relationships between Project-shared Objects may be stored in a Shared Object definition, with one explicit owner endpoint."
+  },
+  "relationship_types": {
+    "spatial.contains": {
+      "type_key": "spatial.contains",
+      "schema_version": 2,
+      "semantics_id": "world-view.relationship.spatial.contains.v2",
+      "direction": "directed",
+      "source_role": "container",
+      "target_role": "contained",
+      "symmetric": false,
+      "endpoint_pairs": [
+        [
+          "political_region",
+          "settlement"
+        ],
+        [
+          "landmass",
+          "mountain_range"
+        ],
+        [
+          "landmass",
+          "settlement"
+        ],
+        [
+          "settlement",
+          "point_of_interest"
+        ],
+        [
+          "terrain_region",
+          "point_of_interest"
+        ]
+      ],
+      "self_reference": false,
+      "cardinality": {
+        "source_outgoing": {
+          "min": 0,
+          "max": null
+        },
+        "target_incoming": {
+          "min": 0,
+          "max": null
+        },
+        "uniqueness": "one active edge per type and ordered endpoint pair",
+        "pair_rules": {
+          "political_region>settlement": "At most one containing PoliticalRegion per region_class for a Settlement at a given History/time; different nested classes may coexist.",
+          "landmass>mountain_range": "Containment requires the declared MountainRange extent to be spatially within the Landmass.",
+          "landmass>settlement": "Settlement anchor and optional extent must lie within the Landmass.",
+          "settlement>point_of_interest": "A PointOfInterest may be contained by at most one Settlement at a given History/time.",
+          "terrain_region>point_of_interest": "Multiple containing TerrainRegions are allowed where distinct semantic regions overlap."
+        }
+      },
+      "cycle_policy": "reject_cycle",
+      "endpoint_activity": "dormant_endpoint_allowed",
+      "temporal_classes": [
+        "initial_state",
+        "history_local"
+      ],
+      "geometry_precondition": "Validation evidence only; geometry does not create the relationship.",
+      "status": "Recommended V1 spatial containment only; not political authority or structural composition.",
+      "semantics": "Strict spatial containment supported by the target extent/anchor within the source extent. It does not mean ownership, sovereignty, jurisdiction, political control or structural composition.",
+      "allowed_storage_scopes": [
+        "map_initial_state",
+        "history_local"
+      ]
+    },
+    "structural.part_of": {
+      "type_key": "structural.part_of",
+      "schema_version": 2,
+      "semantics_id": "world-view.relationship.structural.part_of.v2",
+      "direction": "directed",
+      "source_role": "part",
+      "target_role": "whole",
+      "symmetric": false,
+      "endpoint_pairs": [
+        [
+          "mountain_peak",
+          "mountain_range"
+        ]
+      ],
+      "deferred_endpoint_pairs": [
+        [
+          "settlement",
+          "settlement"
+        ]
+      ],
+      "self_reference": false,
+      "cardinality": {
+        "source_outgoing": {
+          "min": 0,
+          "max": 1
+        },
+        "target_incoming": {
+          "min": 0,
+          "max": null
+        },
+        "uniqueness": "one active parent for each source Object in the enabled endpoint pair"
+      },
+      "cycle_policy": "reject_cycle",
+      "endpoint_activity": "dormant_endpoint_allowed",
+      "temporal_classes": [
+        "initial_state",
+        "history_local"
+      ],
+      "geometry_precondition": "Geometric containment is not part_of.",
+      "status": "Recommended V1 MountainPeak-to-MountainRange structural membership; Settlement hierarchy deferred.",
+      "semantics": "Explicit semantic composition/part-whole membership, not inferred from spatial containment or geometry overlap.",
+      "allowed_storage_scopes": [
+        "shared_object_definition",
+        "map_initial_state"
+      ],
+      "shared_definition_owner": "whole_endpoint_definition"
+    },
+    "spatial.adjacent_to": {
+      "type_key": "spatial.adjacent_to",
+      "schema_version": 2,
+      "semantics_id": "world-view.relationship.spatial.adjacent_to.v2",
+      "direction": "symmetric",
+      "source_role": "endpoint_a",
+      "target_role": "endpoint_b",
+      "symmetric": true,
+      "endpoint_pairs": [
+        [
+          "political_region",
+          "political_region"
+        ],
+        [
+          "terrain_region",
+          "terrain_region"
+        ]
+      ],
+      "self_reference": false,
+      "cardinality": {
+        "endpoint_degree": {
+          "min": 0,
+          "max": null
+        },
+        "uniqueness": "canonical unordered endpoint pair per relationship type"
+      },
+      "cycle_policy": "cycles_allowed",
+      "endpoint_activity": "dormant_endpoint_allowed",
+      "temporal_classes": [
+        "initial_state",
+        "history_local"
+      ],
+      "geometry_precondition": "Explicit adjacency meaning required; distance threshold alone is insufficient.",
+      "status": "Recommended V1 adjacency for PoliticalRegion and TerrainRegion only.",
+      "semantics": "Explicit adjacency between compatible same-type regions, normally shared boundary or a domain-defined adjacency predicate; proximity alone is insufficient. Landmass adjacency is excluded because touching land areas form one continuous Landmass.",
+      "allowed_storage_scopes": [
+        "map_initial_state",
+        "history_local"
+      ]
+    },
+    "network.connects_to": {
+      "type_key": "network.connects_to",
+      "schema_version": 2,
+      "semantics_id": "world-view.relationship.network.connects_to.v2",
+      "direction": "symmetric",
+      "source_role": "endpoint_a",
+      "target_role": "endpoint_b",
+      "symmetric": true,
+      "endpoint_pairs": [
+        [
+          "road",
+          "road"
+        ]
+      ],
+      "self_reference": false,
+      "cardinality": {
+        "endpoint_degree": {
+          "min": 0,
+          "max": null
+        },
+        "uniqueness": "canonical unordered Road pair per relationship type"
+      },
+      "cycle_policy": "cycles_allowed",
+      "endpoint_activity": "active_endpoints_required",
+      "temporal_classes": [
+        "initial_state",
+        "history_local"
+      ],
+      "geometry_precondition": "Explicit network/access connectivity; geometric touch or snapping is insufficient.",
+      "status": "Recommended V1 Road-to-Road physical continuity only.",
+      "semantics": "Symmetric physical network continuity between two distinct Road Objects at an explicit junction. Does not model settlement access, traffic direction, routing permission or snapping alone.",
+      "allowed_storage_scopes": [
+        "map_initial_state",
+        "history_local"
+      ],
+      "deferred_semantics": {
+        "road_to_settlement": "Deferred; model as a distinct directed access relation in ME-03 if required.",
+        "travel_direction": "Deferred to transport/network domain."
+      }
+    },
+    "hydrology.flows_to": {
+      "type_key": "hydrology.flows_to",
+      "schema_version": 2,
+      "semantics_id": "world-view.relationship.hydrology.flows_to.v2",
+      "direction": "directed",
+      "source_role": "upstream",
+      "target_role": "downstream",
+      "symmetric": false,
+      "endpoint_pairs": [
+        [
+          "river",
+          "river"
+        ],
+        [
+          "river",
+          "lake"
+        ]
+      ],
+      "self_reference": false,
+      "cardinality": {
+        "source_outgoing": {
+          "min": 0,
+          "max": 1,
+          "applies_across_all_target_pairs": true
+        },
+        "target_incoming": {
+          "min": 0,
+          "max": null
+        },
+        "uniqueness": "one active edge per type and ordered endpoint pair",
+        "target_role_rules": {
+          "river": "May receive multiple tributaries; may have at most one downstream receiver.",
+          "lake": "Terminal receiver; may receive multiple Rivers; cannot be a source."
+        }
+      },
+      "cycle_policy": "reject_directed_cycle_in_river_subgraph; Lake is terminal; distributaries and multiple downstream receivers unsupported in V1.",
+      "endpoint_activity": "active_endpoints_required",
+      "temporal_classes": [
+        "initial_state",
+        "history_local"
+      ],
+      "geometry_precondition": "Flow direction is explicit; centerline vertex order is not authoritative.",
+      "status": "Recommended V1 directed acyclic River flow graph; one downstream receiver per River, multiple tributaries allowed, Lake terminal.",
+      "semantics": "Directed formal River flow: source is upstream River; target is downstream River or terminal receiving Lake.",
+      "allowed_storage_scopes": [
+        "map_initial_state",
+        "history_local"
+      ]
+    }
+  },
+  "compatibility_policy": {
+    "schema_change": "Increment schema_version and provide explicit compatibility/migration behavior.",
+    "semantics_change": "Change semantics_id; retain original reader/semantics for historical relationships.",
+    "endpoint_matrix_change": "Breaking semantic change; do not silently reinterpret existing relationships."
+  },
+  "format": "world-view-domain-descriptor-registry",
+  "format_version": 1,
+  "validation_note": "This file is a machine-readable domain catalog, not a JSON Schema validation document. Runtime validation rules are expressed as descriptor data and must be implemented by Core Domain validators."
+}
