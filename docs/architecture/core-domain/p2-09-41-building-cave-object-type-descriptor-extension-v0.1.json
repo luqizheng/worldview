@@ -1,0 +1,397 @@
+{
+  "title": "World View Building and Cave System Object Type Descriptor Extension",
+  "extension_version": "0.1",
+  "base_object_type_registry_version": "0.2",
+  "status": "proposal; not merged into the enabled Core Domain registry",
+  "authority": "Core Domain compiled static descriptor registry",
+  "common_rules": {
+    "object_identity": "Top-level Building and Cave System IDs use the existing Core Object reservation/binding lifecycle.",
+    "child_identity": "Child IDs are opaque and unique only within their owning Object; they are not Object IDs and are not registered in core_object.",
+    "definition_payload": "Strict typed JSON Schema references; unknown fields rejected; canonical bytes/hash and descriptor compatibility pinned.",
+    "geometry": "Geometry Components remain owned by the top-level Object; child_context is typed owner-payload metadata, not a polymorphic geometry owner.",
+    "persistence": "Reuse existing core_object_definition, core_map_initial_object and typed Asset links; no new domain table in this proposal.",
+    "temporal": "Current child aggregate edits are definition updates; time-specific child lifecycle changes require separately adopted History Commands.",
+    "relationships": "Do not add generic Relationship endpoint pairs for child identities."
+  },
+  "object_type_additions": {
+    "building": {
+      "type_key": "building",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.building.v1",
+      "allocatable": true,
+      "definition_schema_ref": "p2-09-38-building-typed-aggregate-schema-v0.2.json",
+      "definition": {
+        "canonical_name": "required string",
+        "building_class": [
+          "residential",
+          "commercial",
+          "industrial",
+          "institutional",
+          "religious",
+          "military",
+          "transport",
+          "utility",
+          "mixed_use",
+          "other"
+        ]
+      },
+      "runtime": {},
+      "geometry": {
+        "footprint": {
+          "min": 0,
+          "max": 1,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ],
+          "dimension": 2
+        },
+        "space_region": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ],
+          "dimension": 2
+        },
+        "boundary": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ],
+          "dimension": 2
+        },
+        "partition_annotation": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ],
+          "dimension": 2
+        },
+        "entrance_anchor": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "point"
+          ],
+          "dimension": 2
+        }
+      },
+      "invariants": [
+        "building_local_horizontal_frame_required_for_formal_interior_plan_geometry",
+        "vertical_frame_required_when_level_elevation_or_vertical_extent_is_present",
+        "level_ids_unique_within_building",
+        "space_ids_unique_within_building",
+        "all_level_slices_reference_levels_in_same_building",
+        "all_geometry_component_child_context_references_resolve_in_same_building",
+        "shared_boundary_component_identity_is_unique_and_boundary_loops_are_consistent",
+        "opening_anchor_is_bound_to_boundary_component_revision",
+        "access_connection_endpoints_resolve_and_are_type_compatible",
+        "vertical_connector_stops_are_ordered_and_reference_levels_in_same_building",
+        "no_access_or_adjacency_inferred_from_geometry",
+        "v1_formal_geometry_is_2d_only"
+      ],
+      "command_capabilities": {
+        "core.object.create": {
+          "enabled": true,
+          "scope": "history_local",
+          "target": "post_zero_only",
+          "policy": "introduces_presence_of_existing_bound_identity",
+          "identity_reservation_required": true
+        },
+        "core.object.activate": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "restore_prior_presence_in_same_history_only"
+        },
+        "core.object.deactivate": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+        },
+        "core.object.attribute.change": {
+          "enabled": false,
+          "scope": "history_local",
+          "policy": "no_runtime_fields_enabled",
+          "allowed_fields": [],
+          "definition_fields_route": "typed_object_definition_service"
+        },
+        "core.geometry.adjust_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_geometry_roles_and_child_context_only"
+        },
+        "core.geometry.refine_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_geometry_roles_with_source_fingerprint_and_child_context"
+        },
+        "core.geometry.add_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_role_existing_child_context_and_max_cardinality"
+        },
+        "core.geometry.remove_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_role_and_minimum_cardinality_no_dangling_child_refs"
+        },
+        "core.relationship.establish": {
+          "enabled": false,
+          "scope": "history_local_only",
+          "policy": "no_enabled_relationship_endpoint_pairs_for_this_type"
+        },
+        "core.relationship.end": {
+          "enabled": false,
+          "scope": "history_local",
+          "policy": "no_enabled_relationship_endpoint_pairs_for_this_type"
+        }
+      },
+      "definition_edit_policy": {
+        "enabled": true,
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
+        "project_shared_semantics": "retroactive_current_definition",
+        "excluded_from_history_commands": true,
+        "update_policy": "typed_aggregate_replace_with_expected_definition_hash_compare_and_swap"
+      },
+      "initial_state_policy": {
+        "route": "map_initial_state_service",
+        "time_boundary": "time_zero",
+        "includes": [
+          "map_membership",
+          "initial_placement"
+        ],
+        "command_allowed": false,
+        "definition_not_copied": true
+      },
+      "runtime_attribute_change_policy": {
+        "enabled": false,
+        "route": "core.object.attribute.change",
+        "scope": "selected_history_only",
+        "mutable_fields": [],
+        "reason": "V1 Building runtime and child operational-state Commands are deferred."
+      },
+      "asset_contract": {
+        "payload_ownership": "top_level_semantic_object",
+        "component_metadata_in": "typed_object_definition_or_initial_state_owner_payload",
+        "immutable_payload_bytes": true,
+        "definition_asset_link": "core_object_definition_asset",
+        "initial_state_asset_link": "core_map_initial_object_asset",
+        "command_asset_link": "core_command_asset",
+        "relational_asset_link_must_match_payload_asset_id_and_hash": true,
+        "media_format_policy": "must_use_adopted_ME-05_geometry_or_survey_asset_contract; exact production media type remains open"
+      },
+      "child_aggregate_contract": {
+        "sections": [
+          "horizontal_frame",
+          "vertical_frame",
+          "levels",
+          "spaces",
+          "plans",
+          "boundaries",
+          "access",
+          "geometry_components"
+        ],
+        "child_identity_scope": "building_object_id",
+        "child_ids_never_reused": true,
+        "post_zero_child_lifecycle_commands": false
+      }
+    },
+    "cave_system": {
+      "type_key": "cave_system",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.cave_system.v1",
+      "allocatable": true,
+      "definition_schema_ref": "p2-09-39-cave-system-typed-aggregate-schema-v0.2.json",
+      "definition": {
+        "canonical_name": "required string",
+        "cave_class": [
+          "limestone",
+          "lava_tube",
+          "sea_cave",
+          "ice_cave",
+          "mine_modified_cave",
+          "other"
+        ],
+        "survey_completeness": [
+          "partial",
+          "substantially_surveyed",
+          "declared_complete"
+        ]
+      },
+      "runtime": {},
+      "geometry": {
+        "chamber_plan": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ],
+          "dimension": 2
+        },
+        "passage_plan": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ],
+          "dimension": 2
+        },
+        "cave_entrance_anchor": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "point"
+          ],
+          "dimension": 2
+        },
+        "survey_station": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "point"
+          ],
+          "dimension": 2
+        }
+      },
+      "invariants": [
+        "cave_child_ids_unique_within_owning_cave",
+        "survey_frame_required_when_survey_station_or_vertical_measurements_exist",
+        "absolute_world_altitude_requires_compatible_vertical_reference",
+        "survey_uncertainty_must_be_non_negative",
+        "all_cave_geometry_component_child_context_references_resolve",
+        "all_cave_connection_endpoints_resolve_within_same_cave",
+        "partial_survey_and_unknown_continuation_are_valid",
+        "geometric_crossing_or_overlap_does_not_create_cave_connection",
+        "cave_entrance_and_building_entrance_are_distinct_child_identities",
+        "v1_formal_geometry_is_2d_only"
+      ],
+      "command_capabilities": {
+        "core.object.create": {
+          "enabled": true,
+          "scope": "history_local",
+          "target": "post_zero_only",
+          "policy": "introduces_presence_of_existing_bound_identity",
+          "identity_reservation_required": true
+        },
+        "core.object.activate": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "restore_prior_presence_in_same_history_only"
+        },
+        "core.object.deactivate": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+        },
+        "core.object.attribute.change": {
+          "enabled": false,
+          "scope": "history_local",
+          "policy": "no_runtime_fields_enabled",
+          "allowed_fields": [],
+          "definition_fields_route": "typed_object_definition_service"
+        },
+        "core.geometry.adjust_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_geometry_roles_and_child_context_only"
+        },
+        "core.geometry.refine_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_geometry_roles_with_source_fingerprint_and_child_context"
+        },
+        "core.geometry.add_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_role_existing_child_context_and_max_cardinality"
+        },
+        "core.geometry.remove_component": {
+          "enabled": true,
+          "scope": "history_local",
+          "policy": "declared_role_and_minimum_cardinality_no_dangling_child_refs"
+        },
+        "core.relationship.establish": {
+          "enabled": false,
+          "scope": "history_local_only",
+          "policy": "no_enabled_relationship_endpoint_pairs_for_this_type"
+        },
+        "core.relationship.end": {
+          "enabled": false,
+          "scope": "history_local",
+          "policy": "no_enabled_relationship_endpoint_pairs_for_this_type"
+        }
+      },
+      "definition_edit_policy": {
+        "enabled": true,
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
+        "project_shared_semantics": "retroactive_current_definition",
+        "excluded_from_history_commands": true,
+        "update_policy": "typed_aggregate_replace_with_expected_definition_hash_compare_and_swap"
+      },
+      "initial_state_policy": {
+        "route": "map_initial_state_service",
+        "time_boundary": "time_zero",
+        "includes": [
+          "map_membership",
+          "initial_placement"
+        ],
+        "command_allowed": false,
+        "definition_not_copied": true
+      },
+      "runtime_attribute_change_policy": {
+        "enabled": false,
+        "route": "core.object.attribute.change",
+        "scope": "selected_history_only",
+        "mutable_fields": [],
+        "reason": "V1 Cave physical/access condition and time-specific geological changes require future typed History Commands."
+      },
+      "asset_contract": {
+        "payload_ownership": "top_level_semantic_object",
+        "component_metadata_in": "typed_object_definition_or_initial_state_owner_payload",
+        "immutable_payload_bytes": true,
+        "definition_asset_link": "core_object_definition_asset",
+        "initial_state_asset_link": "core_map_initial_object_asset",
+        "command_asset_link": "core_command_asset",
+        "relational_asset_link_must_match_payload_asset_id_and_hash": true,
+        "media_format_policy": "must_use_adopted_ME-05_geometry_or_survey_asset_contract; exact production media type remains open"
+      },
+      "child_aggregate_contract": {
+        "sections": [
+          "survey_frames",
+          "chambers",
+          "passages",
+          "entrances",
+          "survey_stations",
+          "connections",
+          "geometry_components"
+        ],
+        "child_identity_scope": "cave_object_id",
+        "child_ids_never_reused": true,
+        "post_zero_child_lifecycle_commands": false
+      }
+    }
+  },
+  "adoption_gates": [
+    "validate descriptor extension against P2-09-18 and existing P2-09-26 descriptor shape",
+    "validate aggregate schemas P2-09-38 and P2-09-39",
+    "execute and refine P2-09-40 vectors",
+    "reconcile Asset link roles with P2-09-13 and P2-09-19",
+    "define exact initial-state geometry membership and typed Asset link behavior",
+    "prove deterministic definition hashing and checkpoint fingerprint coverage",
+    "only then merge into a versioned Core Domain registry"
+  ]
+}
