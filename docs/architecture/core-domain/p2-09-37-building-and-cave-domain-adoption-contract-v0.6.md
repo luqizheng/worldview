@@ -402,7 +402,7 @@ Adopt the typed aggregate direction as the minimum Core Domain extension for Bui
 
 Keep the existing Object/History/Asset authority architecture intact: two new top-level Object Types, typed nested child aggregates in existing owner payloads, Object-owned Geometry Components with child context, existing immutable Asset links, and no new domain tables in the first adoption.
 
-The machine-readable schemas, descriptor extension and validation vectors are now drafted. P2-09-42 V0.7 records the required reconciliation with the canonical P2-09-19 Geometry Component owner metadata and ME-05-04/P2-09-25 spatial-reference envelope. The next gate is executing the 53-vector suite and existing registry regression suite; no registry activation or DDL is implied.
+The machine-readable schemas, descriptor extension and validation vectors are now drafted. P2-09-42 V0.7 records the required reconciliation with the canonical P2-09-19 Geometry Component owner metadata and ME-05-04/P2-09-25 spatial-reference envelope. The next gate is executing the 55-vector suite and existing registry regression suite; no registry activation or DDL is implied.
 
 
 ## 15. V0.5 Geometry Component owner-payload alignment
@@ -419,7 +419,7 @@ The specialist-specific `coordinate_context_id` remains a distinct Building-loca
 
 All references to a formal geometry component in Boundary, Entrance, Opening, Cave Entrance, Survey Station and Level Slice records use explicit geometry-component naming. Opening anchors bind `geometry_component_id` and `source_content_hash`, so boundary Asset replacement makes the anchor stale until explicitly remapped.
 
-The immutable geometry Asset follows the ME-05-04/P2-09-25 envelope. Mutable Object/Component identity, role and child context are not duplicated into the Asset bytes. P2-09-40 V0.6 contains 53 design-only validation vectors; none has been executed by a production validator.
+The immutable geometry Asset follows the ME-05-04/P2-09-25 envelope. Mutable Object/Component identity, role and child context are not duplicated into the Asset bytes. P2-09-40 V0.6 contains 55 design-only validation vectors; none has been executed by a production validator.
 
 
 ## 16. V0.6 Asset-link and conformance-audit alignment
@@ -428,4 +428,4 @@ P2-09-44 V0.1 records the focused conformance audit. For the Building/Cave adopt
 
 The typed link row carries owner identity, `asset_id` and `role`; it does not carry `geometry_component_id` or a duplicate content hash. The owner payload retains the component-to-Asset mapping and expected hash. The publication service verifies the typed link and resolves the authoritative hash from `core_asset`.
 
-P2-09-40 V0.6 contains 53 design-only vectors with explicit schema, aggregate, publication, spatial-semantics and measurement-semantics layers. These vectors have not been executed by a production validator or Core Domain test runner.
+P2-09-40 V0.6 contains 55 design-only vectors with explicit schema, aggregate, publication, spatial-semantics and measurement-semantics layers. These vectors have not been executed by a production validator or Core Domain test runner.
