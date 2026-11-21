@@ -1,6 +1,6 @@
 # World View — ME-02-F Calculation Contracts
 
-- Version: 0.2
+- Version: 0.3
 - Date: 2026-11-21
 - Status: **Calculation Contract Working Baseline** — deterministic execution, provenance, freshness, invalidation and validation-severity contract; algorithms, numeric calibration, physical-field storage and performance thresholds remain separate gates
 - Parent: [ME-02 Terrain & Natural Geography Editor V0.3](world-view-me-02-terrain-and-natural-geography-editor-v0.3.md)
