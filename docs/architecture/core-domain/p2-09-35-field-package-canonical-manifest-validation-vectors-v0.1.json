@@ -1,0 +1,148 @@
+{
+  "suite": "World View V1 Field Package Canonical Manifest Validation Vectors",
+  "version": "0.1",
+  "schema": "P2-09-34 V1 Field Package Canonical Manifest Schema V0.1",
+  "status": "design validation vectors; not executed",
+  "cases": [
+    {
+      "id": "MNF-001",
+      "expect": "valid",
+      "scenario": "Canonical minimal elevation manifest matches schema and descriptor."
+    },
+    {
+      "id": "MNF-002",
+      "expect": "valid",
+      "scenario": "Canonical land_water manifest includes all four registered category codes."
+    },
+    {
+      "id": "MNF-003",
+      "expect": "invalid",
+      "scenario": "Reject unknown top-level or nested manifest property."
+    },
+    {
+      "id": "MNF-004",
+      "expect": "invalid",
+      "scenario": "Reject missing manifest_schema identity or unsupported schema version."
+    },
+    {
+      "id": "MNF-005",
+      "expect": "invalid",
+      "scenario": "Reject package format other than 1.0."
+    },
+    {
+      "id": "MNF-006",
+      "expect": "invalid",
+      "scenario": "Reject unknown field_key or descriptor schema version."
+    },
+    {
+      "id": "MNF-007",
+      "expect": "invalid",
+      "scenario": "Reject semantics_id inconsistent with the registered Field Descriptor."
+    },
+    {
+      "id": "MNF-008",
+      "expect": "invalid",
+      "scenario": "Reject missing Map Space or spatial-reference identity."
+    },
+    {
+      "id": "MNF-009",
+      "expect": "invalid",
+      "scenario": "Reject zero/negative grid dimensions or tile dimensions."
+    },
+    {
+      "id": "MNF-010",
+      "expect": "invalid",
+      "scenario": "Reject tile dimensions greater than the 16-bit directory dimension capacity."
+    },
+    {
+      "id": "MNF-011",
+      "expect": "invalid",
+      "scenario": "Reject non-canonical decimal strings, exponent notation, locale decimal comma or negative spacing."
+    },
+    {
+      "id": "MNF-012",
+      "expect": "invalid",
+      "scenario": "Reject unknown axis orientation or cell-registration semantics."
+    },
+    {
+      "id": "MNF-013",
+      "expect": "invalid",
+      "scenario": "Reject unsupported coverage mode or missing explicit mask plane name."
+    },
+    {
+      "id": "MNF-014",
+      "expect": "invalid",
+      "scenario": "Reject missing or unsupported Map-edge semantics."
+    },
+    {
+      "id": "MNF-015",
+      "expect": "invalid",
+      "scenario": "Reject no-data policy that conflates valid zero with invalid sample."
+    },
+    {
+      "id": "MNF-016",
+      "expect": "invalid",
+      "scenario": "Reject missing, duplicate or invalidly encoded value planes."
+    },
+    {
+      "id": "MNF-017",
+      "expect": "invalid",
+      "scenario": "Reject land_water category codes that collide or exceed uint8 range."
+    },
+    {
+      "id": "MNF-018",
+      "expect": "invalid",
+      "scenario": "Reject elevation manifest that supplies categorical codes."
+    },
+    {
+      "id": "MNF-019",
+      "expect": "invalid",
+      "scenario": "Reject codec registry without codec 0 none or with duplicate codec IDs."
+    },
+    {
+      "id": "MNF-020",
+      "expect": "invalid",
+      "scenario": "Reject unsupported tile hash algorithm/version."
+    },
+    {
+      "id": "MNF-021",
+      "expect": "invalid",
+      "scenario": "Reject UTF-8 BOM, trailing newline or non-canonical whitespace in manifest bytes."
+    },
+    {
+      "id": "MNF-022",
+      "expect": "invalid",
+      "scenario": "Reject duplicate JSON object keys before canonicalization."
+    },
+    {
+      "id": "MNF-023",
+      "expect": "valid",
+      "scenario": "Re-serialize parsed manifest using RFC 8785 JCS and obtain byte-identical UTF-8 bytes."
+    },
+    {
+      "id": "MNF-024",
+      "expect": "valid",
+      "scenario": "Equal semantic manifest objects produce identical canonical bytes regardless of input property order."
+    },
+    {
+      "id": "MNF-025",
+      "expect": "valid",
+      "scenario": "Decimal coordinate strings preserve exact lexical precision."
+    },
+    {
+      "id": "MNF-026",
+      "expect": "invalid",
+      "scenario": "Reject NaN/Infinity tokens and invalid UTF-8."
+    },
+    {
+      "id": "MNF-027",
+      "expect": "valid",
+      "scenario": "Fixture-only sample profiles are accepted as test data but not promoted to production encoding decisions."
+    },
+    {
+      "id": "MNF-028",
+      "expect": "invalid",
+      "scenario": "Reject package whose dimensions, field key or descriptor disagree with Core Domain owner metadata."
+    }
+  ]
+}
