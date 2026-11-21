@@ -1,0 +1,3377 @@
+{
+  "title": "World View Registry Format V2 Conformance Vectors",
+  "version": "0.2",
+  "status": "design-only; not executed by a JSON Schema validator or Core Domain registry compiler",
+  "schema_ref": "p2-09-46-object-type-descriptor-registry-format-v2-json-schema-v0.2.json",
+  "base_fixtures": {
+    "registry_v2_legacy": {
+      "title": "World View V1 Built-in Object Type Descriptor Registry",
+      "registry_version": "0.3",
+      "status": "proposal; Registry Format V2 migration preview; not activated",
+      "authority": "Core Domain static registry",
+      "common_rules": {
+        "stable_identity": "One stable type_key per Object; non-localized and never reused.",
+        "scopes": [
+          "definition",
+          "initial_state",
+          "history_runtime"
+        ],
+        "definition": "Current shared/base definition; retroactive under accepted current-definition model.",
+        "initial_state": "Map time-zero baseline; not a post-zero Command.",
+        "history_runtime": "Map/Branch-local; changed only by declared deterministic Commands.",
+        "unknown_fields": "reject",
+        "geometry": "Immutable Asset-backed Geometry Components; this registry declares roles/cardinality/families only.",
+        "references": "Stable IDs, never display names or filesystem paths.",
+        "shared_definition_edit": {
+          "authority": "Shared Object definition Domain Service, not core.object.attribute.change",
+          "scope": "Project-shared current definition; retroactive for every referencing Map/Branch",
+          "map_local_definition": "Owner-Map definition service",
+          "history_runtime": "Only declared runtime mutable fields may be changed by a selected-History Command",
+          "initial_state": "Map-specific time-zero membership, placement and initial runtime values use Initial State authoring"
+        },
+        "object_creation": "core.object.create introduces presence of an already Bound Object identity into the selected post-zero History; reservation/binding and definition ownership are separate.",
+        "command_capability_shape": "Each command_capabilities entry is a structured policy object."
+      },
+      "object_types": {
+        "landmass": {
+          "type_key": "landmass",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.landmass.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "landform_class": [
+              "continent",
+              "island",
+              "archipelago",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "positive_area",
+            "multipart_allowed"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "mountain_range": {
+          "type_key": "mountain_range",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.mountain_range.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            },
+            "ridge": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            },
+            "combined_min": 1
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "range_class": [
+              "range",
+              "massif",
+              "system",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "at_least_one_extent_or_ridge",
+            "peak_membership_explicit"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "mountain_peak": {
+          "type_key": "mountain_peak",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.mountain_peak.v1",
+          "allocatable": true,
+          "geometry": {
+            "location": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "elevation_value": "non_negative_decimal",
+            "elevation_unit": [
+              "m",
+              "ft"
+            ],
+            "vertical_reference_id": "required stable reference"
+          },
+          "runtime": {
+            "elevation_value": "disabled_pending_temporal_datum_contract"
+          },
+          "invariants": [
+            "elevation_requires_unit_and_vertical_reference",
+            "renderer_z_is_not_elevation"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "river": {
+          "type_key": "river",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.river.v1",
+          "allocatable": true,
+          "geometry": {
+            "centerline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            },
+            "reach": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "river_class": [
+              "perennial",
+              "seasonal",
+              "intermittent",
+              "other"
+            ]
+          },
+          "runtime": {
+            "flow_condition": "disabled_pending_hydrology_contract"
+          },
+          "invariants": [
+            "vertex_order_does_not_define_flow_direction"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "lake": {
+          "type_key": "lake",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.lake.v1",
+          "allocatable": true,
+          "geometry": {
+            "shoreline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "water_body_class": [
+              "freshwater",
+              "saltwater",
+              "brackish",
+              "other"
+            ]
+          },
+          "runtime": {
+            "water_level": "disabled_pending_vertical_datum_and_temporal_contract"
+          },
+          "invariants": [
+            "multipart_allowed"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "terrain_region": {
+          "type_key": "terrain_region",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.terrain_region.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "optional string",
+            "terrain_class": [
+              "plain",
+              "hill",
+              "mountain",
+              "desert",
+              "wetland",
+              "forest",
+              "tundra",
+              "other"
+            ],
+            "source_dataset_id": "optional immutable Asset reference"
+          },
+          "runtime": {},
+          "invariants": [
+            "bounded_classification",
+            "raster_cells_are_not_objects"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "settlement": {
+          "type_key": "settlement",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.settlement.v1",
+          "allocatable": true,
+          "geometry": {
+            "anchor": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            },
+            "extent": {
+              "min": 0,
+              "max": 1,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "settlement_class": [
+              "village",
+              "town",
+              "city",
+              "capital",
+              "other"
+            ]
+          },
+          "runtime": {
+            "population_estimate": "disabled_pending_provenance_and_temporal_contract",
+            "condition_code": "disabled_pending_vocabulary"
+          },
+          "invariants": [
+            "anchor_and_extent_complementary",
+            "political_status_is_not_scalar"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "road": {
+          "type_key": "road",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.road.v1",
+          "allocatable": true,
+          "geometry": {
+            "centerline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "optional string",
+            "road_class": [
+              "trail",
+              "local",
+              "regional",
+              "major",
+              "highway",
+              "other"
+            ]
+          },
+          "runtime": {
+            "condition_code": "disabled_pending_temporal_contract"
+          },
+          "invariants": [
+            "snapping_does_not_establish_connectivity"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "political_region": {
+          "type_key": "political_region",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.political_region.v1",
+          "allocatable": true,
+          "geometry": {
+            "boundary": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "region_class": [
+              "country",
+              "province",
+              "state",
+              "district",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "boundary_does_not_imply_control"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "point_of_interest": {
+          "type_key": "point_of_interest",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.point_of_interest.v1",
+          "allocatable": true,
+          "geometry": {
+            "location": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "poi_category": [
+              "landmark",
+              "natural_feature",
+              "facility",
+              "heritage",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "not_a_fallback_for_character_species_culture_event"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        }
+      },
+      "compatibility_policy": {
+        "schema_change": "Increment schema_version and provide explicit migration or retained reader.",
+        "semantics_change": "Change semantics_id only when Object Type meaning or deterministic interpretation changes; schema changes still increment schema_version.",
+        "enum_removal_or_reinterpretation": "Breaking change requiring migration.",
+        "runtime_candidate": "Disabled until temporal semantics, Command semantics and fixtures are approved.",
+        "registry_schema_change": "Increment registry_version and affected descriptor schema_version; preserve explicit readers/migrations.",
+        "legacy_profile_allowlist": [
+          "lake",
+          "landmass",
+          "mountain_peak",
+          "mountain_range",
+          "point_of_interest",
+          "political_region",
+          "river",
+          "road",
+          "settlement",
+          "terrain_region"
+        ],
+        "legacy_semantics_pins": [
+          {
+            "type_key": "lake",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.lake.v1"
+          },
+          {
+            "type_key": "landmass",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.landmass.v1"
+          },
+          {
+            "type_key": "mountain_peak",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.mountain_peak.v1"
+          },
+          {
+            "type_key": "mountain_range",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.mountain_range.v1"
+          },
+          {
+            "type_key": "point_of_interest",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.point_of_interest.v1"
+          },
+          {
+            "type_key": "political_region",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.political_region.v1"
+          },
+          {
+            "type_key": "river",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.river.v1"
+          },
+          {
+            "type_key": "road",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.road.v1"
+          },
+          {
+            "type_key": "settlement",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.settlement.v1"
+          },
+          {
+            "type_key": "terrain_region",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.terrain_region.v1"
+          }
+        ],
+        "legacy_profile_new_types_allowed": false,
+        "typed_profile_min_descriptor_schema_version": 2,
+        "semantics_pinning_required": true,
+        "schema_artifact_hash_algorithm": "sha256",
+        "runtime_resolution": "compiled_bundle_only",
+        "unknown_fields": "reject",
+        "schema_migration": "explicit_only",
+        "semantic_migration": "explicit_only"
+      },
+      "format": "world-view-domain-descriptor-registry",
+      "format_version": 2,
+      "validation_note": "Registry Format V2 migration preview only. The ten legacy descriptors retain their existing schema_version, semantics_id, field catalogs, geometry declarations and Command capability data. No Building/Cave descriptors are added or activated. Validate against P2-09-46 and P2-09-47 before adoption.",
+      "schema_artifacts": []
+    },
+    "registry_v2_typed": {
+      "title": "World View V1 Built-in Object Type Descriptor Registry",
+      "registry_version": "0.3",
+      "status": "proposal; Registry Format V2 migration preview; not activated",
+      "authority": "Core Domain static registry",
+      "common_rules": {
+        "stable_identity": "One stable type_key per Object; non-localized and never reused.",
+        "scopes": [
+          "definition",
+          "initial_state",
+          "history_runtime"
+        ],
+        "definition": "Current shared/base definition; retroactive under accepted current-definition model.",
+        "initial_state": "Map time-zero baseline; not a post-zero Command.",
+        "history_runtime": "Map/Branch-local; changed only by declared deterministic Commands.",
+        "unknown_fields": "reject",
+        "geometry": "Immutable Asset-backed Geometry Components; this registry declares roles/cardinality/families only.",
+        "references": "Stable IDs, never display names or filesystem paths.",
+        "shared_definition_edit": {
+          "authority": "Shared Object definition Domain Service, not core.object.attribute.change",
+          "scope": "Project-shared current definition; retroactive for every referencing Map/Branch",
+          "map_local_definition": "Owner-Map definition service",
+          "history_runtime": "Only declared runtime mutable fields may be changed by a selected-History Command",
+          "initial_state": "Map-specific time-zero membership, placement and initial runtime values use Initial State authoring"
+        },
+        "object_creation": "core.object.create introduces presence of an already Bound Object identity into the selected post-zero History; reservation/binding and definition ownership are separate.",
+        "command_capability_shape": "Each command_capabilities entry is a structured policy object."
+      },
+      "object_types": {
+        "landmass": {
+          "type_key": "landmass",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.landmass.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "landform_class": [
+              "continent",
+              "island",
+              "archipelago",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "positive_area",
+            "multipart_allowed"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "mountain_range": {
+          "type_key": "mountain_range",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.mountain_range.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            },
+            "ridge": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            },
+            "combined_min": 1
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "range_class": [
+              "range",
+              "massif",
+              "system",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "at_least_one_extent_or_ridge",
+            "peak_membership_explicit"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "mountain_peak": {
+          "type_key": "mountain_peak",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.mountain_peak.v1",
+          "allocatable": true,
+          "geometry": {
+            "location": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "elevation_value": "non_negative_decimal",
+            "elevation_unit": [
+              "m",
+              "ft"
+            ],
+            "vertical_reference_id": "required stable reference"
+          },
+          "runtime": {
+            "elevation_value": "disabled_pending_temporal_datum_contract"
+          },
+          "invariants": [
+            "elevation_requires_unit_and_vertical_reference",
+            "renderer_z_is_not_elevation"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "river": {
+          "type_key": "river",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.river.v1",
+          "allocatable": true,
+          "geometry": {
+            "centerline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            },
+            "reach": {
+              "min": 0,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "river_class": [
+              "perennial",
+              "seasonal",
+              "intermittent",
+              "other"
+            ]
+          },
+          "runtime": {
+            "flow_condition": "disabled_pending_hydrology_contract"
+          },
+          "invariants": [
+            "vertex_order_does_not_define_flow_direction"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "lake": {
+          "type_key": "lake",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.lake.v1",
+          "allocatable": true,
+          "geometry": {
+            "shoreline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "water_body_class": [
+              "freshwater",
+              "saltwater",
+              "brackish",
+              "other"
+            ]
+          },
+          "runtime": {
+            "water_level": "disabled_pending_vertical_datum_and_temporal_contract"
+          },
+          "invariants": [
+            "multipart_allowed"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "terrain_region": {
+          "type_key": "terrain_region",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.terrain_region.v1",
+          "allocatable": true,
+          "geometry": {
+            "extent": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "optional string",
+            "terrain_class": [
+              "plain",
+              "hill",
+              "mountain",
+              "desert",
+              "wetland",
+              "forest",
+              "tundra",
+              "other"
+            ],
+            "source_dataset_id": "optional immutable Asset reference"
+          },
+          "runtime": {},
+          "invariants": [
+            "bounded_classification",
+            "raster_cells_are_not_objects"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "settlement": {
+          "type_key": "settlement",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.settlement.v1",
+          "allocatable": true,
+          "geometry": {
+            "anchor": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            },
+            "extent": {
+              "min": 0,
+              "max": 1,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "settlement_class": [
+              "village",
+              "town",
+              "city",
+              "capital",
+              "other"
+            ]
+          },
+          "runtime": {
+            "population_estimate": "disabled_pending_provenance_and_temporal_contract",
+            "condition_code": "disabled_pending_vocabulary"
+          },
+          "invariants": [
+            "anchor_and_extent_complementary",
+            "political_status_is_not_scalar"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "road": {
+          "type_key": "road",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.road.v1",
+          "allocatable": true,
+          "geometry": {
+            "centerline": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "line_string",
+                "multi_line_string"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "optional string",
+            "road_class": [
+              "trail",
+              "local",
+              "regional",
+              "major",
+              "highway",
+              "other"
+            ]
+          },
+          "runtime": {
+            "condition_code": "disabled_pending_temporal_contract"
+          },
+          "invariants": [
+            "snapping_does_not_establish_connectivity"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "political_region": {
+          "type_key": "political_region",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.political_region.v1",
+          "allocatable": true,
+          "geometry": {
+            "boundary": {
+              "min": 1,
+              "max": null,
+              "families": [
+                "polygon",
+                "multi_polygon"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "region_class": [
+              "country",
+              "province",
+              "state",
+              "district",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "boundary_does_not_imply_control"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "point_of_interest": {
+          "type_key": "point_of_interest",
+          "schema_version": 2,
+          "semantics_id": "world-view.object-type.point_of_interest.v1",
+          "allocatable": true,
+          "geometry": {
+            "location": {
+              "min": 1,
+              "max": 1,
+              "families": [
+                "point"
+              ]
+            }
+          },
+          "definition": {
+            "canonical_name": "required string",
+            "poi_category": [
+              "landmark",
+              "natural_feature",
+              "facility",
+              "heritage",
+              "other"
+            ]
+          },
+          "runtime": {},
+          "invariants": [
+            "not_a_fallback_for_character_species_culture_event"
+          ],
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "target": "post_zero_only",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.object.attribute.change": {
+              "enabled": false,
+              "scope": "history_local",
+              "policy": "declared_runtime_mutable_fields_only",
+              "allowed_fields": [],
+              "definition_fields_route": "shared_object_definition_service"
+            },
+            "core.geometry.adjust_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_only"
+            },
+            "core.geometry.refine_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_with_source_fingerprint"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_max_cardinality"
+            },
+            "core.geometry.remove_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_role_and_minimum_cardinality"
+            },
+            "core.relationship.establish": {
+              "enabled": true,
+              "scope": "history_local_only",
+              "policy": "only_when_relationship_descriptor_allows_history_local"
+            },
+            "core.relationship.end": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "only_relationship_visible_on_selected_history_path"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement",
+              "initial_runtime_attributes"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+          },
+          "descriptor_profile": "legacy_compact_v1"
+        },
+        "building": {
+          "descriptor_profile": "typed_v2",
+          "descriptor_schema_version": 2,
+          "type_key": "building",
+          "schema_version": 1,
+          "semantics_id": "world-view.object-type.building.v1",
+          "metadata": {
+            "default_display_name": "Building",
+            "description": "A constructed building with typed interior spaces.",
+            "category": "built_environment",
+            "localization_key": "object_type.building"
+          },
+          "identity": {
+            "allocatable": true,
+            "allocation_namespace": "project_object_type",
+            "reservation_policy": "core_object_reservation_v1"
+          },
+          "schemas": {
+            "definition": {
+              "artifact_id": "test.building.definition",
+              "schema_version": 1,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "runtime": {
+              "artifact_id": "test.empty.runtime",
+              "schema_version": 1,
+              "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "initial_state": {
+              "artifact_id": "test.initial_state",
+              "schema_version": 1,
+              "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+          },
+          "geometry": {
+            "enabled": true,
+            "roles": {
+              "footprint": {
+                "min": 0,
+                "max": 1,
+                "families": [
+                  "polygon",
+                  "multi_polygon"
+                ],
+                "dimension": 2
+              }
+            }
+          },
+          "relationship_participation": {
+            "incoming": [],
+            "outgoing": []
+          },
+          "lifecycle": {
+            "identity_policy": "core_object_identity_v1",
+            "history_presence": {
+              "create": "core.object.create",
+              "activate": "core.object.activate",
+              "deactivate": "core.object.deactivate"
+            }
+          },
+          "command_capabilities": {
+            "core.object.create": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "introduces_presence_of_existing_bound_identity",
+              "target": "post_zero_only",
+              "identity_reservation_required": true
+            },
+            "core.object.activate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "restore_prior_presence_in_same_history_only"
+            },
+            "core.object.deactivate": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+            },
+            "core.geometry.add_component": {
+              "enabled": true,
+              "scope": "history_local",
+              "policy": "declared_geometry_roles_and_child_context_only"
+            }
+          },
+          "definition_edit_policy": {
+            "enabled": true,
+            "route_by_scope": {
+              "project_shared": "shared_object_definition_service",
+              "map_local": "map_local_object_definition_service"
+            },
+            "project_shared_semantics": "retroactive_current_definition",
+            "excluded_from_history_commands": true,
+            "update_policy": "typed_aggregate_replace_with_expected_definition_hash_compare_and_swap"
+          },
+          "initial_state_policy": {
+            "route": "map_initial_state_service",
+            "time_boundary": "time_zero",
+            "includes": [
+              "map_membership",
+              "initial_placement"
+            ],
+            "command_allowed": false
+          },
+          "runtime_attribute_change_policy": {
+            "enabled": false,
+            "route": "core.object.attribute.change",
+            "scope": "selected_history_only",
+            "mutable_fields": [],
+            "reason": "No runtime fields are enabled in V1."
+          },
+          "asset_contract": {
+            "payload_ownership": "top_level_semantic_object",
+            "immutable_payload_bytes": true,
+            "definition_asset_link": {
+              "table": "core_object_definition_asset",
+              "required": true,
+              "allowed_roles": [
+                "geometry_component"
+              ]
+            },
+            "initial_state_asset_link": {
+              "table": "core_map_initial_object_asset",
+              "required": false,
+              "allowed_roles": []
+            },
+            "command_asset_link": {
+              "table": "core_command_asset",
+              "required": true,
+              "allowed_roles": [
+                "geometry_component"
+              ]
+            },
+            "hash_algorithm": "sha256",
+            "reference_integrity": "typed_link_and_core_asset_hash"
+          },
+          "child_aggregate_contract": {
+            "enabled": true,
+            "sections": [
+              "horizontal_frame",
+              "levels",
+              "spaces",
+              "plans",
+              "boundaries",
+              "access",
+              "geometry_components"
+            ],
+            "child_identity_scope": "building_object_id",
+            "child_ids_never_reused": true,
+            "copy_semantics": "copy creates a new owner and allocates new child IDs; child IDs are never copied as identities",
+            "cross_reference_policy": "all references resolve within the same Building aggregate",
+            "retirement_policy": "unreferenced children may be retired; unresolved references reject publication",
+            "post_zero_child_lifecycle_commands": false
+          }
+        }
+      },
+      "compatibility_policy": {
+        "schema_change": "Increment schema_version and provide explicit migration or retained reader.",
+        "semantics_change": "Change semantics_id only when Object Type meaning or deterministic interpretation changes; schema changes still increment schema_version.",
+        "enum_removal_or_reinterpretation": "Breaking change requiring migration.",
+        "runtime_candidate": "Disabled until temporal semantics, Command semantics and fixtures are approved.",
+        "registry_schema_change": "Increment registry_version and affected descriptor schema_version; preserve explicit readers/migrations.",
+        "legacy_profile_allowlist": [
+          "lake",
+          "landmass",
+          "mountain_peak",
+          "mountain_range",
+          "point_of_interest",
+          "political_region",
+          "river",
+          "road",
+          "settlement",
+          "terrain_region"
+        ],
+        "legacy_semantics_pins": [
+          {
+            "type_key": "lake",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.lake.v1"
+          },
+          {
+            "type_key": "landmass",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.landmass.v1"
+          },
+          {
+            "type_key": "mountain_peak",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.mountain_peak.v1"
+          },
+          {
+            "type_key": "mountain_range",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.mountain_range.v1"
+          },
+          {
+            "type_key": "point_of_interest",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.point_of_interest.v1"
+          },
+          {
+            "type_key": "political_region",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.political_region.v1"
+          },
+          {
+            "type_key": "river",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.river.v1"
+          },
+          {
+            "type_key": "road",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.road.v1"
+          },
+          {
+            "type_key": "settlement",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.settlement.v1"
+          },
+          {
+            "type_key": "terrain_region",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.terrain_region.v1"
+          }
+        ],
+        "legacy_profile_new_types_allowed": false,
+        "typed_profile_min_descriptor_schema_version": 2,
+        "semantics_pinning_required": true,
+        "schema_artifact_hash_algorithm": "sha256",
+        "runtime_resolution": "compiled_bundle_only",
+        "unknown_fields": "reject",
+        "schema_migration": "explicit_only",
+        "semantic_migration": "explicit_only"
+      },
+      "format": "world-view-domain-descriptor-registry",
+      "format_version": 2,
+      "validation_note": "Registry Format V2 migration preview only. The ten legacy descriptors retain their existing schema_version, semantics_id, field catalogs, geometry declarations and Command capability data. No Building/Cave descriptors are added or activated. Validate against P2-09-46 and P2-09-47 before adoption.",
+      "schema_artifacts": [
+        {
+          "artifact_id": "test.building.definition",
+          "path": "fixtures/registry-v2/building-definition.schema.json",
+          "schema_version": 1,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "schema_dialect": "https://json-schema.org/draft/2020-12/schema"
+        },
+        {
+          "artifact_id": "test.empty.runtime",
+          "path": "fixtures/registry-v2/empty-runtime.schema.json",
+          "schema_version": 1,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "schema_dialect": "https://json-schema.org/draft/2020-12/schema"
+        },
+        {
+          "artifact_id": "test.initial_state",
+          "path": "fixtures/registry-v2/initial-state.schema.json",
+          "schema_version": 1,
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "schema_dialect": "https://json-schema.org/draft/2020-12/schema"
+        }
+      ]
+    }
+  },
+  "vector_contract": {
+    "patches": "Apply RFC 6902 JSON Patch operations in order to a deep copy of the named base fixture.",
+    "validation_layers": {
+      "registry_schema": "Validate the complete registry document against P2-09-46 Draft 2020-12 JSON Schema.",
+      "cross_record": "Resolve type map keys, schema artifact references/hashes, Command IDs, Relationship IDs, geometry families/cardinality, lifecycle and Asset-link consistency.",
+      "compatibility": "Verify legacy allowlists/pins, descriptor profile eligibility and explicit schema/semantics migration policy.",
+      "build_packaging": "Verify all schema artifacts exist in the offline bundle, their exact bytes match lowercase SHA-256 pins, and no network/path traversal resolution occurs."
+    },
+    "expected": "valid means all checks in the vector's validation layer pass; invalid means the exact stable error_code is returned.",
+    "evidence": "A runner must report vector ID, registry/format version, validator/compiler build, layer, actual error code, platform and pass/fail.",
+    "no_false_pass": "JSON parsing, patch application or schema self-inspection alone is not a vector pass."
+  },
+  "vectors": [
+    {
+      "id": "RGS-001",
+      "input_source": "registry_v2_legacy",
+      "patches": [],
+      "validation_layer": "registry_schema",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "The ten existing compact descriptors are explicitly tagged legacy_compact_v1 and retain their schema_version and semantics_id."
+    },
+    {
+      "id": "RGS-002",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/landmass/descriptor_profile"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_PROFILE_REQUIRED",
+      "reason": "A descriptor without an explicit profile is rejected."
+    },
+    {
+      "id": "RGS-003",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/landmass/descriptor_profile",
+          "value": "unknown_profile"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_PROFILE_UNKNOWN",
+      "reason": "An unknown descriptor profile is rejected."
+    },
+    {
+      "id": "RGS-004",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/format_version",
+          "value": 1
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_FORMAT_VERSION_UNSUPPORTED",
+      "reason": "Registry format version 1 cannot be interpreted as V2."
+    },
+    {
+      "id": "RGS-005",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/landmass/type_key",
+          "value": "lake"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_TYPE_KEY_MISMATCH",
+      "reason": "The object_types map key must equal descriptor.type_key."
+    },
+    {
+      "id": "RGS-006",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/object_types/test_extension",
+          "value": {
+            "type_key": "test_extension",
+            "schema_version": 2,
+            "semantics_id": "world-view.object-type.landmass.v1",
+            "allocatable": true,
+            "geometry": {
+              "extent": {
+                "min": 1,
+                "max": null,
+                "families": [
+                  "polygon",
+                  "multi_polygon"
+                ]
+              }
+            },
+            "definition": {
+              "canonical_name": "required string",
+              "landform_class": [
+                "continent",
+                "island",
+                "archipelago",
+                "other"
+              ]
+            },
+            "runtime": {},
+            "invariants": [
+              "positive_area",
+              "multipart_allowed"
+            ],
+            "command_capabilities": {
+              "core.object.create": {
+                "enabled": true,
+                "scope": "history_local",
+                "target": "post_zero_only",
+                "policy": "introduces_presence_of_existing_bound_identity",
+                "identity_reservation_required": true
+              },
+              "core.object.activate": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "restore_prior_presence_in_same_history_only"
+              },
+              "core.object.deactivate": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "change_presence_only_no_identity_retirement_or_relationship_cascade"
+              },
+              "core.object.attribute.change": {
+                "enabled": false,
+                "scope": "history_local",
+                "policy": "declared_runtime_mutable_fields_only",
+                "allowed_fields": [],
+                "definition_fields_route": "shared_object_definition_service"
+              },
+              "core.geometry.adjust_component": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "declared_geometry_roles_only"
+              },
+              "core.geometry.refine_component": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "declared_geometry_roles_with_source_fingerprint"
+              },
+              "core.geometry.add_component": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "declared_role_and_max_cardinality"
+              },
+              "core.geometry.remove_component": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "declared_role_and_minimum_cardinality"
+              },
+              "core.relationship.establish": {
+                "enabled": true,
+                "scope": "history_local_only",
+                "policy": "only_when_relationship_descriptor_allows_history_local"
+              },
+              "core.relationship.end": {
+                "enabled": true,
+                "scope": "history_local",
+                "policy": "only_relationship_visible_on_selected_history_path"
+              }
+            },
+            "definition_edit_policy": {
+              "enabled": true,
+              "route_by_scope": {
+                "project_shared": "shared_object_definition_service",
+                "map_local": "map_local_object_definition_service"
+              },
+              "project_shared_semantics": "retroactive_current_definition",
+              "excluded_from_history_commands": true
+            },
+            "initial_state_policy": {
+              "route": "map_initial_state_service",
+              "time_boundary": "time_zero",
+              "includes": [
+                "map_membership",
+                "initial_placement",
+                "initial_runtime_attributes"
+              ],
+              "command_allowed": false
+            },
+            "runtime_attribute_change_policy": {
+              "enabled": false,
+              "route": "core.object.attribute.change",
+              "scope": "selected_history_only",
+              "mutable_fields": [],
+              "reason": "No runtime attribute is currently enabled for historical mutation in this V1 seed descriptor."
+            },
+            "descriptor_profile": "legacy_compact_v1"
+          }
+        }
+      ],
+      "validation_layer": "compatibility",
+      "expected": "invalid",
+      "error_code": "CD_REG_LEGACY_TYPE_NOT_ALLOWLISTED",
+      "reason": "A new type cannot use the legacy compact profile."
+    },
+    {
+      "id": "RGS-007",
+      "input_source": "registry_v2_typed",
+      "patches": [],
+      "validation_layer": "registry_schema",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "A complete typed_v2 descriptor carries metadata, identity, all three schema references and explicit policies."
+    },
+    {
+      "id": "RGS-008",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/building/schemas/definition"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_TYPED_SCHEMA_REF_MISSING",
+      "reason": "Typed descriptors require a definition schema reference."
+    },
+    {
+      "id": "RGS-009",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/building/schemas/runtime"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_TYPED_SCHEMA_REF_MISSING",
+      "reason": "Typed descriptors require a runtime schema reference, including an explicit empty schema."
+    },
+    {
+      "id": "RGS-010",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/building/schemas/initial_state"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_TYPED_SCHEMA_REF_MISSING",
+      "reason": "Typed descriptors require an Initial State schema reference."
+    },
+    {
+      "id": "RGS-011",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/schemas/definition/sha256",
+          "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_SCHEMA_ARTIFACT_HASH_MISMATCH",
+      "reason": "Descriptor-pinned schema hash must match the schema artifact catalog entry."
+    },
+    {
+      "id": "RGS-012",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/schema_artifacts/0/path",
+          "value": "../../outside.schema.json"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_SCHEMA_ARTIFACT_PATH_INVALID",
+      "reason": "Schema artifact paths must be repository-relative and cannot traverse outside the bundle root."
+    },
+    {
+      "id": "RGS-013",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/schema_artifacts/-",
+          "value": {
+            "artifact_id": "test.building.definition",
+            "path": "fixtures/registry-v2/building-definition.schema.json",
+            "schema_version": 1,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "schema_dialect": "https://json-schema.org/draft/2020-12/schema"
+          }
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_SCHEMA_ARTIFACT_DUPLICATE_ID",
+      "reason": "Schema artifact IDs are unique within the registry."
+    },
+    {
+      "id": "RGS-014",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/schemas/definition/artifact_id",
+          "value": "missing.artifact"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_SCHEMA_ARTIFACT_MISSING",
+      "reason": "Every schema reference must resolve to exactly one bundled artifact."
+    },
+    {
+      "id": "RGS-015",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/object_types/building/command_capabilities/core.unknown.execute",
+          "value": {
+            "enabled": true,
+            "scope": "history_local",
+            "policy": "unknown"
+          }
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_COMMAND_UNKNOWN",
+      "reason": "Every Command capability must resolve to a registered Command descriptor."
+    },
+    {
+      "id": "RGS-016",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/geometry/roles/footprint/dimension",
+          "value": 3
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_GEOMETRY_DIMENSION_UNSUPPORTED",
+      "reason": "V1 typed geometry roles are restricted to dimension 2."
+    },
+    {
+      "id": "RGS-017",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/geometry/roles/footprint/min",
+          "value": 2
+        },
+        {
+          "op": "replace",
+          "path": "/object_types/building/geometry/roles/footprint/max",
+          "value": 1
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_GEOMETRY_CARDINALITY_INVALID",
+      "reason": "A finite maximum cannot be lower than the declared minimum."
+    },
+    {
+      "id": "RGS-018",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/geometry/roles/footprint/families/0",
+          "value": "solid_mesh"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_GEOMETRY_FAMILY_UNSUPPORTED",
+      "reason": "Geometry families must be supported by the Core Geometry contract."
+    },
+    {
+      "id": "RGS-019",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/object_types/building/relationship_participation/outgoing/-",
+          "value": "unknown_relationship"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_RELATIONSHIP_UNKNOWN",
+      "reason": "Relationship participation must resolve to the Relationship registry."
+    },
+    {
+      "id": "RGS-020",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/asset_contract/definition_asset_link/table",
+          "value": "core_generic_asset_owner"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_ASSET_LINK_TABLE_UNSUPPORTED",
+      "reason": "Only the existing typed Asset-link tables are allowed."
+    },
+    {
+      "id": "RGS-021",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/building/child_aggregate_contract/child_identity_scope"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_CHILD_IDENTITY_SCOPE_REQUIRED",
+      "reason": "Enabled child aggregates require an owner-scoped child identity namespace."
+    },
+    {
+      "id": "RGS-022",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/child_aggregate_contract/child_ids_never_reused",
+          "value": false
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_CHILD_ID_REUSE_FORBIDDEN",
+      "reason": "Child identity reuse is forbidden."
+    },
+    {
+      "id": "RGS-023",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/object_types/building/metadata/unreviewed_runtime_hint",
+          "value": true
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_UNKNOWN_FIELD",
+      "reason": "Unknown descriptor fields are rejected."
+    },
+    {
+      "id": "RGS-024",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/compatibility_policy/legacy_semantics_pins/0/semantics_id",
+          "value": "world-view.object-type.landmass.changed.v1"
+        }
+      ],
+      "validation_layer": "compatibility",
+      "expected": "invalid",
+      "error_code": "CD_REG_LEGACY_SEMANTICS_PIN_MISMATCH",
+      "reason": "Legacy descriptors must retain their pinned schema_version and semantics_id unless an explicit migration is registered."
+    },
+    {
+      "id": "RGS-025",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/descriptor_schema_version",
+          "value": 1
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_DESCRIPTOR_SCHEMA_VERSION_UNSUPPORTED",
+      "reason": "typed_v2 requires descriptor_schema_version 2 or later."
+    },
+    {
+      "id": "RGS-026",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/object_types/building/command_capabilities/core.object.create/policy"
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_COMMAND_POLICY_INCOMPLETE",
+      "reason": "Each Command capability requires enabled, scope and policy."
+    },
+    {
+      "id": "RGS-027",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/semantics_id",
+          "value": ""
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_SEMANTICS_ID_INVALID",
+      "reason": "A non-empty stable semantics_id is required."
+    },
+    {
+      "id": "RGS-028",
+      "input_source": "registry_v2_typed",
+      "patches": [],
+      "validation_layer": "build_packaging",
+      "expected": "invalid",
+      "error_code": "CD_REG_SCHEMA_HASH_INVALID",
+      "reason": "The actual bundled schema bytes must match the pinned lowercase SHA-256 hash.",
+      "external_context": {
+        "artifact_id": "test.building.definition",
+        "artifact_bytes_available": true,
+        "computed_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "descriptor_pinned_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_behavior": "reject exact-byte hash mismatch"
+      }
+    },
+    {
+      "id": "RGS-029",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/metadata/default_display_name",
+          "value": "Building (Localized Display)"
+        }
+      ],
+      "validation_layer": "compatibility",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Changing display metadata alone does not change semantics_id or require a schema migration."
+    },
+    {
+      "id": "RGS-030",
+      "input_source": "registry_v2_legacy",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/object_types/landmass/unreviewed",
+          "value": true
+        }
+      ],
+      "validation_layer": "registry_schema",
+      "expected": "invalid",
+      "error_code": "CD_REG_UNKNOWN_FIELD",
+      "reason": "Legacy profile entries also reject unknown fields."
+    },
+    {
+      "id": "RGS-031",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/lifecycle/history_presence/create",
+          "value": "core.object.deactivate"
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_LIFECYCLE_COMMAND_MISMATCH",
+      "reason": "Lifecycle create/activate/deactivate references must agree with enabled Command capabilities."
+    },
+    {
+      "id": "RGS-032",
+      "input_source": "registry_v2_typed",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/object_types/building/asset_contract/definition_asset_link/required",
+          "value": false
+        }
+      ],
+      "validation_layer": "cross_record",
+      "expected": "invalid",
+      "error_code": "CD_REG_ASSET_LINK_POLICY_MISMATCH",
+      "reason": "Asset link required/role policy must agree with the payload and enabled Command contracts."
+    },
+    {
+      "id": "RGS-033",
+      "input_source": "registry_v2_typed",
+      "patches": [],
+      "validation_layer": "compatibility",
+      "expected": "invalid",
+      "error_code": "CD_REG_SEMANTICS_MIGRATION_REQUIRED",
+      "reason": "A deterministic meaning change requires a new semantics_id and explicit compatibility handling.",
+      "external_context": {
+        "previous_semantics_id": "world-view.object-type.building.v1",
+        "proposed_semantics_id": "world-view.object-type.building.v1",
+        "deterministic_meaning_changed": true,
+        "migration_registered": false,
+        "expected_behavior": "reject because semantic meaning changed without a new semantics_id and explicit migration"
+      }
+    },
+    {
+      "id": "RGS-034",
+      "input_source": "registry_v2_legacy",
+      "patches": [],
+      "validation_layer": "compatibility",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Existing ten descriptors retain exact schema_version and semantics_id pins through the profile-tagging migration."
+    }
+  ]
+}
