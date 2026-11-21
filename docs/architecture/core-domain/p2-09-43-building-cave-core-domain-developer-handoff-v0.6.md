@@ -239,7 +239,7 @@ Implement the P2-09-40 V0.6 vector contract exactly: RFC 6902 patch application;
 
 The definition Asset link row is an owner/asset/role relation, not a component row. Use `role=geometry_component`; resolve the Asset hash from `core_asset`. The owner payload is authoritative for the mapping from `geometry_component_id` to `asset_id` and expected `content_hash`. For this adoption profile, `core_object_definition_asset` must be enabled; `core_command_asset` remains required; `core_map_initial_object_asset` is not needed by the current Initial State shape.
 
-P2-09-44 V0.1 records the audit performed and explicitly distinguishes structural checks from production validator and platform test evidence.
+P2-09-44 V0.2 records the audit performed and explicitly distinguishes structural checks from production validator and platform test evidence.
 
 
 ## 12. V0.6 Integrated inventory and Registry Format V2 alignment
