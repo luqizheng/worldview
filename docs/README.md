@@ -36,6 +36,10 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-24 V1 Built-in Object Type Field Catalog V0.1](architecture/core-domain/p2-09-24-v1-built-in-object-type-field-catalog-v0.1.md) — first-pass typed fields, geometry role cardinalities, runtime candidates and relationship participation for ten seed types.
 - [P2-09-25 V1 Geometry Asset Encoding Decision V0.1](architecture/core-domain/p2-09-25-v1-geometry-asset-encoding-and-coordinate-precision-decision-v0.1.md) — recommended canonical JSON geometry Asset envelope and explicit precision/format validation gates.
 
+- [P2-09-26 V1 Object Type Descriptor Registry V0.1](architecture/core-domain/p2-09-26-v1-object-type-descriptor-registry-v0.1.json) — machine-readable descriptors for ten built-in Object Types, typed fields, geometry roles and Command capability boundaries.
+- [P2-09-27 V1 Relationship Type Descriptor Registry V0.1](architecture/core-domain/p2-09-27-v1-relationship-type-descriptor-registry-v0.1.json) — endpoint matrices, direction, cardinality, cycle and endpoint-activity policies for five candidate Relationship Types.
+- [P2-09-28 Domain Descriptor Validation Vectors V0.1](architecture/core-domain/p2-09-28-domain-descriptor-validation-vectors-v0.1.json) — positive/negative Object, Relationship and cross-cutting validation fixtures; design-only, not executed.
+
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
 **Source provenance note:** the earlier repository path assigned to P2-09-14 contained a duplicate README snapshot, not the validation contract. No matching standalone source artifact was located during the audit, so P2-09-14 V0.1 has now been authored as a new validation contract from P2-09-05 V0.3 and the current persistence baseline; it is not represented as a recovered Library original. Its unresolved Calendar semantics remain explicit.

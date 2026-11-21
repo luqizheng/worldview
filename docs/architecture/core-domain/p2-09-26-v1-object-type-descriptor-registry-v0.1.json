@@ -1,0 +1,487 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "World View V1 Built-in Object Type Descriptor Registry",
+  "registry_version": "0.1",
+  "status": "recommended; not a frozen ADR",
+  "authority": "Core Domain static registry",
+  "common_rules": {
+    "stable_identity": "One stable type_key per Object; non-localized and never reused.",
+    "scopes": [
+      "definition",
+      "initial_state",
+      "history_runtime"
+    ],
+    "definition": "Current shared/base definition; retroactive under accepted current-definition model.",
+    "initial_state": "Map time-zero baseline; not a post-zero Command.",
+    "history_runtime": "Map/Branch-local; changed only by declared deterministic Commands.",
+    "unknown_fields": "reject",
+    "geometry": "Immutable Asset-backed Geometry Components; this registry declares roles/cardinality/families only.",
+    "references": "Stable IDs, never display names or filesystem paths."
+  },
+  "object_types": {
+    "landmass": {
+      "type_key": "landmass",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.landmass.v1",
+      "allocatable": true,
+      "geometry": {
+        "extent": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "landform_class": [
+          "continent",
+          "island",
+          "archipelago",
+          "other"
+        ]
+      },
+      "runtime": {},
+      "invariants": [
+        "positive_area",
+        "multipart_allowed"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "mountain_range": {
+      "type_key": "mountain_range",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.mountain_range.v1",
+      "allocatable": true,
+      "geometry": {
+        "extent": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        },
+        "ridge": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ]
+        },
+        "combined_min": 1
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "range_class": [
+          "range",
+          "massif",
+          "system",
+          "other"
+        ]
+      },
+      "runtime": {},
+      "invariants": [
+        "at_least_one_extent_or_ridge",
+        "peak_membership_explicit"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "mountain_peak": {
+      "type_key": "mountain_peak",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.mountain_peak.v1",
+      "allocatable": true,
+      "geometry": {
+        "location": {
+          "min": 1,
+          "max": 1,
+          "families": [
+            "point"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "elevation_value": "non_negative_decimal",
+        "elevation_unit": [
+          "m",
+          "ft"
+        ],
+        "vertical_reference_id": "required stable reference"
+      },
+      "runtime": {
+        "elevation_value": "disabled_pending_temporal_datum_contract"
+      },
+      "invariants": [
+        "elevation_requires_unit_and_vertical_reference",
+        "renderer_z_is_not_elevation"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "river": {
+      "type_key": "river",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.river.v1",
+      "allocatable": true,
+      "geometry": {
+        "centerline": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ]
+        },
+        "reach": {
+          "min": 0,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "river_class": [
+          "perennial",
+          "seasonal",
+          "intermittent",
+          "other"
+        ]
+      },
+      "runtime": {
+        "flow_condition": "disabled_pending_hydrology_contract"
+      },
+      "invariants": [
+        "vertex_order_does_not_define_flow_direction"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "lake": {
+      "type_key": "lake",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.lake.v1",
+      "allocatable": true,
+      "geometry": {
+        "shoreline": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "water_body_class": [
+          "freshwater",
+          "saltwater",
+          "brackish",
+          "other"
+        ]
+      },
+      "runtime": {
+        "water_level": "disabled_pending_vertical_datum_and_temporal_contract"
+      },
+      "invariants": [
+        "multipart_allowed"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "terrain_region": {
+      "type_key": "terrain_region",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.terrain_region.v1",
+      "allocatable": true,
+      "geometry": {
+        "extent": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "optional string",
+        "terrain_class": [
+          "plain",
+          "hill",
+          "mountain",
+          "desert",
+          "wetland",
+          "forest",
+          "tundra",
+          "other"
+        ],
+        "source_dataset_id": "optional immutable Asset reference"
+      },
+      "runtime": {},
+      "invariants": [
+        "bounded_classification",
+        "raster_cells_are_not_objects"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "settlement": {
+      "type_key": "settlement",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.settlement.v1",
+      "allocatable": true,
+      "geometry": {
+        "anchor": {
+          "min": 1,
+          "max": 1,
+          "families": [
+            "point"
+          ]
+        },
+        "extent": {
+          "min": 0,
+          "max": 1,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "settlement_class": [
+          "village",
+          "town",
+          "city",
+          "capital",
+          "other"
+        ]
+      },
+      "runtime": {
+        "population_estimate": "disabled_pending_provenance_and_temporal_contract",
+        "condition_code": "disabled_pending_vocabulary"
+      },
+      "invariants": [
+        "anchor_and_extent_complementary",
+        "political_status_is_not_scalar"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "road": {
+      "type_key": "road",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.road.v1",
+      "allocatable": true,
+      "geometry": {
+        "centerline": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "line_string",
+            "multi_line_string"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "optional string",
+        "road_class": [
+          "trail",
+          "local",
+          "regional",
+          "major",
+          "highway",
+          "other"
+        ]
+      },
+      "runtime": {
+        "condition_code": "disabled_pending_temporal_contract"
+      },
+      "invariants": [
+        "snapping_does_not_establish_connectivity"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "political_region": {
+      "type_key": "political_region",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.political_region.v1",
+      "allocatable": true,
+      "geometry": {
+        "boundary": {
+          "min": 1,
+          "max": null,
+          "families": [
+            "polygon",
+            "multi_polygon"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "region_class": [
+          "country",
+          "province",
+          "state",
+          "district",
+          "other"
+        ]
+      },
+      "runtime": {},
+      "invariants": [
+        "boundary_does_not_imply_control"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    },
+    "point_of_interest": {
+      "type_key": "point_of_interest",
+      "schema_version": 1,
+      "semantics_id": "world-view.object-type.point_of_interest.v1",
+      "allocatable": true,
+      "geometry": {
+        "location": {
+          "min": 1,
+          "max": 1,
+          "families": [
+            "point"
+          ]
+        }
+      },
+      "definition": {
+        "canonical_name": "required string",
+        "poi_category": [
+          "landmark",
+          "natural_feature",
+          "facility",
+          "heritage",
+          "other"
+        ]
+      },
+      "runtime": {},
+      "invariants": [
+        "not_a_fallback_for_character_species_culture_event"
+      ],
+      "command_capabilities": {
+        "core.object.create": "allowed",
+        "core.object.activate": "history_local_presence_only",
+        "core.object.deactivate": "history_local_presence_only",
+        "core.object.attribute.change": "definition_fields_prohibited; runtime_fields_only_when_enabled",
+        "core.geometry.adjust_component": "declared_geometry_roles_only",
+        "core.geometry.refine_component": "declared_geometry_roles_only",
+        "core.geometry.add_component": "only_if_role_cardinality_allows",
+        "core.geometry.remove_component": "only_if_minimum_cardinality_remains_valid",
+        "core.relationship.establish": "only_in_registered_endpoint_matrix",
+        "core.relationship.end": "only_if_visible_on_selected_history_path"
+      }
+    }
+  },
+  "compatibility_policy": {
+    "schema_change": "Increment schema_version and provide explicit migration or retained reader.",
+    "semantics_change": "Change semantics_id; never silently reinterpret persisted history.",
+    "enum_removal_or_reinterpretation": "Breaking change requiring migration.",
+    "runtime_candidate": "Disabled until temporal semantics, Command semantics and fixtures are approved."
+  }
+}
