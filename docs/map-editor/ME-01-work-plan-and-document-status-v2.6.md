@@ -86,15 +86,15 @@ ME-03-A through ME-03-H are complete as specialist product/domain/UX and cross-a
 |---|---|---:|---|---|
 | ME-04-00 | [Buildings & Interior Spaces Editor](world-view-me-04-buildings-and-interior-spaces-editor-v0.1.md) | 0.1 | Specialist Workstream Scope / Design Plan | Building/site scope, exterior/interior model, vertical/underground principles, work packages and inherited architecture constraints |
 | ME-04-A | [Domain Inventory & Descriptor Reconciliation](world-view-me-04-a-domain-inventory-and-descriptor-reconciliation-v0.1.md) | 0.1 | Domain Inventory Working Baseline | Exact current Object/Relationship/Command capabilities, semantic concept disposition, vertical-coordinate gaps and unsupported operations |
-| ME-04-B | Building Model & Authoring Workflows | — | Planned | Building identity, footprint, exterior/interior association and authoring lifecycle |
-| ME-04-C | Floors, Levels & Vertical Organization | — | Planned | Floor semantics, building-local vertical frame and world-elevation relationship |
+| ME-04-B | [Building Model & Authoring Workflows](world-view-me-04-b-building-model-and-authoring-workflows-v0.1.md) | 0.1 | Building Domain / Authoring Working Baseline | Stable Building identity, ownership scope, footprint component, coordinated exterior/interior views, creation/edit/history workflows and Core Domain adoption gates |
+| ME-04-C | [Floors, Levels & Vertical Organization](world-view-me-04-c-floors-levels-and-vertical-organization-v0.1.md) | 0.1 | Vertical Organization Working Baseline | Building-scoped Level identity, Building-local Vertical Frame, optional Map vertical-reference binding, terrain-elevation evidence and 2D/3D boundary |
 | ME-04-D | Rooms, Spaces & Interior Geometry | — | Planned | Room identity, floor plans, boundaries, partitions and interior connectivity |
 | ME-04-E | Entrances, Openings & Vertical Circulation | — | Planned | Door/opening semantics, access and explicit vertical transitions |
 | ME-04-F | Underground Spaces, Caves & Connected Facilities | — | Planned | Natural/constructed underground spaces and cross-level/site connectivity |
 | ME-04-G | UX Scenarios, Acceptance & Figma Handoff | — | Planned | Unified Canvas/Inspector workflows, diagnostics, Candidate review, recovery and Figma prompt |
 | ME-04-H | Cross-architecture Integration Review | — | Planned | Core Domain/ME-01/02/03/05/Map Engine reconciliation, findings, gates and final disposition |
 
-ME-04-00 and ME-04-A establish the scope and current descriptor inventory. They do not add or authorize Core Domain descriptors, relationships, schema, commands, APIs, geometry formats or implementation. The current V1 registries have no formal Building/Floor/Room/Entrance/Cave types or interior relationship endpoint pairs; the 2D geometry baseline and vertical/3D gap are explicit constraints for the remaining design.
+ME-04-00 and ME-04-A establish the scope and current descriptor inventory. ME-04-B establishes the Building semantic-object and authoring working baseline; ME-04-C establishes Building-local vertical organization and the Level working model. Neither document authorizes Core Domain registry/schema/command changes or full 3D geometry. They do not add or authorize Core Domain descriptors, relationships, schema, commands, APIs, geometry formats or implementation. The current V1 registries have no formal Building/Floor/Room/Entrance/Cave types or interior relationship endpoint pairs; the 2D geometry baseline and vertical/3D gap are explicit constraints for the remaining design.
 
 ## ME-05 — Shared Geometry & Spatial Operations (design package complete; implementation gates open)
 
