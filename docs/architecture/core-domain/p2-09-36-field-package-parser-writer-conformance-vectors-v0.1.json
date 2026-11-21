@@ -1,0 +1,255 @@
+{
+  "suite": "World View V1 Field Package Parser and Writer Conformance Vectors",
+  "version": "0.1",
+  "contract": "ME-05-10 Field Package Parser / Writer Implementation Contract V0.1",
+  "status": "design acceptance vectors; not executed",
+  "case_count": 41,
+  "cases": [
+    {
+      "id": "RDR-001",
+      "group": "reader-open",
+      "expect": "valid",
+      "scenario": "Open all three golden fixtures and validate structural index without decoding tile payloads."
+    },
+    {
+      "id": "RDR-002",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject package shorter than the 72-byte fixed header."
+    },
+    {
+      "id": "RDR-003",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject invalid magic, unsupported version, header length, flags or reserved bytes."
+    },
+    {
+      "id": "RDR-004",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject declared package length unequal to physical file length."
+    },
+    {
+      "id": "RDR-005",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject manifest offset other than 72 or zero/over-policy manifest length."
+    },
+    {
+      "id": "RDR-006",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject nonzero alignment padding between manifest and directory."
+    },
+    {
+      "id": "RDR-007",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject directory offset/length arithmetic overflow."
+    },
+    {
+      "id": "RDR-008",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject directory version, flags, entry size or exact-length mismatch."
+    },
+    {
+      "id": "RDR-009",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject tile count unequal to ceil(width/tile_width) multiplied by ceil(height/tile_height)."
+    },
+    {
+      "id": "RDR-010",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject directory count above configured resource policy."
+    },
+    {
+      "id": "RDR-011",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject duplicate, missing, out-of-grid or out-of-order tile coordinates."
+    },
+    {
+      "id": "RDR-012",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject edge tile valid_width or valid_height inconsistent with grid dimensions."
+    },
+    {
+      "id": "RDR-013",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject tile decoded_length inconsistent with ordered manifest plane layout."
+    },
+    {
+      "id": "RDR-014",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject duplicate codec IDs, missing codec 0 none or codec 0 with a non-none identity."
+    },
+    {
+      "id": "RDR-015",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject unknown codec IDs and codec parameters not accepted by the registered implementation."
+    },
+    {
+      "id": "RDR-016",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject misaligned, overlapping, out-of-range or unreferenced payload ranges."
+    },
+    {
+      "id": "RDR-017",
+      "group": "reader-open",
+      "expect": "invalid",
+      "scenario": "Reject nonzero gaps/padding and trailing bytes after the final payload."
+    },
+    {
+      "id": "TIL-001",
+      "group": "tile-read",
+      "expect": "valid",
+      "scenario": "Read one requested tile without reading or decoding unrelated tile payloads."
+    },
+    {
+      "id": "TIL-002",
+      "group": "tile-read",
+      "expect": "valid",
+      "scenario": "Verify SHA-256 over canonical decoded planes before exposing the tile buffer."
+    },
+    {
+      "id": "TIL-003",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject stored tile truncated before stored_length bytes are read."
+    },
+    {
+      "id": "TIL-004",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject unsupported codec version without fallback decoding."
+    },
+    {
+      "id": "TIL-005",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject decode output shorter or longer than decoded_length."
+    },
+    {
+      "id": "TIL-006",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject encoded stream with trailing data when codec reports unconsumed input."
+    },
+    {
+      "id": "TIL-007",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject decoded validity-mask values other than 0 or 1."
+    },
+    {
+      "id": "TIL-008",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject coverage mask with invalid plane semantics or invalid values."
+    },
+    {
+      "id": "TIL-009",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject tile hash mismatch and return no partially decoded tile."
+    },
+    {
+      "id": "TIL-010",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject tile request outside the grid and never substitute a neighboring tile."
+    },
+    {
+      "id": "TIL-011",
+      "group": "tile-read",
+      "expect": "invalid",
+      "scenario": "Reject allocation/decode request above configured decoded tile budget."
+    },
+    {
+      "id": "WRT-001",
+      "group": "writer",
+      "expect": "valid",
+      "scenario": "Repeated writes of identical manifest, tile bytes and pinned codec produce byte-identical packages."
+    },
+    {
+      "id": "WRT-002",
+      "group": "writer",
+      "expect": "valid",
+      "scenario": "Writer reproduces the three fixture packages byte-for-byte using fixture-only profiles."
+    },
+    {
+      "id": "WRT-003",
+      "group": "writer",
+      "expect": "valid",
+      "scenario": "Writer streams a field larger than the configured in-memory budget using bounded temporary spool storage."
+    },
+    {
+      "id": "WRT-004",
+      "group": "writer",
+      "expect": "valid",
+      "scenario": "Writer reopens the temporary package with the production reader and verifies every tile before handoff."
+    },
+    {
+      "id": "WRT-005",
+      "group": "writer",
+      "expect": "invalid",
+      "scenario": "Reject duplicate, missing or out-of-grid tile inputs."
+    },
+    {
+      "id": "WRT-006",
+      "group": "writer",
+      "expect": "invalid",
+      "scenario": "Reject non-deterministic or unpinned codec implementation/parameters for deterministic V1 output."
+    },
+    {
+      "id": "WRT-007",
+      "group": "writer",
+      "expect": "invalid",
+      "scenario": "Cancellation removes or quarantines incomplete temporary output and never hands it to publication."
+    },
+    {
+      "id": "WRT-008",
+      "group": "writer",
+      "expect": "invalid",
+      "scenario": "Disk-full or I/O failure leaves no publishable partial package."
+    },
+    {
+      "id": "INT-001",
+      "group": "integrity-platform",
+      "expect": "valid",
+      "scenario": "Full package SHA-256 matches Core Asset metadata when streamed over exact final bytes."
+    },
+    {
+      "id": "INT-002",
+      "group": "integrity-platform",
+      "expect": "invalid",
+      "scenario": "Package hash mismatch is distinct from a tile hash mismatch."
+    },
+    {
+      "id": "INT-003",
+      "group": "integrity-platform",
+      "expect": "valid",
+      "scenario": "Concurrent positional tile reads do not share or race a mutable stream position."
+    },
+    {
+      "id": "INT-004",
+      "group": "integrity-platform",
+      "expect": "invalid",
+      "scenario": "Dispose/cancellation prevents use-after-release of pooled decoded buffers."
+    },
+    {
+      "id": "INT-005",
+      "group": "integrity-platform",
+      "expect": "valid",
+      "scenario": "Windows and macOS produce identical bytes and stable error codes for identical fixtures."
+    }
+  ]
+}
