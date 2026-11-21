@@ -50,6 +50,7 @@ A single user workflow may cross more than one class, but each persisted fact mu
 |---|---|---|---|---|---|
 | `core.object.create` | Create a semantic Object in the world | Include, with strict preconditions | One Map/Branch History; post-zero only | Object Type, Bound reservation/Object identity and optional immutable geometry/Assets | Usually one creation/availability transition plus zero or more descriptor-derived initialization effects |
 | `core.object.deactivate` | Deactivate an Object in this Map/Branch History | Include as a History-local runtime operation, not identity retirement | One History; post-zero only | Existing Object identity and optional reason/evidence | One History-local availability transition; identity and provenance remain |
+| `core.object.activate` | Reactivate a previously deactivated Object in this Map/Branch History | Include; only for an Object previously present and deactivated in this History | One History; post-zero only | Existing Object identity and prior History-local presence | Restores runtime availability in this History without creating a new identity |
 | `core.object.attribute.change` | Change a typed semantic attribute | Include only for Object-Type-declared mutable attributes | One History; post-zero only | One Object identity; typed before-condition/expected value where required | Zero or one semantic attribute transition; reject unknown fields and untyped arbitrary patches |
 
 Rules:

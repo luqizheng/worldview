@@ -1,0 +1,269 @@
+# World View P2-09-20 — Relationship Descriptor and Temporal Contract V0.2
+
+- Version: 0.2
+- Date: 2026-11-21
+- Status: Object-presence-lifecycle-reconciled recommended V1 relationship contract — typed descriptor, identity and temporal scope; concrete specialist relationship type registry remains bounded by Object Type readiness
+- Supersedes: P2-09-20 V0.1; V0.1 is retained as history
+- Depends on: P2-09-02 V0.1; P2-09-05 V0.3; P2-09-11 V0.9; P2-09-15 V0.4; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; ME-01-05 V0.1
+
+## 1. Purpose
+
+Define the Core Domain contract for formal relationships between semantic Objects. The contract distinguishes geometric coincidence, topological facts and semantic relationships; specifies relationship identity, direction, cardinality, temporal scope and lifecycle; and establishes how relationships participate in Initial State and Map/Branch History reconstruction.
+
+A relationship is not a geometry and is not a generic Object attribute. It expresses domain meaning between typed Object endpoints.
+
+This document is a recommended V1 design baseline. It does not establish a universal ontology or freeze all specialist relationship types before their Object Types are ready.
+
+## 2. Core decisions
+
+1. Core Domain owns formal relationship identity, type, endpoints, attributes, validation and historical applicability.
+2. Each relationship uses a registered stable Relationship Type ID; display labels are not identity.
+3. Every relationship has a directed source and target endpoint. Symmetric semantics are declared by the type descriptor and do not require duplicate inverse relationships.
+4. A relationship may be structural/baseline or time-varying/history-local. Its authority scope is explicit.
+5. Initial State relationships belong to the Map's time-zero baseline. Project-shared definition relationships belong only in a Shared Object definition when they are genuinely part of that shared base definition. Post-zero changes belong to the selected Map/Branch History.
+6. A post-zero relationship Command changes only the selected History. It cannot mutate a Project-level Shared Object definition or another Map's runtime relationship state.
+7. Geometry coincidence, intersection, adjacency, snapping or shared coordinates do not automatically create a formal relationship.
+8. Relationship identity is distinct from both endpoint Object identities and Geometry Component identities.
+9. V1 does not add a standalone relationship table. Relationship identity and typed payloads are stored in the owning Initial State, Shared Object definition or Command payload; reconstruction derives active relationships.
+10. A relationship establishment and termination are explicit typed domain operations. There is no generic arbitrary relationship CRUD endpoint.
+11. Branch inheritance and fork-boundary semantics apply to relationships through their owning Initial State/History inputs; Branch-local relationship changes never mutate parent or sibling histories.
+12. Relationship descriptors and their deterministic semantics are versioned. Upgrades must not silently reinterpret historical relationships.
+13. Object activation/deactivation does not implicitly establish, terminate or delete relationships; endpoint activity behavior is declared by each Relationship Type.
+
+## 3. Relationship descriptor
+
+Each enabled Relationship Type descriptor must declare:
+
+| Area | Required declaration |
+|---|---|
+| Stable identity | Stable Relationship Type ID, schema version and semantics compatibility identifier |
+| Intent | Human-readable semantic meaning and direction |
+| Endpoint types | Allowed source Object Types and target Object Types |
+| Self-reference | Whether source and target may be the same Object |
+| Cardinality | Min/max outgoing and incoming relationship counts, including uniqueness rules |
+| Symmetry | Directed, symmetric or inverse-pair semantics; no implicit duplicate edge |
+| Attributes | Typed relationship-specific attributes, units and validation |
+| Temporal class | Structural/baseline, Project-shared definition, or History-local time-varying |
+| Validity | Required/optional start/end behavior and overlap constraints |
+| Topology | Whether geometry/topology predicates are preconditions, derived diagnostics or irrelevant |
+| Dependencies | Required related Objects/relationships and deterministic prerequisite behavior |
+| Lifecycle | Establishment, termination, reactivation and deletion/editing constraints |
+| Endpoint activity | Whether source/target must be active or may remain dormant while a relationship is temporally active |
+| Compatibility | Schema migration and deterministic historical interpretation policy |
+
+The registry is statically compiled into Core Domain for V1. It is not a runtime plugin marketplace or user-authored executable ontology.
+
+## 4. Relationship identity
+
+### 4.1 Identity requirements
+
+- Every formal relationship has an opaque stable `relationship_id` generated by Core Domain.
+- Relationship ID is not derived from endpoint names, coordinates, array position or display label.
+- Relationship ID is not an Object ID and does not use the Object Type allocator.
+- The identity remains stable while the relationship's declared attributes change only where the relationship descriptor permits that edit.
+- A relationship is not silently transferred to different endpoints. Endpoint replacement is a separate explicit operation or a terminate-and-establish sequence.
+- Relationship IDs are never reused after termination or removal from a baseline.
+- The same relationship identity can be inherited by descendant Branches through the selected History path; Branch-local termination affects only that Branch path.
+
+### 4.2 Identity without a relationship table
+
+V1 does not add `core_relationship` or `core_relationship_history`.
+
+The `relationship_id` is stored in the owning typed payload:
+- Shared Object definition payload for a truly Project-shared base relationship;
+- Map Initial State relationship payload for a time-zero Map-specific relationship;
+- `core.relationship.establish` Command payload for a post-zero History-local relationship.
+
+The relationship's active/inactive state is derived from the selected authoritative inputs. The same relationship identity is not duplicated into an independent writable registry.
+
+A future relationship table requires demonstrated relational query/index needs that cannot be met by typed payload projection; it is not part of V1.
+
+## 5. Direction, endpoints and cardinality
+
+### 5.1 Endpoint semantics
+
+Every relationship declares:
+- one source Object;
+- one target Object;
+- one Relationship Type;
+- zero or more typed relationship attributes.
+
+Source/target roles are explicit even when the relationship is symmetric. For a symmetric relationship, Core Domain canonicalizes endpoint ordering according to a deterministic stable-ID comparison or the descriptor's explicit canonical rule. The UI may present an inverse phrase, but it does not persist a second relationship.
+
+### 5.2 Cardinality and uniqueness
+
+Cardinality is declared per Relationship Type, not inferred from UI or generic database constraints.
+
+Examples of possible rules:
+- one Object may have at most one active parent of a given type;
+- one Object may connect to many peer Objects;
+- a directed flow relation may allow one or many downstream targets according to the hydrology type;
+- a structural part/whole relation may forbid cycles.
+
+The descriptor must specify whether uniqueness is:
+- exact endpoint pair + relationship type;
+- one active target per source/type;
+- one active source per target/type;
+- or another explicit bounded rule.
+
+Core Domain validates cardinality against the reconstructed state at the Command's effective boundary. Do not impose one universal uniqueness rule across all relationship types.
+
+### 5.3 Relationship attributes
+
+Relationship attributes are typed by the Relationship Type descriptor. They may include domain-specific capacity, ordering, role or provenance values.
+
+Do not duplicate authoritative endpoint semantics as free-form Object attributes. Do not permit arbitrary JSON fields or UI-only properties.
+
+## 6. Temporal scope and authority
+
+### 6.1 Structural / baseline relationships
+
+A structural relationship that is true at time zero belongs in the Map Initial State payload unless the relationship is genuinely part of a Project-shared Object definition.
+
+Examples may include a Room belonging to a Floor or a component being structurally part of a larger Object. Whether it belongs in Shared definition or Map Initial State depends on the Object identity and ownership scope; do not assume every structural relationship is globally shared.
+
+Initial State relationship identity is generated by Core Domain and stored in the baseline payload. It is visible at the Map's time-zero boundary and inherited by Branches through the normal Map/History baseline model.
+
+### 6.2 Project-shared definition relationships
+
+A relationship may be part of a Project-shared definition only when it describes stable shared base semantics of the participating shared Objects.
+
+- It is stored in the current Shared Object definition payload(s) under one explicit owner rule.
+- Editing it uses the Shared Object definition Domain Service, not a post-zero Command.
+- Under the accepted current-definition semantics, a definition edit applies retroactively to historical reconstruction for every referencing Map/Branch.
+- A definition relationship must not encode Map-specific runtime facts such as one Map's post-zero political control or one active Map's road/river status.
+
+Avoid duplicating the same relationship as authoritative data in both endpoint definitions. The descriptor must define one owner/persistence placement rule.
+
+### 6.3 History-local time-varying relationships
+
+A relationship that changes in the modeled world is established/ended through Commands in the selected Map/Branch History.
+
+- Establishment has a canonical Historical Time precision interval from the Command.
+- Termination has its own canonical Historical Time precision interval from the end Command.
+- The relationship is active after its establishment becomes effective and before its termination becomes effective, subject to the canonical ordering/precision rules.
+- Use the Command's normalized half-open time interval; do not store a second independent UTC or wall-clock interval.
+- Overlapping/ambiguous establishment and termination intervals are resolved through Core Domain ordering constraints; if different possible orders produce different relationship state, affected Commands are paused for author ordering.
+- A post-zero relationship change in one Map never changes another Map's runtime relationship state for the same Shared Object endpoints.
+
+## 7. Relationship establishment and termination
+Relationship Type descriptors must declare an explicit endpoint-activity policy:
+- `active_endpoints_required`: both endpoints must be active at establishment and remain active while the relationship is required to be operational. Deactivation is rejected until the relationship is explicitly ended.
+- `dormant_endpoint_allowed`: a relationship may remain temporally active while one endpoint is History-locally deactivated. It is not considered operational for operations that require an active endpoint; it is not silently ended or deleted. Reactivation revalidates it and restores operational eligibility if all other rules still hold.
+
+This policy is per Relationship Type. Core Domain must not cascade-end relationships merely because an endpoint is deactivated.
+
+
+### 7.1 Establishment
+
+`core.relationship.establish`:
+- targets exactly one registered Relationship Type;
+- references source and target Objects through `core_command_object_ref` roles `source` and `target`;
+- carries a Core Domain-generated `relationship_id`;
+- carries only the typed attributes declared by the Relationship Type;
+- validates endpoint types, Project/Map registration, visibility, cardinality, cycle rules and temporal preconditions;
+- changes relationship state only in the selected History.
+
+A single Command establishes one relationship. Multiple relationships use multiple Commands unless a future domain-specific atomic operation is justified.
+
+### 7.2 Termination
+
+`core.relationship.end`:
+- references the existing `relationship_id`;
+- identifies the relationship origin kind: `initial_state` or `command`;
+- includes the corresponding origin reference (`initial_state_id` or `establishing_command_id`);
+- includes source and target Object references so Core Domain can verify endpoint/type context;
+- is valid only if that relationship is visible and active in the selected History at the Command's effective boundary;
+- ends the relationship only in the selected History.
+
+A Branch may terminate a relationship inherited from its parent at a time strictly after `parent_at`. The parent and sibling Branches remain unchanged.
+
+A termination Command does not physically delete the establishing relationship data or immutable evidence. It records the author-intended end operation in History.
+
+### 7.3 Edit and deletion behavior
+
+- Editing an establishment Command revalidates all later end Commands that reference its relationship ID.
+- Deleting an establishment Command retains later end Commands; they become blocked/invalid if their relationship origin no longer exists in the selected History.
+- Deleting an end Command restores the relationship's active state from its establishing source, subject to all other Commands and constraints.
+- Explicit ordering/dependency constraints are preserved and reevaluated; they are not silently removed.
+- No relationship revision chain is introduced.
+
+## 8. Geometry and topology boundaries
+
+Keep three concepts distinct:
+
+1. Geometric coincidence — coordinates happen to touch or overlap.
+2. Topological fact — a formal connection, shared boundary, adjacency or network relation.
+3. Semantic relationship — what the Objects mean in the modeled world.
+
+A spatial engine may calculate candidate predicates and diagnostics. It cannot create a formal relationship automatically.
+
+Examples:
+- snapping two road endpoints together does not automatically create a road-network connection;
+- two river geometries touching does not automatically establish a flow direction;
+- overlapping region polygons do not automatically establish containment or political control;
+- a geometry component split does not create part/whole Object relationships.
+
+A Relationship Type may require a topology predicate as a precondition, but the accepted relationship remains an explicit Core Domain fact.
+
+## 9. Candidate built-in relationship families
+
+These are candidate families, not a frozen V1 relationship taxonomy. Enable only types whose endpoint Object Types and domain rules are ready.
+
+| Candidate family | Example semantics | Likely temporal class | Required specialist rule |
+|---|---|---|---|
+| Structural part/whole | part-of, contains | Initial State or shared definition | Acyclicity, parent cardinality, endpoint type compatibility |
+| Spatial adjacency/connectivity | adjacent-to, connects-to | Initial State or History-local | Topology precondition and endpoint canonicalization |
+| Hydrological flow | flows-to, drains-to | Initial State or History-local | Directionality, cycle policy and network constraints |
+| Political/cultural control | controlled-by, belongs-to | History-local | Time interval, competing controller/cardinality and transition rules |
+| Spatial containment | within/contains | Initial State or History-local | Geometry may validate but does not alone establish semantics |
+
+Do not ship every example merely because it appears in this table. V1 should enable only the smallest set required by the first completed editor workflows.
+
+## 10. Physical persistence implications
+
+- No new Core Domain relationship table is required in V1.
+- Initial State relationship payloads remain in `core_map_initial_object` and are validated against the Object/Relationship Type descriptors.
+- Project-shared definition relationships remain in the current `core_object_definition` payload under a single explicit owner rule.
+- History-local relationship Commands use the existing `core_command` payload.
+- `core_command_object_ref` is required and stores source/target Object references with descriptor-declared roles.
+- The relationship identity and origin references are typed payload fields, not a polymorphic SQL FK framework.
+- `core_command_order_constraint` remains the authority for explicit user ordering/dependency relations; relationship dependencies are not a second persisted graph.
+- Relationship type schema/semantics versions contribute to reconstruction fingerprints when they affect World State.
+- No relationship state projection table is added in V1.
+
+## 11. Verification scenarios
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| REL-01 | Relationship endpoint Object Type is not allowed | Reject before persistence |
+| REL-02 | Relationship is proposed from coordinate coincidence alone | No formal relationship created |
+| REL-03 | Symmetric relation submitted in reversed endpoint order | Canonical identity/order is deterministic; no duplicate inverse |
+| REL-04 | Cardinality limit exceeded | Reject or mark affected Command unexecutable under descriptor policy |
+| REL-05 | Relationship type forbids cycles and a cycle is proposed | Reject with explainable dependency/relationship chain |
+| REL-06 | Initial State structural relation is ended in one Branch | Only that Branch path changes; parent/sibling unaffected |
+| REL-07 | Project-shared definition relation edited | Uses Shared Object definition service and retroactive current-definition semantics |
+| REL-08 | History-local relation established in one Map | Another Map's runtime relationship state remains unchanged |
+| REL-09 | Relationship end references a non-visible origin | Reject |
+| REL-10 | Relationship end occurs before establishment under canonical ordering | Reject or pause for ordering resolution |
+| REL-11 | Establishing Command deleted while end Command remains | End Command retained and becomes blocked/invalid |
+| REL-12 | End Command deleted | Relationship state is reconstructed from remaining history |
+| REL-13 | Branch ends an inherited relationship after parent_at | Branch-local end; parent and sibling remain active |
+| REL-14 | Same relationship Commands replay with same semantics | Identical relationship state at each Historical Time |
+| REL-15 | Geometry split/merge occurs | No semantic relationship is inferred or created |
+
+## 12. Remaining design gates
+
+1. Select the minimum built-in Relationship Type set needed by the first end-to-end Object workflows.
+2. Define stable relationship IDs and exact canonical payload fields for establishment and termination in P2-09-17.
+3. Decide the single owner placement for each structural Shared Object relationship; prohibit duplicated authority across endpoint definitions.
+4. Finalize initial-state relationship identity and edit semantics.
+5. Specify cycle/cardinality validation for each enabled specialist Relationship Type.
+6. Validate Branch termination of inherited baseline/ancestor relationships against the exact closed fork boundary.
+7. Add relationship type schema/semantics identities to Checkpoint fingerprints where they affect reconstruction.
+
+## 13. Status
+
+P2-09-20 V0.2 establishes a bounded V1 relationship contract and prevents geometry, topology and semantic relationships from being conflated. It keeps relationship persistence inside existing typed owner payloads and Commands, avoiding a speculative standalone relationship database.
+
+It is a design contract, not an executable relationship ontology, SQL schema, implementation code, provider test report or implementation authorization.
