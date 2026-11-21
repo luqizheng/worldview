@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "World View V1 Built-in Object Type Descriptor Registry",
   "registry_version": "0.1",
   "status": "recommended; not a frozen ADR",
@@ -483,5 +482,8 @@
     "semantics_change": "Change semantics_id; never silently reinterpret persisted history.",
     "enum_removal_or_reinterpretation": "Breaking change requiring migration.",
     "runtime_candidate": "Disabled until temporal semantics, Command semantics and fixtures are approved."
-  }
+  },
+  "format": "world-view-domain-descriptor-registry",
+  "format_version": 1,
+  "validation_note": "This file is a machine-readable domain catalog, not a JSON Schema validation document. Runtime validation rules are expressed as descriptor data and must be implemented by Core Domain validators."
 }
