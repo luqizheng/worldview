@@ -13,7 +13,7 @@ The repository also retains the pre-existing ADR and P2-01-D01 packages.
 
 ## Repository inventory
 
-At the last verification, the repository contained 140 files in total, including 139 files under `docs/`.
+At the 2026-11-21 renderer documentation update, the repository contained 143 files in total, including 142 files under `docs/`.
 
 | Area | Directory | Files |
 |---|---|---:|
@@ -22,7 +22,7 @@ At the last verification, the repository contained 140 files in total, including
 | AI Assistant | `docs/ai-assistant/` | 24 |
 | Core Domain and persistence | `docs/architecture/core-domain/` | 52 |
 | Map Editor | `docs/map-editor/` | 6 |
-| Map Engine | `docs/map-engine/` | 6 |
+| Map Engine | `docs/map-engine/` | 9 |
 | Map Generation | `docs/map-generation/` | 6 |
 | Historical reviews and artifacts | `docs/history/` | 7 |
 | Baseline snapshots | `docs/baseline/` | 2 |
@@ -65,3 +65,14 @@ For navigation, see [Documentation Index](README.md).
 ## 2026-11-21 path and identity audit
 
 A targeted audit found three repository path/content mismatches in the P2-09 area. The physical schema and integrated inventory files have been restored from their matching Library source documents. A duplicate path that contained the README V1.38 baseline rather than a P2-09-14 contract was removed; the authoritative README snapshot remains at `docs/baseline/README-v1.38.md`. No original standalone P2-09-14 source artifact was found. A new P2-09-14 V0.1 validation contract has since been authored in this repository from P2-09-05 V0.3 and the current persistence baseline; it is explicitly marked as newly authored, not recovered from the Library. The removed mislabeled path must not be treated as source evidence.
+
+
+## 2026-11-21 production renderer documentation update
+
+The Production Renderer Architecture V0.2 and PRA-01 implementation package were added under `docs/map-engine/`:
+
+- `PRODUCTION_RENDERER_ARCHITECTURE_v0.2.md`
+- `PRA-01_PRESENTATION_CONTEXT_AND_IMMUTABLE_SCENE_SNAPSHOT_CONTRACT_v0.1.md`
+- `PRA-01_DEVELOPER_HANDOFF_v0.1.md`
+
+The architecture document was transferred from the earlier working repository to this canonical documentation repository. The documentation index and root README were updated to point to this repository's canonical paths and to reflect the Avalonia 12 + Skia map viewport target. These are architecture/design documents; their presence does not claim PRA-01 implementation completion.
