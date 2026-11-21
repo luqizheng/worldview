@@ -10,7 +10,7 @@ This repository is the version-controlled documentation baseline for the World V
 - `adr/`: accepted, frozen, amended, and rejected architecture decisions.
 - `P2-01-D01/`: historical-state and command-domain discussion record.
 - `ai-assistant/`: AI product architecture, task planning/execution, context, tools, providers, authorization, proposal/application, database schemas, and recovery.
-- `map-editor/`: shared desktop editor architecture (ME-01), Terrain & Natural Geography Editor (ME-02: land/water, elevation, terrain features, hydrology, climate, ecology, calculation contracts, UX acceptance and cross-architecture review), world-knowledge/story-spatial bridge, Guided Initialization, multi-scale spatial consistency, map Object/geometry/presentation model, Canvas-centered interaction framework, and specialist work plan and status.
+- `map-editor/`: shared desktop editor architecture (ME-01), Terrain & Natural Geography Editor (ME-02: land/water, elevation, terrain features, hydrology, climate, ecology, calculation contracts, UX acceptance and cross-architecture review), Shared Geometry & Spatial Operations (ME-05), world-knowledge/story-spatial bridge, Guided Initialization, multi-scale spatial consistency, map Object/geometry/presentation model, Canvas-centered interaction framework, and specialist work plan and status.
 - `map-generation/`: map generation specification, generation session lifecycle, and related source README.
 - `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, and Unit animation.
 - `history/`: reserved for superseded or historical source documents retained for traceability.
@@ -44,7 +44,8 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-02-G UX Scenarios & Acceptance V0.2](map-editor/world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) — end-to-end natural-geography creator journeys, Inspector, diagnostics, formal authoring targets, failure/recovery and Figma handoff.
 - [ME-02-H Cross-architecture Review V0.1](map-editor/world-view-me-02-cross-architecture-review-v0.1.md) — Core Domain/Map Engine/Map Generation/ME-01 reconciliation, implementation gates and ME-02 package disposition.
 - [ME-02 Overall Baseline V0.6](map-editor/world-view-me-02-terrain-and-natural-geography-editor-v0.6.md) — reconciled natural-geography product/domain baseline through ME-02-H.
-- [Map Editor Work Plan V0.9](map-editor/ME-01-work-plan-and-document-status-v0.9.md) — current workstream status and specialist design inventory.
+- [ME-05-01 Field Dataset Authority & Persistence Contract V0.1](map-editor/world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.1.md) — proposed Map-owned source field identity, immutable revisions, typed Core Asset ownership and Map/Branch/History semantics; adoption awaits product-semantic confirmation.
+- [Map Editor Work Plan V1.0](map-editor/ME-01-work-plan-and-document-status-v1.0.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
