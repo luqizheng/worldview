@@ -22,7 +22,7 @@ Start here: [Documentation Index](docs/README.md) · [Migration Manifest](docs/M
 - Local-first, single-user / small-team operating model.
 - Core Domain owns formal map data, commands, and history semantics.
 - AI Assistant proposes and stages changes; formal writes pass through validation, authorization, and Core Domain services.
-- Map rendering, geospatial computation, and renderer technology remain separately evaluated; no final engine selection is implied by this documentation.
+- Production map viewport target: Avalonia 12 + Skia, defined in [Production Renderer Architecture V0.2](docs/map-engine/PRODUCTION_RENDERER_ARCHITECTURE_v0.2.md); geospatial algorithms and data providers remain separately evaluated.
 
 ## Document status
 
