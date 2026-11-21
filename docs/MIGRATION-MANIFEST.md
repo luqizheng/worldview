@@ -13,14 +13,14 @@ The repository also retains the pre-existing ADR and P2-01-D01 packages.
 
 ## Repository inventory
 
-At the last verification, the repository contained 131 files in total, including 130 files under `docs/`.
+At the last verification, the repository contained 132 files in total, including 131 files under `docs/`.
 
 | Area | Directory | Files |
 |---|---|---:|
 | Architecture decisions | `docs/adr/` | 6 |
 | P2-01-D01 discussion | `docs/P2-01-D01/` | 21 |
 | AI Assistant | `docs/ai-assistant/` | 24 |
-| Core Domain and persistence | `docs/architecture/core-domain/` | 43 |
+| Core Domain and persistence | `docs/architecture/core-domain/` | 44 |
 | Map Editor | `docs/map-editor/` | 6 |
 | Map Engine | `docs/map-engine/` | 6 |
 | Map Generation | `docs/map-generation/` | 6 |
