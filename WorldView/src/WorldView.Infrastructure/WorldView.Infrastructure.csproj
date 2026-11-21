@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorldView.Application\WorldView.Application.csproj" />
+  </ItemGroup>
+
+</Project>

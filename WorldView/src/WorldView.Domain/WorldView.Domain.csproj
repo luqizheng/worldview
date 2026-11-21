@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 核心领域层：不依赖 UI、桌面平台 API 或任何第三方框架包。 -->
+
+</Project>
