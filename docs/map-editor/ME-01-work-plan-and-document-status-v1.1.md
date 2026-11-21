@@ -48,21 +48,21 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-G | **Complete** — UX scenarios and acceptance | End-to-end creator workflows, Inspector, diagnostics, Candidate review, accessibility and Figma handoff — [ME-02-08](world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) |
 | ME-02-H | **Complete** — Cross-architecture review | Reconciled Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; Field Dataset authority decision now adopted in ME-05-01 V0.2 — [ME-02-09](world-view-me-02-cross-architecture-review-v0.2.md) |
 
-ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.2. Physical schema reconciliation and provider-proof design are now documented in P2-09-11 V0.11 and P2-09-12 V0.6; implementation, Field Descriptor Registry/validation fixtures, payload package/tiling and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
+ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.2. Physical schema reconciliation and provider-proof design are now documented in P2-09-11 V0.11 and P2-09-12 V0.6; implementation, Field Descriptor Registry V0.1 and 32 validation vectors are documented; immutable payload package/tiling, development implementation and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
 
 ## ME-05 — Shared Geometry & Spatial Operations (started)
 
 | ID | Document | Version | Status | Responsibility |
 |---|---|---:|---|---|
-| ME-05-01 | [Field Dataset Authority & Persistence Contract](world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.2.md) | 0.2 | **Adopted Domain Contract — product semantics confirmed; not frozen ADR or executable schema** | Map-owned source Field Dataset identity, immutable revisions, typed Core Asset ownership, Map-wide retroactive Branch/History semantics and calculation/checkpoint integration |
+| ME-05-01 | [Field Dataset Authority & Persistence Contract](world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.3.md) | 0.2 | **Adopted Domain Contract — product semantics confirmed; not frozen ADR or executable schema** | Map-owned source Field Dataset identity, immutable revisions, typed Core Asset ownership, Map-wide retroactive Branch/History semantics and calculation/checkpoint integration |
 
-ME-05-01 V0.2 closes the H-G01 product-semantic/domain-authority gate. Field publication implementation remains blocked on the remaining descriptor, payload packaging, physical-provider validation and development implementation gates; see P2-09-11 V0.11 and P2-09-12 V0.6.
+ME-05-01 V0.2 closes the H-G01 product-semantic/domain-authority gate. Field publication implementation remains blocked on the remaining payload packaging, physical-provider validation and development implementation gates; see P2-09-11 V0.11 and P2-09-12 V0.6.
 
 ## ME-05-01 closure and remaining implementation gates
 
 - **Closed:** H-G01 product semantics and Core Domain authority; Map Source Field Baseline is Map-owned and Field Revision updates apply retroactively to every Branch and Historical Time of that Map.
 - **Documented:** P2-09-11 V0.11 logical physical schema; P2-09-12 V0.6 provider/transaction test specification; ME-02-F V0.3 calculation input and freshness alignment.
-- **Open:** Field Descriptor Registry and canonical manifest schema; exact immutable payload package/tile layout; deferred composite-FK and immutability-trigger validation on bundled SQLite; development implementation; Windows/macOS provider/runtime execution.
+- **Open:** Field Descriptor Registry V0.1 and 32 validation vectors are documented as recommended design artifacts; exact immutable payload package/tile layout; deferred composite-FK and immutability-trigger validation on bundled SQLite; development implementation; Windows/macOS provider/runtime execution.
 
 ## Subsequent specialist workstreams
 
