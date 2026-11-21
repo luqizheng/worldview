@@ -103,7 +103,7 @@ ME-03-A through ME-03-H are complete as specialist product/domain/UX and cross-a
 
 | Work item | Focus | Main output |
 |---|---|---|
-| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.3 |
+| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.5 |
 | ME-05-B | **Complete as working contract** — Shared Geometry Model and Component Operations | ME-05-02 V0.1 |
 | ME-05-C | **Complete as working contract** — Topology and Spatial Predicates | ME-05-03 V0.1 |
 | ME-05-D | **Complete as working contract** — Coordinate Reference, Precision & Measurement | ME-05-04 V0.1 |
