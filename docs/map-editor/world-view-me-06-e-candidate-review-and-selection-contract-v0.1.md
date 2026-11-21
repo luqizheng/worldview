@@ -3,7 +3,7 @@
 - Version: 0.1
 - Date: 2026-11-21
 - Status: Candidate review interaction working baseline; no database migration, authorization-policy change or runtime implementation is implied
-- Depends on: ME-06-00/A/B/C/D V0.1; ME-04-G/H; ME-05-06 V0.5; AI Assistant Candidate/Validation Schema V1.0; Selection/Application Schema V1.0; Command Proposal & Authorization Design V0.1; P2-09-13/15/17/26/27
+- Depends on: ME-06-00 V0.2; ME-06-A/B/C/D V0.1; ME-04-G/H; ME-05-06 V0.5; AI Assistant Candidate/Validation Schema V1.0; Selection/Application Schema V1.0; Command Proposal & Authorization Design V0.1; P2-09-13/15/17/26/27
 - Authority: Shared Editor review interaction and AI selection boundary. Candidate/Selection/Change Set evidence belongs to AI Assistant; formal map changes belong to Core Domain Domain Services.
 
 ## 1. Executive disposition
