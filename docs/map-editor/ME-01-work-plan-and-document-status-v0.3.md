@@ -34,7 +34,7 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | Work item | Focus | Main output |
 |---|---|---|
 | ME-02-A | **Complete** — Domain inventory against Core Domain catalogs | Natural feature → Object / field / derived layer / Knowledge mapping; descriptor gaps — [ME-02-02](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) |
-| ME-02-B | Land/water and elevation authoring | World frame, map-edge semantics, field/Asset contract, editing scenarios |
+| ME-02-B | **Complete** — Land/water and elevation authoring | World frame, map-edge semantics, field/Asset logical contract, editing scenarios — [ME-02-03](world-view-me-02-land-water-and-elevation-authoring-v0.1.md) |
 | ME-02-C | Terrain feature authoring | Landmass, Mountain Range/Peak, Terrain Region tool and validation contract |
 | ME-02-D | Hydrology | Drainage analysis, depression policy, river candidate/network validation and flow relationship contract |
 | ME-02-E | Climate and ecology | Causal input/output model, seasonal summaries, classification and suitability overlays |
