@@ -22,6 +22,11 @@ This repository is the version-controlled documentation baseline for the World V
 - The Core Domain owns formal map data and history. AI Assistant proposals are staged and must pass validation, authorization, and Core Domain Domain Services before formal application.
 - This repository is the version-controlled project documentation baseline. It does not imply implementation completion, executable DDL readiness, or provider-test completion.
 
+## Baseline snapshots
+
+- [Latest source README V1.38](baseline/README-v1.38.md) — source-library baseline snapshot; this is distinct from this repository's navigation index.
+- [Architecture baseline V1.0](architecture-baseline-v1.0.md) — architecture baseline snapshot.
+
 ## Current technical direction
 
 - Desktop application: C# + Avalonia.
