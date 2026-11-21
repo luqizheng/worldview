@@ -19,12 +19,13 @@ This repository is the version-controlled documentation baseline for the World V
 ## Current persistence design baseline
 
 - [P2-09-08 Command Descriptor / Replay Contract V0.2](architecture/core-domain/p2-09-08-command-descriptor-replay-contract-v0.2.md) — reconciled typed Command descriptor and deterministic replay rules.
-- [P2-09-15 Command Descriptor Catalog V0.3](architecture/core-domain/p2-09-15-command-descriptor-catalog-v0.3.md) — bounded V1 catalog, deferred families and non-Command operation boundaries.
-- [P2-09-17 Command Payload / Validation Contract V0.3](architecture/core-domain/p2-09-17-command-payload-envelope-and-validation-contract-v0.3.md) — canonical payload envelope, typed Object/Asset references and descriptor-level validation.
+- [P2-09-15 Command Descriptor Catalog V0.4](architecture/core-domain/p2-09-15-command-descriptor-catalog-v0.4.md) — bounded V1 catalog, deferred families and non-Command operation boundaries.
+- [P2-09-17 Command Payload / Validation Contract V0.4](architecture/core-domain/p2-09-17-command-payload-envelope-and-validation-contract-v0.4.md) — canonical payload envelope, typed Object/Asset references and descriptor-level validation.
 - [P2-09-18 Object Type Descriptor / Attribute Contract V0.2](architecture/core-domain/p2-09-18-object-type-descriptor-and-attribute-contract-v0.2.md) — typed built-in Object Type schemas, definition/runtime/Initial State separation and compatibility pins.
 - [P2-09-19 Geometry Component Identity / Payload Contract V0.2](architecture/core-domain/p2-09-19-geometry-component-identity-and-payload-contract-v0.2.md) — stable component IDs, roles, immutable geometry Assets and History-local operations.
-- [P2-09-11 Physical Schema V0.9](architecture/core-domain/p2-09-11-physical-schema-design-v0.9.md) — current reconciled Core Domain relational proposal; not executable DDL.
-- [P2-09-13 Integrated Schema Inventory V0.4](architecture/core-domain/p2-09-13-integrated-schema-inventory-migration-graph-v0.4.md) — Core/AI table inventory and corrected migration dependency graph.
+- [P2-09-20 Relationship Descriptor / Temporal Contract V0.1](architecture/core-domain/p2-09-20-relationship-descriptor-and-temporal-contract-v0.1.md) — relationship identity, typed endpoints, cardinality and History-local temporal semantics.
+- [P2-09-11 Physical Schema V0.10](architecture/core-domain/p2-09-11-physical-schema-design-v0.10.md) — current reconciled Core Domain relational proposal; not executable DDL.
+- [P2-09-13 Integrated Schema Inventory V0.5](architecture/core-domain/p2-09-13-integrated-schema-inventory-migration-graph-v0.5.md) — Core/AI table inventory and corrected migration dependency graph.
 - [P2-09-16 Shared Definition / Checkpoint Coherence V0.1](architecture/core-domain/world-view-core-domain-p2-09-16-shared-definition-checkpoint-coherence-contract-v0.1.md) — retroactive current-definition and Checkpoint freshness rules.
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 - [P2-09-05 Historical Time / Calendar Contract V0.3](architecture/core-domain/world-view-core-domain-p2-09-05-historical-time-ordering-persistence-contract-v0.3.md) — current canonical-time and Calendar persistence baseline.
