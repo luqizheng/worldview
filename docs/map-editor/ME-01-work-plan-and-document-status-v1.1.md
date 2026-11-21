@@ -61,8 +61,8 @@ ME-05-01 V0.3 records the adopted H-G01 product-semantic/domain-authority decisi
 ## ME-05-01 closure and remaining implementation gates
 
 - **Closed:** H-G01 product semantics and Core Domain authority; Map Source Field Baseline is Map-owned and Field Revision updates apply retroactively to every Branch and Historical Time of that Map.
-- **Documented:** P2-09-11 V0.11 logical physical schema; P2-09-12 V0.6 provider/transaction test specification; ME-02-F V0.3 calculation input and freshness alignment.
-- **Open:** Field Descriptor Registry V0.1 and 32 validation vectors are documented as recommended design artifacts; exact immutable payload package/tile layout; deferred composite-FK and immutability-trigger validation on bundled SQLite; development implementation; Windows/macOS provider/runtime execution.
+- **Documented:** P2-09-11 V0.11 logical physical schema; P2-09-12 V0.6 provider/transaction test specification; P2-09-30 V0.1 Field Descriptor Registry; P2-09-31 V0.1 (32) validation vectors; ME-02-F V0.3 calculation input and freshness alignment.
+- **Open:** exact immutable payload package/tile layout; deferred composite-FK and immutability-trigger validation on bundled SQLite; development implementation; Windows/macOS provider/runtime execution.
 
 ## Subsequent specialist workstreams
 
