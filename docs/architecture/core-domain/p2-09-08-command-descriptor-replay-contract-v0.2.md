@@ -198,7 +198,7 @@ AI Assistant must not:
 
 ## 12. Open items before physical DDL
 
-The bounded recommended V1 catalog is now recorded in P2-09-15 V0.1. The following remain open:
+The bounded recommended V1 catalog is recorded in P2-09-15 V0.2 and its canonical payload envelope/descriptor validation in P2-09-17 V0.2. The following remain open:
 
 1. Concrete typed payload schemas and canonical serialization for each enabled descriptor.
 2. Exact descriptor storage strategy (compiled registry is recommended; no new descriptor table is currently proposed).
@@ -210,4 +210,4 @@ The bounded recommended V1 catalog is now recorded in P2-09-15 V0.1. The followi
 
 ## 13. Status
 
-This contract establishes the descriptor and deterministic replay requirements for P2-09. P2-09-15 V0.1 supplies the current bounded recommended V1 catalog; neither document claims that all candidate descriptors, payloads or handlers are frozen or implemented. This is not executable DDL or implementation authorization.
+This contract establishes the descriptor and deterministic replay requirements for P2-09. P2-09-15 V0.2 supplies the current bounded recommended V1 catalog and P2-09-17 V0.2 defines its payload contract; neither document claims that all candidate descriptors, payloads or handlers are frozen or implemented. This is not executable DDL or implementation authorization.
