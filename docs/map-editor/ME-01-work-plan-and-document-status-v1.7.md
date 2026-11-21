@@ -54,7 +54,7 @@ ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through
 
 | ID | Document | Version | Status | Responsibility |
 |---|---|---:|---|---|
-| ME-03-00 | [Settlements & Urban Geography Editor — Scope and Work Plan](world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) | 0.2 | Specialist Workstream Scope / Design Plan | Inherited architecture constraints and exact descriptor-registry endpoint constraints |
+| ME-03-00 | [Settlements & Urban Geography Editor — Scope and Work Plan](world-view-me-03-settlements-and-urban-geography-editor-v0.2.md) | 0.2 | Specialist Workstream Scope / Design Plan | Inherited architecture constraints and exact descriptor-registry endpoint constraints |
 | ME-03-A | [Domain Inventory & Descriptor Reconciliation](world-view-me-03-a-domain-inventory-and-descriptor-reconciliation-v0.1.md) | 0.1 | Domain Inventory Working Baseline | Exact Settlement/Road/PoliticalRegion descriptors, relationship endpoint pairs, urban concept disposition and cross-domain gaps |
 
 ME-03 is opened as a specialist design workstream. ME-03-A is complete as a domain inventory working baseline; ME-03-B through ME-03-H remain planned. The design must consume the existing `settlement`, `road` and `political_region` Object Type seeds and the bounded relationship catalog; it must not silently introduce new Object Types, Relationship Types, executable descriptors or schema changes. Domain inventory and descriptor reconciliation are the first work item.
