@@ -1,528 +1,303 @@
-# World View — ME-02-G UX Scenarios & Acceptance
+# World View — ME-02 UX Scenarios & Acceptance
 
 - Version: 0.1
 - Date: 2026-11-21
-- Status: **Natural Geography UX Working Baseline** — end-to-end creator scenarios, interaction behavior and acceptance criteria; final visual design, control styling, exact shortcuts and usability thresholds remain Figma/usability validation work
-- Parent: ME-02 Terrain & Natural Geography Editor V0.4
-- Depends on: ME-01-01 through ME-01-07; ME-02-A through ME-02-F; Map Generation Specification/Workflow/Session Lifecycle V0.2; Map Rendering & Visualization Architecture V0.3; Renderer Contract & Scene Model V0.1; Spatial Presentation & Geometry Interaction Contract V0.1
-- Target: C# + Avalonia desktop application, Windows/macOS, local-first, single-user
-- Scope: Natural Geography creator journeys, Canvas/Inspector/AI conversation behavior, calculation progress and freshness, diagnostics, Candidate review, accessibility and acceptance scenarios
+- Status: **Specialist UX Scenario and Acceptance Working Baseline** — end-to-end natural-geography authoring and review workflows; exact Avalonia layouts, visual tokens and interaction implementation remain design/engineering gates
+- Parent: ME-02 Terrain & Natural Geography Editor V0.3
+- Depends on: ME-01-03/04/05/06/07; ME-02-03 through ME-02-07; Core Domain Object/Geometry/Relationship/History contracts; Map Engine spatial interaction and renderer-neutral scene contracts
 
-## 1. Purpose
+## 1. Purpose and boundary
 
-ME-02-A through ME-02-F define the domain concepts, authoring operations, scientific constraints and calculation lifecycle for Terrain & Natural Geography. ME-02-G translates those contracts into coherent creator-facing workflows and testable UX acceptance.
+This document translates ME-02 natural-geography domain workflows into user-visible end-to-end scenarios and acceptance criteria.
 
-The goal is not to teach the creator GIS, hydrology or climatology. The application should let a creator express a world-building intention, work directly on the map, understand the consequences of changes and decide which proposed formal facts to adopt.
+It specializes the shared interaction framework; it does not create a second interaction architecture. The Canvas remains the primary spatial surface, the Inspector explains the selected formal Object or derived result, and the single Assistant helps translate intent, explain causes and stage reviewable proposals.
 
-The UX must consistently distinguish:
-- what the creator said or drew;
-- what is a confirmed formal world fact;
-- what the system calculated from available inputs;
-- what the AI inferred or proposes;
-- what is unknown, incomplete, stale or uncertain;
-- what is merely a visual presentation choice.
+The UX must keep four content classes visually and semantically distinct:
 
-**Primary recommendation:** keep one shared Canvas-centered editor shell. Natural Geography supplies mode-specific tools, inspector sections, analysis views and diagnostics; it does not create a separate workspace, selection model, history, layer authority or task system.
-
-## 2. UX principles and product boundaries
+1. **Formal world facts** — confirmed Objects, Geometry Components, relationships and Map/Branch history.
+2. **Source fields** — authored/imported physical inputs such as land/water masks and elevation.
+3. **Derived analysis** — terrain metrics, drainage, climate, moisture, classification and ecological suitability, each with provenance and freshness.
+4. **Candidates and diagnostics** — proposed Object/geometry/relationship changes, uncertain detections and validation findings.
 
-1. **Creator language first.** Use “mountain height”, “where water gathers”, “rainfall”, “cold season” and “forest suitability” before exposing technical terms.
-2. **Canvas remains primary.** The map is the main work surface. Panels explain and support it; they must not turn the application into a form-heavy GIS console.
-3. **One persistent AI conversation entry point.** The creator can describe intent, ask why a result occurred, request analysis or refine a candidate without switching to a separate AI product.
-4. **Contextual Inspector.** The right panel follows the current selection, field, tool, calculation result or diagnostic.
-5. **Progressive disclosure.** Show essential state first; expose assumptions, provenance, numeric parameters and technical diagnostics on demand.
-6. **Preview before consequence.** Transient sketch/brush preview never silently becomes formal map data.
-7. **No hidden destructive recomputation.** Recalculation updates derived outputs only; it does not overwrite protected creator facts or silently replace formal Objects.
-8. **Keep the last valid result.** A calculation failure must not blank the map or destroy the previous usable analysis.
-9. **Explain uncertainty honestly.** Incomplete coverage, approximate inputs and model limitations are visible and actionable.
-10. **Confirmation is contextual.** Confirm semantic/high-impact formal changes, not every harmless view or derived-only refresh.
-11. **Same object, multiple views.** Natural Geography and Fantasy Cartography are presentations of the same map facts.
-12. **No mandatory AI/network dependency.** Manual authoring, inspection and local calculation remain usable offline.
+A color overlay alone is insufficient to communicate authority. Use labels, line patterns, icons, layer grouping and Inspector status as redundant cues.
 
-## 3. Shared workspace composition
+## 2. Shared ME-02 workspace behavior
 
-### 3.1 Desktop layout
+### 2.1 Primary work surface
 
-The shared editor shell remains:
+- Canvas is the dominant central work surface in every ME-02 activity.
+- The tool palette exposes the current specialist operation without replacing shared selection, navigation or edit-session behavior.
+- The Inspector is contextual: selected Object, physical field, derived analysis, Candidate or diagnostic.
+- Assistant conversation is available from the shared editor shell and can refer to the active Map, Branch, Historical Time, Working Scope and explicitly selected context.
+- Calculation progress and diagnostics are visible without blocking unrelated Canvas inspection.
+- The user can continue manual editing and inspection when no AI provider is configured or available.
 
-- **Main Canvas:** dominant central map surface, with active mode overlay, direct authoring, selection, preview and impact visualization.
-- **Contextual Inspector (right):** current selection/result/tool properties, source/provenance, validation and relevant actions.
-- **AI Conversation (bottom):** persistent natural-language input and response stream; can expand for longer exchanges but should not displace the Canvas as the main surface.
-- **Tool shelf:** compact mode-specific tools near the Canvas; only relevant tools are prominent.
-- **Layer/content navigator:** visibility and ordering of authored inputs, derived analysis and presentation layers.
-- **Shared status/context strip:** active Map/Branch/time, Working Scope, calculation activity and important stale/diagnostic indicators.
+### 2.2 Explicit active context
 
-The exact left/right placement of navigator/tool shelf can be finalized in Figma, but the Canvas, contextual Inspector and bottom AI conversation relationship is the product baseline.
+Before a formal edit or calculation, show the relevant context in a compact, readable way:
+- active Map and Branch;
+- Historical Time where the operation is history-dependent;
+- Working Scope and any expanded calculation context;
+- selected Object/field/derived artifact;
+- source freshness and protected content where relevant.
 
-### 3.2 Persistent context
-
-At all times where relevant, the user can identify:
-- active Map and Branch/history context;
-- current Working Scope (World / Region / Locality / Site);
-- current mode and active tool;
-- selected Object/geometry/field/result;
-- whether displayed content is authored, formal, derived, candidate or presentation;
-- whether derived data is current, recalculating, stale, partial or unavailable.
+The viewport is not an implicit operation boundary. A basin, wind/moisture path or connected terrain feature may extend beyond the visible Canvas. The UI must show the actual affected/calculation scope.
 
-Do not overload the status strip with technical fingerprints or raw job IDs. Those belong in expandable diagnostics.
+### 2.3 Layer and status vocabulary
 
-### 3.3 Layer grouping
+Use consistent labels:
+- **Authored / Imported** — source input and its provenance.
+- **Formal** — Core Domain Object, relationship or committed geometry.
+- **Derived · Current** — calculation result matching current inputs.
+- **Derived · Stale** — retained output whose dependencies changed.
+- **Incomplete** — result with missing coverage or unresolved required inputs.
+- **Candidate** — proposed change awaiting review/adoption.
+- **Diagnostic** — validation or uncertainty evidence, not a world fact.
 
-The natural-geography layer navigator should group content by meaning and authority:
+Do not label a derived suitability layer as an actual biome, a channel candidate as a River, or a visible line crossing as a confirmed confluence.
 
-1. **Authored & Formal Geography** — landmass, mountain range/peak, river/lake, authored geometry and physical source fields.
-2. **Derived Analysis** — elevation derivatives, drainage, climate, classification and ecological suitability.
-3. **Presentation** — hillshade styling, contours, palettes, labels, symbols and fantasy cartography.
+## 3. End-to-end scenario A — Establish land/water and elevation
 
-Layer visibility is a view choice. Hiding a layer does not delete or deactivate its source data. A derived layer may be unavailable or stale without affecting formal Object visibility.
+### User intent
 
-### 3.4 Status language
+“I want to establish the continent outlines and broad elevation before drawing mountains and rivers.”
 
-Prefer creator-facing labels:
-- “Up to date”
-- “Updating this area”
-- “Some areas need more detail”
-- “Based on older terrain data”
-- “Partially calculated”
-- “Could not update — previous result is still shown”
-- “Needs your review”
-- “Confirmed world fact”
-- “AI suggestion”
-
-Technical detail can show the underlying run/artifact IDs and fingerprints in an advanced diagnostic section.
+### Workflow
 
-## 4. Scenario A — Start from a story description
+1. User opens the Land/Water & Elevation specialist mode. The Canvas remains visible; the Inspector shows Map frame, edge semantics and current source-field coverage.
+2. User chooses to sketch, import or generate a land/water mask. The editor distinguishes a transient sketch/import preview from formal Landmass Objects and published source fields.
+3. The system validates Map extent, coordinate reference, coverage, no-data and edge/wrap semantics. It does not interpret missing coverage as ocean or zero elevation.
+4. If semantic Landmass Objects are required, the creator reviews proposed identities and boundaries separately from the physical land/water mask.
+5. User authors or imports elevation. The Inspector shows units, vertical reference, resolution, coverage, source and publication state.
+6. Terrain brush/feature-guided edits update a transient preview. The user can compare before/after and cancel without changing the published source field.
+7. On completion, the field is validated and published as a new immutable source Asset/revision under the field contract.
+8. The editor marks only dependent analysis outputs stale and explains the affected scope.
 
-**Creator intent:** “I want a large continent with a cold north, a warm southern coast, a high mountain chain in the west and a dry inland basin.”
+### Acceptance criteria
 
-### Flow
+- [ ] Land/water mask and Landmass semantic Objects are distinct concepts.
+- [ ] The UI never silently converts no-data to ocean, land or zero elevation.
+- [ ] Map-edge semantics are explicit before calculations that depend on map boundaries.
+- [ ] Elevation unit and vertical reference are visible and validated.
+- [ ] A preview can be cancelled without changing the authoritative source Asset.
+- [ ] Published source revisions are immutable and retain provenance.
+- [ ] Downstream invalidation is dependency-based, not a blanket “entire map changed” status.
+- [ ] Formal Object creation and source-field publication are separately reported.
 
-1. Creator opens a new Map and starts the built-in Guided Initialization conversation.
-2. AI acknowledges the creative intent and separates known facts, preferences, creative freedom and unresolved choices.
-3. AI asks only questions that materially affect the next world-frame or geography decision. It avoids asking the creator to select a CRS, projection or raster resolution.
-4. Based on answers, the system proposes a world frame and coarse land/water arrangement.
-5. Canvas displays a clearly marked proposal, with the proposed extent and key geographic assumptions.
-6. Inspector summarizes the proposal in creator language: world size/shape, wrap behavior, major landmass placement and unresolved choices.
-7. Creator can edit the sketch directly, answer another question, mark an assumption as protected, or reject part of the proposal.
-8. The system generates an editable initialization proposal. Formal application follows the applicable Initial State authorization path.
-9. After application, derived analysis is offered progressively; missing elevation or planetary assumptions are explained rather than fabricated.
-
-### UX requirements
-
-- Questions are adaptive and do not repeat already confirmed facts.
-- The creator may say “I don't know”, skip, revise or contradict an earlier answer.
-- The assistant distinguishes “you specified” from “I suggest”.
-- No character, civilization, war or story event is automatically turned into a geographic Object merely because it appears in prose.
-- The preview communicates what will become formal and what remains an assumption or derived output.
-- A user can exit the conversation and continue by drawing.
-
-### Acceptance
-
-- A story-only start can reach a reviewable coarse geography proposal without technical GIS input.
-- Reopening the flow preserves confirmed answers and does not ask them again unnecessarily.
-- Rejecting or cancelling the proposal leaves formal map state unchanged.
-- Applying the proposal creates only the explicit supported formal facts; analysis layers remain derived.
-- The UI identifies unresolved physical inputs that limit later calculations.
-
-## 5. Scenario B — Draw land, water and elevation directly
-
-**Creator intent:** sketch a coastline, add islands, create a broad plateau and raise a mountain range.
-
-### Flow
-
-1. Creator selects Land/Water or Elevation tool.
-2. Tool options show a small set of creator-facing controls, such as brush size, strength, smoothing and affected scope.
-3. Canvas shows a transient preview while the pointer moves or a stroke is in progress.
-4. Inspector displays the active field's authority, coverage, resolution and no-data status in plain language.
-5. Creator completes the gesture; a local preview and impact summary appear.
-6. The system checks map-edge behavior, boundary context, valid coverage and protected source regions.
-7. Creator commits or cancels the edit according to the operation's formal authoring path.
-8. The field/source revision is published immutably; dependent analyses are marked as updating or stale.
-9. The previous valid derived result remains visible until a replacement is validated and atomically published.
-
-### UX requirements
-
-- Landmass semantic identity is not derived from connected raster component count.
-- Coastline is shown as a derived boundary, not silently authored as a second competing Object.
-- Unknown/no-data is visually distinguishable from zero elevation or water.
-- Brush preview is not formal persistence; cancellation leaves source data unchanged.
-- Local refinement shows whether the edit reaches tile boundaries or requires more neighboring context.
-- The user sees the affected area and major dependent analyses before committing a high-impact change.
-
-### Acceptance
-
-- Cancelled strokes leave no formal field revision.
-- A committed local edit records its source/provenance and correct spatial coverage.
-- Tile-edge edits do not introduce visible seams in the accepted result.
-- Missing neighboring context is reported as incomplete, not treated as a natural boundary.
-- A derived coastline refresh does not change Landmass Object identity.
-- The user can distinguish zero, unknown and no-data values.
-
-## 6. Scenario C — Author and refine terrain features
-
-**Creator intent:** create a mountain range, place a named peak and classify a plateau.
-
-### Flow
-
-1. Creator selects Mountain Range and sketches its footprint/ridge.
-2. Inspector asks for only meaningful semantic properties (such as name) and shows geometry roles.
-3. The system may offer detected ridges/peaks as suggestions, clearly marked as derived candidates.
-4. Creator chooses whether to create a formal Mountain Range, adjust its geometry or keep it as a candidate.
-5. Creator places a Mountain Peak and optionally establishes the supported structural relationship to the range.
-6. Terrain Region classification is authored or derived within the bounded vocabulary.
-7. Terrain/elevation consistency checks run and show relevant warnings.
-
-### UX requirements
-
-- A local elevation maximum is not automatically a named Mountain Peak.
-- Proximity does not imply a formal peak-belongs-to-range relationship.
-- A plateau is not presented as a mountain range.
-- Geometry edit and semantic Object operation are visually distinct.
-- The UI does not offer formal geometry split/merge if the Core Domain descriptor gate is not closed.
-- Derived feature detection never overwrites creator-authored geometry without an explicit adoption path.
-
-### Acceptance
-
-- A semantic Object can span multiple Working Scopes without duplicate identities.
-- A peak can exist without a range relationship.
-- The relationship is only created through the supported typed operation.
-- Detected feature candidates can be accepted, edited or dismissed independently.
-- Geometry preview cancellation does not alter formal geometry or Object identity.
-
-## 7. Scenario D — Analyze drainage and author rivers/lakes
-
-**Creator intent:** “Show the major rivers. Keep this inland basin closed, and make this northern river join the main river.”
-
-### Flow
+## 4. End-to-end scenario B — Author and refine terrain features
 
-1. Creator requests drainage analysis for the current Working Scope.
-2. The Inspector checks and summarizes prerequisites: elevation coverage, land/water inputs, map-edge behavior and known lakes/depressions.
-3. If critical inputs are missing, the system explains the blocker and offers the smallest useful next action; it does not run an apparently complete analysis.
-4. Calculation progress is shown by meaningful phases/areas, while the prior valid result remains available.
-5. The Canvas displays derived flow tendencies, basin boundaries and channel candidates with clear visual distinction from formal Rivers.
-6. A detected depression is classified as closed/possible/unresolved according to evidence; it is not automatically filled.
-7. Creator selects a channel candidate and adopts/refines it as a formal River where supported.
-8. Creator reviews each supported River-to-River or River-to-Lake relationship. Unsupported ocean/estuary endpoint semantics are not represented as fake generic edges.
-9. Validation explains uphill segments, unsupported endpoints, cycles or water-balance concerns.
-10. Accepted formal changes route through Core Domain; derived flow fields remain analysis artifacts.
-
-### UX requirements
-
-- Flow direction is visually distinct from River line geometry.
-- Formal relationship direction is explicit: source/upstream to receiver/downstream.
-- The UI does not imply that a derived channel candidate is already a formal River.
-- Closed inland basins are first-class valid interpretations, not errors.
-- Unsupported network topology is explained as a current capability boundary.
-- No exact discharge/flood forecast is shown unless a validated model actually supports it.
-
-### Acceptance
-
-- Analysis is blocked or marked partial when required elevation coverage is inadequate.
-- A legitimate endorheic basin is preserved.
-- A derived channel does not automatically create a formal River.
-- Formal River connectivity uses only registered endpoint/type/cardinality rules.
-- A local upstream elevation edit invalidates affected downstream drainage results.
-- If recalculation fails, the last valid drainage overlay remains available and is labelled accurately.
-
-## 8. Scenario E — Understand climate and ecological suitability
-
-**Creator intent:** “Why is the land east of the mountains dry? Could this region support coniferous forest?”
-
-### Flow
-
-1. Creator selects a region or asks a natural-language question.
-2. The assistant identifies relevant inputs and displays the calculation coverage and assumptions.
-3. Climate layers show seasonal temperature/precipitation patterns and their confidence/coverage.
-4. Creator selects a location/region; Inspector explains the main causal factors in creator language (latitude/season, elevation, ocean distance, prevailing wind, moisture source, mountain barrier).
-5. Creator switches between seasonal phases and climate classification.
-6. Biome suitability is displayed separately from actual creator-authored ecosystem/forest facts.
-7. If the creator has specified a magical forest or other exception, the system preserves it and explains the difference between physical suitability and world fact.
-8. Creator may request a local recalculation or revise a source assumption.
-
-### UX requirements
-
-- Climate is not presented as an arbitrary independent paint layer.
-- Seasonal phase names and hemisphere behavior are understandable.
-- Rain-shadow explanation requires a plausible moisture source, wind direction and terrain barrier.
-- Suitability is not interpreted as actual species presence or population.
-- Classification scheme and approximation are disclosed.
-- A climate result with insufficient physical input is visibly incomplete/uncertain.
-
-### Acceptance
-
-- Inspector can explain the major input causes behind a displayed result.
-- A rain-shadow claim without required causal support is not presented as established.
-- Biome suitability never overwrites creator-confirmed ecosystem facts.
-- A global planetary parameter change visibly indicates broad recalculation impact.
-- A local terrain edit invalidates only the dependent regional outputs permitted by the model.
-- Seasonal outputs distinguish hemisphere phase mapping correctly.
-
-## 9. Scenario F — Local refinement and global impact
-
-**Creator intent:** increase detail around one valley without changing the surrounding mountain system.
-
-### Flow
-
-1. Creator changes Working Scope to the valley's locality.
-2. The editor displays parent/neighbor context sufficient to understand boundaries.
-3. Creator refines local elevation/terrain.
-4. Before formal application, the system summarizes the spatial impact: edited area, neighboring context and affected derived products.
-5. The system protects explicitly confirmed surrounding geometry.
-6. After commit, only declared dependent coverage is invalidated and recalculated.
-7. The UI shows local progress and identifies any broader downstream hydrology/climate propagation.
-8. Unaffected results remain current and visible.
-
-### UX requirements
-
-- Working Scope is not mistaken for Map Extent.
-- Parent/neighbor context is visible without making the whole world editable.
-- The impact summary distinguishes direct edit footprint from derived influence area.
-- The UI does not promise that all hydrology/climate effects are local if the dependency model says otherwise.
-- A protected object is not silently changed by a local refinement.
-
-### Acceptance
-
-- A local edit does not alter unrelated formal geometry.
-- Boundary context prevents artificial seams.
-- Direct and propagated impact areas are distinguishable.
-- Only declared dependent outputs are marked stale.
-- A change that legitimately propagates through a drainage network or regional climate model shows that broader impact.
-
-## 10. Scenario G — Calculation failure, cancellation and stale results
-
-**Creator intent:** continue working safely when analysis is slow, interrupted or no longer current.
-
-### Flow
-
-1. A calculation starts; the user sees its scope, phase and current status.
-2. The user can cancel a cancellable run.
-3. If source inputs change while the run is executing, the result is marked as based on an older input snapshot and cannot overwrite a newer publication.
-4. If a run fails, the Inspector explains the cause and suggests a retry or source correction.
-5. The last valid artifact remains available, with an “outdated” or “previous result” label where appropriate.
-6. After application restart, interrupted runs are reconciled. Valid active artifacts are restored; incomplete temporary output is not treated as success.
-7. The creator can continue manual editing while unrelated background work is running.
-
-### UX requirements
-
-- Progress is meaningful, not falsely precise.
-- Cancel is available only where the current phase can safely stop; the UI communicates when cancellation is completing.
-- A failed refresh never blanks the old result.
-- Stale data is never silently labelled “up to date”.
-- Technical run IDs, hashes and stack details are hidden by default but available for diagnostics/export.
-- Retry does not duplicate formal Objects or Commands.
-
-### Acceptance
-
-- Cancelled work publishes no partial active artifact.
-- Older runs cannot replace newer results.
-- Failure preserves the previous valid result.
-- Restart recovery never fabricates a completed run.
-- Manual editing and inspection remain responsive.
-- A retry is idempotent with respect to formal map data.
-
-## 11. Scenario H — Review AI proposals and adopt formal changes
-
-**Creator intent:** accept the proposed river course but reject a proposed lake shoreline.
-
-### Flow
-
-1. AI proposes a set of map changes with provenance, scope and validation report.
-2. The review view groups changes by semantic object/operation and spatial impact, not by raw database records.
-3. Creator can inspect a candidate on the Canvas, compare before/after, accept/reject independent safe items or request revision.
-4. The UI identifies dependencies between proposed items; partial acceptance is offered only where the remaining subset is valid.
-5. Before formal application, the system rechecks target context, proposal version/hash and authorization.
-6. Formal changes are submitted through existing Core Domain services.
-7. The UI distinguishes accepted decision, submitted operation and successfully applied formal state.
-8. Derived artifacts associated with the proposal remain separate and retain their provenance.
-
-### UX requirements
-
-- Candidate acceptance is not the same as formal application.
-- Confirmation binds to the exact proposal version and target context.
-- A changed proposal invalidates prior approval for the changed content.
-- Rejection does not delete source facts or unrelated candidate items.
-- Partial acceptance must not leave dangling or invalid relationships.
-- Task cancellation does not undo already committed formal changes.
-
-### Acceptance
-
-- Before/after comparison identifies the exact affected Objects/geometries/relationships.
-- User decisions are version-bound.
-- A stale proposal is blocked or revalidated before application.
-- Partial acceptance cannot violate Core Domain descriptors.
-- UI reports formal application success only after the domain service confirms it.
-- Derived-only result publication does not create a fake approval workflow.
-
-## 12. Inspector contract
-
-The Inspector is contextual and should avoid becoming a generic property grid.
-
-### 12.1 Selected formal Object
-
-Show:
-- display name and Object Type;
-- identity/status in creator-friendly terms;
-- relevant typed attributes;
-- geometry components and roles;
-- supported relationships;
-- provenance/source and formal/derived/candidate distinction;
-- validation findings and applicable actions.
-
-### 12.2 Selected physical field
-
-Show:
-- field meaning and units;
-- authored/imported/derived source;
-- coverage and resolution in understandable terms;
-- no-data/unknown regions;
-- source revision and freshness;
-- dependent analyses and last update state;
-- inspect/sample tool where appropriate.
-
-### 12.3 Selected derived result
-
-Show:
-- what the result means;
-- input sources and key assumptions;
-- calculation method/version in advanced details;
-- coverage/resolution/uncertainty;
-- current/stale/partial state;
-- diagnostics and explanation;
-- actions such as recalculate, compare, inspect source or hide layer.
-
-### 12.4 Selected Candidate
-
-Show:
-- proposed semantic change;
-- creator intent it addresses;
-- evidence and provenance;
-- before/after preview;
-- validation and impact;
-- dependencies and partial-acceptance constraints;
-- accept/reject/request-revision actions when authorized.
-
-## 13. Diagnostics and impact visualization
-
-Diagnostics are grouped by what the creator can do, not only by algorithm category.
-
-Recommended groups:
-- **Needs attention:** blocks a requested action or makes the result unsafe.
-- **Uncertain result:** usable with disclosed limitations.
-- **Suggested improvement:** optional refinement.
-- **Protected fact conflict:** a derived suggestion conflicts with a creator-confirmed fact.
-- **Outdated analysis:** source changed and dependent result needs refresh.
-
-Each diagnostic includes:
-- concise creator-language summary;
-- affected region/feature;
-- cause and relevant input references;
-- severity and whether it blocks publication/application;
-- suggested next action;
-- advanced technical detail where useful.
-
-Canvas navigation from a diagnostic must focus the affected region and preserve the prior selection/context for return. Impact overlays distinguish the directly edited area from the propagated calculation influence area.
-
-## 14. Confirmation, permissions and safety
-
-- View changes, layer visibility, selection and derived-only recalculation do not require formal-world confirmation.
-- Transient previews and cancelled gestures never write formal state.
-- Low-risk formal operations may follow the configured authorization policy; high-impact semantic changes, protected facts, broad scope changes and uncertain partial adoption require contextual review.
-- User confirmation is tied to exact operation/proposal content and target Map/Branch/time context.
-- Permissions are checked at action time, not only when the panel was rendered.
-- The editor never lets an AI-generated result bypass Core Domain validation.
-- A task cancel does not reverse a formal operation already committed.
-- The UI must never describe an AI proposal as a confirmed world fact.
-
-## 15. Accessibility and interaction requirements
-
-- All primary tools and review actions are keyboard reachable.
-- Focus order follows Canvas/tool/Inspector/conversation and remains predictable.
-- Selected features and diagnostic targets have non-color-only indicators.
-- Derived/formal/candidate states use text/icon/line-style distinctions in addition to color.
-- Layer visibility, progress and validation states are announced accessibly.
-- Pointer hit targets and snapping remain usable at supported DPI/scaling levels.
-- Keyboard cancellation and Escape behavior are consistent across tools.
-- Undo/Redo scope is clear: local preview cancellation versus formal history operation.
-- Tooltips and labels use creator language; technical terms have concise explanations.
-
-## 16. Cross-mode consistency
-
-Natural Geography must reuse the shared editor interaction framework:
-- same navigation, Working Scope, selection and contextual Inspector framework;
-- same transient Edit Session and preview/cancel semantics;
-- same AI conversation and Candidate review model;
-- same formal Core Domain application path;
-- same timeline/Branch context;
-- same layer/view separation and scene refresh rules.
-
-Mode-specific differences belong in tool definitions, contextual inspector sections, domain diagnostics and layer presets. Do not implement a separate Natural Geography selection, history or calculation task system.
-
-## 17. End-to-end acceptance matrix
-
-| ID | Scenario | Must-pass outcome |
-|---|---|---|
-| G-01 | Story-led initialization | Adaptive conversation creates a reviewable proposal; no unrequested formal Objects |
-| G-02 | Draw land/water/elevation | Preview cancellation is safe; no-data differs from zero; local boundary context is preserved |
-| G-03 | Terrain features | Stable Object identity; candidates are not formal facts; relationships are explicit |
-| G-04 | Drainage analysis | Terrain-first results; closed basins preserved; formal network limits respected |
-| G-05 | Climate/ecology | Causal explanation, seasonality and suitability/fact distinction are visible |
-| G-06 | Local refinement | Bounded invalidation with honest propagated impact |
-| G-07 | Failure/cancellation/stale | Old valid result remains; obsolete run cannot publish; restart recovery is safe |
-| G-08 | AI proposal review | Version-bound decisions, valid partial acceptance and explicit formal-application result |
-| G-09 | Inspector | Correct context-specific details and provenance for Object/field/result/Candidate |
-| G-10 | Diagnostics | Actionable creator-language explanation and spatial navigation |
-| G-11 | Offline operation | Manual authoring, local calculations and inspection work without AI/network |
-| G-12 | Accessibility | Keyboard, DPI, focus and non-color state communication pass |
-
-## 18. Figma handoff guidance
-
-The Figma design should produce a coherent Natural Geography mode within the shared editor shell, not a separate application.
-
-Required screen/state designs:
-1. Natural Geography default Canvas with layer navigator, contextual Inspector and bottom AI conversation.
-2. Guided Initialization conversation with map proposal preview and confirmed/assumed/unresolved facts.
-3. Land/water and elevation brush with transient preview and impact summary.
-4. Terrain Object selection/creation with geometry roles and relationship inspector.
-5. Drainage analysis with flow direction, basin/channel candidates and formal River distinction.
-6. Climate seasonal view with causal explanation and biome suitability versus creator-confirmed ecology.
-7. Calculation progress, stale result, failed refresh and preserved prior artifact states.
-8. Diagnostics list with Canvas focus/impact overlay.
-9. AI Candidate review with before/after, partial acceptance and authorization/apply states.
-10. Field/Derived Artifact provenance and advanced technical details in progressive disclosure.
-
-Visual direction:
-- professional, restrained desktop authoring tool;
-- compact but readable information density;
-- Canvas remains visually dominant;
-- creator-facing labels by default, technical details on demand;
-- distinguish authored/formal/derived/candidate/presentation using consistent iconography, labels and visual treatments;
-- avoid dashboard KPI cards, giant progress cards, GIS jargon-heavy forms and modal-heavy workflows;
-- use inline contextual feedback for routine actions and focused dialogs only for meaningful decisions.
-
-The Figma deliverable should include normal, empty, loading, partial, stale, warning, error, cancelled and recovery states where relevant. A single happy-path screen is insufficient.
-
-## 19. Open usability and implementation gates
-
-| Gate | Owner | Evidence required |
-|---|---|---|
-| ME02-G-UX01: information density and panel sizing | Figma / product UX | Desktop prototypes at supported window sizes |
-| ME02-G-UX02: creator-language vocabulary | Product UX + domain specialists | Comprehension review without GIS knowledge |
-| ME02-G-UX03: layer grouping and state distinctions | Editor UX | Formal/derived/candidate/presentation usability test |
-| ME02-G-UX04: progress/stale/failure presentation | Editor + Map Engine | Simulated long-run and failure-state prototype |
-| ME02-G-UX05: Candidate review and partial acceptance | Editor + AI Assistant | Complex multi-item review scenarios |
-| ME02-G-UX06: diagnostic navigation and impact visualization | Editor + spatial services | Cross-scope and propagated-impact scenarios |
-| ME02-G-UX07: accessibility and DPI behavior | Desktop UX/implementation | Keyboard, screen-reader labels and scaling tests |
-
-These gates do not block the architecture baseline. They require prototype and implementation validation before declaring the UX implementation-ready.
-
-## 20. Source alignment and status
-
-This document is aligned with:
-- ME-01-01 through ME-01-07 — unified editor shell, story/spatial bridge, Guided Initialization, multi-scale model, Object/Geometry separation, shared interaction and cross-architecture findings.
-- ME-02 V0.4 and ME-02-A through ME-02-F — domain inventory, authoring, hydrology, climate/ecology and calculation lifecycle.
-- Map Generation Specification/Workflow/Session Lifecycle V0.2 — task, Candidate, Change Set, authorization and formal application boundaries.
-- Map Engine rendering and spatial interaction contracts — immutable scenes, snapshot consistency, transient preview and cache invalidation.
-
-ME-02-G establishes the Natural Geography UX working baseline and end-to-end acceptance scenarios. It does not claim that Figma screens, usability tests, Avalonia controls or implementation tests have been completed.
-
-**Next work:** ME-02-H cross-architecture consistency review across Core Domain, Map Engine, Map Generation, AI Assistant, ME-01 and ME-02.
+### User intent
+
+“Create this mountain range, identify its major peaks, and show the highland region.”
+
+### Workflow
+
+1. User selects the Mountain Range tool and sketches an approximate extent or ridge. The preview is visibly transient.
+2. The Inspector explains that a MountainRange is one semantic Object and may have extent/ridge geometry roles; it is not a collection of raster cells.
+3. User confirms the Object identity/required definition attributes. Core Domain reservation and creation rules apply; geometry validation is performed against the descriptor.
+4. User selects a peak candidate. The system shows source evidence, elevation value, unit, vertical reference and confidence. A candidate is not yet a formal MountainPeak.
+5. User accepts a peak as a formal Object. Its point geometry and required elevation semantics are validated.
+6. If the peak is semantically part of the range, the user explicitly accepts the MountainPeak → MountainRange structural relationship. Point-in-polygon alone does not create part_of.
+7. User creates or refines a TerrainRegion. Its classification is bounded by the registered descriptor; overlapping regions and unresolved boundaries are shown as diagnostics.
+8. A later geometry refinement preserves Object identity and creates a new formal geometry state only through the supported Geometry Operation.
+
+### Acceptance criteria
+
+- [ ] MountainRange extent/ridge and MountainPeak point geometry use declared roles.
+- [ ] Detection results remain Candidates until explicitly adopted.
+- [ ] MountainPeak identity is distinct from the peak marker/geometry.
+- [ ] Elevation always includes unit and vertical reference.
+- [ ] part_of is a semantic action distinct from spatial containment.
+- [ ] Geometry refinement does not create, split or merge semantic Objects.
+- [ ] TerrainRegion classification is not used as a generic bucket for climate or arbitrary raster classes.
+- [ ] The Inspector exposes provenance and descriptor validation, not only editable display fields.
+
+## 5. End-to-end scenario C — Analyze drainage and adopt a river network
+
+### User intent
+
+“Analyze where water drains, identify the main rivers and connect the tributaries to the receiving lakes.”
+
+### Workflow
+
+1. User requests drainage analysis for a named Working Scope. The UI shows the calculation scope expanded to include the required terrain and basin context.
+2. Input validation checks elevation fingerprint, vertical reference, land/water mask, map-edge semantics, no-data and depression policy.
+3. The service identifies depressions and presents their classification: confirmed lake basin, confirmed closed basin, candidate sink, data artefact candidate or unresolved.
+4. User chooses/accepts a conditioning policy where required. The authored elevation source is never overwritten by the derived conditioned surface.
+5. The calculation produces flow direction, accumulation, basin/divide and channel candidates with algorithm/version, parameters, source fingerprints and uncertainty.
+6. User reviews candidate River groupings. The UI distinguishes analyzed flow from formal River geometry and confirmed relationship edges.
+7. User adopts selected River Objects. Identity allocation and geometry publication are separate from derived channel detection.
+8. User reviews each proposed flow direction. The Inspector shows upstream → downstream meaning, existing incoming/outgoing relationships and cycle/cardinality validation.
+9. Accepted relationships are applied through the correct Initial State or selected History path. The editor reports the exact formal result only after Core Domain confirms it.
+
+### Acceptance criteria
+
+- [ ] Drainage scope is not silently clipped to the viewport.
+- [ ] No-data is never treated as sea level, a sink or an outlet without explicit evidence.
+- [ ] Depression treatment is inspectable and does not overwrite source elevation.
+- [ ] Flow direction is explicit and never inferred from River centerline vertex order.
+- [ ] Derived basins/channels are not formal Objects by default.
+- [ ] A geometric crossing is not automatically a confluence.
+- [ ] V1 formal flow allows River → River and River → Lake only.
+- [ ] A River has at most one downstream receiver; multiple tributaries may enter one River.
+- [ ] Lake is terminal in the formal V1 flow graph.
+- [ ] Cycles, inactive endpoints and stale source context are surfaced before application.
+- [ ] Partial adoption is allowed only when dependency and graph validation prove the subset coherent.
+
+## 6. End-to-end scenario D — Climate-first analysis
+
+### User intent
+
+“Explain why the western coast is wet and the inland plateau is dry, and show the seasonal differences.”
+
+### Workflow
+
+1. User selects a world or region and requests climate analysis.
+2. The Inspector lists required planetary/season assumptions and available source inputs: latitude/world frame, elevation, land/water, circulation, moisture sources and ocean influence.
+3. Missing material inputs are identified before calculation. The Assistant may ask a focused clarification or apply a named visible default profile when the domain contract permits.
+4. The user chooses a seasonal profile. The UI explains that phase count and hemisphere offsets are world parameters, not assumptions derived from a Gregorian calendar.
+5. Calculation produces seasonal temperature and precipitation estimates, moisture balance and causal diagnostics.
+6. User inspects the causal chain for a region: moisture source → prevailing wind → terrain barrier/uplift → precipitation or rain-shadow effect.
+7. Climate classification is shown only after the physical estimates and their coverage/uncertainty are available.
+8. The user can compare seasons, inspect assumptions and change inputs. Changed inputs mark dependent outputs stale; a new calculation creates new immutable artifacts.
+
+### Acceptance criteria
+
+- [ ] Climate is not presented as a manually painted authoritative world fact by default.
+- [ ] Seasonal phases and planetary assumptions are visible and versioned.
+- [ ] The model does not claim exact weather, wind speed or rainfall where V1 only supports broad estimates.
+- [ ] A rain-shadow explanation shows the necessary moisture source, wind direction and terrain barrier evidence.
+- [ ] Climate classification is downstream of temperature/precipitation estimates.
+- [ ] Confidence, coverage and uncertainty are visible at the relevant spatial scope.
+- [ ] A stale climate result is not presented as current.
+- [ ] Recalculation does not mutate source fields or formal Objects.
+
+## 7. End-to-end scenario E — Ecology-first intent and exception
+
+### User intent
+
+“This island should have a magical forest even though the natural climate model suggests a dry climate.”
+
+### Workflow
+
+1. User describes the intended forest. The Assistant asks whether this is a confirmed world fact, a desired natural outcome or a tentative preference.
+2. If confirmed, the system records the creator-authoritative fact through the appropriate World Knowledge/Core Domain path. It does not reject the fact because a suitability model disagrees.
+3. The system evaluates climate, water, soil and elevation suitability and shows the causal mismatch.
+4. The Inspector displays separate sections for actual creator-confirmed ecosystem and derived biome suitability.
+5. The Assistant may suggest plausible explanations (magic, irrigation, unusual species adaptation) as hypotheses, but does not convert them into facts without approval.
+6. The user may preserve the exception, alter physical inputs, or revise a soft preference.
+7. Species habitat suitability is evaluated separately from actual species presence.
+
+### Acceptance criteria
+
+- [ ] Actual ecosystem, biome suitability and species habitat suitability are separate concepts.
+- [ ] A creator-confirmed magical or engineered exception is not treated as invalid merely because natural suitability differs.
+- [ ] Derived suitability never automatically creates a TerrainRegion or ecosystem Object.
+- [ ] The Assistant labels explanations as hypotheses until confirmed.
+- [ ] The UI exposes the cause of divergence without overwriting creator intent.
+
+## 8. End-to-end scenario F — Source change, stale outputs and bounded recomputation
+
+### User intent
+
+“I raised this mountain chain. Update the drainage and climate around it, but keep the confirmed lake and river identities.”
+
+### Workflow
+
+1. User edits the elevation field in a transient session and previews the affected area.
+2. On publication, the source Asset revision changes; prior calculations retain their original provenance.
+3. The dependency graph identifies affected hydrology and climate outputs. Unrelated ecological or regional outputs remain current only if their dependency manifests prove independence.
+4. The UI shows direct source change, affected derived outputs, required context buffer and any global/basin-wide dependency.
+5. Existing formal Lake/River Objects and creator-protected geometry are shown as protected facts. The calculation may diagnose conflicts but cannot silently rewrite them.
+6. User starts recalculation. Outputs are published atomically; cancellation or failure does not expose partial results as current.
+7. Candidate geometry/relationship changes may be proposed separately for review.
+8. If a Branch is active, the UI makes clear which History path the formal adoption targets; sibling Maps/Branches remain isolated.
+
+### Acceptance criteria
+
+- [ ] Source Asset revisions are immutable.
+- [ ] Freshness is evaluated from declared dependencies, not all Project changes.
+- [ ] Non-local dependencies expand calculation scope beyond the edited geometry when required.
+- [ ] Protected Objects are never silently overwritten by derived analysis.
+- [ ] Derived output publication is atomic and cancellation-safe.
+- [ ] Candidate adoption revalidates current History and descriptor versions.
+- [ ] A Map/Branch-local operation never changes another Map or sibling Branch.
+- [ ] Shared Object definition changes and History-local changes show their different propagation semantics.
+
+## 9. Inspector content contract
+
+The Inspector must be contextual and authority-aware.
+
+| Selected content | Required Inspector sections |
+|---|---|
+| Landmass | Identity/type, definition attributes, geometry roles, Map/History presence, source/provenance, relationships, validation |
+| MountainRange | Identity/type, extent/ridge components, classification, peak membership, contained features, provenance, diagnostics |
+| MountainPeak | Identity/type, point geometry, elevation/unit/vertical reference, part-of relationship, source evidence |
+| River | Identity/type, centerline components, river class, formal upstream/downstream relationships, analyzed flow evidence, outlet/uncertainty |
+| Lake | Identity/type, shoreline, water-body class, incoming formal Rivers, derived basin/water-balance evidence |
+| TerrainRegion | Identity/type, terrain classification, extent, overlap/adjacency, source and derivation status |
+| Physical field | Field identity/revision, source, units/reference, resolution, coverage/no-data, fingerprint, publication and dependent outputs |
+| Derived analysis | Calculation ID, output role, algorithm/version, parameters, input manifest, freshness, coverage, uncertainty, diagnostics |
+| Candidate | Candidate identity/version/hash, proposed changes, provenance, dependencies, validation, impact, accept/reject eligibility |
+| Diagnostic | Severity, explanation, source evidence, affected references/scope, recommended action |
+
+The Inspector must not display definition fields as if they were History-local runtime fields, or show derived output fields as directly editable formal Object attributes.
+
+## 10. Confirmation and review rules
+
+- Low-risk, unambiguous, small manual edits may apply after validation without a separate confirmation dialog.
+- Large-area field publication, broad generation, destructive edits, protected-content impact and formal relationship changes require contextual preview/review according to the relevant Core Domain/AI authorization policy.
+- Formal Object identity allocation and creation must be explicit; detection is not creation.
+- Relationship direction and cardinality must be understandable in creator language.
+- Candidate acceptance is bound to the exact Candidate version/hash and target Map/Branch/Time context.
+- A changed Candidate or stale input requires renewed validation and, where material, renewed user decision.
+- Confirmation describes concrete impact and whether the action changes a source field, formal world fact, derived artifact or presentation only.
+
+## 11. Error and recovery scenarios
+
+| Situation | Required user-visible behavior |
+|---|---|
+| Missing elevation or unresolved vertical reference | Explain which analysis is blocked; allow unrelated manual authoring |
+| Incomplete/no-data coverage | Show boundary and uncertainty; never fabricate a coastline or outlet |
+| Depression classification ambiguous | Preserve as unresolved Candidate/diagnostic; do not auto-fill |
+| River candidate has unsupported outlet | Show unresolved terminal evidence; do not invent an Ocean Object or relationship |
+| Flow relationship would create cycle or exceed downstream cardinality | Block that relationship and show the conflicting path |
+| Climate profile lacks material season assumptions | Ask a focused clarification or use a named disclosed default where allowed |
+| Derived output is stale | Keep it inspectable as stale; prevent current-result claims and stale adoption |
+| Candidate target changed | Mark stale and require regeneration/review |
+| Calculation cancelled or failed | Preserve source/formal state; do not publish partial output as current |
+| AI unavailable | Manual authoring, local inspection and deterministic calculations remain available |
+| Final Core Domain application fails | Report no formal change for the failed transaction; preserve staged Candidate if safe |
+
+## 12. Accessibility and information density
+
+- Every layer distinction uses more than color alone.
+- Diagnostics and Candidate lists are keyboard navigable and link to a reliable Canvas target.
+- The Inspector exposes the same essential information without requiring hover.
+- Tool activation, active scope and selected formal/Candidate state are announced accessibly.
+- Dense scientific detail is progressively disclosed; ordinary creators see causes and ranges first, while exact parameters/provenance remain inspectable.
+- Long calculations do not block Canvas navigation or inspection of unaffected content.
+- The UI avoids modal wizard chains; questions are contextual and only asked when missing information materially changes correctness.
+
+## 13. Consolidated acceptance checklist
+
+- [ ] Formal Objects, source fields, derived analysis, Candidates and diagnostics have distinct authority and visual semantics.
+- [ ] Canvas, Inspector and Assistant have complementary roles and no competing source of truth.
+- [ ] Every formal operation resolves an explicit Map/Branch/Time and Working Scope.
+- [ ] Viewport bounds never silently truncate a broader requested operation.
+- [ ] Preview/cancel does not mutate formal state or published source Assets.
+- [ ] Every derived result exposes calculation provenance, freshness, coverage and uncertainty.
+- [ ] All ME-02 authoring flows preserve the distinction between detection and formal Object creation.
+- [ ] Relationship semantics are explicit and never inferred from geometry alone.
+- [ ] Creator-confirmed facts remain authoritative over derived suitability.
+- [ ] Calculation failures/cancellation preserve authoritative source and formal state.
+- [ ] Candidate acceptance uses the existing AI Assistant authorization and Core Domain validation path.
+- [ ] Manual authoring and inspection work without an AI provider.
+- [ ] Branch/Map isolation and shared-definition propagation are communicated correctly.
+- [ ] Keyboard and accessibility paths cover essential editing, review and diagnostic navigation.
+
+## 14. Status and next gate
+
+ME-02-G is complete as an end-to-end UX scenario and acceptance working baseline. It does not freeze exact Avalonia layouts, docking controls, colors, icons, shortcuts, renderer, geometry engine or raster library.
+
+Next is ME-02-H: cross-architecture review against Core Domain, Map Engine, Map Generation and ME-01, followed by an implementation handoff package that identifies unresolved engineering gates without treating design completion as implementation completion.
