@@ -3,7 +3,7 @@
 - Version: 0.3
 - Date: 2026-11-21
 - Status: Recommended V1 Asset lifecycle integration contract; payload formats and provider execution remain open gates
-- Depends on: ME-05-01 V0.4; ME-05-02 V0.1; ME-05-04 V0.1; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-19 V0.2; P2-09-25 V0.1; ME-02-F V0.4
+- Depends on: ME-05-01 V0.5; ME-05-02 V0.1; ME-05-04 V0.1; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-19 V0.2; P2-09-25 V0.1; ME-02-F V0.4
 
 ## 1. Purpose
 
@@ -168,7 +168,7 @@ This document does not claim that any package format, provider behavior, impleme
 
 ## References
 
-- ME-05-07 Field Payload Package & Tiling Contract V0.2; ME-05-08 Field Package Binary Envelope & Directory Specification V0.1.
+- ME-05-07 Field Payload Package & Tiling Contract V0.3; ME-05-08 Field Package Binary Envelope & Directory Specification V0.1.
 
 - ME-05-01 Field Dataset Authority & Persistence Contract V0.4.
 - ME-05-02 Shared Geometry Model & Component Operations V0.1.
