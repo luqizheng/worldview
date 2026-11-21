@@ -1,9 +1,9 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 1.5
+- Version: 1.6
 - Date: 2026-11-21
 - Status: Active design work plan
-- Supersedes: ME-01-work-plan-and-document-status-v1.4.md (retained for history)
+- Supersedes: ME-01-work-plan-and-document-status-v1.5.md (retained for history)
 
 This document tracks the Map Editor product/architecture and specialist editor design workstreams. Design completion does not imply implementation completion or frozen APIs/schemas. The GitHub repository `luqizheng/worldview` is the authoritative project documentation location.
 
@@ -49,6 +49,27 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-H | **Complete** — Cross-architecture review | Reconciled Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; Field Dataset authority decision adopted in ME-05-01 V0.3 — [ME-02-09](world-view-me-02-cross-architecture-review-v0.2.md) |
 
 ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.3. Physical schema and provider-proof designs are documented in P2-09-11 V0.11 and P2-09-12 V0.6; the recommended Field Descriptor Registry V0.1 and 32 validation vectors are also documented. Immutable payload package/tiling, development implementation and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
+
+## ME-03 — Settlements & Urban Geography Editor (design workstream opened)
+
+| ID | Document | Version | Status | Responsibility |
+|---|---|---:|---|---|
+| ME-03-00 | [Settlements & Urban Geography Editor — Scope and Work Plan](world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) | 0.1 | Specialist Workstream Scope / Design Plan | Inherited architecture constraints, existing Core Domain vocabulary, settlement/political/land-use/road boundaries, work packages and open gates |
+
+ME-03 is opened as a specialist design workstream. ME-03-A through ME-03-H are planned and not yet complete. The initial design must consume the existing `settlement`, `road` and `political_region` Object Type seeds and the bounded relationship catalog; it must not silently introduce new Object Types, Relationship Types, executable descriptors or schema changes. Domain inventory and descriptor reconciliation are the first work item.
+
+### ME-03 work sequence
+
+| Work item | Focus | Main output |
+|---|---|---|
+| ME-03-A | Domain inventory and descriptor reconciliation | Existing Object/Relationship/World Knowledge/derived/presentation mapping and exact descriptor gaps |
+| ME-03-B | Settlement model and authoring workflows | Identity, classification, anchor/extent, hierarchy and multi-scale behavior |
+| ME-03-C | Political and administrative geography | Territory/actor distinction, subdivision and temporal control prerequisites |
+| ME-03-D | Land use and functional areas | Human-use semantics distinct from terrain/land cover and presentation |
+| ME-03-E | Road and path network authoring | Road semantics, junction/crossing/connectivity and explicit network relationships |
+| ME-03-F | Settlement placement and urban spatial validation | Natural-geography constraints, access, uncertainty and diagnostics |
+| ME-03-G | UX scenarios and acceptance | Creator journeys, Canvas/Inspector, Candidate review and Figma handoff |
+| ME-03-H | Cross-architecture integration review | Core Domain / ME-01 / ME-02 / ME-05 / Map Engine / AI reconciliation and implementation gates |
 
 ## ME-05 — Shared Geometry & Spatial Operations (design package complete; implementation gates open)
 
