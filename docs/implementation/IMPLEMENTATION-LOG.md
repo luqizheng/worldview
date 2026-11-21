@@ -96,7 +96,7 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 
 ## 6. 后续实施入口
 
-1. 已完成：ME-05-01 V0.2 采纳 Map-wide retroactive Field Baseline 语义；P2-09-11 V0.11 和 P2-09-12 V0.5 已更新逻辑 Schema 与 Provider Proof 设计。
+1. 已完成：ME-05-01 V0.2 采纳 Map-wide retroactive Field Baseline 语义；P2-09-11 V0.11 和 P2-09-12 V0.6 已更新逻辑 Schema 与 Provider Proof 设计。
 2. ME-05 与 Core Domain 共同定义 Field Dataset/source-field 权威、Map scope、不可变 payload、coordinate context、tiling 和编辑生命周期。
 3. Map Engine 完成 Derived Artifact namespace/catalog、Calculation Definition fingerprint 与 SceneSnapshot 消费契约。
 4. Core Domain 只启用 payload、验证规则和测试向量已齐备的 Object / Geometry / Relationship descriptors。
@@ -116,6 +116,6 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 
 - **Adopted:** ME-05-01 V0.2 — Map-owned Field Dataset, immutable Field Revision, typed Core Asset ownership; publishing a new current revision applies retroactively to all Branches and Historical Time points of that Map only.
 - **Schema design:** P2-09-11 V0.11 adds `core_map_field_dataset` and `core_map_field_revision`, same-Dataset current-revision FK, immutable Asset ownership, baseline-aware Checkpoint fingerprints and CAS publication requirements. This is not executable DDL.
-- **Provider proof design:** P2-09-12 V0.5 adds TX-58 through TX-64 for uniqueness, typed Asset ownership, immutability, CAS, retroactive Branch/Time behavior, cross-Map isolation, orphan recovery and Checkpoint invalidation. These tests have not been executed.
+- **Provider proof design:** P2-09-12 V0.6 adds TX-65 through TX-71 for uniqueness, typed Asset ownership, immutability, CAS, retroactive Branch/Time behavior, cross-Map isolation, orphan recovery and Checkpoint invalidation. These tests have not been executed.
 - **Calculation alignment:** ME-02-F V0.3 pins source Field Dataset/Revision identities and Map Source Field Baseline fingerprints in calculation inputs/freshness.
 - **Status:** H-G01 product/domain authority gate closed. Field Descriptor Registry, canonical manifest schema, payload package/tiling, actual provider validation, implementation and Windows/macOS execution remain open. No production field publication capability is claimed.
