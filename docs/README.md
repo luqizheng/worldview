@@ -48,8 +48,9 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-02 Overall Baseline V0.6](map-editor/world-view-me-02-terrain-and-natural-geography-editor-v0.6.md) — reconciled natural-geography product/domain baseline through ME-02-H.
 - [ME-05-01 Field Dataset Authority & Persistence Contract V0.3](map-editor/world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.3.md) — adopted Map-owned source field identity, immutable revisions, typed Core Asset ownership and retroactive Map-wide Branch/History semantics; implementation and provider proof remain open.
 - [ME-05-03 Topology & Spatial Predicate Contract V0.1](map-editor/world-view-me-05-03-topology-and-spatial-predicate-contract-v0.1.md) — geometric predicates, boundary semantics, adjacency candidates, topology/relationship separation, numerical certainty and query freshness.
+- [ME-05-04 Coordinate Reference, Precision & Measurement Contract V0.1](map-editor/world-view-me-05-04-coordinate-reference-precision-and-measurement-contract-v0.1.md) — immutable spatial-reference definitions, typed coordinate pipeline, explicit transforms, per-reference precision profiles, curve preservation and measurement accuracy semantics.
 - [ME-05-02 Shared Geometry Model & Component Operations V0.1](map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) — shared component identity/lifecycle, formal geometry operation boundary, write-context routing and immutable Asset ownership.
-- [Map Editor Work Plan V1.2](map-editor/ME-01-work-plan-and-document-status-v1.2.md) — current workstream status and specialist design inventory.
+- [Map Editor Work Plan V1.3](map-editor/ME-01-work-plan-and-document-status-v1.3.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
