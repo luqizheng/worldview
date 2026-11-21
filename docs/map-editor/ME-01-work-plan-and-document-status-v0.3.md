@@ -26,12 +26,13 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ID | Document | Version | Status | Responsibility |
 |---|---|---:|---|---|
 | ME-02-01 | [Terrain & Natural Geography Editor](world-view-me-02-terrain-and-natural-geography-editor-v0.1.md) | 0.1 | Natural Geography Editor Working Baseline | Product workflows, semantic Objects vs physical fields vs derived layers, terrain/hydrology/climate/ecology scope, scientific rules, calculation boundaries and V1 capability limits |
+| ME-02-02 | [Domain Inventory & Core Domain Mapping](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) | 0.1 | Domain Inventory Working Baseline | Maps natural-geography concepts to formal Objects, physical fields, derived analysis, World Knowledge and presentation; records V1 descriptor and persistence gaps |
 
 ### ME-02 work sequence
 
 | Work item | Focus | Main output |
 |---|---|---|
-| ME-02-A | Domain inventory against Core Domain catalogs | Natural feature → Object / field / derived layer / Knowledge mapping; descriptor gaps |
+| ME-02-A | <badge>Complete</badge> Domain inventory against Core Domain catalogs | Natural feature → Object / field / derived layer / Knowledge mapping; descriptor gaps — [ME-02-02](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) |
 | ME-02-B | Land/water and elevation authoring | World frame, map-edge semantics, field/Asset contract, editing scenarios |
 | ME-02-C | Terrain feature authoring | Landmass, Mountain Range/Peak, Terrain Region tool and validation contract |
 | ME-02-D | Hydrology | Drainage analysis, depression policy, river candidate/network validation and flow relationship contract |
