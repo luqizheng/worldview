@@ -230,7 +230,7 @@ The immutable geometry Asset body follows the ME-05-04/P2-09-25 envelope and mus
 
 Typed Asset links follow P2-09-13 V0.6: `core_command_asset` is required for formal geometry Commands; `core_object_definition_asset` is required for Building/Cave definition geometry in this adoption profile. `core_map_initial_object_asset` is not required under the current membership/placement-only Initial State payload. Typed link rows contain `asset_id` and `role`, not component ID or content hash; resolve the hash from `core_asset` and validate the component-to-Asset mapping in the owner payload. Verify the real schema before proposing a migration.
 
-P2-09-40 V0.6 contains 53 design-only vectors. Each vector must map to an automated test and execute before Core Domain integration can be called complete.
+P2-09-40 V0.6 contains 55 design-only vectors. Each vector must map to an automated test and execute before Core Domain integration can be called complete.
 
 
 ## 11. V0.5 Conformance runner and typed Asset-link clarification
