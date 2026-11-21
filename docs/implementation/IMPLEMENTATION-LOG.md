@@ -2,7 +2,7 @@
 
 - **更新**：2026-11-21
 - **状态**：新架构工程骨架已提交；ME-01 / ME-02 设计包已建立；正式领域实现与若干关键技术契约仍待实施
-- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.3.md
+- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.4.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
 
@@ -146,3 +146,12 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **ME-05-06 V0.2:** cross-architecture review now includes ME-05-07; Gate B is limited to byte-level header/directory, codec/precision and performance proof plus implementation verification.
 - **ME-05-07 V0.1:** remains the detailed logical Field Package and tiling contract; it does not freeze the byte-level container, codec or numeric precision.
 - **Work plan:** ME-01-work-plan-and-document-status-v1.3.md tracks ME-05-07 and the remaining gates.
+
+
+## 2026-11-21 Field Package binary envelope design
+
+- **ME-05-08 V0.1:** specifies the V1 seekable package byte envelope: 72-byte fixed header, canonical manifest, 16-byte directory header, 72-byte tile entries and independently addressable payload blocks. Fixed-width header/directory integers are little-endian; offsets are absolute from package start; alignment is 8 bytes.
+- **P2-09-33 V0.1:** 28 binary-envelope validation vectors for header, section offsets, directory entries, tile ranges, hashes and cross-platform serialization. Design fixtures only; not executed.
+- **ME-05-07 V0.3:** integrates the byte-level envelope into the logical Field Package/tiling contract. Parser/writer, codec, tile-size and precision proof remain open.
+- **ME-05-05 V0.3 / ME-05-06 V0.4 / ME-05-01 V0.5:** cross-document package ownership, integration review and Field Dataset status aligned to the new specification.
+- **Remaining:** implement reader/writer and run all package fixtures; benchmark 128/256/512 tile sizes; choose codec and elevation precision from measured results; complete provider/runtime and Windows/macOS validation.
