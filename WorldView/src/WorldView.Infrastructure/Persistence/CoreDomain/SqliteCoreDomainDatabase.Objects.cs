@@ -149,6 +149,7 @@ public sealed partial class SqliteCoreDomainDatabase
                     advance.ExecuteNonQuery();
                 }
 
+                var reservationId = Guid.NewGuid();
                 using (var insert = connection.CreateCommand())
                 {
                     insert.Transaction = transaction;
@@ -161,7 +162,7 @@ public sealed partial class SqliteCoreDomainDatabase
                                 $sequence, $idValue, 'Reserved', $requestKey,
                                 NULL, $now, $now);
                         """;
-                    insert.Parameters.AddWithValue("$reservationId", Guid.NewGuid().ToString("D"));
+                    insert.Parameters.AddWithValue("$reservationId", Uuid(reservationId));
                     insert.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
                     insert.Parameters.AddWithValue("$typeId", Uuid(request.ObjectTypeId));
                     insert.Parameters.AddWithValue("$sequence", nextSequence);
@@ -171,8 +172,7 @@ public sealed partial class SqliteCoreDomainDatabase
                     insert.ExecuteNonQuery();
                 }
 
-                var reservation = TryReadReservationByRequestKey(transaction, request.ProjectId, request.RequestKey!)
-                    ?? throw new CoreDomainDataException("Reservation 插入后不可读（数据损坏）。");
+                var reservation = ReadReservationRow(transaction, request.ProjectId, reservationId);
                 transaction.Commit();
                 return new ReservationAllocation { Reservation = reservation, RecoveredByRequestKey = false };
             }
