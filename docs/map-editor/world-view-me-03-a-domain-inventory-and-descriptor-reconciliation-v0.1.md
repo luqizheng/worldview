@@ -3,7 +3,7 @@
 - Version: 0.1
 - Date: 2026-11-21
 - Status: Domain inventory working baseline; recommendations and gaps only, no descriptor or schema change authorized
-- Depends on: ME-03-00 V0.1; P2-09-18 V0.2; P2-09-20 V0.2; P2-09-21 V0.1; P2-09-22 V0.2; P2-09-24 V0.1; P2-09-26 V0.2; P2-09-27 V0.2; ME-02 V0.6; ME-05-01 through ME-05-06
+- Depends on: ME-03-00 V0.2; P2-09-18 V0.2; P2-09-20 V0.2; P2-09-21 V0.1; P2-09-22 V0.2; P2-09-24 V0.1; P2-09-26 V0.2; P2-09-27 V0.2; ME-02 V0.6; ME-05-01 through ME-05-06
 - Scope: Current Settlement, Road and PoliticalRegion capabilities; urban domain concepts; exact registered relationship endpoint matrices; specialist gaps
 
 ## 1. Executive findings
