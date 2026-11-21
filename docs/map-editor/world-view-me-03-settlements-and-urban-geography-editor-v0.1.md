@@ -1,10 +1,10 @@
 # World View — ME-03 Settlements & Urban Geography Editor
 
-- Version: 0.1
+- Version: 0.2
 - Date: 2026-11-21
-- Status: Specialist workstream scope and design plan; no new Object Type, Relationship Type, executable descriptor, schema or implementation is authorized by this document
+- Status: Specialist workstream scope and design plan; exact current descriptor endpoint gaps reconciled in ME-03-A V0.1; no new Object Type, Relationship Type, executable descriptor, schema or implementation is authorized by this document
 - Depends on: ME-01-01 through ME-01-07; ME-02 V0.6 and ME-02-A through ME-02-H; ME-05-01 through ME-05-06; Core Domain P2-09-18 through P2-09-27
-- Supersedes: none
+- Supersedes: ME-03-00 V0.1 for current workstream baseline; V0.1 retained for history
 
 ## 1. Purpose
 
@@ -72,6 +72,20 @@ The endpoint matrix, cardinality, temporal class, endpoint activity, cycle polic
 - A road intersection is not automatically a formal junction or network connection.
 - A road route is not a Unit's movement route; movement, duration, path execution and transport simulation remain outside this workstream unless separately authorized by their domain contracts.
 - A settlement's visual marker, label, icon or scale-dependent footprint is presentation, not a second Object.
+
+
+## 3.4 Exact registry endpoint constraint (ME-03-A reconciliation)
+
+The machine-readable Core Domain registries P2-09-26 V0.2 and P2-09-27 V0.2 are the exact current descriptor baseline. In particular:
+
+- `network.connects_to` currently enables Road ↔ Road only. Road → Settlement access is explicitly deferred and requires a distinct directed access relation if ME-03 scenarios need it.
+- `structural.part_of` currently enables MountainPeak → MountainRange only. Settlement → Settlement is deferred; it must not be treated as an enabled hierarchy relation.
+- `spatial.contains` enables PoliticalRegion → Settlement, Landmass → Settlement and Settlement → PointOfInterest among its relevant pairs. It means strict spatial containment, not ownership, sovereignty, jurisdiction or control.
+- `spatial.adjacent_to` enables PoliticalRegion ↔ PoliticalRegion and TerrainRegion ↔ TerrainRegion; it is not a generic proximity relation.
+- PoliticalRegion has a boundary and region classification, but no governing-actor identity or control relationship is enabled.
+- TerrainRegion's `terrain_class` remains physical terrain/ecological/land-cover classification, not human land use.
+
+The broader P2-09-21/22 seed catalogs contain candidate concepts; they do not override the precise endpoint matrices and statuses in the descriptor registries. ME-03-A V0.1 records the complete current inventory and must be used by subsequent work packages.
 
 ## 4. Domain boundaries and design questions
 
