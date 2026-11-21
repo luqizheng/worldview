@@ -170,7 +170,7 @@ This document does not claim that any package format, provider behavior, impleme
 
 - ME-05-07 Field Payload Package & Tiling Contract V0.1.
 
-- ME-05-01 Field Dataset Authority & Persistence Contract V0.3.
+- ME-05-01 Field Dataset Authority & Persistence Contract V0.4.
 - ME-05-02 Shared Geometry Model & Component Operations V0.1.
 - ME-05-04 Coordinate Reference, Precision & Measurement Contract V0.1.
 - P2-09-11 Core Domain Physical Schema V0.11.
