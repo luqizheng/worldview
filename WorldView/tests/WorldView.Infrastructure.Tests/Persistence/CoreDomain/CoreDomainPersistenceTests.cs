@@ -52,16 +52,22 @@ public sealed class CoreDomainPersistenceTests : IDisposable
 
     private void ExecuteRaw(string sql)
     {
-        using var command = ((ISqliteConnectionProvider)_database).GetOpenConnection().CreateCommand();
-        command.CommandText = sql;
-        command.ExecuteNonQuery();
+        ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        });
     }
 
     private long CountRows(string table)
     {
-        using var command = ((ISqliteConnectionProvider)_database).GetOpenConnection().CreateCommand();
-        command.CommandText = $"SELECT COUNT(*) FROM {table};";
-        return (long)command.ExecuteScalar()!;
+        return ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT COUNT(*) FROM {table};";
+            return (long)command.ExecuteScalar()!;
+        });
     }
 
     // ---- 迁移 ----

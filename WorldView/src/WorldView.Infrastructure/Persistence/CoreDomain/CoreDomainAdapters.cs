@@ -161,9 +161,18 @@ public sealed class CoreDomainWorkspaceContextResolver : IWorkspaceContextResolv
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!WorkspaceContextRules.TryResolve(
-                _core, projectId, mapId, branchId, historicalTimeInput, out var context, out var error)
-            || context is null)
+        // CD-01-F1：解析的多次读取（Map → 根 History → Branch 世系）置于统一临界区
+        // （InSnapshotScope，Monitor 同线程可重入），对外为单一原子快照。
+        string? error = null;
+        var context = _core.InSnapshotScope(core =>
+        {
+            var ok = WorkspaceContextRules.TryResolve(
+                core, projectId, mapId, branchId, historicalTimeInput, out var resolved, out var failure);
+            error = failure;
+            return ok ? resolved : null;
+        });
+
+        if (context is null)
         {
             return Task.FromResult(WorkspaceContextResolution.Failed(error ?? "Workspace 上下文解析失败。"));
         }

@@ -192,4 +192,43 @@ public class BranchLineageTests
         Assert.Null(lineage);
         Assert.Contains("跨地图", error);
     }
+
+    // ---- CD-01-F1 §6.3：初始 Branch 自身一致性（不只校验上溯中间节点） ----
+
+    [Fact]
+    public void Resolve_InitialBranchOwnHistoryMissing_IsRejected()
+    {
+        var (db, project, map, _, b1, _) = BuildTree();
+        db.Histories.RemoveAll(h => h.HistoryId == b1.OwnHistoryId); // 自有历史悬空
+
+        var lineage = BranchLineageResolver.TryResolve(
+            b1,
+            expectedOwnerMapId: map.MapId,
+            findHistory: id => db.FindHistory(project.ProjectId, id),
+            findBranchByOwnHistory: id => db.FindBranchByOwnHistory(project.ProjectId, id),
+            out var error);
+
+        Assert.Null(lineage);
+        Assert.Contains("自有历史", error);
+        Assert.Contains("不存在", error);
+    }
+
+    [Fact]
+    public void Resolve_InitialBranchOwnHistoryIsMapRoot_IsRejected()
+    {
+        var (db, project, map, root, b1, _) = BuildTree();
+        // 自有历史指向 map_root 历史：父链本身健康，但初始 Branch 自身不合法。
+        var impostor = b1 with { OwnHistoryId = root.HistoryId };
+        db.Histories.RemoveAll(h => h.HistoryId == b1.OwnHistoryId);
+
+        var lineage = BranchLineageResolver.TryResolve(
+            impostor,
+            expectedOwnerMapId: map.MapId,
+            findHistory: id => db.FindHistory(project.ProjectId, id),
+            findBranchByOwnHistory: id => db.FindBranchByOwnHistory(project.ProjectId, id),
+            out var error);
+
+        Assert.Null(lineage);
+        Assert.Contains("不是 branch_owned", error);
+    }
 }

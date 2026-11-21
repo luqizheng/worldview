@@ -10,28 +10,31 @@ using WorldView.Application.Abstractions;
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
 
 /// <summary>
-/// 向 Core Domain 适配器暴露底层已打开连接（仅限本程序集；真实适配器要求
-/// 真实 <see cref="SqlitePackageDatabase"/>，不接受测试替身冒充正式持久化）。
+/// 向 Core Domain 适配器暴露连接所有者的统一访问协调器（仅限本程序集；真实适配器
+/// 要求真实 <see cref="SqlitePackageDatabase"/>，不接受测试替身冒充正式持久化）。
+/// CD-01-F1：适配器不再各自持有实例级锁——全部数据库访问经
+/// <see cref="SqliteConnectionAccess"/> 的同一临界区串行执行。
 /// </summary>
 internal interface ISqliteConnectionProvider
 {
-    /// <summary>已打开的连接；未打开/已释放时抛 InvalidOperationException。</summary>
-    SqliteConnection GetOpenConnection();
+    /// <summary>本数据库的统一连接访问协调器；未打开时由协调器在进入时拒绝。</summary>
+    SqliteConnectionAccess GetAccess();
 }
 
 /// <summary>
 /// <see cref="ICoreDomainDatabase"/> 的 Microsoft.Data.Sqlite 实现。
 /// 复用 Application Bootstrap 打开的同一物理连接（PRAGMA foreign_keys=ON、
 /// Pool=False、busy_timeout 有界；P2-09-12 V0.6 §3 provider 目标）。
-/// 实例内串行访问（V1 单写者，对齐 P2-09-12 TX-04/TX-30 的进程内简化形态；
-/// 完整 Serialized Writer Coordinator 证明属 P2-09-12 测试范围，CD-01 不声称）。
-/// 结构写操作各自单事务（脚本级原子，失败整体回滚）；行数据不可解析时抛
-/// <see cref="CoreDomainDataException"/> fail-closed。
+/// 并发模型（CD-01-F1 V1）：所有读写经连接所有者的
+/// <see cref="SqliteConnectionAccess"/> 统一串行——本类自身不持锁；多个本类
+/// 实例（各适配器）包装同一连接时共享同一协调器，不存在互不相干的锁域。
+/// 结构写操作各自单事务（脚本级原子，失败整体回滚；事务整体位于协调器
+/// 临界区内）；行数据不可解析时抛 <see cref="CoreDomainDataException"/>
+/// fail-closed。会话关闭后访问以 <see cref="ObjectDisposedException"/> 拒绝。
 /// </summary>
 public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
 {
-    private readonly object _gate = new();
-    private readonly SqliteConnection _connection;
+    private readonly SqliteConnectionAccess _access;
 
     public SqliteCoreDomainDatabase(IPackageDatabase database)
     {
@@ -42,7 +45,20 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 nameof(database));
         }
 
-        _connection = provider.GetOpenConnection();
+        _access = provider.GetAccess();
+    }
+
+    /// <summary>
+    /// 在统一临界区内执行一段多步 Core Domain 工作（CD-01-F1）。
+    /// <see cref="SqliteConnectionAccess.Execute{T}"/> 的 Monitor 锁同线程可重入：
+    /// work 内经本实例的嵌套读写调用安全且仍被同一临界区覆盖，因此
+    /// 读-校验-读 之类的多步序列对外表现为单一原子快照（V1 无删除/更新路径，
+    /// 该快照与写入串行化共同排除撕裂读）。供适配器组合 Domain 规则时使用。
+    /// </summary>
+    internal T InSnapshotScope<T>(Func<ICoreDomainDatabase, T> work)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        return _access.Execute(_ => work(this));
     }
 
     public ProjectRecord? FindProject(Guid projectId)
@@ -52,14 +68,14 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_project
             WHERE project_id = $projectId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapProject(reader) : null;
-        }
+        });
     }
 
     public IReadOnlyList<RawProjectIdentityRow> ReadProjectIdentityRows()
@@ -69,9 +85,9 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_project
             ORDER BY rowid;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             using var reader = command.ExecuteReader();
             var rows = new List<RawProjectIdentityRow>();
@@ -87,8 +103,8 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 });
             }
 
-            return rows;
-        }
+            return (IReadOnlyList<RawProjectIdentityRow>)rows;
+        });
     }
 
     public void InsertProject(ProjectRecord project)
@@ -98,14 +114,16 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 (project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms)
             VALUES ($projectId, $name, $formatVersion, $createdAt, $updatedAt);
             """;
-        lock (_gate)
+        // 单个临界区覆盖“计数检查 + 插入 + 提交”全程（CD-01-F1：事务不越出协调范围）。
+        _access.Execute(connection =>
         {
-            ExecuteInTransaction(scope =>
+            using var transaction = connection.BeginTransaction();
+            try
             {
                 // 单行规则（一库一项目）在事务内检查，杜绝并发窗口。
-                using (var count = _connection.CreateCommand())
+                using (var count = connection.CreateCommand())
                 {
-                    count.Transaction = scope;
+                    count.Transaction = transaction;
                     count.CommandText = "SELECT COUNT(*) FROM core_project;";
                     var existing = (long)(count.ExecuteScalar() ?? 0L);
                     if (existing > 0)
@@ -114,8 +132,8 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                     }
                 }
 
-                using var insert = _connection.CreateCommand();
-                insert.Transaction = scope;
+                using var insert = connection.CreateCommand();
+                insert.Transaction = transaction;
                 insert.CommandText = sql;
                 insert.Parameters.AddWithValue("$projectId", Uuid(project.ProjectId));
                 insert.Parameters.AddWithValue("$name", project.ProjectName);
@@ -123,8 +141,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 insert.Parameters.AddWithValue("$createdAt", project.CreatedAtUtcMs);
                 insert.Parameters.AddWithValue("$updatedAt", project.UpdatedAtUtcMs);
                 insert.ExecuteNonQuery();
-            });
-        }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
     }
 
     public MapRecord? FindMap(Guid projectId, Guid mapId)
@@ -134,15 +159,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_map
             WHERE project_id = $projectId AND map_id = $mapId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             command.Parameters.AddWithValue("$mapId", Uuid(mapId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapMap(reader) : null;
-        }
+        });
     }
 
     public IReadOnlyList<MapRecord> ListMaps(Guid projectId)
@@ -153,9 +178,9 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             WHERE project_id = $projectId
             ORDER BY created_at_utc_ms, map_id;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             using var reader = command.ExecuteReader();
@@ -165,18 +190,20 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 maps.Add(MapMap(reader));
             }
 
-            return maps;
-        }
+            return (IReadOnlyList<MapRecord>)maps;
+        });
     }
 
     public void CreateMapStructure(MapCreationPlan plan)
     {
-        lock (_gate)
+        // 依赖序写入：map → root history → calendar → configuration（P2-09-11 §4.1
+        // 不变量，单事务；事务整体位于统一临界区内，CD-01-F1）。
+        _access.Execute(connection =>
         {
-            // 依赖序写入：map → root history → calendar → configuration（P2-09-11 §4.1 不变量，单事务）。
-            ExecuteInTransaction(scope =>
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
                     VALUES ($mapId, $projectId, $name, $status, $createdAt, $updatedAt);
                     """,
@@ -190,7 +217,7 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$updatedAt", plan.Map.UpdatedAtUtcMs);
                     });
 
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_history (history_id, project_id, history_kind, owner_map_id, created_at_utc_ms)
                     VALUES ($historyId, $projectId, 'map_root', $ownerMapId, $createdAt);
                     """,
@@ -202,7 +229,7 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$createdAt", plan.RootHistory.CreatedAtUtcMs);
                     });
 
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_calendar (calendar_id, project_id, map_id, calendar_role, calendar_type, calendar_name, created_at_utc_ms, updated_at_utc_ms)
                     VALUES ($calendarId, $projectId, $mapId, 'default', $calendarType, $name, $createdAt, $updatedAt);
                     """,
@@ -217,7 +244,7 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$updatedAt", plan.DefaultCalendar.UpdatedAtUtcMs);
                     });
 
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_calendar_configuration
                         (calendar_configuration_id, project_id, map_id, calendar_id, owner_history_id, source_command_id,
                          configuration_origin, effective_from_day_number, effective_from_offset_seconds,
@@ -244,8 +271,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$createdAt", plan.DayZeroConfiguration.CreatedAtUtcMs);
                         c.Parameters.AddWithValue("$updatedAt", plan.DayZeroConfiguration.UpdatedAtUtcMs);
                     });
-            });
-        }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
     }
 
     public HistoryRecord? FindHistory(Guid projectId, Guid historyId)
@@ -255,15 +289,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_history
             WHERE project_id = $projectId AND history_id = $historyId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             command.Parameters.AddWithValue("$historyId", Uuid(historyId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapHistory(reader) : null;
-        }
+        });
     }
 
     public HistoryRecord? FindRootHistoryByMap(Guid projectId, Guid mapId)
@@ -273,15 +307,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_history
             WHERE project_id = $projectId AND history_kind = 'map_root' AND owner_map_id = $mapId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             command.Parameters.AddWithValue("$mapId", Uuid(mapId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapHistory(reader) : null;
-        }
+        });
     }
 
     public BranchRecord? FindBranch(Guid projectId, Guid branchId)
@@ -293,15 +327,15 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_branch
             WHERE project_id = $projectId AND branch_id = $branchId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             command.Parameters.AddWithValue("$branchId", Uuid(branchId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapBranch(reader) : null;
-        }
+        });
     }
 
     public BranchRecord? FindBranchByOwnHistory(Guid projectId, Guid ownHistoryId)
@@ -313,25 +347,27 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
             FROM core_branch
             WHERE project_id = $projectId AND own_history_id = $ownHistoryId;
             """;
-        lock (_gate)
+        return _access.Execute(connection =>
         {
-            using var command = _connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.Parameters.AddWithValue("$projectId", Uuid(projectId));
             command.Parameters.AddWithValue("$ownHistoryId", Uuid(ownHistoryId));
             using var reader = command.ExecuteReader();
             return reader.Read() ? MapBranch(reader) : null;
-        }
+        });
     }
 
     public void CreateBranchStructure(BranchCreationPlan plan)
     {
-        lock (_gate)
+        // 依赖序写入：branch_owned history → branch（同事务；core_history 不回指
+        // core_branch）；事务整体位于统一临界区内（CD-01-F1）。
+        _access.Execute(connection =>
         {
-            // 依赖序写入：branch_owned history → branch（同事务；core_history 不回指 core_branch）。
-            ExecuteInTransaction(scope =>
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_history (history_id, project_id, history_kind, owner_map_id, created_at_utc_ms)
                     VALUES ($historyId, $projectId, 'branch_owned', NULL, $createdAt);
                     """,
@@ -342,7 +378,7 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$createdAt", plan.OwnHistory.CreatedAtUtcMs);
                     });
 
-                Execute(scope, """
+                Execute(transaction, """
                     INSERT INTO core_branch
                         (branch_id, project_id, parent_history_id, own_history_id,
                          parent_day_number, parent_offset_seconds, branch_name, lifecycle_status,
@@ -363,26 +399,18 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         c.Parameters.AddWithValue("$createdAt", plan.Branch.CreatedAtUtcMs);
                         c.Parameters.AddWithValue("$updatedAt", plan.Branch.UpdatedAtUtcMs);
                     });
-            });
-        }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
     }
 
     // ---- 事务与行映射辅助 ----
-
-    private void ExecuteInTransaction(Action<SqliteTransaction> action)
-    {
-        using var transaction = _connection.BeginTransaction();
-        try
-        {
-            action(transaction);
-            transaction.Commit();
-        }
-        catch
-        {
-            transaction.Rollback();
-            throw;
-        }
-    }
 
     private static void Execute(
         SqliteTransaction scope,

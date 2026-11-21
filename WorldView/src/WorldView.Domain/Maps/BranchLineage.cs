@@ -47,7 +47,9 @@ public static class BranchLineageResolver
 
     /// <summary>
     /// 解析 <paramref name="branch"/> 自有历史之上的完整世系。
-    /// 返回 null 与错误说明的情况：父历史缺失、环、超深、branch_owned 历史无对应 Branch、
+    /// 返回 null 与错误说明的情况：初始 Branch 自有历史缺失或非 branch_owned
+    /// （CD-01-F1 §6.3：初始输入与自身 History 同样做完整一致性校验，不只校验上溯
+    /// 中间节点）、父历史缺失、环、超深、branch_owned 历史无对应 Branch、
     /// 根历史属于其他 Map（<paramref name="expectedOwnerMapId"/> 不符）。
     /// </summary>
     public static BranchLineage? TryResolve(
@@ -57,6 +59,21 @@ public static class BranchLineageResolver
         Func<Guid, BranchRecord?> findBranchByOwnHistory,
         out string? error)
     {
+        // 初始 Branch 自身一致性：自有历史必须存在且为 branch_owned（委托按 Project
+        // 范围查询，跨 Project 的自有历史在此表现为不存在）。
+        var ownHistory = findHistory(branch.OwnHistoryId);
+        if (ownHistory is null)
+        {
+            error = $"分支 {branch.BranchId} 的自有历史 {branch.OwnHistoryId} 不存在（数据不完整）。";
+            return null;
+        }
+
+        if (ownHistory.Kind != HistoryKind.BranchOwned)
+        {
+            error = $"分支 {branch.BranchId} 的自有历史 {branch.OwnHistoryId} 不是 branch_owned（数据损坏）。";
+            return null;
+        }
+
         var chain = new List<BranchLineageEntry> { new()
         {
             BranchId = branch.BranchId,
