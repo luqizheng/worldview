@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Specialist workstream scope and design plan
 - Product target: C# + Avalonia desktop application, Windows/macOS, local-first, single-user
-- Depends on: ME-01-01 through ME-01-07; ME-02-G/H; ME-03-G/H; ME-04-G/H; ME-05-02 through ME-05-06; ME-06-E; Map Engine immutable scene/query contracts; Core Domain typed Command and persistence contracts
+- Depends on: ME-01-01 through ME-01-07; ME-02-G/H; ME-03-G/H; ME-04-G/H; ME-05-02 through ME-05-06; Map Engine immutable scene/query contracts; Core Domain typed Command and persistence contracts
 - Scope: Concrete shared tool capability declarations, input routing, gesture lifecycle, typed-intent mapping, spatial query freshness, Candidate review interaction and cross-architecture acceptance
 - Authority: Product/application interaction working plan only. It does not authorize Core Domain descriptors, Commands, schema, APIs, renderer contracts or plugin extensibility.
 
