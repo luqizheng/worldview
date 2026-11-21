@@ -5,10 +5,10 @@
   "authority": "Core Domain static registry",
   "common_rules": {
     "identity": "Core Domain-generated stable relationship_id; never reused.",
-    "endpoints": "Exactly one source and one target Object; same Project and valid target Map context.",
+    "endpoints": "Endpoints must belong to the same Project; Map/History registration and visibility constraints apply only to relationship instances stored in those scopes.",
     "symmetric": "Canonicalize endpoint order deterministically; never persist inverse duplicate.",
-    "storage": "Each relationship has exactly one owning scope: shared_object_definition, map_initial_state or history_local Command. Never duplicate authoritative ownership.",
-    "temporal": "Each descriptor declares allowed_storage_scopes. Shared definition is retroactive current-definition; Initial State is Map-specific at time zero; post-zero Commands are selected-History-local.",
+    "storage": "Each relationship has exactly one owning scope: shared_definition, initial_state or history_local. Storage location is respectively Shared Object definition payload, Map Initial State payload or History Command payload. Never duplicate authoritative ownership.",
+    "temporal": "Each descriptor declares allowed_storage_scopes using shared_definition, initial_state and history_local. Shared definition is retroactive current-definition; Initial State is Map-specific at time zero; post-zero Commands are selected-History-local.",
     "geometry": "Coincidence, intersection, adjacency and snapping never auto-create a formal relationship.",
     "endpoint_activity": "Deactivation never cascades relationship termination.",
     "unknown_fields": "reject",
@@ -75,7 +75,7 @@
       "status": "Recommended V1 spatial containment only; not political authority or structural composition.",
       "semantics": "Strict spatial containment supported by the target extent/anchor within the source extent. It does not mean ownership, sovereignty, jurisdiction, political control or structural composition.",
       "allowed_storage_scopes": [
-        "map_initial_state",
+        "initial_state",
         "history_local"
       ]
     },
@@ -114,15 +114,15 @@
       "cycle_policy": "reject_cycle",
       "endpoint_activity": "dormant_endpoint_allowed",
       "temporal_classes": [
-        "initial_state",
-        "history_local"
+        "shared_definition",
+        "initial_state"
       ],
       "geometry_precondition": "Geometric containment is not part_of.",
       "status": "Recommended V1 MountainPeak-to-MountainRange structural membership; Settlement hierarchy deferred.",
       "semantics": "Explicit semantic composition/part-whole membership, not inferred from spatial containment or geometry overlap.",
       "allowed_storage_scopes": [
-        "shared_object_definition",
-        "map_initial_state"
+        "shared_definition",
+        "initial_state"
       ],
       "shared_definition_owner": "whole_endpoint_definition"
     },
@@ -162,7 +162,7 @@
       "status": "Recommended V1 adjacency for PoliticalRegion and TerrainRegion only.",
       "semantics": "Explicit adjacency between compatible same-type regions, normally shared boundary or a domain-defined adjacency predicate; proximity alone is insufficient. Landmass adjacency is excluded because touching land areas form one continuous Landmass.",
       "allowed_storage_scopes": [
-        "map_initial_state",
+        "initial_state",
         "history_local"
       ]
     },
@@ -198,7 +198,7 @@
       "status": "Recommended V1 Road-to-Road physical continuity only.",
       "semantics": "Symmetric physical network continuity between two distinct Road Objects at an explicit junction. Does not model settlement access, traffic direction, routing permission or snapping alone.",
       "allowed_storage_scopes": [
-        "map_initial_state",
+        "initial_state",
         "history_local"
       ],
       "deferred_semantics": {
@@ -251,7 +251,7 @@
       "status": "Recommended V1 directed acyclic River flow graph; one downstream receiver per River, multiple tributaries allowed, Lake terminal.",
       "semantics": "Directed formal River flow: source is upstream River; target is downstream River or terminal receiving Lake.",
       "allowed_storage_scopes": [
-        "map_initial_state",
+        "initial_state",
         "history_local"
       ]
     }

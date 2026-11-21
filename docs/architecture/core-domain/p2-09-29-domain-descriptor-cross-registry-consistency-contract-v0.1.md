@@ -103,8 +103,8 @@ V1 graph rules:
 
 Every relationship instance is stored in exactly one owning scope:
 
-1. shared_object_definition: stable base relationship between Project-shared Objects; one explicit owner endpoint; retroactive current-definition semantics.
-2. map_initial_state: Map-specific relationship true at time zero; inherited by Branches through the Map baseline.
+1. shared_definition: stable base relationship between Project-shared Objects; one explicit owner endpoint; retroactive current-definition semantics.
+2. initial_state: Map-specific relationship true at time zero; inherited by Branches through the Map baseline.
 3. history_local: post-zero relationship change established/ended through Commands in the selected History.
 
 Recommended allowed scopes:

@@ -103,8 +103,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -114,9 +114,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -222,8 +224,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -233,9 +235,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -333,8 +337,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -344,9 +348,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -452,8 +458,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -463,9 +469,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -563,8 +571,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -574,9 +582,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -678,8 +688,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -689,9 +699,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -799,8 +811,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -810,9 +822,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -912,8 +926,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -923,9 +937,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -1022,8 +1038,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -1033,9 +1049,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
@@ -1131,8 +1149,8 @@
         },
         "core.relationship.establish": {
           "enabled": true,
-          "scope": "descriptor_declared",
-          "policy": "registered_endpoint_pair_and_storage_scope_only"
+          "scope": "history_local_only",
+          "policy": "only_when_relationship_descriptor_allows_history_local"
         },
         "core.relationship.end": {
           "enabled": true,
@@ -1142,9 +1160,11 @@
       },
       "definition_edit_policy": {
         "enabled": true,
-        "route": "shared_object_definition_service",
+        "route_by_scope": {
+          "project_shared": "shared_object_definition_service",
+          "map_local": "map_local_object_definition_service"
+        },
         "project_shared_semantics": "retroactive_current_definition",
-        "map_local_semantics": "owner_map_definition",
         "excluded_from_history_commands": true
       },
       "initial_state_policy": {
