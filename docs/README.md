@@ -43,6 +43,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-03 Settlements & Urban Geography Editor V0.1](map-editor/world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) — specialist workstream scope, inherited Core Domain vocabulary, settlement/political/land-use/road semantics, work packages and open gates.
 - `map-generation/`: map generation specification, generation session lifecycle, and related source README.
 - `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, Unit animation, and production presentation architecture. Key current documents: [Production Renderer Architecture V0.2](map-engine/PRODUCTION_RENDERER_ARCHITECTURE_v0.2.md), [PRA-01 Presentation Context & Immutable Scene Snapshot Contract V0.1](map-engine/PRA-01_PRESENTATION_CONTEXT_AND_IMMUTABLE_SCENE_SNAPSHOT_CONTRACT_v0.1.md), and [PRA-01 Developer Handoff V0.1](map-engine/PRA-01_DEVELOPER_HANDOFF_v0.1.md).
+- [PRA-01 Implementation Audit V0.1](map-engine/PRA-01_IMPLEMENTATION_AUDIT_v0.1.md) — source audit confirms PRA-01 is not implemented; records existing workspace prerequisites, acceptance gaps, P0/P1 findings and staged implementation sequence.
 - `history/`: reserved for superseded or historical source documents retained for traceability.
 - `README-implementation-handoff-v1.0.md`: implementation handoff guidance and scope boundary.
 
