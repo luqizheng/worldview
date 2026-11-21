@@ -62,7 +62,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-05-06 Cross-architecture Integration Review & V1 Gates V0.2](map-editor/world-view-me-05-06-cross-architecture-integration-review-v0.2.md) — Core Domain/Map Engine/editor/specialist ownership reconciliation, design findings and implementation acceptance gates.
 - [ME-05-07 Field Payload Package & Tiling Contract V0.1](map-editor/world-view-me-05-07-field-payload-package-and-tiling-contract-v0.1.md) — one seekable immutable package Asset per Field Revision, deterministic tile directory, random tile reads, streaming local edits, halo and cache rules; byte-level format and performance proof remain open.
 - [ME-05-02 Shared Geometry Model & Component Operations V0.1](map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) — shared component identity/lifecycle, formal geometry operation boundary, write-context routing and immutable Asset ownership.
-- [Map Editor Work Plan V2.2](map-editor/ME-01-work-plan-and-document-status-v2.1.md) — current workstream status and specialist design inventory.
+- [Map Editor Work Plan V2.2](map-editor/ME-01-work-plan-and-document-status-v2.2.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
