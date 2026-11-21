@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Recommended V1 byte-level envelope; parser/writer fixtures and platform proof remain open
 - Owner: Map Engine field I/O; Core Domain retains Field Revision and Core Asset authority
-- Depends on: ME-05-01 V0.4; ME-05-05 V0.2; ME-05-07 V0.1; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-32 V0.1
+- Depends on: ME-05-01 V0.5; ME-05-05 V0.3; ME-05-07 V0.3; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-32 V0.1
 
 ## 1. Purpose
 
