@@ -11,6 +11,7 @@ using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.IO;
 using WorldView.Infrastructure.Logging;
 using WorldView.Infrastructure.Persistence;
+using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.RecentProjects;
 
 namespace WorldView.Desktop;
@@ -54,9 +55,9 @@ internal static class Program
 
     /// <summary>
     /// 组合根：应用全部依赖在此装配。各层仅通过接口注册，保持依赖方向单向。
-    /// Core Domain 边界端口（IProjectIdentityReader / IMapQueryService /
-    /// IWorkspaceContextResolver / IProjectCreationService）当前无真实实现，
-    /// 刻意不注册——用例会在对应门槛处 fail-closed 并报告阻塞项（AF-02）。
+    /// Core Domain 边界端口（IProjectIdentityReader / IProjectCreationService 全局单例；
+    /// IMapQueryService / IWorkspaceContextResolver 会话绑定——按 session.Database 构造）
+    /// 自 CD-01 起接入正式 Core Domain 实现（Infrastructure 适配器 + Domain 服务）。
     /// </summary>
     private static ServiceProvider BuildServices()
     {
@@ -69,19 +70,27 @@ internal static class Program
         services.AddSingleton<IPackageDatabaseFactory, SqlitePackageDatabaseFactory>();
         services.AddSingleton<IAssetStoreFactory, FileAssetStoreFactory>();
 
-        // Application Bootstrap（迁移来源：正式 Core Domain / AI Assistant 模块迁移出现后登记）
-        services.AddSingleton<ApplicationBootstrapper>(_ => new ApplicationBootstrapper(
-            Array.Empty<IMigrationSource>(), log: null));
+        // Core Domain 迁移来源（core-domain 模块 4 条迁移，CD-01）
+        services.AddSingleton<CoreDomainMigrationSource>();
+
+        // Application Bootstrap（core-domain 模块迁移经 IMigrationSource 登记）
+        services.AddSingleton<ApplicationBootstrapper>(sp => new ApplicationBootstrapper(
+            new IMigrationSource[] { sp.GetRequiredService<CoreDomainMigrationSource>() }, log: null));
 
         // 会话注册表（实例由组合根创建，供停机关闭使用）
         services.AddSingleton<ProjectSessionRegistry>();
 
-        // 用例（Core Domain 依赖端口为 null：门槛由用例如实报告）
+        // Core Domain 边界端口（正式实现；CD-01）
+        services.AddSingleton<IProjectCreationService>(sp => new CoreDomainProjectCreationService(
+            sp.GetRequiredService<IPackageDatabaseFactory>()));
+        services.AddSingleton<IProjectIdentityReader, CoreDomainProjectIdentityReader>();
+
+        // 用例
         services.AddSingleton<CreateProjectUseCase>(sp => new CreateProjectUseCase(
             sp.GetRequiredService<IFileSystem>(),
             sp.GetRequiredService<IPackageDatabaseFactory>(),
             sp.GetRequiredService<ApplicationBootstrapper>(),
-            projectCreationService: null,
+            sp.GetRequiredService<IProjectCreationService>(),
             log: sp.GetRequiredService<IAppLog>()));
         services.AddSingleton<OpenProjectUseCase>(sp => new OpenProjectUseCase(
             sp.GetRequiredService<IFileSystem>(),
@@ -89,17 +98,22 @@ internal static class Program
             sp.GetRequiredService<ApplicationBootstrapper>(),
             sp.GetRequiredService<IAssetStoreFactory>(),
             sp.GetRequiredService<ProjectSessionRegistry>(),
-            identityReader: null,
+            sp.GetRequiredService<IProjectIdentityReader>(),
             log: sp.GetRequiredService<IAppLog>()));
 
         // 启动面与工作区 ViewModel 工厂
         services.AddSingleton<StartViewModel>();
         services.AddSingleton<Func<ProjectSession, ProjectWorkspaceViewModel>>(sp => session =>
-            new ProjectWorkspaceViewModel(
+        {
+            // 会话绑定的 Map 查询 / Workspace 上下文解析：按本会话数据库构造（项目范围隔离）。
+            IMapQueryService mapQuery = new CoreDomainMapQueryService(session.Database);
+            IWorkspaceContextResolver contextResolver = new CoreDomainWorkspaceContextResolver(session.Database);
+            return new ProjectWorkspaceViewModel(
                 session,
-                mapQuery: null,
-                contextResolver: null,
-                log: sp.GetRequiredService<IAppLog>()));
+                mapQuery,
+                contextResolver,
+                log: sp.GetRequiredService<IAppLog>());
+        });
 
         return services.BuildServiceProvider();
     }
