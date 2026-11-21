@@ -144,6 +144,12 @@ Output artifacts are immutable. A new calculation creates new artifacts and a ne
 
 Derived outputs are cacheable and rebuildable, but they are not disposable if needed to explain a creator decision or an accepted adoption. Retention policy must respect provenance and references.
 
+### 6.1 Derived Artifact storage is not Core Asset storage
+
+A Derived Artifact is not automatically a Core Domain Asset. The calculation subsystem owns a separate derived-artifact catalog and derived-data file namespace, with metadata stored in the existing project-local SQLite database under Calculation subsystem ownership. Do not register every derived output in `core_asset`, `core_command_asset`, `core_map_initial_object_asset` or `core_object_definition_asset`. Those Core Domain records represent immutable Assets referenced by formal domain payloads and enabled descriptors.
+
+If a creator adopts a derived geometry or field payload as a formal input, the exact accepted bytes must be explicitly published/registered through the Core Domain Asset contract and referenced through the appropriate typed owner/Command link. The derived artifact remains provenance/evidence; it does not become formal merely because it was calculated or displayed. Renderer SceneSnapshot, spatial indexes and viewport caches are a third separate rebuildable representation and are never Derived Artifact authority.
+
 ## 7. Freshness and dependency invalidation
 
 ### 7.1 Freshness states
@@ -292,6 +298,10 @@ It may not silently:
 
 An adoption operation must revalidate the current target History, descriptor versions, endpoint visibility/activity, source fingerprints, user authorization and any required human confirmation at the time of application. A previously valid calculation is not permanent authorization to apply its output.
 
+### 12.1 Source Field Dataset authority is a separate contract
+
+A creator-authored/imported source field (for example elevation or a land/water mask) is not a Derived Artifact. The ME-02-B Field Dataset and Field Revision concepts remain logical until ME-05 and Core Domain define their formal owner and persistence lifecycle. That contract must specify Map/Initial State/Project-shared ownership, immutable Asset references, coverage/resolution/units/no-data/provenance, revision behavior and whether post-zero field changes are supported by a registered typed Command. Do not place source fields in generic Core Asset metadata, use arbitrary Asset CRUD, or overwrite a published Asset. Until the source-field authority contract is adopted, imported/edited fields may remain provisional staging data but must not be presented as formally adopted map facts.
+
 ## 13. ME-02 algorithm-family requirements
 
 | Family | Determinism-critical declarations | Required provenance / quality evidence |
@@ -329,7 +339,7 @@ ME-02-F establishes the shared calculation lifecycle and cross-cutting contracts
 
 Next:
 - ME-02-G: end-to-end UX scenarios and acceptance criteria for natural-geography authoring and calculation review.
-- ME-02-H: cross-architecture review against Core Domain, Map Engine, Map Generation and ME-01.
+- ME-02-H: cross-architecture review against Core Domain, Map Engine, Map Generation and ME-01 (completed in the ME-02 package).
 - Specialist implementation gates: exact algorithms, numeric calibration, physical-field Asset encoding, tile storage, cache layout and cross-platform performance.
 
 No executable calculation service or automated test pass is implied by this design document.
