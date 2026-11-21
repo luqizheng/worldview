@@ -2,7 +2,7 @@
 
 - **更新**：2026-11-21
 - **状态**：新架构工程骨架已提交；ME-01 / ME-02 设计包已建立；正式领域实现与若干关键技术契约仍待实施
-- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.1.md
+- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.3.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
 
@@ -138,3 +138,11 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **P2-09-32 V0.1:** 45 package/tile validation vectors; design fixtures only, not executed.
 - **ME-02-F V0.4:** pins package format and package Asset identity in calculation provenance; V1 freshness conservatively invalidates Dataset-dependent calculations on a new Field Revision. Tile hashes are not used to silently narrow freshness.
 - **Remaining:** byte-level header/directory specification, tile-size and codec/precision benchmarks, Core Domain publication/provider validation, implementation and Windows/macOS execution.
+
+
+## 2026-11-21 ME-05 package integration follow-up
+
+- **ME-05-05 V0.2:** aligns the shared Geometry/Field Asset publication contract with the Field Package logical/tile model.
+- **ME-05-06 V0.2:** cross-architecture review now includes ME-05-07; Gate B is limited to byte-level header/directory, codec/precision and performance proof plus implementation verification.
+- **ME-05-07 V0.1:** remains the detailed logical Field Package and tiling contract; it does not freeze the byte-level container, codec or numeric precision.
+- **Work plan:** ME-01-work-plan-and-document-status-v1.3.md tracks ME-05-07 and the remaining gates.
