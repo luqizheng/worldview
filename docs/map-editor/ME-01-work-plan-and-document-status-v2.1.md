@@ -1,6 +1,6 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 2.1
+- Version: 2.2
 - Date: 2026-11-21
 - Status: Active design work plan
 - Supersedes: ME-01-work-plan-and-document-status-v2.0.md (retained for history)
@@ -59,9 +59,9 @@ ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through
 | ME-03-B | [Settlement Model & Authoring Workflows](world-view-me-03-b-settlement-model-and-authoring-workflows-v0.1.md) | 0.1 | Specialist Domain Working Baseline | Settlement identity, anchor/extent, classification, multiscale representation, authoring lifecycle, temporal paths and acceptance scenarios |
 | ME-03-C | [Political & Administrative Geography](world-view-me-03-c-political-and-administrative-geography-v0.1.md) | 0.1 | Specialist Domain Working Baseline | PoliticalRegion territory semantics, boundaries, adjacency, settlement containment, administrative hierarchy limits and temporal border changes |
 | ME-03-D | [Land Use & Functional Areas](world-view-me-03-d-land-use-and-functional-areas-v0.1.md) | 0.1 | Specialist Domain Working Baseline + Core Domain Gap Proposal | Human-use classification, actual/designated/proposed basis, overlap, terrain separation, temporal semantics and proposed functional_area type |
-| ME-03-E | [Road & Path Network Authoring](world-view-me-03-e-road-and-path-network-authoring-v0.1.md) | 0.1 | Specialist Domain Working Baseline + Core Domain Gap Assessment | Road segment granularity, explicit junction connectivity, grade-separated crossings, settlement access limits, network validation and identity-lineage gates |
+| ME-03-E | [Road & Path Network Authoring](world-view-me-03-e-road-and-path-network-authoring-v0.1.md) | 0.1 | Specialist Domain Working Baseline + Core Domain Gap Assessment | Road segment granularity, explicit junction connectivity, grade-separated crossings, settlement access limits, network validation and identity-lineage gates |\n| ME-03-F | [Settlement Placement & Urban Spatial Validation](world-view-me-03-f-settlement-placement-and-urban-spatial-validation-v0.1.md) | 0.1 | Specialist Spatial-Validation Working Baseline | Terrain/water/climate context, possible road access, hard/soft/derived constraints, explainable diagnostics, uncertainty and bounded revalidation |
 
-ME-03 is opened as a specialist design workstream. ME-03-A through ME-03-E are complete as specialist working baselines; ME-03-F through ME-03-H remain planned. The design must consume the existing `settlement`, `road` and `political_region` Object Type seeds and the bounded relationship catalog; it must not silently introduce new Object Types, Relationship Types, executable descriptors or schema changes. Domain inventory and descriptor reconciliation are the first work item.
+ME-03 is opened as a specialist design workstream. ME-03-A through ME-03-F are complete as specialist working baselines; ME-03-G and ME-03-H remain planned. The design must consume the existing `settlement`, `road` and `political_region` Object Type seeds and the bounded relationship catalog; it must not silently introduce new Object Types, Relationship Types, executable descriptors or schema changes. Domain inventory and descriptor reconciliation are the first work item.
 
 ### ME-03 work sequence
 
@@ -72,7 +72,7 @@ ME-03 is opened as a specialist design workstream. ME-03-A through ME-03-E are c
 | ME-03-C | Political and administrative geography | Territory/actor distinction, subdivision and temporal control prerequisites |
 | ME-03-D | Land use and functional areas | Human-use semantics distinct from terrain/land cover and presentation |
 | ME-03-E | Road and path network authoring | Road semantics, junction/crossing/connectivity and explicit network relationships |
-| ME-03-F | Settlement placement and urban spatial validation | Natural-geography constraints, access, uncertainty and diagnostics |
+| ME-03-F | **Complete** — Settlement placement and urban spatial validation | Natural-geography constraints, possible access, uncertainty, diagnostics and freshness — [ME-03-F](world-view-me-03-f-settlement-placement-and-urban-spatial-validation-v0.1.md) |
 | ME-03-G | UX scenarios and acceptance | Creator journeys, Canvas/Inspector, Candidate review and Figma handoff |
 | ME-03-H | Cross-architecture integration review | Core Domain / ME-01 / ME-02 / ME-05 / Map Engine / AI reconciliation and implementation gates |
 
