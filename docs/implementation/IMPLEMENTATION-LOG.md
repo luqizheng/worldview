@@ -95,6 +95,7 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 
 ## 6. 后续实施入口
 
+1. 确认 ME-05-01 V0.1 的 Field Dataset 时间/Branch 作用域语义；确认后再由 Core Domain / ME-05 采纳并更新物理 Schema / Provider Proof。
 2. ME-05 与 Core Domain 共同定义 Field Dataset/source-field 权威、Map scope、不可变 payload、coordinate context、tiling 和编辑生命周期。
 3. Map Engine 完成 Derived Artifact namespace/catalog、Calculation Definition fingerprint 与 SceneSnapshot 消费契约。
 4. Core Domain 只启用 payload、验证规则和测试向量已齐备的 Object / Geometry / Relationship descriptors。
