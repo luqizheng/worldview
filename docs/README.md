@@ -7,6 +7,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [Migration Manifest](MIGRATION-MANIFEST.md) — source scope, imported inventory, and remaining binary archives.
 
 - `architecture/core-domain/`: Core Domain, Map/Branch history, persistence, Historical Time, schema and reconstruction contracts.
+- `application/`: Application Host, Project Package, Project Session, Map Workspace Session and desktop application lifecycle. See [AF-01 Application Foundation Architecture V0.1](application/AF-01_APPLICATION_FOUNDATION_ARCHITECTURE_v0.1.md) and [AF-01 Developer Handoff V0.1](application/AF-01_DEVELOPER_HANDOFF_v0.1.md).
 - `adr/`: accepted, frozen, amended, and rejected architecture decisions.
 - `P2-01-D01/`: historical-state and command-domain discussion record.
 - `ai-assistant/`: AI product architecture, task planning/execution, context, tools, providers, authorization, proposal/application, database schemas, and recovery.
