@@ -61,7 +61,7 @@ ME-05-01 V0.2 closes the H-G01 product-semantic/domain-authority gate. Field pub
 ## ME-05-01 closure and remaining implementation gates
 
 - **Closed:** H-G01 product semantics and Core Domain authority; Map Source Field Baseline is Map-owned and Field Revision updates apply retroactively to every Branch and Historical Time of that Map.
-- **Documented:** P2-09-11 V0.11 logical physical schema; P2-09-12 V0.5 provider/transaction test specification; ME-02-F V0.3 calculation input and freshness alignment.
+- **Documented:** P2-09-11 V0.11 logical physical schema; P2-09-12 V0.6 provider/transaction test specification; ME-02-F V0.3 calculation input and freshness alignment.
 - **Open:** Field Descriptor Registry and canonical manifest schema; exact immutable payload package/tile layout; deferred composite-FK and immutability-trigger validation on bundled SQLite; development implementation; Windows/macOS provider/runtime execution.
 
 ## Subsequent specialist workstreams
