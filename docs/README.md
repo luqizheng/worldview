@@ -81,9 +81,10 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-34 Canonical Manifest JSON Schema V0.1](architecture/core-domain/p2-09-34-field-package-canonical-manifest-schema-v0.1.json) — machine-readable strict V1 manifest schema.
 - [P2-09-35 Canonical Manifest Validation Vectors V0.1](architecture/core-domain/p2-09-35-field-package-canonical-manifest-validation-vectors-v0.1.json) — 28 positive/negative canonicalization and manifest validation vectors; design-only, not executed.
 - [P2-09-36 Parser / Writer Conformance Vectors V0.1](architecture/core-domain/p2-09-36-field-package-parser-writer-conformance-vectors-v0.1.json) — 41 reader, tile, writer, integrity and cross-platform acceptance vectors; design-only, not executed.
+- [P2-09-37 Building & Cave Core Domain Adoption Contract V0.1](architecture/core-domain/p2-09-37-building-and-cave-domain-adoption-contract-v0.1.md) — proposes Building and Cave System Object Types, typed child aggregates, Object-owned geometry component context, existing Asset links, no-new-table V1 persistence and formal adoption/implementation gates.
 - `architecture/core-domain/fixtures/field-package-v1/` — three raw `.wvfld` golden packages, exact canonical manifest sidecars and fixture hash inventory.
 - [ME-05-02 Shared Geometry Model & Component Operations V0.1](map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) — shared component identity/lifecycle, formal geometry operation boundary, write-context routing and immutable Asset ownership.
-- [Map Editor Work Plan V3.1](map-editor/ME-01-work-plan-and-document-status-v3.1.md) — current workstream status and specialist design inventory.
+- [Map Editor Work Plan V3.2](map-editor/ME-01-work-plan-and-document-status-v3.2.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
