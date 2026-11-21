@@ -528,10 +528,10 @@ These gates do not block the architecture baseline. They require prototype and i
 
 This document is aligned with:
 - ME-01-01 through ME-01-07 — unified editor shell, story/spatial bridge, Guided Initialization, multi-scale model, Object/Geometry separation, shared interaction and cross-architecture findings.
-- ME-02 V0.4 and ME-02-A through ME-02-F — domain inventory, authoring, hydrology, climate/ecology and calculation lifecycle.
+- ME-02 V0.6 and ME-02-A through ME-02-F — domain inventory, authoring, hydrology, climate/ecology and calculation lifecycle.
 - Map Generation Specification/Workflow/Session Lifecycle V0.2 — task, Candidate, Change Set, authorization and formal application boundaries.
 - Map Engine rendering and spatial interaction contracts — immutable scenes, snapshot consistency, transient preview and cache invalidation.
 
 ME-02-G V0.2 establishes the Natural Geography UX working baseline and end-to-end acceptance scenarios, including explicit UI separation of Initial State, History-local and Project-shared formal authoring targets. It does not claim that Figma screens, usability tests, Avalonia controls or implementation tests have been completed.
 
-**Next work:** ME-02-H cross-architecture consistency review across Core Domain, Map Engine, Map Generation, AI Assistant, ME-01 and ME-02.
+**Package status:** ME-02-H cross-architecture consistency review is complete in ME-02-H V0.1. The UX baseline is ready for Figma prototyping; final visual design, usability validation and Avalonia implementation remain separate work.
