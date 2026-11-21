@@ -178,7 +178,7 @@ No production validator, registry compiler, application build or cross-platform 
 
 ## 9. Artifacts
 
-- P2-09-45 V0.2 — this Registry Format V2 contract.
+- P2-09-45 V0.3 — this Registry Format V2 contract.
 - P2-09-46 V0.2 — strict JSON Schema Draft 2020-12.
 - P2-09-47 V0.2 — 34 design-only conformance vectors.
 - P2-09-26 V0.3 Proposal — migration preview for the existing ten legacy descriptors only; Building/Cave are deliberately not included.
