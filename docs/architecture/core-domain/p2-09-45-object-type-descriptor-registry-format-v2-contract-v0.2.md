@@ -3,7 +3,7 @@
 - Version: 0.2
 - Date: 2026-11-22
 - Status: Proposed registry-format contract; not an activated registry, frozen ADR, DDL or implementation authorization
-- Depends on: P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.2; P2-09-26 V0.2; P2-09-27 V0.2; P2-09-28 V0.2; P2-09-41 V0.4; P2-09-42 V0.7
+- Depends on: P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.2; P2-09-26 V0.2; P2-09-27 V0.2; P2-09-28 V0.2; P2-09-41 V0.4; P2-09-42 V0.8
 
 ## 1. Decision summary
 
