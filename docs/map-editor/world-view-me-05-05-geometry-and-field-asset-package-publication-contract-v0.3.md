@@ -80,7 +80,7 @@ The logical Field Package and tiling rules are now defined by ME-05-07 V0.3: one
 
 Core Domain owns Field Dataset identity, Field Revision metadata, current pointer, schema/semantics compatibility, publication audit and typed Field Revision → Core Asset ownership. Map Engine owns field decoding, sampling, tiling algorithms and derived calculations; it cannot change published bytes or current revision pointers.
 
-A Field Revision is a Map Source Field Baseline correction. Per ME-05-01 V0.4, publication affects every Branch and Historical Time of its owning Map, retroactively. It is not a History Command. Another Map is unaffected even when identical Asset bytes are deduplicated.
+A Field Revision is a Map Source Field Baseline correction. Per ME-05-01 V0.5, publication affects every Branch and Historical Time of its owning Map, retroactively. It is not a History Command. Another Map is unaffected even when identical Asset bytes are deduplicated.
 
 ## 5. Asset identity, deduplication and retention
 
