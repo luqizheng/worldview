@@ -3,7 +3,7 @@
 - Version: 0.7
 - Date: 2026-11-22
 - Status: Object Type / Geometry Component / Relationship / Map Field Baseline reconciled integrated logical inventory and migration dependency proposal — not executable SQL and not implementation authorization
-- Supersedes: P2-09-13 V0.5 for the current Command/Relationship descriptor and test-proof references; V0.5 is retained as history
+- Supersedes: P2-09-13 V0.6; V0.6 is retained as history. V0.5 remains historical for the earlier Command/Relationship descriptor and test-proof references.
 - Supersedes: P2-09-13 V0.1 for migration dependency ordering and explicit ownership integration; V0.1 is retained as history
 - Depends on: P2-09-01~11; Core Domain P2-09-11 V0.11; AI Assistant Schema V1.16; AI/Core Integration Review V0.8; P2-09-16 V0.1; P2-09-14 V0.1; P2-09-15 V0.5; P2-09-17 V0.5; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.2; P2-09-21 V0.1; P2-09-22 V0.2
 
@@ -19,7 +19,7 @@
 
 Consolidate the current Core Domain and AI Assistant logical persistence designs into one Project-local SQLite inventory and deterministic migration dependency graph. This document is the bridge between the separate domain-owned schema proposals and the later executable Schema V2.0 package.
 
-It does not freeze concrete SQL types, trigger bodies, indexes or migration scripts. The bounded Command catalog and payload contract are now recorded in P2-09-15 V0.3 and P2-09-17 V0.3; the remaining physical decisions are conditional typed-link selection, Calendar validation and provider proof.
+It does not freeze concrete SQL types, trigger bodies, indexes or migration scripts. The bounded Command catalog and payload contract are now recorded in P2-09-15 V0.5 and P2-09-17 V0.5; the remaining physical decisions are conditional typed-link selection, Calendar validation and provider proof.
 
 ## 2. Ownership and one-database rule
 
