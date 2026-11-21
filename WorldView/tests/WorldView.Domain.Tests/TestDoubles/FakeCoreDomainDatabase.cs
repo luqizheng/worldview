@@ -203,7 +203,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
         var type = FindObjectType(request.ProjectId, reservation.ObjectTypeId)
             ?? throw new CoreDomainDataException("Reservation 引用的 Object Type 不存在。");
-        ObjectRules.ValidatePin(type.TypeKey, BuiltinObjectTypes.DescriptorSchemaVersion, BuiltinObjectTypes.SemanticsIdFor(type.TypeKey));
+        var descriptor = WorldView.Domain.Registry.ObjectTypeRegistry.Require(type.TypeKey);
+        ObjectRules.ValidatePin(type.TypeKey, descriptor.SchemaVersion, descriptor.SemanticsId);
         ObjectRules.ValidateScopePairing(request.SharingScope, request.OwnerMapId);
 
         var identity = new ObjectRecord
@@ -211,8 +212,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
             ObjectIdentityId = request.ObjectIdentityId,
             ProjectId = request.ProjectId,
             ObjectTypeId = reservation.ObjectTypeId,
-            ObjectTypeSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-            ObjectTypeSemanticsId = BuiltinObjectTypes.SemanticsIdFor(type.TypeKey),
+            ObjectTypeSchemaVersion = descriptor.SchemaVersion,
+            ObjectTypeSemanticsId = descriptor.SemanticsId,
             SharingScope = request.SharingScope,
             OwnerMapId = request.OwnerMapId,
             LifecycleStatus = ObjectLifecycleStatus.Draft,

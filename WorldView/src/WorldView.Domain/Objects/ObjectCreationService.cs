@@ -46,8 +46,12 @@ public static class ObjectCreationService
                 $"身份 {identityId} 处于 {identity.LifecycleStatus} 状态，仅 draft 可正式创建（R-状态机）。");
         }
 
-        // R-定义：definition schema 版本必须与身份 pin 一致。
+        // R-定义：definition schema 版本必须与身份 pin 一致；typed 字段校验经 descriptor
+        // registry（CD-02-C 起 OD-2 运行时启用；registry 数据为校验依据，不发明字段语义）。
         ObjectRules.ValidateDefinitionSchemaVersion(identity, definition.DefinitionSchemaVersion);
+        var type = database.FindObjectType(projectId, identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException($"身份 {identityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
+        Registry.ObjectTypeRegistry.ValidateDefinitionPayload(type.TypeKey, CanonicalJson.Canonicalize(definition.DefinitionPayloadJson));
         ValidatePlacementPairing(initialMembership);
 
         if (initialMembership is not null)

@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
+using WorldView.Domain.Registry;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
 
@@ -196,8 +197,10 @@ public sealed partial class SqliteCoreDomainDatabase
                 ReservationRules.ValidateTransition(reservation.State, ReservationState.Bound);
 
                 var type = ReadObjectTypeRow(transaction, request.ProjectId, reservation.ObjectTypeId);
-                var semanticsId = BuiltinObjectTypes.SemanticsIdFor(type.TypeKey);
-                ObjectRules.ValidatePin(type.TypeKey, BuiltinObjectTypes.DescriptorSchemaVersion, semanticsId);
+                // pin 按 descriptor registry（CD-02-C 编译期权威）。
+                var descriptor = ObjectTypeRegistry.Require(type.TypeKey);
+                var semanticsId = descriptor.SemanticsId;
+                ObjectRules.ValidatePin(type.TypeKey, descriptor.SchemaVersion, semanticsId);
                 ObjectRules.ValidateScopePairing(request.SharingScope, request.OwnerMapId);
 
                 if (request.SharingScope == ObjectSharingScope.MapLocal
@@ -224,7 +227,7 @@ public sealed partial class SqliteCoreDomainDatabase
                     insert.Parameters.AddWithValue("$identityId", Uuid(request.ObjectIdentityId));
                     insert.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
                     insert.Parameters.AddWithValue("$typeId", Uuid(reservation.ObjectTypeId));
-                    insert.Parameters.AddWithValue("$schemaVersion", BuiltinObjectTypes.DescriptorSchemaVersion);
+                    insert.Parameters.AddWithValue("$schemaVersion", descriptor.SchemaVersion);
                     insert.Parameters.AddWithValue("$semanticsId", semanticsId);
                     insert.Parameters.AddWithValue(
                         "$scope",

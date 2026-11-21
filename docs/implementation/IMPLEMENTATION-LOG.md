@@ -174,6 +174,14 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Verification:** 33 new real-SQLite tests (16 concurrency: shared connection/write-write/write-race/partial-write visibility, transactions incl. midway rollback + paired-count isolation, dispose races, migrations incl. two-connection same-file exactly-once; 15 integrity: two-package project isolation, composite-FK cross-project writes, planted corruption — cycle/dangling/ownerless/cross-map root/initial-own/depth-limit, schema CHECK/FK/UNIQUE/partial-index negatives; 2 domain lineage). Full suite 172/172; Debug and Release builds 0 errors.
 - **Verdict:** PASS WITH CONDITIONS — cross-call composite writes rely on V1 append-only semantics (revisit when delete/update lands); coordinator is serial per connection (mind long transactions); new adapters must go through the coordinator; P2-09-12/WAL open gates unchanged.
 
+## 2026-11-22 CD-02-C Registry runtime & typed schema implemented
+
+- **Code:** `WorldView.Domain/Registry/ObjectTypeRegistry.cs` + embedded P2-09-26 V0.2 descriptor registry (csproj resource link — single data source, no copy drift); pin authority migrated from BuiltinObjectTypes constants to the registry; typed definition-payload validation wired into ObjectCreationService/ObjectDefinitionService; adapter Bind writes registry-derived pins.
+- **Inventory (R1):** P2-09-26 V0.2 descriptors are complete and machine-readable (12 top-level keys per type; six definition declaration forms; geometry role/min/max/families; unknown_fields=reject declared). P2-09-24 field catalog consistent. Initial-state typed schema does not exist (OD-1 stays open, structural validation only). P2-09-28 vectors are prose fixtures — definition-field subset encoded as unit vectors; geometry/relationship subsets deferred.
+- **Tests:** 281/281 total (13 new registry tests incl. programmatic valid-payload vectors for all ten types); Release build clean.
+- **Not activated:** Registry V2 (P2-09-45 §8 ten acceptance gates unexecuted — gap list in CD-02-C report §6); registry compiler not implemented; runtime disabled_pending_* fields untouched.
+- **Report:** `docs/core-domain/CD-02-C_IMPLEMENTATION_REPORT_v0.1.md`.
+
 ## 2026-11-22 CD-02-B Object Persistence & Initial State Foundation implemented
 
 - **Code:** commits `13bd8cd`（migrations 005–008）、`60af79b`（Domain services + port + adapter）、`95f22e4`（real-SQLite verification suite）on master.

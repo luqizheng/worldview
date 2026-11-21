@@ -83,7 +83,9 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         return (project, map);
     }
 
-    private static ObjectDefinitionRecord Definition(Guid projectId, Guid identityId, string payload = "{}") => new()
+    private const string RiverDefinition = """{"canonical_name":"Demo","river_class":"other"}""";
+
+    private static ObjectDefinitionRecord Definition(Guid projectId, Guid identityId, string payload = RiverDefinition) => new()
     {
         ProjectId = projectId,
         ObjectIdentityId = identityId,
@@ -610,7 +612,7 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var current = core.ReadObjectDefinition(project.ProjectId, identityId)!;
 
         ObjectDefinitionService.EditDefinition(
-            core, project.ProjectId, identityId, current.DefinitionHash, """{"v":2}""",
+            core, project.ProjectId, identityId, current.DefinitionHash, """{"canonical_name":"V2","river_class":"other"}""",
             BuiltinObjectTypes.DescriptorSchemaVersion, Now + 1);
         var edited = core.ReadObjectDefinition(project.ProjectId, identityId)!;
         Assert.Equal(CanonicalJson.Sha256Hex(edited.DefinitionPayloadJson), edited.DefinitionHash);
@@ -618,7 +620,7 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         // stale CAS 拒绝。
         Assert.Throws<CoreDomainConflictException>(
             () => ObjectDefinitionService.EditDefinition(
-                core, project.ProjectId, identityId, current.DefinitionHash, """{"v":3}""",
+                core, project.ProjectId, identityId, current.DefinitionHash, """{"canonical_name":"V3","river_class":"other"}""",
                 BuiltinObjectTypes.DescriptorSchemaVersion, Now + 2));
 
         // PK 保证单行。

@@ -75,8 +75,9 @@ public static class ObjectIdReservationService
             ?? throw new CoreDomainDataException(
                 $"Reservation {reservationId} 引用的 Object Type {reservation.ObjectTypeId} 不存在（数据损坏）。");
 
-        // pin 按内置目录推导（CD-02-B 无 registry runtime；未知类型 fail-closed）。
-        ObjectRules.ValidatePin(type.TypeKey, BuiltinObjectTypes.DescriptorSchemaVersion, BuiltinObjectTypes.SemanticsIdFor(type.TypeKey));
+        // pin 按 descriptor registry 推导（CD-02-C：编译期权威；未知类型 fail-closed）。
+        var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
+        ObjectRules.ValidatePin(type.TypeKey, descriptor.SchemaVersion, descriptor.SemanticsId);
         ObjectRules.ValidateScopePairing(sharingScope, ownerMapId);
 
         return database.BindReservation(new ObjectBindRequest

@@ -84,18 +84,18 @@ public static class ObjectRules
     }
 
     /// <summary>
-    /// R-钉住：pin 值必须与内置目录声明一致（CD-02-B 十类型 = P2-09-26 V0.2：
-    /// schema_version=2 + world-view.object-type.&lt;key&gt;.v1）；不一致 fail-closed。
+    /// R-钉住：pin 值必须与 descriptor 声明一致（CD-02-C 起权威在
+    /// <see cref="Registry.ObjectTypeRegistry"/>）；不支持版本 fail-closed（OT-05/06）。
     /// </summary>
     public static void ValidatePin(string typeKey, long schemaVersion, string semanticsId)
     {
-        var expectedSemanticsId = BuiltinObjectTypes.SemanticsIdFor(typeKey);
-        if (schemaVersion != BuiltinObjectTypes.DescriptorSchemaVersion
-            || !string.Equals(semanticsId, expectedSemanticsId, StringComparison.Ordinal))
+        try
         {
-            throw new CoreDomainConflictException(
-                $"Object Type \"{typeKey}\" 的 pin (schema_version={schemaVersion}, semantics_id=\"{semanticsId}\") "
-                + $"与内置 descriptor 声明不一致（预期 {BuiltinObjectTypes.DescriptorSchemaVersion} / \"{expectedSemanticsId}\"），fail-closed（R-钉住）。");
+            Registry.ObjectTypeRegistry.ValidatePin(typeKey, schemaVersion, semanticsId);
+        }
+        catch (Registry.RegistryException ex)
+        {
+            throw new CoreDomainConflictException($"{ex.Message} fail-closed（R-钉住）。", ex);
         }
     }
 

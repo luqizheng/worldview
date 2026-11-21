@@ -19,6 +19,9 @@ public sealed class ObjectDomainServiceTests
 {
     private const long Now = 1_000L;
 
+    /// <summary>合法 river definition payload（registry typed 校验通过）。</summary>
+    private const string RiverDefinition = """{"canonical_name":"Demo","river_class":"other"}""";
+
     private static (FakeCoreDomainDatabase Db, ProjectRecord Project, MapCreationPlan Map) Seed()
     {
         var db = new FakeCoreDomainDatabase();
@@ -188,7 +191,7 @@ public sealed class ObjectDomainServiceTests
                 ProjectId = project.ProjectId,
                 ObjectIdentityId = bound.ObjectIdentityId!.Value,
                 DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-                DefinitionPayloadJson = "{}",
+                DefinitionPayloadJson = RiverDefinition,
                 DefinitionHash = "",
                 UpdatedAtUtcMs = Now,
             },
@@ -217,7 +220,7 @@ public sealed class ObjectDomainServiceTests
                 ProjectId = project.ProjectId,
                 ObjectIdentityId = identityId,
                 DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-                DefinitionPayloadJson = """{"name":"Alpha"}""",
+                DefinitionPayloadJson = """{"canonical_name":"Alpha","river_class":"other"}""",
                 DefinitionHash = "",
                 UpdatedAtUtcMs = Now,
             },
@@ -231,7 +234,7 @@ public sealed class ObjectDomainServiceTests
 
         // definition 首行已 canonical 化并带 hash。
         var definition = db.ReadObjectDefinition(project.ProjectId, identityId)!;
-        Assert.Equal("""{"name":"Alpha"}""", definition.DefinitionPayloadJson);
+        Assert.Equal("""{"canonical_name":"Alpha","river_class":"other"}""", definition.DefinitionPayloadJson);
         Assert.Equal(CanonicalJson.Sha256Hex(definition.DefinitionPayloadJson), definition.DefinitionHash);
 
         // 注册行 + 成员行 + 基线。
@@ -276,7 +279,7 @@ public sealed class ObjectDomainServiceTests
                     ProjectId = project.ProjectId,
                     ObjectIdentityId = identityId,
                     DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-                    DefinitionPayloadJson = "{}",
+                    DefinitionPayloadJson = RiverDefinition,
                     DefinitionHash = "",
                     UpdatedAtUtcMs = Now,
                 },
@@ -304,7 +307,7 @@ public sealed class ObjectDomainServiceTests
                     ProjectId = project.ProjectId,
                     ObjectIdentityId = identityId,
                     DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-                    DefinitionPayloadJson = "{}",
+                    DefinitionPayloadJson = """{"road_class":"local"}""",
                     DefinitionHash = "",
                     UpdatedAtUtcMs = Now,
                 },
@@ -330,7 +333,7 @@ public sealed class ObjectDomainServiceTests
                     ProjectId = project.ProjectId,
                     ObjectIdentityId = identityId,
                     DefinitionSchemaVersion = 3,
-                    DefinitionPayloadJson = "{}",
+                    DefinitionPayloadJson = RiverDefinition,
                     DefinitionHash = "",
                     UpdatedAtUtcMs = Now,
                 },
@@ -347,14 +350,14 @@ public sealed class ObjectDomainServiceTests
         var current = db.ReadObjectDefinition(project.ProjectId, identityId)!;
 
         var updated = ObjectDefinitionService.EditDefinition(
-            db, project.ProjectId, identityId, current.DefinitionHash, """{"name":"Beta"}""",
+            db, project.ProjectId, identityId, current.DefinitionHash, """{"canonical_name":"Beta","river_class":"other"}""",
             BuiltinObjectTypes.DescriptorSchemaVersion, Now + 10);
-        Assert.Equal("""{"name":"Beta"}""", updated.DefinitionPayloadJson);
+        Assert.Equal("""{"canonical_name":"Beta","river_class":"other"}""", updated.DefinitionPayloadJson);
 
         // stale 凭据再编辑 → CAS 冲突。
         Assert.Throws<CoreDomainConflictException>(
             () => ObjectDefinitionService.EditDefinition(
-                db, project.ProjectId, identityId, current.DefinitionHash, """{"name":"Gamma"}""",
+                db, project.ProjectId, identityId, current.DefinitionHash, """{"canonical_name":"Gamma","river_class":"other"}""",
                 BuiltinObjectTypes.DescriptorSchemaVersion, Now + 20));
     }
 
@@ -525,7 +528,7 @@ public sealed class ObjectDomainServiceTests
                 ProjectId = projectId,
                 ObjectIdentityId = identityId,
                 DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
-                DefinitionPayloadJson = """{"n":1}""",
+                DefinitionPayloadJson = RiverDefinition,
                 DefinitionHash = "",
                 UpdatedAtUtcMs = Now,
             },

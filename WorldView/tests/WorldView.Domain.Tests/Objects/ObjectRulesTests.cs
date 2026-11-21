@@ -104,8 +104,11 @@ public sealed class ObjectRulesTests
     [Fact]
     public void ValidatePin_UnknownTypeKey_FailClosed()
     {
-        Assert.Throws<InvalidOperationException>(
+        // CD-02-C 起 pin 校验经 registry：未知 type_key 以 CoreDomainConflictException
+        // 包装 RegistryException（稳定错误码 unknown_type_key）。
+        var ex = Assert.Throws<CoreDomainConflictException>(
             () => ObjectRules.ValidatePin("building", BuiltinObjectTypes.DescriptorSchemaVersion, "world-view.object-type.building.v1"));
+        Assert.Contains("unknown_type_key", ex.Message);
     }
 
     [Fact]

@@ -52,7 +52,10 @@ public static class BuiltinObjectTypes
     /// <summary>type_key 是否为内置类型（未知 type_key 不静默映射，OT-01 fail-closed）。</summary>
     public static bool IsBuiltinTypeKey(string typeKey) => DisplayNames.ContainsKey(typeKey);
 
-    /// <summary>由 type_key 推导语义标识（模板一致；仅内置类型可调用）。</summary>
+    /// <summary>
+    /// 由 type_key 推导语义标识（CD-02-C 起 pin 权威在 <see cref="Registry.ObjectTypeRegistry"/>；
+    /// 本方法委托 registry，保持种子目录单一数据源一致性）。
+    /// </summary>
     public static string SemanticsIdFor(string typeKey)
     {
         if (!IsBuiltinTypeKey(typeKey))
@@ -60,8 +63,12 @@ public static class BuiltinObjectTypes
             throw new InvalidOperationException($"未知 Object Type \"{typeKey}\"：不在内置种子目录内，fail-closed（OT-01）。");
         }
 
-        return string.Format(CultureInfo.InvariantCulture, SemanticsIdTemplate, typeKey);
+        return Registry.ObjectTypeRegistry.Require(typeKey).SemanticsId;
     }
+
+    /// <summary>descriptor schema 版本（委托 registry 的逐 descriptor 声明；V1 十类型均为 2）。</summary>
+    public static long DescriptorSchemaVersionFor(string typeKey) =>
+        Registry.ObjectTypeRegistry.Require(typeKey).SchemaVersion;
 }
 
 /// <summary>

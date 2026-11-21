@@ -41,9 +41,13 @@ public static class ObjectDefinitionService
                 $"定义 CAS 冲突：expected hash 与当前定义不匹配（对象 {objectIdentityId} 已被并发编辑或凭据过期）。");
         }
 
-        // 规范化 + hash 在服务层计算（Domain 职责，Handoff §5.7）；schema 版本与 pin 一致性校验。
+        // 规范化 + hash 在服务层计算（Domain 职责，Handoff §5.7）；schema 版本与 pin 一致性
+        // 校验 + typed 字段校验经 descriptor registry（CD-02-C 起 OD-2 运行时启用）。
         ObjectRules.ValidateDefinitionSchemaVersion(identity, definitionSchemaVersion);
+        var type = database.FindObjectType(projectId, identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException($"身份 {objectIdentityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
         var (canonicalPayload, hash) = CanonicalJson.CanonicalizeAndHash(definitionPayloadJson);
+        Registry.ObjectTypeRegistry.ValidateDefinitionPayload(type.TypeKey, canonicalPayload);
 
         database.EditObjectDefinition(new ObjectDefinitionEditPlan
         {

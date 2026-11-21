@@ -178,4 +178,9 @@ public sealed class CoreDomainConflictException : Exception
         : base(message)
     {
     }
+
+    public CoreDomainConflictException(string message, Exception inner)
+        : base(message, inner)
+    {
+    }
 }
