@@ -9,6 +9,7 @@ This repository is the version-controlled documentation baseline for the World V
 - `P2-01-D01/`: historical-state and command-domain discussion record.
 - `ai-assistant/`: AI product architecture, task planning/execution, context, tools, providers, authorization, proposal/application, database schemas, and recovery.
 - `map-editor/`: desktop editor architecture, world-knowledge/story-spatial bridge, and Guided Initialization.
+- `map-generation/`: map generation specification, generation session lifecycle, and related source README.
 - `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, and Unit animation.
 - `history/`: reserved for superseded or historical source documents retained for traceability.
 - `README-implementation-handoff-v1.0.md`: implementation handoff guidance and scope boundary.
