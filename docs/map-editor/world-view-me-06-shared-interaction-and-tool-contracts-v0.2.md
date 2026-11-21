@@ -293,7 +293,7 @@ Touch/pen-specific gestures may be added where platform behavior justifies them,
 | ME-06-B | Input routing and gesture lifecycle | Focus, pointer capture, cancellation, transient edit session and local undo contract |
 | ME-06-C | Spatial query freshness | Scene/query generation tokens, late-result suppression, dependency fingerprints and apply-time re-resolution |
 | ME-06-D | Typed Intent and formal operation routing | Intent envelope, capability gate, Application Service routing, authorization and idempotent reconciliation boundaries |
-| ME-06-E | Candidate review interaction | Exact-version review, partial decision dependencies, stale invalidation, submission and outcome states |
+| ME-06-E | Candidate review interaction | Exact-version review, dependency-closed partial selection, immutable Selection Snapshot, Change Set authorization and atomic submission outcomes |
 | ME-06-F | Error recovery, accessibility and acceptance | Failure taxonomy, keyboard/pointer parity, recovery matrix and executable acceptance scenarios |
 | ME-06-G | Cross-architecture integration review | Reconcile ME-01/02/03/04/05, Core Domain, AI Assistant, Map Engine and desktop application; findings and implementation gates |
 
@@ -306,8 +306,8 @@ ME-06 is complete as a design working baseline when:
 2. Input routing, focus, capture loss, cancellation and local undo have deterministic behavior.
 3. Every asynchronous spatial query has an explicit freshness dependency profile and stale-result policy.
 4. Formal apply re-resolves stable references and revalidates current context; renderer/query results cannot authorize writes.
-5. Candidate review uses exact version/hash, dependency-aware partial decisions and authorization invalidation.
-6. Error outcomes distinguish Cancelled, Failed, Stale, Blocked, Unsupported, Rejected, Applied and Pending reconciliation.
+5. Candidate review uses exact version/hash, dependency-closed partial selection, immutable Selection Snapshots and authorization invalidation; one Change Set is applied atomically or not at all.
+6. Error outcomes distinguish Cancelled, Failed, Stale, Blocked, Unsupported, Rejected, Applied and Pending reconciliation; partial acceptance is not partial application.
 7. Pointer/keyboard parity and non-color status communication have acceptance scenarios.
 8. Core Domain, AI Assistant, Map Engine and desktop application ownership boundaries are reconciled.
 9. Windows/macOS platform proof requirements are specified without claiming execution.
@@ -317,7 +317,7 @@ ME-06 is complete as a design working baseline when:
 
 ME-06 is the next shared workstream after the ME-04 specialist package reached its design review. It turns the existing interaction architecture and specialist UX into precise, testable tool/application seams. Its purpose is to prevent each editor mode from inventing its own gesture runtime, query freshness rules or formal write path.
 
-The first implementation-facing priority is the tool-to-operation capability inventory. It will reveal which tools are truly enabled by current Core Domain and Map Engine capabilities, which can preview only, and which remain blocked pending adoption or platform proof. No ME-06 document by itself authorizes production implementation or changes to formal domain contracts.
+ME-06-A through ME-06-E now establish the capability, input/gesture, query freshness, typed-intent routing and Candidate review baselines. ME-06-E resolves the distinction between dependency-aware partial selection and atomic Change Set application. The remaining work is ME-06-F recovery/accessibility/acceptance and ME-06-G cross-architecture integration. No ME-06 document by itself authorizes production implementation or changes to formal domain contracts.
 
 
 ## 11. V0.2 Candidate selection and atomic submission clarification
@@ -331,3 +331,14 @@ V1 submission of one Change Set remains atomic and all-or-none through the Core 
 - do not show or persist a `partially_applied` outcome for one Change Set in V1.
 
 If multiple independent Change Sets are submitted separately, report each transaction outcome separately. Do not aggregate them into one apparent partial transaction.
+
+
+## 12. V0.2 Candidate Review integration note
+
+ME-06-E V0.1 completes the Candidate Review design baseline. It reuses the existing AI Assistant Candidate/Validation and Selection/Application schema contracts and adds no V1 database table.
+
+The key integration rule is that a dependency-closed subset may be **partially accepted**, but a single sealed Change Set remains an atomic submission. Core Domain commits every Command in the Change Set or none. The review UI must not present a partial Change Set application outcome in V1. Separate Change Sets, if submitted independently, are reported as separate transactions.
+
+ME-06-E defines a typed, immutable `required_candidate_versions[]` dependency manifest inside the Candidate Version payload rather than introducing a generic Candidate Dependency table. Dependencies pin exact versions; cycles are rejected; formal Command ordering remains separate.
+
+ME-06-A through ME-06-E are complete as design working baselines. Runtime implementation, executable UI/service conformance tests, Windows/macOS evidence and the remaining ME-06-F/G packages remain open.
