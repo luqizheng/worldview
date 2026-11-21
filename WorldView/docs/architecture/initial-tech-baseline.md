@@ -12,7 +12,7 @@
 | UI 框架 | Avalonia UI | 12.1.6（稳定版） | 官方模板 `Avalonia.Templates@12.1.6`；Win + macOS 桌面 |
 | UI 组织模式 | MVVM | CommunityToolkit.Mvvm 8.4.2 | 源生成器（ObservableProperty / RelayCommand） |
 | 依赖注入 | Microsoft.Extensions.DependencyInjection | 11.0.0 | 组合根位于 `WorldView.Desktop` Program.cs |
-| 单元测试 | xUnit | 2.9.3 + Test.Sdk 17.14.1 | 模板默认稳定组合；coverlet.collector 6.0.4 |
+| 单元测试 | xUnit.v3 | 4.0.3 + Test.Sdk 18.12.0 | 2026-11-21 升级：.NET 11 SDK 下 `dotnet test` 需经 `global.json` 启用 Microsoft.Testing.Platform；coverlet.collector 10.1.1 |
 | 解决方案格式 | 经典 `.sln` | — | 兼容性优于 `.slnx`（.NET 11 SDK 默认生成 slnx，已改用 sln） |
 | Nullable | 全局开启 | — | `Directory.Build.props` |
 | 编译绑定 | 开启 | — | Desktop 项目 `AvaloniaUseCompiledBindingsByDefault=true` |

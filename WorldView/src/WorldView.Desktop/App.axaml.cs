@@ -7,7 +7,9 @@ using WorldView.Desktop.Views;
 
 namespace WorldView.Desktop;
 
-public partial class App : Application
+// 注意：必须完整限定 Avalonia.Application——裸写 Application 会被解析为同层级的
+// WorldView.Application 命名空间（CS0118）。
+public partial class App : Avalonia.Application
 {
     /// <summary>
     /// 组合根的服务容器。由 Program 在应用启动前注入；仅供启动阶段解析根对象使用，
