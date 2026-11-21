@@ -396,6 +396,6 @@ No LLM generation, long validation, geometry processing, user interaction or net
 
 V0.8 is the recommended reconciled relational design baseline for the next bounded schema review. It preserves the V0.7 table inventory and adds explicit Map-local Object ownership, full Checkpoint input identity, stale-publication protection, exact AI V1.16 integration, and the required Map-before-Object migration dependency.
 
-Open gates remain: final Object Type display grammar; precise Calendar conversion and configuration gap/overlap behavior; concrete Command descriptor/payload catalog; conditional typed asset-link selection; SQLite CHECK/trigger/provider validation; and packaged Windows/macOS shared-transaction proof.
+Open gates remain: final Object Type display grammar; precise Calendar conversion and configuration gap/overlap behavior; concrete typed payload schemas and canonical serialization for enabled Command descriptors; conditional typed Object/Asset link selection; SQLite CHECK/trigger/provider validation; and packaged Windows/macOS shared-transaction proof.
 
 It is **not** executable DDL, a provider-tested migration package, proof of cross-module atomicity, or implementation authorization. Development implementation and test execution remain the responsibility of the development team after the design gates close.

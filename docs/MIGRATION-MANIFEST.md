@@ -13,7 +13,7 @@ The repository also retains the pre-existing ADR and P2-01-D01 packages.
 
 ## Repository inventory
 
-At the last verification, the repository contained 112 files in total, including 111 files under `docs/`.
+At the last verification, the repository contained 113 files in total, including 112 files under `docs/`.
 
 | Area | Directory | Files |
 |---|---|---:|
