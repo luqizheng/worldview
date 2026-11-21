@@ -46,7 +46,7 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-E | **Complete** — Climate & ecology authoring | Seasonal causal climate model, circulation/moisture, temperature/precipitation, climate classification, biome/habitat suitability — [ME-02-06](world-view-me-02-climate-and-ecology-authoring-v0.1.md) |
 | ME-02-F | **Complete** — Calculation contracts | Reproducible input snapshots, determinism profiles, tile/halo/resolution semantics, bounded invalidation, separate Run/Artifact lifecycle, atomic publication, cancellation/recovery and validation — [ME-02-07](world-view-me-02-calculation-contracts-v0.2.md) |
 | ME-02-G | **Complete** — UX scenarios and acceptance | End-to-end creator workflows, Inspector, diagnostics, Candidate review, accessibility and Figma handoff — [ME-02-08](world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) |
-| ME-02-H | **Complete** — Cross-architecture review | Reconciled Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; Field Dataset authority decision adopted in ME-05-01 V0.3 — [ME-02-09](world-view-me-02-cross-architecture-review-v0.2.md) |
+| ME-02-H | **Complete** — Cross-architecture review | Reconciled Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; Field Dataset authority decision adopted in ME-05-01 V0.5 — [ME-02-09](world-view-me-02-cross-architecture-review-v0.2.md) |
 
 ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.3. Physical schema and provider-proof designs are documented in P2-09-11 V0.11 and P2-09-12 V0.6; the recommended Field Descriptor Registry V0.1 and 32 validation vectors are also documented. Immutable payload package/tiling, development implementation and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
 
@@ -89,11 +89,13 @@ ME-03-A through ME-03-H are complete as specialist product/domain/UX and cross-a
 | ME-05-04 | [Coordinate Reference, Precision & Measurement Contract](world-view-me-05-04-coordinate-reference-precision-and-measurement-contract-v0.1.md) | 0.1 | Recommended V1 coordinate/measurement contract | Spatial-reference identity, typed coordinate pipeline, transforms, precision profiles, curve preservation, measurement semantics and accuracy/error declarations |
 | ME-05-05 | [Geometry & Field Asset Package and Publication Contract](world-view-me-05-05-geometry-and-field-asset-package-publication-contract-v0.3.md) | 0.3 | Recommended V1 Asset lifecycle integration contract | Vector/field payload separation, immutable Asset ownership, publication, CAS, retention, orphan recovery and provider validation gates |
 | ME-05-06 | [Cross-architecture Integration Review & V1 Gates](world-view-me-05-06-cross-architecture-integration-review-v0.4.md) | 0.4 | Cross-architecture Review Working Baseline | Reconciles Core Domain, Map Engine, ME-01/02 and future ME-03/04 consumers; records findings, ownership boundaries and implementation acceptance gates |
+| ME-05-07 | [Field Payload Package & Tiling Contract](world-view-me-05-07-field-payload-package-and-tiling-contract-v0.3.md) | 0.3 | Recommended V1 Field Package Working Contract | Single immutable package per Field Revision, canonical manifest, tile directory, random reads, local edits, halo and cache semantics |
+| ME-05-08 | [Field Package Binary Envelope & Directory Specification](world-view-me-05-08-field-package-binary-envelope-and-directory-specification-v0.1.md) | 0.1 | Recommended V1 Byte-level Format Contract | Fixed header, manifest, directory entries, tile payload ranges, reader validation and writer publication protocol |
 
 ### ME-05 current closure and remaining gates
 
 - **ME-05-01 product/domain gate closed:** H-G01 adopted; Map Source Field Baseline is Map-owned and Field Revision updates apply retroactively to every Branch and Historical Time of that Map.
-- **Design contracts drafted:** ME-05-02 geometry identity/operation boundary; ME-05-03 spatial predicate and topology boundary; ME-05-04 coordinate reference, precision and measurement semantics; ME-05-05 immutable geometry/field Asset package and publication lifecycle; ME-05-06 cross-architecture reconciliation and implementation gates.
+- **Design contracts drafted:** ME-05-02 geometry identity/operation boundary; ME-05-03 spatial predicate and topology boundary; ME-05-04 coordinate reference, precision and measurement semantics; ME-05-05 immutable geometry/field Asset package and publication lifecycle; ME-05-06 cross-architecture reconciliation; ME-05-07 seekable Field package/tiling; ME-05-08 byte-level package envelope.
 - **Existing Core Domain alignment:** P2-09-19 V0.2 stores component identity in typed owner payloads (no V1 component table); P2-09-15 V0.5 includes adjust/refine/add/remove and defers split/merge; P2-09-20 V0.2 keeps formal relationships typed and distinct from geometric coincidence.
 - **Open:** exact immutable field/geometry payload package and tiling; finalize payload package/tiling and selected technical implementations; implementation and Windows/macOS numerical/provider execution evidence; specialist topology validation and selected-library measurement/transform proof. ME-05-02/03 are recommended working contracts, not frozen ADRs, executable descriptors or implementation authorization.
 
@@ -105,8 +107,10 @@ ME-03-A through ME-03-H are complete as specialist product/domain/UX and cross-a
 | ME-05-B | **Complete as working contract** — Shared Geometry Model and Component Operations | ME-05-02 V0.1 |
 | ME-05-C | **Complete as working contract** — Topology and Spatial Predicates | ME-05-03 V0.1 |
 | ME-05-D | **Complete as working contract** — Coordinate Reference, Precision & Measurement | ME-05-04 V0.1 |
-| ME-05-E | **Complete as working contract** — Geometry/Field Asset Package & Publication Integration | ME-05-05 V0.1 |
-| ME-05-F | **Complete as working review** — Map Engine / Core Domain Integration & Cross-architecture Verification | ME-05-06 V0.1 | Typed API boundaries, specialist constraints, acceptance matrix and implementation gates |
+| ME-05-E | **Complete as working contract** — Geometry/Field Asset Package & Publication Integration | ME-05-05 V0.3 |
+| ME-05-F | **Complete as working review** — Map Engine / Core Domain Integration & Cross-architecture Verification | ME-05-06 V0.4 | Typed API boundaries, specialist constraints, acceptance matrix and implementation gates |
+| ME-05-G | **Complete as working contract** — Field Payload Package & Tiling | ME-05-07 V0.3 | Seekable package, tile addressing, random reads, local edits and halo/cache semantics |
+| ME-05-H | **Complete as working specification** — Field Package Binary Envelope | ME-05-08 V0.1 | Byte-level header, manifest, directory, payload ranges and reader/writer validation |
 
 ## Subsequent specialist workstreams
 
