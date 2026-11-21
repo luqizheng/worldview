@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Object-presence-lifecycle-reconciled payload contract — canonical envelope and descriptor-level validation baseline; specialist Object Type schemas remain domain-owned extensions
 - Supersedes: P2-09-17 V0.4; V0.4 is retained as history
-- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.8; P2-09-15 V0.3; P2-09-18 V0.1; P2-09-19 V0.1; P2-09-20 V0.2; P2-09-14 V0.1; P2-09-04 V0.2; ME-01-05 V0.1
+- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.10; P2-09-15 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.2; P2-09-14 V0.1; P2-09-04 V0.2; ME-01-05 V0.1
 
 ## 1. Purpose
 

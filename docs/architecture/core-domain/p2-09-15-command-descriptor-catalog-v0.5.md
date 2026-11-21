@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Object-presence-lifecycle-reconciled recommended V1 catalog baseline — descriptor families and scope decisions; payload schemas and handler algorithms remain subject to bounded follow-up design
 - Supersedes: P2-09-15 V0.4; V0.4 is retained as history
-- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.8; P2-09-14 V0.1; P2-09-17 V0.2; P2-09-18 V0.1; P2-09-19 V0.1; P2-01-D01 D01-01~16 and D01-50~64; ME-01-05 V0.1; Spatial Presentation & Geometry Interaction Contract V0.1; P2-09-20 V0.2
+- Depends on: P2-09-03 V0.2; P2-09-05 V0.3; P2-09-08 V0.2; P2-09-11 V0.10; P2-09-14 V0.1; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; P2-01-D01 D01-01~16 and D01-50~64; ME-01-05 V0.1; Spatial Presentation & Geometry Interaction Contract V0.1; P2-09-20 V0.2
 
 ## 1. Purpose and authority
 

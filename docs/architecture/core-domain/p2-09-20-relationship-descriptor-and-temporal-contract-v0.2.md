@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Object-presence-lifecycle-reconciled recommended V1 relationship contract — typed descriptor, identity and temporal scope; concrete specialist relationship type registry remains bounded by Object Type readiness
 - Supersedes: P2-09-20 V0.1; V0.1 is retained as history
-- Depends on: P2-09-02 V0.1; P2-09-05 V0.3; P2-09-11 V0.9; P2-09-15 V0.4; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; ME-01-05 V0.1
+- Depends on: P2-09-02 V0.1; P2-09-05 V0.3; P2-09-11 V0.10; P2-09-15 V0.4; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; ME-01-05 V0.1
 
 ## 1. Purpose
 
