@@ -2,165 +2,441 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://worldview.local/schemas/core-command-payload-v1.schema.json",
   "title": "World View Core Domain Command Payload V1",
-  "description": "Canonical payload envelope and recommended V1 operation schemas. The runtime descriptor registry remains authoritative for execution semantics and cross-record validation.",
+  "description": "Canonical payload envelope and structural V1 operation schemas. A Core Domain descriptor registry MUST compose the matching Object Type and Relationship Type schemas and perform cross-record validation before persistence or replay.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["payload_schema_version", "operation"],
+  "required": [
+    "payload_schema_version",
+    "operation"
+  ],
   "properties": {
-    "payload_schema_version": { "const": 1 },
-    "operation": { "$ref": "#/$defs/operation" },
-    "provenance": { "$ref": "#/$defs/provenance" }
+    "payload_schema_version": {
+      "const": 1
+    },
+    "operation": {
+      "$ref": "#/$defs/operation"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    }
   },
   "$defs": {
-    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
-    "stableKey": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
-    "finiteNumber": { "type": "number" },
-    "coordinate": { "type": "array", "minItems": 2, "maxItems": 3, "items": { "$ref": "#/$defs/finiteNumber" } },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "stableKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+    },
+    "finiteNumber": {
+      "type": "number"
+    },
+    "coordinate": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/finiteNumber"
+      }
+    },
     "component": {
-      "type": "object", "additionalProperties": false,
-      "required": ["component_id", "role_key", "geometry_family", "dimension", "spatial_reference_id", "geometry_schema_version", "asset_id", "content_hash"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_id",
+        "role_key",
+        "geometry_family",
+        "dimension",
+        "spatial_reference_id",
+        "geometry_schema_version",
+        "asset_id",
+        "content_hash"
+      ],
       "properties": {
-        "component_id": { "$ref": "#/$defs/id" },
-        "role_key": { "$ref": "#/$defs/stableKey" },
-        "geometry_family": { "enum": ["point", "line_string", "curve", "polygon", "multi_point", "multi_line_string", "multi_curve", "multi_polygon"] },
-        "dimension": { "enum": [2, 3] },
-        "spatial_reference_id": { "$ref": "#/$defs/id" },
-        "geometry_schema_version": { "type": "integer", "minimum": 1 },
-        "asset_id": { "$ref": "#/$defs/id" },
-        "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "provenance": { "type": "object", "additionalProperties": false, "properties": {
-          "source_kind": { "enum": ["authored", "imported", "refined", "derived_adopted"] },
-          "source_asset_id": { "$ref": "#/$defs/id" },
-          "method_id": { "$ref": "#/$defs/stableKey" },
-          "method_version": { "type": "string", "minLength": 1 }
-        } }
+        "component_id": {
+          "$ref": "#/$defs/id"
+        },
+        "role_key": {
+          "$ref": "#/$defs/stableKey"
+        },
+        "geometry_family": {
+          "enum": [
+            "point",
+            "line_string",
+            "curve",
+            "polygon",
+            "multi_point",
+            "multi_line_string",
+            "multi_curve",
+            "multi_polygon"
+          ]
+        },
+        "dimension": {
+          "enum": [
+            2,
+            3
+          ]
+        },
+        "spatial_reference_id": {
+          "$ref": "#/$defs/id"
+        },
+        "geometry_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "asset_id": {
+          "$ref": "#/$defs/id"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source_kind": {
+              "enum": [
+                "authored",
+                "imported",
+                "refined",
+                "derived_adopted"
+              ]
+            },
+            "source_asset_id": {
+              "$ref": "#/$defs/id"
+            },
+            "method_id": {
+              "$ref": "#/$defs/stableKey"
+            },
+            "method_version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
       }
     },
     "provenance": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "authoring_source": { "enum": ["human", "ai_assisted", "import", "system_migration"] },
-        "evidence_asset_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
-        "note": { "type": "string", "maxLength": 4000 }
+        "authoring_source": {
+          "enum": [
+            "human",
+            "ai_assisted",
+            "import",
+            "system_migration"
+          ]
+        },
+        "evidence_asset_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 4000
+        }
       }
     },
     "operation": {
       "oneOf": [
-        { "$ref": "#/$defs/objectCreate" },
-        { "$ref": "#/$defs/objectDeactivate" },
-        { "$ref": "#/$defs/objectActivate" },
-        { "$ref": "#/$defs/attributeChange" },
-        { "$ref": "#/$defs/geometryAdjust" },
-        { "$ref": "#/$defs/geometryRefine" },
-        { "$ref": "#/$defs/geometryAdd" },
-        { "$ref": "#/$defs/geometryRemove" },
-        { "$ref": "#/$defs/relationshipEstablish" },
-        { "$ref": "#/$defs/relationshipEnd" }
+        {
+          "$ref": "#/$defs/objectCreate"
+        },
+        {
+          "$ref": "#/$defs/objectDeactivate"
+        },
+        {
+          "$ref": "#/$defs/objectActivate"
+        },
+        {
+          "$ref": "#/$defs/attributeChange"
+        },
+        {
+          "$ref": "#/$defs/geometryAdjust"
+        },
+        {
+          "$ref": "#/$defs/geometryRefine"
+        },
+        {
+          "$ref": "#/$defs/geometryAdd"
+        },
+        {
+          "$ref": "#/$defs/geometryRemove"
+        },
+        {
+          "$ref": "#/$defs/relationshipEstablish"
+        },
+        {
+          "$ref": "#/$defs/relationshipEnd"
+        }
       ]
     },
     "objectCreate": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "reservation_id", "object_type_id", "object_identity_id", "creation_mode", "initial_runtime_attributes", "initial_geometry_components"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reservation_id",
+        "object_type_id",
+        "object_identity_id",
+        "creation_mode",
+        "initial_runtime_attributes",
+        "initial_geometry_components"
+      ],
       "properties": {
-        "kind": { "const": "core.object.create" },
-        "reservation_id": { "$ref": "#/$defs/id" },
-        "object_type_id": { "$ref": "#/$defs/id" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "creation_mode": { "enum": ["map_local", "project_shared"] },
-        "initial_runtime_attributes": { "type": "object" },
-        "initial_geometry_components": { "type": "array", "items": { "$ref": "#/$defs/component" } }
+        "kind": {
+          "const": "core.object.create"
+        },
+        "reservation_id": {
+          "$ref": "#/$defs/id"
+        },
+        "object_type_id": {
+          "$ref": "#/$defs/id"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "creation_mode": {
+          "enum": [
+            "map_local",
+            "project_shared"
+          ]
+        },
+        "initial_runtime_attributes": {
+          "type": "object",
+          "$comment": "Must be validated with the exact object_type_id-pinned creation/runtime attribute schema; arbitrary fields are not permitted by the composed descriptor validator."
+        },
+        "initial_geometry_components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        }
       }
     },
     "objectDeactivate": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id"
+      ],
       "properties": {
-        "kind": { "const": "core.object.deactivate" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "deactivation_reason_code": { "$ref": "#/$defs/stableKey" },
-        "deactivation_attributes": { "type": "object" }
+        "kind": {
+          "const": "core.object.deactivate"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "deactivation_reason_code": {
+          "$ref": "#/$defs/stableKey"
+        },
+        "deactivation_attributes": {
+          "type": "object"
+        }
       }
     },
     "objectActivate": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id"
+      ],
       "properties": {
-        "kind": { "const": "core.object.activate" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "activation_reason_code": { "$ref": "#/$defs/stableKey" }
+        "kind": {
+          "const": "core.object.activate"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "activation_reason_code": {
+          "$ref": "#/$defs/stableKey"
+        }
       }
     },
     "attributeChange": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id", "attribute_key", "new_value"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id",
+        "attribute_key",
+        "new_value"
+      ],
       "properties": {
-        "kind": { "const": "core.object.attribute.change" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "attribute_key": { "$ref": "#/$defs/stableKey" },
+        "kind": {
+          "const": "core.object.attribute.change"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "attribute_key": {
+          "$ref": "#/$defs/stableKey"
+        },
         "new_value": {},
         "expected_value": {}
       }
     },
     "geometryAdjust": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id", "component_id", "replacement_component"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id",
+        "component_id",
+        "replacement_component"
+      ],
       "properties": {
-        "kind": { "const": "core.geometry.adjust_component" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "component_id": { "$ref": "#/$defs/id" },
-        "replacement_component": { "$ref": "#/$defs/component" }
+        "kind": {
+          "const": "core.geometry.adjust_component"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "component_id": {
+          "$ref": "#/$defs/id"
+        },
+        "replacement_component": {
+          "$ref": "#/$defs/component"
+        }
       }
     },
     "geometryRefine": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id", "component_id", "source_content_hash", "refined_component", "method_id", "method_version"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id",
+        "component_id",
+        "source_content_hash",
+        "refined_component",
+        "method_id",
+        "method_version"
+      ],
       "properties": {
-        "kind": { "const": "core.geometry.refine_component" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "component_id": { "$ref": "#/$defs/id" },
-        "source_content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "refined_component": { "$ref": "#/$defs/component" },
-        "method_id": { "$ref": "#/$defs/stableKey" },
-        "method_version": { "type": "string", "minLength": 1 }
+        "kind": {
+          "const": "core.geometry.refine_component"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "component_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "refined_component": {
+          "$ref": "#/$defs/component"
+        },
+        "method_id": {
+          "$ref": "#/$defs/stableKey"
+        },
+        "method_version": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "geometryAdd": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id", "component"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id",
+        "component"
+      ],
       "properties": {
-        "kind": { "const": "core.geometry.add_component" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "component": { "$ref": "#/$defs/component" }
+        "kind": {
+          "const": "core.geometry.add_component"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "component": {
+          "$ref": "#/$defs/component"
+        }
       }
     },
     "geometryRemove": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "object_identity_id", "component_id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "object_identity_id",
+        "component_id"
+      ],
       "properties": {
-        "kind": { "const": "core.geometry.remove_component" },
-        "object_identity_id": { "$ref": "#/$defs/id" },
-        "component_id": { "$ref": "#/$defs/id" }
+        "kind": {
+          "const": "core.geometry.remove_component"
+        },
+        "object_identity_id": {
+          "$ref": "#/$defs/id"
+        },
+        "component_id": {
+          "$ref": "#/$defs/id"
+        }
       }
     },
     "relationshipEstablish": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "relationship_type_id", "source_object_id", "target_object_id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "relationship_type_id",
+        "source_object_id",
+        "target_object_id"
+      ],
       "properties": {
-        "kind": { "const": "core.relationship.establish" },
-        "relationship_type_id": { "$ref": "#/$defs/id" },
-        "source_object_id": { "$ref": "#/$defs/id" },
-        "target_object_id": { "$ref": "#/$defs/id" },
-        "attributes": { "type": "object" }
+        "kind": {
+          "const": "core.relationship.establish"
+        },
+        "relationship_type_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_object_id": {
+          "$ref": "#/$defs/id"
+        },
+        "target_object_id": {
+          "$ref": "#/$defs/id"
+        },
+        "attributes": {
+          "type": "object",
+          "$comment": "Must be validated with the exact relationship_type_id-pinned attribute schema; arbitrary fields are not permitted by the composed descriptor validator."
+        }
       }
     },
     "relationshipEnd": {
-      "type": "object", "additionalProperties": false,
-      "required": ["kind", "relationship_id"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "relationship_id"
+      ],
       "properties": {
-        "kind": { "const": "core.relationship.end" },
-        "relationship_id": { "$ref": "#/$defs/id" },
-        "end_reason_code": { "$ref": "#/$defs/stableKey" }
+        "kind": {
+          "const": "core.relationship.end"
+        },
+        "relationship_id": {
+          "$ref": "#/$defs/id"
+        },
+        "end_reason_code": {
+          "$ref": "#/$defs/stableKey"
+        }
       }
     }
-  }
+  },
+  "$comment": "This is a structural schema layer, not a standalone authorization or domain validator. initial_runtime_attributes and relationship attributes are validated against the exact pinned type descriptor schema; unknown fields are rejected by that composed schema. The persisted command_type_id, descriptor_schema_version and execution_semantics_id remain authoritative in the relational Command envelope."
 }
