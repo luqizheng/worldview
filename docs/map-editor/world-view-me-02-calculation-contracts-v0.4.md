@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: **Calculation Contract Working Baseline** — deterministic execution, provenance, freshness, invalidation and validation-severity contract; algorithms, numeric calibration, physical-field storage and performance thresholds remain separate gates
 - Parent: [ME-02 Terrain & Natural Geography Editor V0.3](world-view-me-02-terrain-and-natural-geography-editor-v0.3.md)
-- Depends on: ME-02-02 through ME-02-06; ME-01-04/05/07; Core Domain Asset / Checkpoint / History contracts; ME-05-01 Field Dataset Authority & Persistence Contract V0.4; ME-05-05 Field Payload Package & Tiling Contract V0.1; Map Engine renderer-neutral spatial and field contracts
+- Depends on: ME-02-02 through ME-02-06; ME-01-04/05/07; Core Domain Asset / Checkpoint / History contracts; ME-05-01 Field Dataset Authority & Persistence Contract V0.4; ME-05-07 Field Payload Package & Tiling Contract V0.1; ME-05-05 Geometry & Field Asset Package/Publication V0.1; Map Engine renderer-neutral spatial and field contracts
 - Scope: Shared calculation lifecycle for terrain, hydrology, climate and ecology derived analysis
 
 ## 1. Purpose and design decision
