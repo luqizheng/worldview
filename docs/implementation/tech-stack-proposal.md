@@ -1,9 +1,9 @@
 # World View — 实现技术选型提案 V0.1
 
 - **日期**：2026-11-20
-- **状态**：**Proposed — 待人工裁决**。本文不构成任何已确认决定。
+- **状态**：**Superseded（主技术方向已由用户确定）**。本文仅保留历史候选方案比较，不再作为当前技术选型依据。
 - **性质**：实现层技术选型提案（语言 / 数据库 / 框架），不改变任何已冻结架构。
-- **背景**：Architecture Baseline §40 明确将"最终数据库技术、API 具体路径、渲染技术、Geometry 引擎"等留待实施阶段决定；实现语言此前未被任何文档冻结。2026-11-20 用户明确指出：**技术架构由用户裁决，不由实施方默认锁定**。
+- **背景与当前决策**：2026-11-20 用户已确定 World View 新架构采用 **C# + Avalonia，面向 Windows + macOS 的桌面单机应用**。工程初始化决策已记录于 `WorldView/docs/decisions/ADR-0001-project-bootstrap.md`，工程技术基线见 `WorldView/docs/architecture/initial-tech-baseline.md`。本文中 Python / TypeScript / C# 的比较是决策前历史材料；当前主语言与 UI 框架不再待裁决。
 - **权威边界**：无论选哪种栈，以下已冻结内容不变——领域模型（ADR-002 统一 History）、Branch 分叉规则（ADR-005）、命令驱动单线播放原则（ADR-003）、重建纯函数语义（P2-01 §6）、HSE-01~10 不变量。**这些与语言无关。**
 
 ---
@@ -93,7 +93,7 @@
 
 # 5. 裁决后立即生效的事项清单
 
-1. `server/`（Python 草稿）：同栈 → 续用并通过测试后转正；异栈 → 删除或移入 `archive/` 仅作逻辑参考。
-2. 建立工程骨架（目录、测试、格式/类型检查、迁移机制）。
-3. 实施顺序不变：领域引擎 → 存储 → 应用服务 → 任务引擎 → 生成 → 验证 → Change Set → API/MCP。
-4. 本文升级为 `decisions/0001-tech-stack.md` 记录正式决定（或按用户新立的 ADR 处理）。
+1. 本文不再用于重新选择语言或桌面 UI 框架；如需变更 C# / Avalonia，必须通过新的 ADR 说明原因、迁移影响和兼容策略。
+2. 继续评估数据库 / 项目文件格式、2D/3D 渲染、Geometry / GIS 引擎、空间索引、AI 接入和 Agent Runtime；这些仍是独立技术决策，不因 ADR-0001 而自动确定。
+3. 工程骨架已建立于 `WorldView/`。正式领域实现应按 Core Domain 设计与验证计划推进，不能把初始化示例当作正式领域实现。
+4. 具体评估入口见 `WorldView/docs/roadmap/tech-assessment-backlog.md`。
