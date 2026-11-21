@@ -1,8 +1,8 @@
-# World View P2-09-12 — .NET SQLite Provider and Cross-Module Transaction Proof Test Specification V0.5
+# World View P2-09-12 — .NET SQLite Provider and Cross-Module Transaction Proof Test Specification V0.6
 
 - Date: 2026-11-21
-- Version: 0.4
-- Status: Object-presence/relationship-activity-reconciled development verification specification — test design only; no implementation code or test execution performed by this document
+- Version: 0.6
+- Status: Field Dataset/Revision publication and Map-wide baseline verification specification — test design only; no implementation code or test execution performed by this document
 - Supersedes: P2-09-12 V0.5; V0.5 is retained for traceability
 - Depends on: P2-09-01; P2-09-04 V0.2; P2-09-09 V0.1; P2-09-10 V0.1; P2-09-11 V0.11; P2-09-13 V0.6; P2-09-15 V0.5; P2-09-17 V0.5; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.2; P2-09-21 V0.1; P2-09-22 V0.2; AI/Core Integration Review V0.8; AI Assistant Logical Schema V1.16; ME-05-01 Field Dataset Authority & Persistence Contract V0.2
 - Target: Avalonia 12 desktop application, .NET 10, Microsoft.Data.Sqlite 11.x with bundled SQLitePCLRaw e_sqlite3
