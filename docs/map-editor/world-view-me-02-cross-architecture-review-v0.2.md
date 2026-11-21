@@ -22,7 +22,7 @@ ME-02-A through ME-02-G form a coherent Natural Geography editor product and dom
 
 **No new top-level subsystem or distributed infrastructure is required.** Calculation execution belongs inside the Map Engine / Spatial Services boundary. UX uses the existing Editor and AI Map Task lifecycle.
 
-The original review identified one unresolved domain boundary: the authority and persistence lifecycle of creator-authored/imported source Field Datasets. This has now been resolved by ME-05-01 V0.2, adopted on 2026-11-21: Core Domain owns Map-scoped Field Dataset identity, immutable Field Revisions and typed Core Asset references; each new current revision applies retroactively to every Branch and Historical Time of its Map. It is not a Command/Event/State Change and does not affect another Map. P2-09-11 V0.11 and P2-09-12 V0.5 reconcile the logical schema and provider-proof design; ME-02-F V0.3 aligns calculation fingerprints and freshness. Implementation, Field Descriptor Registry, payload package/tiling and actual provider/platform tests remain open.
+The original review identified one unresolved domain boundary: the authority and persistence lifecycle of creator-authored/imported source Field Datasets. This has now been resolved by ME-05-01 V0.2, adopted on 2026-11-21: Core Domain owns Map-scoped Field Dataset identity, immutable Field Revisions and typed Core Asset references; each new current revision applies retroactively to every Branch and Historical Time of its Map. It is not a Command/Event/State Change and does not affect another Map. P2-09-11 V0.11 and P2-09-12 V0.6 reconcile the logical schema and provider-proof design; ME-02-F V0.3 aligns calculation fingerprints and freshness. Implementation, Field Descriptor Registry, payload package/tiling and actual provider/platform tests remain open.
 
 The package is suitable for the next bounded design/implementation-planning phase. The H-G01 product/domain authority gate is closed; implementation readiness remains subject to the explicit sub-gates below.
 
@@ -74,7 +74,7 @@ This review evaluates design compatibility and stated authority. It does not cla
 | Branch/history/checkpoints | P2-09-08/11/16 | Historical context and lineage participate in freshness identity | Aligned |
 | Immutable formal Assets | P2-09-11/17/19/25 | Formal adopted payloads use Core Asset and typed owner links | Aligned |
 | Source physical Field Dataset | ME-05-01 V0.2 adopted contract | Core owner, Map-wide retroactive baseline semantics and typed Asset ownership defined; implementation still pending | **Domain gate closed; implementation sub-gates open** |
-| Derived calculation outputs | ME-02-F V0.2 | Map Engine-owned derived artifact catalog/file namespace, not Core Asset by default | Clarified |
+| Derived calculation outputs | ME-02-F V0.3 | Map Engine-owned derived artifact catalog/file namespace, not Core Asset by default | Clarified |
 | Calculation execution | Map Engine / Spatial Services | Bounded local calculation subsystem | Aligned |
 | AI task and Candidate | Map Generation V0.2 | Calculation Run is an internal execution unit; Candidate only for formal adoption | Aligned |
 | Scene/render caches | Map Engine V0.3 / renderer contract | Consume immutable derived publication; rebuildable, non-authoritative | Aligned |
@@ -89,20 +89,15 @@ This review evaluates design compatibility and stated authority. It does not cla
 
 **Disposition: P0 product/domain gate CLOSED; implementation gate remains**
 
-ME-02-B initially left the Field Dataset owner and persistence lifecycle open. ME-05-01 V0.2 now defines the adopted Map-owned Dataset/immutable Revision contract and typed Asset ownership. P2-09-11 V0.11 adds the two Core tables and current-revision composite FK; P2-09-12 V0.5 adds provider-level verification cases. This closes the authority/product-semantic gap without introducing a generic polymorphic Asset owner or field Command history.
-
-A creator-authored elevation field or land/water mask is a source input, not a Derived Artifact and not merely a renderer cache. Treating it as a formal world fact requires an explicit authority and lifecycle.
+ME-02-B initially left the Field Dataset owner and persistence lifecycle open. ME-05-01 V0.2 now defines the adopted Map-owned Dataset/immutable Revision contract and typed Asset ownership. P2-09-11 V0.11 adds the two Core tables and same-Dataset current-revision composite FK; P2-09-12 V0.6 adds provider-level verification cases. The product-semantic decision is accepted: publishing a new Field Revision updates the Map Source Field Baseline retroactively for every Branch and Historical Time of that Map, without creating a Command, Event or State Change and without affecting another Map.
 
 **Disposition:**
-1. **Closed:** ME-05/Core Domain have defined and adopted the bounded Field Dataset owner contract.
-2. **Open:** Field Descriptor Registry and canonical manifest schema, immutable payload package/tiling, deferred composite-FK and immutability-trigger provider validation, and development implementation/test execution.
-2. The contract must identify Map scope, spatial reference, coverage, resolution, units, no-data semantics, immutable Asset references and provenance.
-3. It must define whether authored fields belong to Map Initial State, Project-shared definition or another explicit owner. Do not duplicate ownership.
-4. It must define how field updates are represented: Initial State baseline authoring and/or a registered post-zero typed Command. Post-zero field editing must not be implemented through generic CRUD or by overwriting an Asset.
-5. Until adopted, imports/edits may be held as provisional staging data, but must not be presented as formally adopted map facts.
-6. The source-field contract must define whether field content is Map/Branch-specific or intentionally shared. Elevation and land/water inputs must not accidentally become Project-shared merely because multiple Maps reuse an Asset.
+1. **Closed:** ME-05/Core Domain have defined and adopted the bounded Field Dataset authority, Map ownership and Map-wide retroactive Branch/Time semantics.
+2. **Open:** Field Descriptor Registry and canonical manifest schema; immutable payload package/tiling; actual SQLite provider validation of deferred composite FKs, immutability triggers and compare-and-swap; development implementation and Windows/macOS test execution.
 
-This was the only P0 cross-architecture domain gate in the ME-02 package. Its product/domain portion is now closed; implementation readiness is tracked by the remaining ME-05/Core Domain sub-gates.
+A creator-authored elevation field or land/water mask is a source input, not a Derived Artifact and not merely a renderer cache. Formal publication must use the Core Domain Field Dataset Domain Service and typed immutable Core Asset ownership. It must not use generic Asset CRUD, overwrite published bytes, create Branch-local field copies or represent a baseline correction as a historical Command.
+
+This was the only P0 cross-architecture domain gate in the ME-02 package. Its product/domain portion is now closed; implementation readiness is tracked by H-G01-I and the remaining specialist gates.
 
 ### H-02 — Derived Artifact storage must remain distinct from Core Domain Assets
 
