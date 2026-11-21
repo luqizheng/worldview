@@ -18,7 +18,11 @@ public static class BuiltinObjectTypes
     /// <summary>语义标识模板（world-view.object-type.&lt;type_key&gt;.v1）。</summary>
     public const string SemanticsIdTemplate = "world-view.object-type.{0}.v1";
 
-    /// <summary>十内置 type_key（顺序即播种顺序；P2-09-21 V0.1 / P2-09-26 V0.2）。</summary>
+    /// <summary>
+    /// 内置 type_key（顺序即播种顺序）。十基础类型（P2-09-21 V0.1 / P2-09-26 V0.2）+
+    /// Building/Cave 采纳对（P2-09-37/41，CD-02-E 项目所有者采纳包；child aggregate
+    /// 留在 owner payload，不建顶层子类型）。
+    /// </summary>
     public static IReadOnlyList<string> TypeKeys { get; } =
     [
         "landmass",
@@ -31,9 +35,11 @@ public static class BuiltinObjectTypes
         "road",
         "political_region",
         "point_of_interest",
+        "building",
+        "cave_system",
     ];
 
-    /// <summary>type_key → 显示名（P2-09-21 §6 能力表）。</summary>
+    /// <summary>type_key → 显示名（十类型取 P2-09-21 §6 能力表；采纳对取 P2-09-37 §2.1）。</summary>
     public static IReadOnlyDictionary<string, string> DisplayNames { get; } =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -47,6 +53,8 @@ public static class BuiltinObjectTypes
             ["road"] = "Road",
             ["political_region"] = "Political Region",
             ["point_of_interest"] = "Point of Interest",
+            ["building"] = "Building",
+            ["cave_system"] = "Cave System",
         };
 
     /// <summary>type_key 是否为内置类型（未知 type_key 不静默映射，OT-01 fail-closed）。</summary>

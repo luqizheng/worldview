@@ -75,8 +75,8 @@ public sealed record GeometryRoleDeclaration
 }
 
 /// <summary>
-/// 单个 Object Type descriptor（P2-09-26 V0.2 的不可变投影）。
-/// Registry 是编译期权威：本记录只暴露 descriptor 数据，不是可执行 schema。
+/// 单个 Object Type descriptor（P2-09-26 V0.2 基础目录 + P2-09-41 V0.4 采纳扩展的
+/// 不可变投影）。Registry 是编译期权威：本记录只暴露 descriptor 数据，不是可执行 schema。
 /// </summary>
 public sealed record ObjectTypeDescriptor
 {
@@ -106,24 +106,34 @@ public sealed record ObjectTypeDescriptor
     /// <summary>原始 command_capabilities（结构化策略对象；消费方为 Command 阶段）。</summary>
     public required IReadOnlyDictionary<string, JsonElement> CommandCapabilities { get; init; }
 
+    /// <summary>typed aggregate schema 工件名（仅 Building/Cave 采纳类型有；P2-09-41 definition_schema_ref）。</summary>
+    public string? DefinitionSchemaRef { get; init; }
+
+    /// <summary>child aggregate 段清单（仅采纳类型；P2-09-41 child_aggregate_contract.sections）。</summary>
+    public IReadOnlyList<string> ChildAggregateSections { get; init; } = Array.Empty<string>();
+
     public GeometryRoleDeclaration? FindGeometryRole(string role) =>
         GeometryRoles.FirstOrDefault(r => string.Equals(r.Role, role, StringComparison.Ordinal));
 
     public DefinitionFieldDeclaration? FindDefinitionField(string field) =>
         DefinitionFields.FirstOrDefault(f => string.Equals(f.Field, field, StringComparison.Ordinal));
+
+    /// <summary>true = 该类型的 definition payload 是 typed aggregate 文档（P2-09-38/39 schema 校验路由）。</summary>
+    public bool HasTypedAggregateSchema => !string.IsNullOrWhiteSpace(DefinitionSchemaRef);
 }
 
 /// <summary>
-/// Object Type Descriptor Registry 运行时（CD-02-C；P2-09-26 V0.2 为唯一数据源，
-/// 以程序集嵌入资源加载并 fail-closed 结构校验）。职责边界（CD-02-A §7）：
-/// 编译期权威 = descriptor 数据的正式读取与校验；无反射插件、无网络 fetch、
-/// 无用户 authored handler；未知 type_key/未知字段/不支持版本 fail-closed
-/// （OT-01/OT-05/OT-06）。Registry V2 激活另受 P2-09-45 §8 十项验收门约束——本
-/// 运行时是 V1 目录（format_version=1）的读取层，不宣布 V2 激活。
+/// Object Type Descriptor Registry 运行时（CD-02-C/E；数据源 = P2-09-26 V0.2 基础
+/// 目录 + P2-09-41 V0.4 Building/Cave 采纳扩展，均以程序集嵌入资源加载并 fail-closed
+/// 结构校验）。职责边界（CD-02-A §7）：编译期权威 = descriptor 数据的正式读取与校验；
+/// 无反射插件、无网络 fetch、无用户 authored handler；未知 type_key/未知字段/不支持
+/// 版本 fail-closed（OT-01/OT-05/OT-06）。Registry V2 激活另受 P2-09-45 §8 十项验收门
+/// 约束——本运行时是 V1 目录（format_version=1）读取层，不宣布 V2 激活。
 /// </summary>
 public static class ObjectTypeRegistry
 {
-    private const string ResourceName = "WorldView.Domain.Registry.p2-09-26-v1-object-type-descriptor-registry-v0.2.json";
+    private const string BaseResourceName = "WorldView.Domain.Registry.p2-09-26-v1-object-type-descriptor-registry-v0.2.json";
+    private const string AdoptionResourceName = "WorldView.Domain.Registry.p2-09-41-building-cave-object-type-descriptor-extension-v0.4.json";
 
     private static readonly Lazy<RegistryData> Data = new(Load, LazyThreadSafetyMode.ExecutionAndPublication);
 
@@ -144,6 +154,37 @@ public static class ObjectTypeRegistry
     public static ObjectTypeDescriptor Require(string typeKey) =>
         Find(typeKey)
         ?? throw new RegistryException("unknown_type_key", $"未知 Object Type \"{typeKey}\"：不在现行 descriptor 目录内。");
+
+    /// <summary>typed aggregate schema 资源名（仅采纳类型；定义 schema 路由，P2-09-41 definition_schema_ref）。</summary>
+    public static string? DefinitionSchemaResourceName(string typeKey) =>
+        Require(typeKey).DefinitionSchemaRef is { } fileName
+            ? $"WorldView.Domain.Registry.{fileName}"
+            : null;
+
+    /// <summary>
+    /// definition payload 统一校验入口（canonical JSON）：采纳类型（HasTypedAggregateSchema）
+    /// 路由到 <see cref="WorldView.Domain.Aggregates.BuildingCaveAggregateValidator"/>
+    /// （P2-09-38/39 schema + 跨记录层）；其余类型走 descriptor 字段校验
+    /// （<see cref="ValidateDefinitionPayload"/>）。违规抛 <see cref="RegistryException"/>。
+    /// </summary>
+    public static void ValidateDefinition(string typeKey, string canonicalJson)
+    {
+        var descriptor = Require(typeKey);
+        if (!descriptor.HasTypedAggregateSchema)
+        {
+            ValidateDefinitionPayload(typeKey, canonicalJson);
+            return;
+        }
+
+        var issues = WorldView.Domain.Aggregates.BuildingCaveAggregateValidator.Validate(typeKey, canonicalJson);
+        if (issues.Count > 0)
+        {
+            var first = issues[0];
+            throw new RegistryException(
+                "definition_invalid",
+                $"[{first.ErrorCode}] {first.Message}（共 {issues.Count} 项聚合校验问题；{typeKey}）");
+        }
+    }
 
     /// <summary>R-钉住：pin 必须与 descriptor 声明一致；不支持版本 fail-closed（OT-05/OT-06）。</summary>
     public static void ValidatePin(string typeKey, long schemaVersion, string semanticsId)
@@ -237,47 +278,61 @@ public static class ObjectTypeRegistry
 
     private static RegistryData Load()
     {
+        // 基础目录（P2-09-26 V0.2 十类型）+ 采纳扩展（P2-09-41 V0.4 building/cave_system）
+        // 合并为运行时目录；两文件键集不相交（重叠即 fail-closed）。
+        var descriptors = new List<ObjectTypeDescriptor>();
+        var baseRegistry = LoadRegistryFile(BaseResourceName);
+        foreach (var property in baseRegistry.EnumerateObject())
+        {
+            descriptors.Add(ParseDescriptor(property.Name, property.Value));
+        }
+
+        using var adoption = JsonDocument.Parse(ReadResource(AdoptionResourceName));
+        var additions = adoption.RootElement.GetProperty("object_type_additions");
+        foreach (var property in additions.EnumerateObject())
+        {
+            if (descriptors.Any(d => string.Equals(d.TypeKey, property.Name, StringComparison.Ordinal)))
+            {
+                throw new RegistryException("registry_format", $"采纳扩展 type_key \"{property.Name}\" 与基础目录冲突。");
+            }
+
+            descriptors.Add(ParseDescriptor(property.Name, property.Value));
+        }
+
+        if (descriptors.Count == 0)
+        {
+            throw new RegistryException("registry_format", "registry 不含任何 descriptor。");
+        }
+
+        return new RegistryData(descriptors);
+    }
+
+    private static JsonElement LoadRegistryFile(string resourceName)
+    {
+        using var document = JsonDocument.Parse(ReadResource(resourceName));
+        var root = document.RootElement;
+        RequireString(root, "format", "registry_format");
+        if (root.TryGetProperty("format_version", out var formatVersion) && formatVersion.GetInt64() != 1)
+        {
+            throw new RegistryException("registry_format", "不支持的 registry format_version（预期 1）。");
+        }
+
+        if (!root.TryGetProperty("object_types", out var types) || types.ValueKind != JsonValueKind.Object)
+        {
+            throw new RegistryException("registry_format", $"registry 资源 {resourceName} 缺少 object_types 对象。");
+        }
+
+        // EnumerateObject 在 using 释放后失效——克隆为字符串再重新解析（简单可靠）。
+        return JsonDocument.Parse(types.GetRawText()).RootElement;
+    }
+
+    private static string ReadResource(string resourceName)
+    {
         var assembly = typeof(ObjectTypeRegistry).Assembly;
-        using var stream = assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new RegistryException("registry_format", $"嵌入资源 {ResourceName} 缺失（部署损坏）。");
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new RegistryException("registry_format", $"嵌入资源 {resourceName} 缺失（部署损坏）。");
         using var reader = new StreamReader(stream);
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(reader.ReadToEnd());
-        }
-        catch (JsonException ex)
-        {
-            throw new RegistryException("registry_format", $"registry JSON 不可解析：{ex.Message}", ex);
-        }
-
-        using (document)
-        {
-            var root = document.RootElement;
-            RequireString(root, "format", "registry_format");
-            if (root.TryGetProperty("format_version", out var formatVersion) && formatVersion.GetInt64() != 1)
-            {
-                throw new RegistryException("registry_format", $"不支持的 registry format_version（预期 1）。");
-            }
-
-            if (root.TryGetProperty("object_types", out var types) && types.ValueKind == JsonValueKind.Object)
-            {
-                var descriptors = new List<ObjectTypeDescriptor>();
-                foreach ( var property in types.EnumerateObject())
-                {
-                    descriptors.Add(ParseDescriptor(property.Name, property.Value));
-                }
-
-                if (descriptors.Count == 0)
-                {
-                    throw new RegistryException("registry_format", "registry 不含任何 descriptor。");
-                }
-
-                return new RegistryData(descriptors);
-            }
-
-            throw new RegistryException("registry_format", "registry 缺少 object_types 对象。");
-        }
+        return reader.ReadToEnd();
     }
 
     private static ObjectTypeDescriptor ParseDescriptor(string expectedKey, JsonElement value)
@@ -292,6 +347,8 @@ public static class ObjectTypeRegistry
             "type_key", "schema_version", "semantics_id", "allocatable", "geometry",
             "definition", "runtime", "invariants", "command_capabilities",
             "definition_edit_policy", "initial_state_policy", "runtime_attribute_change_policy",
+            // P2-09-41 V0.4 采纳扩展块（S1）：definition schema 引用与 child aggregate 契约。
+            "definition_schema_ref", "asset_contract", "child_aggregate_contract",
         };
         foreach (var property in value.EnumerateObject())
         {
@@ -424,6 +481,25 @@ public static class ObjectTypeRegistry
             }
         }
 
+        // P2-09-41 采纳扩展块：definition schema 引用（工件名）+ child aggregate 段。
+        string? definitionSchemaRef = null;
+        if (value.TryGetProperty("definition_schema_ref", out var schemaRef) && schemaRef.ValueKind == JsonValueKind.String)
+        {
+            definitionSchemaRef = schemaRef.GetString();
+        }
+
+        var childSections = new List<string>();
+        if (value.TryGetProperty("child_aggregate_contract", out var childContract)
+            && childContract.ValueKind == JsonValueKind.Object
+            && childContract.TryGetProperty("sections", out var sections)
+            && sections.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var section in sections.EnumerateArray())
+            {
+                childSections.Add(section.GetString() ?? throw new RegistryException("descriptor_invalid", $"child_aggregate 段非字符串（{typeKey}）。"));
+            }
+        }
+
         return new ObjectTypeDescriptor
         {
             TypeKey = typeKey,
@@ -437,6 +513,8 @@ public static class ObjectTypeRegistry
             Invariants = invariants,
             InitialStateIncludes = initialStateIncludes,
             CommandCapabilities = commandCapabilities,
+            DefinitionSchemaRef = definitionSchemaRef,
+            ChildAggregateSections = childSections,
         };
     }
 

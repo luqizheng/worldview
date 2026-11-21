@@ -174,6 +174,14 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Verification:** 33 new real-SQLite tests (16 concurrency: shared connection/write-write/write-race/partial-write visibility, transactions incl. midway rollback + paired-count isolation, dispose races, migrations incl. two-connection same-file exactly-once; 15 integrity: two-package project isolation, composite-FK cross-project writes, planted corruption — cycle/dangling/ownerless/cross-map root/initial-own/depth-limit, schema CHECK/FK/UNIQUE/partial-index negatives; 2 domain lineage). Full suite 172/172; Debug and Release builds 0 errors.
 - **Verdict:** PASS WITH CONDITIONS — cross-call composite writes rely on V1 append-only semantics (revisit when delete/update lands); coordinator is serial per connection (mind long transactions); new adapters must go through the coordinator; P2-09-12/WAL open gates unchanged.
 
+## 2026-11-22 CD-02-E Building/Cave typed aggregate adoption implemented
+
+- **Adoption:** project owner adopted P2-09-37~42 package via the CD-02 delegation; implementation followed P2-09-43 S1-S10. No new tables; no top-level child types; building/cave_system descriptors merged into the runtime registry from the unmodified P2-09-41 V0.4 artifact (embedded resource), 12-type catalog with per-descriptor schema versions (base=2, adopted=1).
+- **Schemas executed, not transcribed:** P2-09-38/39 V0.5 aggregate schemas run through a bounded Draft-2020-12 subset validator (JsonSchemaSubset) that fails closed on unsupported keywords; definition validation routes aggregate types through the schema + cross-record layers, simple types through descriptor field validation.
+- **Conformance:** all 55 P2-09-40 V0.6 vectors executed and passing. Finding: partial vector patches use P2-09-38 V0.4-era field names (boundary_component_ids/region_component_ids/component_id) vs V0.5 names — explicit audited normalization in the runner; upstream vector revision recommended (refinement anticipated by the adoption gate).
+- **Tests:** 379/379 total; Release build clean.
+- **Report:** `docs/core-domain/CD-02-E_IMPLEMENTATION_REPORT_v0.1.md`.
+
 ## 2026-11-22 CD-02-D Geometry & Asset foundation implemented
 
 - **Code:** migrations 009-010 (`core_asset`, `core_object_definition_asset`); `WorldView.Domain/Assets/` (AssetRecord/AssetRules/AssetService — content-addressed idempotent registration, path confinement, corrupt/missing assets blocked from new formal references); `WorldView.Domain/Geometry/` (GeometryComponentManifest per P2-09-19 s6.2, descriptor-driven manifest validation, manifest/link/asset consistency, worldview.geometry-json envelope structural validator per P2-09-25 recommended direction, operation policy with explicit split/merge rejection per P2-09-19 s7.5).

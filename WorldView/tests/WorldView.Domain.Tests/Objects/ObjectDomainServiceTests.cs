@@ -38,14 +38,13 @@ public sealed class ObjectDomainServiceTests
     {
         var (db, project, _) = Seed();
         var types = db.ListObjectTypes(project.ProjectId).ToList();
-        Assert.Equal(10, types.Count);
+        Assert.Equal(12, types.Count);
         Assert.All(types, t => Assert.True(t.Allocatable));
         Assert.All(types, t => Assert.Equal(ObjectAllocationFormat.VersionMinimalDecimal, t.AllocationFormatVersion));
-        Assert.Equal(10, db.Allocators.Count(a => a.ProjectId == project.ProjectId && a.NextSequence == 1));
-        Assert.Equal(
-            new[] { "landmass", "mountain_range", "mountain_peak", "river", "lake", "terrain_region", "settlement", "road", "political_region", "point_of_interest" }
-                .OrderBy(k => k, StringComparer.Ordinal),
-            types.Select(t => t.TypeKey).OrderBy(k => k, StringComparer.Ordinal));
+        Assert.Equal(12, db.Allocators.Count(a => a.ProjectId == project.ProjectId && a.NextSequence == 1));
+        Assert.Equal(12, types.Select(t => t.TypeKey).Distinct(StringComparer.Ordinal).Count());
+        Assert.Contains("building", types.Select(t => t.TypeKey));
+        Assert.Contains("cave_system", types.Select(t => t.TypeKey));
     }
 
     [Fact]
@@ -92,7 +91,7 @@ public sealed class ObjectDomainServiceTests
     {
         var (db, project, _) = Seed();
         Assert.Throws<CoreDomainConflictException>(
-            () => ObjectIdReservationService.ReserveByTypeKey(db, project.ProjectId, "building", null, Now));
+            () => ObjectIdReservationService.ReserveByTypeKey(db, project.ProjectId, "interior_space", null, Now));
     }
 
     [Fact]

@@ -83,7 +83,8 @@ public sealed class ObjectRulesTests
     {
         foreach (var key in BuiltinObjectTypes.TypeKeys)
         {
-            ObjectRules.ValidatePin(key, BuiltinObjectTypes.DescriptorSchemaVersion, BuiltinObjectTypes.SemanticsIdFor(key));
+            // 逐 descriptor 版本（十基础类型 =2；Building/Cave 采纳对 =1，P2-09-41 V0.4）。
+            ObjectRules.ValidatePin(key, BuiltinObjectTypes.DescriptorSchemaVersionFor(key), BuiltinObjectTypes.SemanticsIdFor(key));
         }
     }
 
@@ -106,31 +107,37 @@ public sealed class ObjectRulesTests
     {
         // CD-02-C 起 pin 校验经 registry：未知 type_key 以 CoreDomainConflictException
         // 包装 RegistryException（稳定错误码 unknown_type_key）。
+        // （building 自 CD-02-E 起为采纳类型；此处用未注册键。）
         var ex = Assert.Throws<CoreDomainConflictException>(
-            () => ObjectRules.ValidatePin("building", BuiltinObjectTypes.DescriptorSchemaVersion, "world-view.object-type.building.v1"));
+            () => ObjectRules.ValidatePin("interior_space", 2, "world-view.object-type.interior_space.v1"));
         Assert.Contains("unknown_type_key", ex.Message);
     }
 
     [Fact]
     public void BuiltinCatalog_MatchesP2_09_26V0_2()
     {
-        // 十 type_key 精确匹配 P2-09-21 V0.1 / P2-09-26 V0.2（顺序无关）。
+        // 十基础 type_key 匹配 P2-09-21 V0.1 / P2-09-26 V0.2（顺序无关）；
+        // Building/Cave 采纳对（CD-02-E）追加，共 12。
         var expected = new[]
         {
             "landmass", "mountain_range", "mountain_peak", "river", "lake",
             "terrain_region", "settlement", "road", "political_region", "point_of_interest",
         };
-        Assert.Equal(10, BuiltinObjectTypes.TypeKeys.Count);
-        Assert.Equal(expected.OrderBy(k => k, StringComparer.Ordinal), BuiltinObjectTypes.TypeKeys.OrderBy(k => k, StringComparer.Ordinal));
+        Assert.Equal(12, BuiltinObjectTypes.TypeKeys.Count);
+        Assert.Equal(expected.OrderBy(k => k, StringComparer.Ordinal),
+            BuiltinObjectTypes.TypeKeys.Take(10).OrderBy(k => k, StringComparer.Ordinal));
+        Assert.Contains("building", BuiltinObjectTypes.TypeKeys);
+        Assert.Contains("cave_system", BuiltinObjectTypes.TypeKeys);
 
         // semantics_id 模板（world-view.object-type.<key>.v1）。
         Assert.Equal("world-view.object-type.landmass.v1", BuiltinObjectTypes.SemanticsIdFor("landmass"));
         Assert.Equal("world-view.object-type.point_of_interest.v1", BuiltinObjectTypes.SemanticsIdFor("point_of_interest"));
-        Assert.Equal(2, BuiltinObjectTypes.DescriptorSchemaVersion);
+        Assert.Equal("world-view.object-type.building.v1", BuiltinObjectTypes.SemanticsIdFor("building"));
+        Assert.Equal(2, BuiltinObjectTypes.DescriptorSchemaVersion); // 十基础类型
 
-        // Building/Cave 不在目录内（P2-09-41 未完成 typed_v2，不得擅自加入）。
-        Assert.False(BuiltinObjectTypes.IsBuiltinTypeKey("building"));
-        Assert.False(BuiltinObjectTypes.IsBuiltinTypeKey("cave_system"));
+        // 采纳对逐 descriptor 版本（P2-09-41 V0.4 = 1）。
+        Assert.Equal(1, BuiltinObjectTypes.DescriptorSchemaVersionFor("building"));
+        Assert.Equal(1, BuiltinObjectTypes.DescriptorSchemaVersionFor("cave_system"));
     }
 
     [Fact]

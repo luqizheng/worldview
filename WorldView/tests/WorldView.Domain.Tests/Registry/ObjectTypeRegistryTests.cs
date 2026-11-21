@@ -15,15 +15,17 @@ namespace WorldView.Domain.Tests.Registry;
 public sealed class ObjectTypeRegistryTests
 {
     [Fact]
-    public void Registry_LoadsTenDescriptors_StructurallyValid()
+    public void Registry_LoadsTwelveDescriptors_StructurallyValid()
     {
         var all = ObjectTypeRegistry.All;
-        Assert.Equal(10, all.Count);
+        Assert.Equal(12, all.Count);
         Assert.Equal(all.Select(d => d.TypeKey).Distinct(StringComparer.Ordinal).Count(), all.Count);
 
         foreach (var descriptor in all)
         {
-            Assert.Equal(2, descriptor.SchemaVersion);
+            // 逐 descriptor 版本（十基础 =2；采纳对 =1）。
+            var expectedVersion = descriptor.TypeKey is "building" or "cave_system" ? 1 : 2;
+            Assert.Equal(expectedVersion, descriptor.SchemaVersion);
             Assert.Equal($"world-view.object-type.{descriptor.TypeKey}.v1", descriptor.SemanticsId);
             Assert.True(descriptor.Allocatable, descriptor.TypeKey);
             Assert.NotEmpty(descriptor.DefinitionFields);
@@ -33,20 +35,28 @@ public sealed class ObjectTypeRegistryTests
                 descriptor.FindDefinitionField("canonical_name")!.Kind
                     is DefinitionFieldKind.RequiredString or DefinitionFieldKind.OptionalString,
                 descriptor.TypeKey);
-
-            // Building/Cave 不在现行目录（P2-09-41 未完成 typed_v2；不得擅自加入）。
-            Assert.NotEqual("building", descriptor.TypeKey);
-            Assert.NotEqual("cave_system", descriptor.TypeKey);
         }
 
+        // 十基础 + 采纳对。
+        var expected = new[] { "landmass", "mountain_range", "mountain_peak", "river", "lake", "terrain_region", "settlement", "road", "political_region", "point_of_interest", "building", "cave_system" };
         Assert.Equal(
-            new[] { "landmass", "mountain_range", "mountain_peak", "river", "lake", "terrain_region", "settlement", "road", "political_region", "point_of_interest" }
-                .OrderBy(k => k, StringComparer.Ordinal),
+            expected.OrderBy(k => k, StringComparer.Ordinal),
             all.Select(d => d.TypeKey).OrderBy(k => k, StringComparer.Ordinal).ToArray());
+
+        // 采纳对声明 typed aggregate schema 路由 + child aggregate 段（P2-09-41）。
+        var building = ObjectTypeRegistry.Require("building");
+        Assert.Equal("p2-09-38-building-typed-aggregate-schema-v0.5.json", building.DefinitionSchemaRef);
+        Assert.True(building.HasTypedAggregateSchema);
+        Assert.Contains("levels", building.ChildAggregateSections);
+        var cave = ObjectTypeRegistry.Require("cave_system");
+        Assert.Contains("survey_frames", cave.ChildAggregateSections);
+        Assert.Equal("p2-09-39-cave-system-typed-aggregate-schema-v0.5.json", cave.DefinitionSchemaRef);
+        // 十基础类型无 aggregate schema。
+        Assert.False(ObjectTypeRegistry.Require("river").HasTypedAggregateSchema);
     }
 
     [Fact]
-    public void ValidatePin_AllTenDescriptors_Pass()
+    public void ValidatePin_AllTwelveDescriptors_Pass()
     {
         foreach (var descriptor in ObjectTypeRegistry.All)
         {
@@ -67,7 +77,7 @@ public sealed class ObjectTypeRegistryTests
     [Fact]
     public void Require_UnknownTypeKey_FailClosedWithStableCode()
     {
-        foreach (var key in new[] { "building", "cave_system", "", "RIVER" })
+        foreach (var key in new[] { "interior_space", "cave", "", "RIVER" })
         {
             var ex = Assert.Throws<RegistryException>(() => ObjectTypeRegistry.Require(key));
             Assert.Equal("unknown_type_key", ex.ErrorCode);

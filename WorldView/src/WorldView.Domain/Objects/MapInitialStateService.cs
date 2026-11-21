@@ -42,12 +42,12 @@ public static class ObjectDefinitionService
         }
 
         // 规范化 + hash 在服务层计算（Domain 职责，Handoff §5.7）；schema 版本与 pin 一致性
-        // 校验 + typed 字段校验经 descriptor registry（CD-02-C 起 OD-2 运行时启用）。
+        // 校验 + typed 字段/聚合校验经 descriptor registry 统一路由（CD-02-C/E）。
         ObjectRules.ValidateDefinitionSchemaVersion(identity, definitionSchemaVersion);
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"身份 {objectIdentityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
         var (canonicalPayload, hash) = CanonicalJson.CanonicalizeAndHash(definitionPayloadJson);
-        Registry.ObjectTypeRegistry.ValidateDefinitionPayload(type.TypeKey, canonicalPayload);
+        Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonicalPayload);
 
         database.EditObjectDefinition(new ObjectDefinitionEditPlan
         {

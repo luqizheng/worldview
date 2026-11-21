@@ -120,17 +120,15 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
     // ---- 播种 ----
 
     [Fact]
-    public void ProjectCreation_SeedsTenTypes_TenAllocators()
+    public void ProjectCreation_SeedsTwelveTypes_TwelveAllocators()
     {
         var (project, _) = SeedProjectAndMap();
         var types = Core().ListObjectTypes(project.ProjectId);
-        Assert.Equal(10, types.Count);
-        Assert.Equal(10, CountRows("core_object_id_allocator"));
+        Assert.Equal(12, types.Count);
+        Assert.Equal(12, CountRows("core_object_id_allocator"));
         Assert.All(types, t => Assert.True(t.Allocatable));
-        Assert.Equal(
-            new[] { "landmass", "mountain_range", "mountain_peak", "river", "lake", "terrain_region", "settlement", "road", "political_region", "point_of_interest" }
-                .OrderBy(k => k, StringComparer.Ordinal),
-            types.Select(t => t.TypeKey).OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        Assert.Contains("building", types.Select(t => t.TypeKey));
+        Assert.Contains("cave_system", types.Select(t => t.TypeKey));
     }
 
     [Fact]
@@ -713,7 +711,7 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
                 for (var i = 0; i < 60; i++)
                 {
                     var count = core.ListObjectTypes(project.ProjectId).Count;
-                    Assert.Equal(10, count);
+                    Assert.Equal(12, count);
                 }
             }
             catch (Exception ex)
