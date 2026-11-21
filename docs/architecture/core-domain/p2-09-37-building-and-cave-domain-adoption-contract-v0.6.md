@@ -402,7 +402,7 @@ Adopt the typed aggregate direction as the minimum Core Domain extension for Bui
 
 Keep the existing Object/History/Asset authority architecture intact: two new top-level Object Types, typed nested child aggregates in existing owner payloads, Object-owned Geometry Components with child context, existing immutable Asset links, and no new domain tables in the first adoption.
 
-The machine-readable schemas, descriptor extension and validation vectors are now drafted. P2-09-42 V0.7 records the required reconciliation with the canonical P2-09-19 Geometry Component owner metadata and ME-05-04/P2-09-25 spatial-reference envelope. The next gate is executing the 51-vector suite and existing registry regression suite; no registry activation or DDL is implied.
+The machine-readable schemas, descriptor extension and validation vectors are now drafted. P2-09-42 V0.7 records the required reconciliation with the canonical P2-09-19 Geometry Component owner metadata and ME-05-04/P2-09-25 spatial-reference envelope. The next gate is executing the 53-vector suite and existing registry regression suite; no registry activation or DDL is implied.
 
 
 ## 15. V0.5 Geometry Component owner-payload alignment
