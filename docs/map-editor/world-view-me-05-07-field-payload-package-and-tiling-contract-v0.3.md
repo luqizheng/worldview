@@ -4,7 +4,7 @@
 - Date: 2026-11-21
 - Status: Recommended V1 technical contract; logical package/tiling rules and byte-level envelope defined; parser/writer, codec/precision and performance proof remain open
 - Owner: Map Engine / Spatial Services (package format, tile access, sampling); Core Domain (Field Dataset/Revision identity, immutable Asset publication and retention)
-- Depends on: ME-05-01 V0.4; ME-05-05 V0.3 Geometry & Field Asset Package/Publication; ME-05-08 Field Package Binary Envelope V0.1; P2-09-33 Binary Envelope Validation V0.1; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset Validation V0.1; ME-02-F V0.4; P2-09-25 Geometry Asset Encoding V0.1; Production Renderer Architecture V0.2
+- Depends on: ME-05-01 V0.5; ME-05-05 V0.3 Geometry & Field Asset Package/Publication; ME-05-08 Field Package Binary Envelope V0.1; P2-09-33 Binary Envelope Validation V0.1; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset Validation V0.1; ME-02-F V0.4; P2-09-25 Geometry Asset Encoding V0.1; Production Renderer Architecture V0.2
 
 ## 1. Purpose and decision summary
 
