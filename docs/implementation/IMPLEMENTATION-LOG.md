@@ -76,14 +76,14 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 - ME-02-F V0.3 已按 ME-05-01 V0.2 对齐 source Field Dataset、Derived Artifact、Core Asset、Map-wide baseline fingerprint 与 freshness。
 - ME-02-G V0.2 已明确 Initial State、History-local、Project-shared 三种正式写入目标。
 - ME-02-H V0.2 已将原 H-G01 产品/领域权威门槛标记为关闭；Field Dataset 的开发实现门槛仍保留。
-- ME-05-01 V0.2 已采纳 Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership；用户于 2026-11-21 确认 Field Revision 更新作为 Map-wide baseline，追溯影响该 Map 全部 Branches 与 Historical Times。
+- ME-05-01 V0.3 已更新（V0.2 首次采纳产品语义） Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership；用户于 2026-11-21 确认 Field Revision 更新作为 Map-wide baseline，追溯影响该 Map 全部 Branches 与 Historical Times。
 
 ## 5. 关键未关闭门槛
 
 | Gate | Owner | 阻塞范围 |
 |---|---|---|
 | H-G01 — Field Dataset authority / Map-wide baseline semantics | **Closed — ME-05-01 V0.2** | Domain contract adopted |
-| H-G01-I — Field Descriptor / payload package / provider implementation | ME-05 + Core Domain + Map Engine + Development | Production source-field publication and editing |
+| H-G01-I — Field payload package / physical provider implementation / cross-platform validation | ME-05 + Core Domain + Map Engine + Development | Production source-field publication and editing |
 | H-G02 — Derived Artifact namespace/catalog 实现 | Map Engine | 派生栅格/分析输出生产与发布 |
 | H-G03 — Calculation Definition / input fingerprint 精确序列化 | Map Engine + Core Domain | 可复现计算与缓存身份 |
 | H-G04 — Hydrology/climate influence 与 coverage 声明 | ME-02 specialists + Map Engine | 生产级增量重算 |
@@ -118,4 +118,12 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Schema design:** P2-09-11 V0.11 adds `core_map_field_dataset` and `core_map_field_revision`, same-Dataset current-revision FK, immutable Asset ownership, baseline-aware Checkpoint fingerprints and CAS publication requirements. This is not executable DDL.
 - **Provider proof design:** P2-09-12 V0.6 adds TX-65 through TX-71 for uniqueness, typed Asset ownership, immutability, CAS, retroactive Branch/Time behavior, cross-Map isolation, orphan recovery and Checkpoint invalidation. These tests have not been executed.
 - **Calculation alignment:** ME-02-F V0.3 pins source Field Dataset/Revision identities and Map Source Field Baseline fingerprints in calculation inputs/freshness.
-- **Status:** H-G01 product/domain authority gate closed. Field Descriptor Registry, canonical manifest schema, payload package/tiling, actual provider validation, implementation and Windows/macOS execution remain open. No production field publication capability is claimed.
+- **Status:** H-G01 product/domain authority gate closed. P2-09-30 Field Descriptor Registry V0.1 and P2-09-31 32 validation vectors are documented as recommended design artifacts. Payload package/tiling, actual provider validation, implementation and Windows/macOS execution remain open. No production field publication capability is claimed.
+
+
+## 2026-11-21 Field Descriptor follow-up
+
+- **P2-09-30 V0.1:** recommended Core Domain static Field Descriptor Registry for `elevation` and `land_water`, including units, vertical reference, registered categories, no-data semantics, provenance, compatibility and Map-wide revision scope.
+- **P2-09-31 V0.1:** 32 Field Dataset/Revision validation vectors covering descriptor, manifest, no-data/coverage, CAS, immutability, cross-Map isolation, retroactive Branch/Time behavior, adoption and Checkpoint freshness. Design fixtures only; not executed.
+- **ME-05-01 V0.3:** records the descriptor/validation artifacts and remaining implementation work.
+- **Remaining:** immutable field payload package/tiling, Core Domain service implementation, actual bundled SQLite deferred-FK/trigger validation, Asset orphan recovery, and Windows/macOS runtime test execution.
