@@ -949,7 +949,8 @@
       "error_code": "CD_CAVE_ABSOLUTE_ALTITUDE_WITHOUT_DATUM",
       "reason": "Relative station elevation is allowed in a local frame; absolute world altitude requires a compatible vertical reference.",
       "measurement_semantics": "absolute_world_altitude",
-      "survey_frame_id": "survey-frame-1"
+      "survey_frame_id": "survey-frame-1",
+      "station_id": "station-a"
     },
     {
       "id": "CAV-010",
@@ -1060,7 +1061,8 @@
       "validation_layer": "measurement_semantics",
       "expected": "valid",
       "error_code": null,
-      "reason": "A survey frame without vertical_reference_id may carry relative vertical measurements with explicit uncertainty; world altitude remains Unknown."
+      "reason": "A survey frame without vertical_reference_id may carry relative vertical measurements with explicit uncertainty; world altitude remains Unknown.",
+      "station_id": "station-a"
     },
     {
       "id": "CAV-016",
@@ -1386,6 +1388,83 @@
         {
           "asset_id": "asset-passage",
           "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "asset_id": "asset-station",
+          "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
+    },
+    {
+      "id": "BLD-029",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/asset_id",
+          "value": "asset-footprint"
+        },
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/content_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "validation_layer": "publication",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Two Building Geometry Components may reference the same immutable Asset; one owner/asset/role link row is sufficient while component identity remains in the owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-footprint",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-footprint",
+          "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    {
+      "id": "CAV-027",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "All Cave component Asset IDs resolve through one owner-scoped typed link per unique Asset and each core_asset content hash matches the owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-chamber",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-passage",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-station",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-chamber",
+          "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "asset_id": "asset-passage",
+          "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
         },
         {
           "asset_id": "asset-station",
