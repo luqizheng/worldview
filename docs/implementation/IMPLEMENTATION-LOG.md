@@ -2,7 +2,7 @@
 
 - **更新**：2026-11-21
 - **状态**：新架构工程骨架已提交；ME-01 / ME-02 设计包已建立；正式领域实现与若干关键技术契约仍待实施
-- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v0.9.md
+- **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.1.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
 
@@ -73,16 +73,17 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 - ME-01 共享编辑器产品与架构工作基线已建立。
 - ME-02-A 至 ME-02-H 已完成为产品、领域、UX 和跨架构设计工作基线。
 - 当前 ME-02 总体基线为 V0.6，Map Editor 工作计划为 V1.0。
-- ME-02-F V0.2 已区分 source Field Dataset、Derived Artifact、Core Asset 和 renderer cache。
+- ME-02-F V0.3 已按 ME-05-01 V0.2 对齐 source Field Dataset、Derived Artifact、Core Asset、Map-wide baseline fingerprint 与 freshness。
 - ME-02-G V0.2 已明确 Initial State、History-local、Project-shared 三种正式写入目标。
-- ME-02-H 审查发现唯一 P0 跨架构实现门槛：Field Dataset 的正式权威与持久化生命周期尚未定义。
-- ME-05-01 V0.1 已提出 Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership 的工作契约；其中 Field Revision 是否作为 Map-wide baseline retroactively apply to all Branches and Historical Times，仍待产品语义确认。
+- ME-02-H V0.2 已将原 H-G01 产品/领域权威门槛标记为关闭；Field Dataset 的开发实现门槛仍保留。
+- ME-05-01 V0.2 已采纳 Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership；用户于 2026-11-21 确认 Field Revision 更新作为 Map-wide baseline，追溯影响该 Map 全部 Branches 与 Historical Times。
 
 ## 5. 关键未关闭门槛
 
 | Gate | Owner | 阻塞范围 |
 |---|---|---|
-| H-G01 — Field Dataset authority、Initial State/History 语义与 typed Asset ownership | ME-05 + Core Domain | 正式 elevation / land-water source field 持久化与编辑 |
+| H-G01 — Field Dataset authority / Map-wide baseline semantics | **Closed — ME-05-01 V0.2** | Domain contract adopted |
+| H-G01-I — Field Descriptor / payload package / provider implementation | ME-05 + Core Domain + Map Engine + Development | Production source-field publication and editing |
 | H-G02 — Derived Artifact namespace/catalog 实现 | Map Engine | 派生栅格/分析输出生产与发布 |
 | H-G03 — Calculation Definition / input fingerprint 精确序列化 | Map Engine + Core Domain | 可复现计算与缓存身份 |
 | H-G04 — Hydrology/climate influence 与 coverage 声明 | ME-02 specialists + Map Engine | 生产级增量重算 |
@@ -91,11 +92,11 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 | H-G07 — 正常/异常/恢复场景 Figma 原型 | Product UX | UX 实现准备 |
 | H-G08 — Windows/macOS 数值与存储故障注入验证 | Development team | 平台与生产就绪 |
 
-其中 H-G01 是当前唯一 P0 跨架构门槛。ME-02 设计包完成不代表上述实现门槛关闭。
+H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publication 的实现前置门槛。ME-02 设计包完成不代表实现或平台测试完成。
 
 ## 6. 后续实施入口
 
-1. 确认 ME-05-01 V0.1 的 Field Dataset 时间/Branch 作用域语义；确认后再由 Core Domain / ME-05 采纳并更新物理 Schema / Provider Proof。
+1. 已完成：ME-05-01 V0.2 采纳 Map-wide retroactive Field Baseline 语义；P2-09-11 V0.11 和 P2-09-12 V0.5 已更新逻辑 Schema 与 Provider Proof 设计。
 2. ME-05 与 Core Domain 共同定义 Field Dataset/source-field 权威、Map scope、不可变 payload、coordinate context、tiling 和编辑生命周期。
 3. Map Engine 完成 Derived Artifact namespace/catalog、Calculation Definition fingerprint 与 SceneSnapshot 消费契约。
 4. Core Domain 只启用 payload、验证规则和测试向量已齐备的 Object / Geometry / Relationship descriptors。
@@ -109,3 +110,12 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 - 测试只有在对应代码和环境中实际执行后才能标记通过。
 - 每次实施状态变化后更新本文件及对应工作计划。
 - 正式完成以文档、实现、测试证据和 GitHub 提交共同为准。
+
+
+## 2026-11-21 Field Dataset authority decision update
+
+- **Adopted:** ME-05-01 V0.2 — Map-owned Field Dataset, immutable Field Revision, typed Core Asset ownership; publishing a new current revision applies retroactively to all Branches and Historical Time points of that Map only.
+- **Schema design:** P2-09-11 V0.11 adds `core_map_field_dataset` and `core_map_field_revision`, same-Dataset current-revision FK, immutable Asset ownership, baseline-aware Checkpoint fingerprints and CAS publication requirements. This is not executable DDL.
+- **Provider proof design:** P2-09-12 V0.5 adds TX-58 through TX-64 for uniqueness, typed Asset ownership, immutability, CAS, retroactive Branch/Time behavior, cross-Map isolation, orphan recovery and Checkpoint invalidation. These tests have not been executed.
+- **Calculation alignment:** ME-02-F V0.3 pins source Field Dataset/Revision identities and Map Source Field Baseline fingerprints in calculation inputs/freshness.
+- **Status:** H-G01 product/domain authority gate closed. Field Descriptor Registry, canonical manifest schema, payload package/tiling, actual provider validation, implementation and Windows/macOS execution remain open. No production field publication capability is claimed.
