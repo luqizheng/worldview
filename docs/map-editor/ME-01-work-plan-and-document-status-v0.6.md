@@ -19,40 +19,40 @@ This document tracks the Map Editor product/architecture and specialist editor d
 | ME-01-06 | [Editor Interaction Framework](world-view-me-01-06-editor-interaction-framework-v0.1.md) | 0.1 | Editor Interaction Working Baseline | Canvas navigation/scope, shared selection/tools, transient edit sessions, Candidate review, diagnostics and history interaction |
 | ME-01-07 | [Cross-architecture Consistency Review](world-view-me-01-07-cross-architecture-consistency-review-v0.1.md) | 0.1 | Cross-architecture Review Working Baseline | Alignment with Core Domain, AI Assistant, Map Generation, Map Engine and persistence; findings F-01 to F-11 |
 
-ME-01 is complete as a shared product/architecture working baseline. The findings and follow-up gates in ME-01-07 remain constraints for specialist design and implementation.
+ME-01 is complete as a shared product/architecture working baseline. Findings and follow-up gates in ME-01-07 remain constraints for specialist design and implementation.
 
 ## ME-02 — Terrain & Natural Geography Editor
 
 | ID | Document | Version | Status | Responsibility |
 |---|---|---:|---|---|
-| ME-02-01 | [Terrain & Natural Geography Editor](world-view-me-02-terrain-and-natural-geography-editor-v0.4.md) | 0.3 | Natural Geography Editor Working Baseline | Product workflows, semantic Objects vs physical fields vs derived layers, terrain/hydrology/climate/ecology scope, scientific rules, calculation boundaries and V1 capability limits |
-| ME-02-02 | [Domain Inventory & Core Domain Mapping](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) | 0.1 | Domain Inventory Working Baseline | Maps natural-geography concepts to formal Objects, physical fields, derived analysis, World Knowledge and presentation; records V1 descriptor and persistence gaps |
+| ME-02-01 | [Terrain & Natural Geography Editor](world-view-me-02-terrain-and-natural-geography-editor-v0.3.md) | 0.3 | Natural Geography Editor Working Baseline | Product workflows, semantic Objects vs physical fields vs derived layers, terrain/hydrology/climate/ecology scope, scientific rules, calculation boundaries and V1 capability limits |
+| ME-02-02 | [Domain Inventory & Core Domain Mapping](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) | 0.1 | Domain Inventory Working Baseline | Natural-geography concepts mapped to formal Objects, physical fields, derived analysis, World Knowledge and presentation |
 | ME-02-03 | [Land/Water & Elevation Authoring](world-view-me-02-land-water-and-elevation-authoring-v0.1.md) | 0.1 | Specialist Authoring Workflow Working Baseline | World frame/map-edge semantics, land/water representation, elevation field authoring, preview, validation and persistence gates |
 | ME-02-04 | [Terrain Feature Authoring](world-view-me-02-terrain-feature-authoring-v0.1.md) | 0.1 | Specialist Feature Workflow Working Baseline | Landmass, Mountain Range/Peak and Terrain Region authoring, feature detection candidates, semantic relations and validation |
 | ME-02-05 | [Hydrology & Drainage Authoring](world-view-me-02-hydrology-and-drainage-authoring-v0.1.md) | 0.1 | Hydrology Specialist Workflow Working Baseline | Terrain-first drainage, depression policy, derived basins/channels, River/Lake authoring, formal flow network semantics and validation |
-| ME-02-06 | [Climate & Ecology Authoring](world-view-me-02-climate-and-ecology-authoring-v0.1.md) | 0.1 | Climate & Ecology Specialist Workflow Working Baseline | Planet/season assumptions, circulation, ocean/moisture influence, temperature/precipitation, climate classification, biome/habitat suitability and causal diagnostics |
-| ME-02-07 | [Calculation Contracts](world-view-me-02-calculation-contracts-v0.1.md) | 0.1 | Calculation Architecture Working Baseline | Reproducible inputs, determinism, tile/halo/resolution, bounded invalidation, Run/Artifact lifecycle, atomic publication, cancellation/recovery and diagnostics |
+| ME-02-06 | [Climate & Ecology Authoring](world-view-me-02-climate-and-ecology-authoring-v0.1.md) | 0.1 | Climate & Ecology Specialist Workflow Working Baseline | Planet/season assumptions, circulation, moisture, temperature/precipitation, climate classification, biome/habitat suitability and causal diagnostics |
+| ME-02-07 | [Calculation Contracts](world-view-me-02-calculation-contracts-v0.1.md) | 0.1 | Calculation Contract Working Baseline | Determinism, input/output provenance, freshness, dependency invalidation, checkpoint coherence, validation severity and atomic publication |
 
 ### ME-02 work sequence
 
-| Work item | Focus | Main output |
-|---|---|---|
-| ME-02-A | **Complete** — Domain inventory against Core Domain catalogs | Natural feature → Object / field / derived layer / Knowledge mapping; descriptor gaps — [ME-02-02](world-view-me-02-domain-inventory-and-core-domain-mapping-v0.1.md) |
-| ME-02-B | **Complete** — Land/water and elevation authoring | World frame, map-edge semantics, field/Asset logical contract, editing scenarios — [ME-02-03](world-view-me-02-land-water-and-elevation-authoring-v0.1.md) |
-| ME-02-C | **Complete** — Terrain feature authoring | Landmass, Mountain Range/Peak, Terrain Region tool and validation contract — [ME-02-04](world-view-me-02-terrain-feature-authoring-v0.1.md) |
-| ME-02-D | **Complete** — Hydrology & drainage authoring | Terrain-first drainage, depression treatment, flow routing, derived basin/channel outputs, formal River network limits — [ME-02-05](world-view-me-02-hydrology-and-drainage-authoring-v0.1.md) |
-| ME-02-E | **Complete** — Climate & ecology authoring | Seasonal causal climate model, circulation/moisture, temperature/precipitation, climate classification, biome/habitat suitability — [ME-02-06](world-view-me-02-climate-and-ecology-authoring-v0.1.md) |
-| ME-02-F | **Complete** — Calculation contracts | Reproducible input snapshots, determinism profiles, tile/halo/resolution semantics, bounded invalidation, separate Run/Artifact lifecycle, atomic publication, cancellation/recovery and validation — [ME-02-07](world-view-me-02-calculation-contracts-v0.1.md) |
-| ME-02-G | UX scenarios and acceptance | End-to-end creator workflows, Inspector, diagnostics, Candidate review and accessibility |
-| ME-02-H | Cross-architecture review | Reconciliation with Core Domain, Map Engine, Map Generation and ME-01 |
+| Work item | Focus | Status | Main output |
+|---|---|---|---|
+| ME-02-A | Domain inventory against Core Domain catalogs | **Complete** | Natural feature → Object / field / derived layer / Knowledge mapping |
+| ME-02-B | Land/water and elevation authoring | **Complete** | World frame, map-edge semantics, field/Asset logical contract and editing scenarios |
+| ME-02-C | Terrain feature authoring | **Complete** | Landmass, Mountain Range/Peak, Terrain Region authoring and validation |
+| ME-02-D | Hydrology & drainage authoring | **Complete** | Terrain-first drainage, depression treatment, flow routing, derived basin/channel outputs and formal River network limits |
+| ME-02-E | Climate & ecology authoring | **Complete** | Seasonal causal climate model, circulation/moisture, temperature/precipitation, climate classification and biome/habitat suitability |
+| ME-02-F | Calculation contracts | **Complete** | Shared deterministic calculation lifecycle, provenance, freshness, invalidation, severity and publication rules — [ME-02-07](world-view-me-02-calculation-contracts-v0.1.md) |
+| ME-02-G | UX scenarios and acceptance | **In progress** | End-to-end creator workflows, Inspector, diagnostics, Candidate review and accessibility |
+| ME-02-H | Cross-architecture review | **Pending** | Reconciliation with Core Domain, Map Engine, Map Generation and ME-01 |
 
-ME-02-01 V0.4 is the reconciled product/domain working baseline. ME-02-A through ME-02-F are complete as specialist design working baselines. ME-02-G and ME-02-H remain. Exact algorithms, physical field persistence, numeric parameters and technology choices remain open until their respective gates are completed.
+ME-02-A through ME-02-F are complete as specialist design working baselines. ME-02-G and ME-02-H remain. Exact algorithms, physical-field persistence, numeric calibration, technology choices and platform performance remain separate gates.
 
 ## Subsequent specialist workstreams
 
 | Workstream | Planned responsibility | Entry condition |
 |---|---|---|
-| ME-03 Settlements & Urban Geography | Settlements, political/administrative regions, land use, roads and transport networks | ME-01 shared baseline; ME-02 natural geography constraints |
+| ME-03 Settlements & Urban Geography | Settlements, political/administrative regions, land use, roads and transport networks | ME-01 shared baseline; ME-02 natural geography constraints and Core Domain relationship closure |
 | ME-04 Buildings & Interior Spaces | Building/site association, floors, rooms, entrances, vertical and underground spaces | Shared Object/geometry and local coordinate contracts |
 | ME-05 Shared Geometry & Spatial Operations | Component identity, geometry operations, topology, physical field/Asset persistence and spatial service contracts | Findings from ME-01/ME-02/ME-03/ME-04 |
 | ME-06 Shared Interaction / Tool Contracts | Concrete tool-to-operation mapping, gesture/query freshness and Candidate review contracts | Specialist editor workflows |
