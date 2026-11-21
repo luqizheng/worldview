@@ -5,7 +5,7 @@
 - Status: **Adopted Domain Contract — V1 product semantics confirmed; design baseline, not a frozen ADR or executable schema**
 - Owner: Core Domain (formal Field Dataset identity, scope, revision and Asset references); Map Engine / Spatial Services (field decoding, sampling, calculation and derived outputs)
 - Closes: ME-02-H H-G01 / Source Field Dataset authority gate at the domain/product-semantic level; implementation and provider-proof gates remain open
-- Depends on: ME-01-04/05/07; ME-02-B Land/Water & Elevation Authoring; ME-02-F Calculation Contracts V0.2; ME-02-H Cross-architecture Review V0.1; P2-09-11 Physical Schema V0.10; P2-09-12 Provider / Transaction Proof V0.4; P2-09-16 Shared Definition / Checkpoint Coherence; P2-09-25 Geometry Asset Encoding and Coordinate Precision; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset Validation Vectors V0.1
+- Depends on: ME-01-04/05/07; ME-02-B Land/Water & Elevation Authoring; ME-02-F Calculation Contracts V0.3; ME-02-H Cross-architecture Review V0.2; P2-09-11 Physical Schema V0.11; P2-09-12 Provider / Transaction Proof V0.6; P2-09-16 Shared Definition / Checkpoint Coherence; P2-09-25 Geometry Asset Encoding and Coordinate Precision; P2-09-30 Field Descriptor Registry V0.1; P2-09-31 Field Dataset Validation Vectors V0.1
 
 ## 1. Purpose and recommendation
 
@@ -331,7 +331,7 @@ These are design vectors only; they have not been executed.
 
 The V1 model treats source physical fields as a **Map Source Field Baseline**. The product owner confirmed on 2026-11-21 that publishing a new Field Revision changes the current base input for all Branches and all Historical Time points of that Map. It does not represent a historical terrain change.
 
-This is recommended because:
+The accepted decision is grounded in:
 - source field edits in ME-02 are primarily authoring corrections/refinements to the map's physical base;
 - the current History model is Command-driven and does not yet define temporal raster field state;
 - Branches should not silently become separate physical-field copies;
