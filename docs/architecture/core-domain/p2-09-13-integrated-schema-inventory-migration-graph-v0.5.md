@@ -5,7 +5,7 @@
 - Status: Object Type / Geometry Component / Relationship reconciled integrated logical inventory and migration dependency proposal — not executable SQL and not implementation authorization
 - Supersedes: P2-09-13 V0.4 for relationship contract integration; V0.4 is retained as history
 - Supersedes: P2-09-13 V0.1 for migration dependency ordering and explicit ownership integration; V0.1 is retained as history
-- Depends on: P2-09-01~12; Core Domain P2-09-11 V0.10; AI Assistant Schema V1.16; AI/Core Integration Review V0.8; P2-09-16 V0.1; P2-09-14 V0.1; P2-09-15 V0.4; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.1
+- Depends on: P2-09-01~11; Core Domain P2-09-11 V0.10; AI Assistant Schema V1.16; AI/Core Integration Review V0.8; P2-09-16 V0.1; P2-09-14 V0.1; P2-09-15 V0.4; P2-09-17 V0.4; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.1
 
 ## 1. Purpose
 
