@@ -192,7 +192,7 @@ A descriptor extension is not adopted merely because its JSON parses. It must pa
 - P2-09-37 V0.6: Core Domain adoption architecture proposal.
 - P2-09-38 V0.5: Building typed aggregate schema draft aligned to P2-09-19 geometry metadata.
 - P2-09-39 V0.5: Cave System typed aggregate schema draft aligned to P2-09-19 geometry metadata.
-- P2-09-40 V0.6: 51 design-only validation vectors; not executed.
+- P2-09-40 V0.6: 53 design-only validation vectors; not executed.
 - P2-09-41 V0.4: proposed Building/Cave Object Type descriptor extension.
 - P2-09-42 V0.6: this registry integration and compatibility review.
 
@@ -239,7 +239,7 @@ The owner payload `asset_id/content_hash` pair and relational typed link must ag
 Before proposing P2-09-26 V0.3:
 1. Execute all 51 P2-09-40 V0.6 vectors against the strict schemas and aggregate validator.
 2. Execute P2-09-28 V0.2 and all existing ten-type registry regression vectors.
-3. Verify the three typed Asset-link conditions against actual Core Domain persistence.
+3. Verify `core_object_definition_asset` and `core_command_asset` in actual Core Domain persistence, and confirm `core_map_initial_object_asset` remains unnecessary under the current Initial State payload.
 4. Verify descriptor-format extension and offline schema hash pinning.
 5. Reconcile Command handler payloads and the V1 2D geometry boundary.
 6. Record Windows/macOS deterministic canonical payload and hash evidence.
