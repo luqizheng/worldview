@@ -72,10 +72,11 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 ### Map Editor
 - ME-01 共享编辑器产品与架构工作基线已建立。
 - ME-02-A 至 ME-02-H 已完成为产品、领域、UX 和跨架构设计工作基线。
-- 当前 ME-02 总体基线为 V0.6，Map Editor 工作计划为 V0.9。
+- 当前 ME-02 总体基线为 V0.6，Map Editor 工作计划为 V1.0。
 - ME-02-F V0.2 已区分 source Field Dataset、Derived Artifact、Core Asset 和 renderer cache。
 - ME-02-G V0.2 已明确 Initial State、History-local、Project-shared 三种正式写入目标。
 - ME-02-H 审查发现唯一 P0 跨架构实现门槛：Field Dataset 的正式权威与持久化生命周期尚未定义。
+- ME-05-01 V0.1 已提出 Map-owned Field Dataset / immutable Field Revision / typed Core Asset ownership 的工作契约；其中 Field Revision 是否作为 Map-wide baseline retroactively apply to all Branches and Historical Times，仍待产品语义确认。
 
 ## 5. 关键未关闭门槛
 
@@ -94,12 +95,12 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 
 ## 6. 后续实施入口
 
-1. ME-05 与 Core Domain 共同定义 Field Dataset/source-field 权威、Map scope、不可变 payload、coordinate context、tiling 和编辑生命周期。
-2. Map Engine 完成 Derived Artifact namespace/catalog、Calculation Definition fingerprint 与 SceneSnapshot 消费契约。
-3. Core Domain 只启用 payload、验证规则和测试向量已齐备的 Object / Geometry / Relationship descriptors。
-4. 建立正式 Core Domain 最小可验证垂直切片：Object identity / descriptor validation / Command append / deterministic replay。
-5. 再扩展 Geometry、History reconstruction、Map Editor 和 AI Proposal / Change Set 应用链路。
-6. 每个实现切片都应有自动化测试、平台验证记录和对应设计文档状态更新。
+2. ME-05 与 Core Domain 共同定义 Field Dataset/source-field 权威、Map scope、不可变 payload、coordinate context、tiling 和编辑生命周期。
+3. Map Engine 完成 Derived Artifact namespace/catalog、Calculation Definition fingerprint 与 SceneSnapshot 消费契约。
+4. Core Domain 只启用 payload、验证规则和测试向量已齐备的 Object / Geometry / Relationship descriptors。
+5. 建立正式 Core Domain 最小可验证垂直切片：Object identity / descriptor validation / Command append / deterministic replay。
+6. 再扩展 Geometry、History reconstruction、Map Editor 和 AI Proposal / Change Set 应用链路。
+7. 每个实现切片都应有自动化测试、平台验证记录和对应设计文档状态更新。
 
 ## 7. 记录规则
 
