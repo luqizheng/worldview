@@ -98,7 +98,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [P2-09-40 Building/Cave Aggregate Validation Vectors V0.2](architecture/core-domain/p2-09-40-building-cave-aggregate-validation-vectors-v0.2.json) — 39 design-only schema, aggregate, identity, endpoint, Asset-link and CAS vectors; not executed.
 - `architecture/core-domain/fixtures/field-package-v1/` — three raw `.wvfld` golden packages, exact canonical manifest sidecars and fixture hash inventory.
 - [ME-05-02 Shared Geometry Model & Component Operations V0.1](map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) — shared component identity/lifecycle, formal geometry operation boundary, write-context routing and immutable Asset ownership.
-- [Map Editor Work Plan V3.11](map-editor/ME-01-work-plan-and-document-status-v3.11.md) — current workstream status, ME-04 closure, Building/Cave Core Domain adoption proposal and ME-06 shared interaction/tool contract plan.
+- [Map Editor Work Plan V3.12](map-editor/ME-01-work-plan-and-document-status-v3.12.md) — current workstream status, ME-04 closure, Building/Cave Core Domain adoption proposal and ME-06 shared interaction/tool contract plan.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
