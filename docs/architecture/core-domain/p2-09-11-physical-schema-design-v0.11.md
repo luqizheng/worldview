@@ -1,9 +1,9 @@
 # World View P2-09-11 — Core Domain Relational Physical Schema Design V0.11
 
-- Version: 0.10
+- Version: 0.11
 - Date: 2026-11-21
 - Status: **Object Type / Geometry Component / Relationship reconciled physical-schema proposal — recommended relational ownership, key strategy and constraint intent; not executable DDL or implementation authorization**
-- Supersedes: P2-09-11 V0.9 for relationship descriptor/fingerprint integration; V0.9 is retained as history
+- Supersedes: P2-09-11 V0.10; V0.10 is retained as history
 - Depends on: P2-09-01~10; P2-09-03 V0.2; P2-09-04 V0.2; P2-09-05 V0.3; P2-09-13 V0.4; P2-09-16 V0.1; P2-09-18 V0.2; P2-09-19 V0.2; P2-09-20 V0.1; P2-09-15 V0.4; P2-09-17 V0.4; ADR-001/002/003 Amendment V1.3/005; P2-08 V0.3; AI Assistant Logical Schema V1.16
 
 ## Change summary from V0.10
