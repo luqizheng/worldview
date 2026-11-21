@@ -6,7 +6,7 @@ This repository contains the project documentation baseline and the existing dom
 
 ## Documentation
 
-Start here: [Documentation Index](docs/README.md)
+Start here: [Documentation Index](docs/README.md) · [Migration Manifest](docs/MIGRATION-MANIFEST.md)
 
 - [Core Domain Architecture](docs/architecture/core-domain/)
 - [Map Editor](docs/map-editor/)
