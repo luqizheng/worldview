@@ -6,6 +6,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
@@ -250,7 +251,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
     {
         var core = Core();
         var record = ProjectRules.CreateProject("P", nowUtcMs: 1L);
-        core.InsertProject(record);
+        core.InsertProject(ProjectCreationPlan.Create(record));
         return record.ProjectId;
     }
 

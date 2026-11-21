@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
@@ -56,7 +57,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
     {
         var core = Core();
         var project = ProjectRules.CreateProject(projectName, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        core.InsertProject(project);
+        core.InsertProject(ProjectCreationPlan.Create(project));
         return (project, MapService.CreateMap(core, project.ProjectId, mapName, 10L));
     }
 
@@ -117,7 +118,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 
             var coreB = new SqliteCoreDomainDatabase(databaseB);
             var projectB = ProjectRules.CreateProject("B", 1L);
-            coreB.InsertProject(projectB);
+            coreB.InsertProject(ProjectCreationPlan.Create(projectB));
             var mapB = MapService.CreateMap(coreB, projectB.ProjectId, "MapB", 10L);
             var branchB = BranchService.CreateBranch(
                 coreB, projectB.ProjectId, mapB.RootHistory.HistoryId, "BB", HistoricalTime.Epoch, 20L);
@@ -627,7 +628,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
         var project = SeedProjectAndMap("P", "M").Project;
 
         Assert.Throws<CoreDomainDataException>(
-            () => core.InsertProject(ProjectRules.CreateProject("second", 1L)));
+            () => core.InsertProject(ProjectCreationPlan.Create(ProjectRules.CreateProject("second", 1L))));
         Assert.Single(core.ReadProjectIdentityRows());
     }
 }

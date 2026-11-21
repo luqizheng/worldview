@@ -45,7 +45,8 @@ public sealed class CoreDomainProjectCreationService : IProjectCreationService
             var record = ProjectRules.CreateProject(
                 request.DisplayName,
                 _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
-            core.InsertProject(record);
+            // OD-4 建议案：Project 身份 + 十内置 Object Type 种子行同一事务写入。
+            core.InsertProject(WorldView.Domain.Objects.ProjectCreationPlan.Create(record));
 
             return ProjectCreationResult.Ok(new ProjectIdentity
             {

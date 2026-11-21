@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
@@ -32,7 +33,7 @@ internal interface ISqliteConnectionProvider
 /// 临界区内）；行数据不可解析时抛 <see cref="CoreDomainDataException"/>
 /// fail-closed。会话关闭后访问以 <see cref="ObjectDisposedException"/> 拒绝。
 /// </summary>
-public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
+public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
 {
     private readonly SqliteConnectionAccess _access;
 
@@ -107,14 +108,28 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    public void InsertProject(ProjectRecord project)
+    public void InsertProject(ProjectCreationPlan plan)
     {
+        var project = plan.Project;
         const string sql = """
             INSERT INTO core_project
                 (project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms)
             VALUES ($projectId, $name, $formatVersion, $createdAt, $updatedAt);
             """;
-        // 单个临界区覆盖“计数检查 + 插入 + 提交”全程（CD-01-F1：事务不越出协调范围）。
+        const string typeSql = """
+            INSERT INTO core_object_type
+                (object_type_id, project_id, type_key, display_name, allocatable,
+                 allocation_format_json, allocation_format_version, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ($typeId, $projectId, $typeKey, $displayName, $allocatable,
+                    $formatJson, $formatVersion, $createdAt, $updatedAt);
+            """;
+        const string allocatorSql = """
+            INSERT INTO core_object_id_allocator
+                (project_id, object_type_id, next_sequence, allocator_format_version, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ($projectId, $typeId, 1, $formatVersion, $createdAt, $updatedAt);
+            """;
+        // 单个临界区覆盖“计数检查 + 身份/类型/allocator 插入 + 提交”全程（CD-01-F1）；
+        // OD-4 建议案：Project 身份与内置类型种子同事务（避免 Project 存在而类型行缺失的窗口）。
         _access.Execute(connection =>
         {
             using var transaction = connection.BeginTransaction();
@@ -132,15 +147,49 @@ public sealed class SqliteCoreDomainDatabase : ICoreDomainDatabase
                     }
                 }
 
-                using var insert = connection.CreateCommand();
-                insert.Transaction = transaction;
-                insert.CommandText = sql;
-                insert.Parameters.AddWithValue("$projectId", Uuid(project.ProjectId));
-                insert.Parameters.AddWithValue("$name", project.ProjectName);
-                insert.Parameters.AddWithValue("$formatVersion", project.ProjectFormatVersion);
-                insert.Parameters.AddWithValue("$createdAt", project.CreatedAtUtcMs);
-                insert.Parameters.AddWithValue("$updatedAt", project.UpdatedAtUtcMs);
-                insert.ExecuteNonQuery();
+                using (var insert = connection.CreateCommand())
+                {
+                    insert.Transaction = transaction;
+                    insert.CommandText = sql;
+                    insert.Parameters.AddWithValue("$projectId", Uuid(project.ProjectId));
+                    insert.Parameters.AddWithValue("$name", project.ProjectName);
+                    insert.Parameters.AddWithValue("$formatVersion", project.ProjectFormatVersion);
+                    insert.Parameters.AddWithValue("$createdAt", project.CreatedAtUtcMs);
+                    insert.Parameters.AddWithValue("$updatedAt", project.UpdatedAtUtcMs);
+                    insert.ExecuteNonQuery();
+                }
+
+                foreach (var type in plan.BuiltinObjectTypes)
+                {
+                    using (var insertType = connection.CreateCommand())
+                    {
+                        insertType.Transaction = transaction;
+                        insertType.CommandText = typeSql;
+                        insertType.Parameters.AddWithValue("$typeId", Uuid(type.ObjectTypeId));
+                        insertType.Parameters.AddWithValue("$projectId", Uuid(type.ProjectId));
+                        insertType.Parameters.AddWithValue("$typeKey", type.TypeKey);
+                        insertType.Parameters.AddWithValue("$displayName", type.DisplayName);
+                        insertType.Parameters.AddWithValue("$allocatable", type.Allocatable ? 1L : 0L);
+                        insertType.Parameters.AddWithValue("$formatJson", type.AllocationFormatJson);
+                        insertType.Parameters.AddWithValue("$formatVersion", type.AllocationFormatVersion);
+                        insertType.Parameters.AddWithValue("$createdAt", type.CreatedAtUtcMs);
+                        insertType.Parameters.AddWithValue("$updatedAt", type.UpdatedAtUtcMs);
+                        insertType.ExecuteNonQuery();
+                    }
+
+                    if (type.Allocatable)
+                    {
+                        using var insertAllocator = connection.CreateCommand();
+                        insertAllocator.Transaction = transaction;
+                        insertAllocator.CommandText = allocatorSql;
+                        insertAllocator.Parameters.AddWithValue("$projectId", Uuid(type.ProjectId));
+                        insertAllocator.Parameters.AddWithValue("$typeId", Uuid(type.ObjectTypeId));
+                        insertAllocator.Parameters.AddWithValue("$formatVersion", ObjectAllocationFormat.VersionMinimalDecimal);
+                        insertAllocator.Parameters.AddWithValue("$createdAt", type.CreatedAtUtcMs);
+                        insertAllocator.Parameters.AddWithValue("$updatedAt", type.UpdatedAtUtcMs);
+                        insertAllocator.ExecuteNonQuery();
+                    }
+                }
 
                 transaction.Commit();
             }

@@ -7,6 +7,7 @@ using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
@@ -83,7 +84,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
     private ProjectRecord SeedProject(SqliteCoreDomainDatabase core, string name = "P")
     {
         var record = ProjectRules.CreateProject(name, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        core.InsertProject(record);
+        core.InsertProject(ProjectCreationPlan.Create(record));
         return record;
     }
 
@@ -241,12 +242,12 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         var a = Task.Run(() =>
         {
             barrier.SignalAndWait();
-            return Capture(() => coreA.InsertProject(ProjectRules.CreateProject("A", 1L)));
+            return Capture(() => coreA.InsertProject(ProjectCreationPlan.Create(ProjectRules.CreateProject("A", 1L))));
         });
         var b = Task.Run(() =>
         {
             barrier.SignalAndWait();
-            return Capture(() => coreB.InsertProject(ProjectRules.CreateProject("B", 1L)));
+            return Capture(() => coreB.InsertProject(ProjectCreationPlan.Create(ProjectRules.CreateProject("B", 1L))));
         });
 
         var failures = (await Task.WhenAll(a, b).ConfigureAwait(false))
@@ -469,7 +470,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         var before = SnapshotAllCounts();
 
         Assert.Throws<CoreDomainDataException>(
-            () => core.InsertProject(ProjectRules.CreateProject("second", 2L)));
+            () => core.InsertProject(ProjectCreationPlan.Create(ProjectRules.CreateProject("second", 2L))));
 
         Assert.Equal(before, SnapshotAllCounts());
     }
@@ -654,7 +655,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         {
             var core = new SqliteCoreDomainDatabase(staged);
             var project = ProjectRules.CreateProject("P", 1L);
-            core.InsertProject(project);
+            core.InsertProject(ProjectCreationPlan.Create(project));
             var mapPlan = MapService.CreateMap(core, project.ProjectId, "M", 10L);
             BranchService.CreateBranch(
                 core, project.ProjectId, mapPlan.RootHistory.HistoryId, "B", HistoricalTime.Epoch, 20L);
