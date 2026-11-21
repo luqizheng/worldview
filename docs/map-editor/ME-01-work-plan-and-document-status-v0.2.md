@@ -15,18 +15,13 @@ This document tracks the Map Editor ME-01 design package. The editor design is a
 
 ## Remaining ME-01 work
 
-| ID | Planned deliverable | Main questions |
-|---|---|---|
-| ME-01-07 | Cross-architecture Consistency Review | Reconcile ME-01-01 through ME-01-06 with Core Domain, AI Assistant, Map Generation, Map Engine and persistence contracts; record gaps and required follow-up |
-
-ME-01-06 is complete as an Editor Interaction Working Baseline. Its detailed Avalonia controls, input bindings, exact tool/API types, geometry provider and view-configuration persistence remain open implementation/design gates.
+ME-01-01 through ME-01-07 are complete as product/architecture working baselines. ME-01-07 records the cross-architecture findings and follow-up gates. Specialist design and implementation work remains; completion of this package does not mean the editor is implemented or that APIs, physical schemas or renderer technology are frozen.
 
 ## Working sequence and status rules
 
-1. ME-01-01 through ME-01-05 establish the product, spatial and object/presentation architecture baseline.
-2. ME-01-06 defines the shared Canvas-centered interaction framework over that model.
-3. ME-01-07 performs the cross-document consistency review before ME-01 is treated as complete.
-4. ME-02 through ME-07 then develop specialist editors, shared geometry, interaction/tool details and rendering/technical architecture.
+1. ME-01-01 through ME-01-06 establish the product, spatial, object/presentation and interaction architecture working baselines.
+2. ME-01-07 records cross-architecture alignment, gaps and required follow-up gates.
+3. ME-02 through ME-07 develop specialist editors, shared geometry, concrete interaction/tool contracts and rendering/technical architecture under the ME-01 constraints.
 
 Documents marked Working Baseline or Proposal are not frozen physical schemas and do not authorize implementation by themselves. Accepted/Frozen ADRs and explicitly accepted domain contracts remain binding within their scope. A newer document supersedes an older one only where it explicitly states the scope of supersession.
 
