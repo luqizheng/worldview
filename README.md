@@ -10,6 +10,7 @@ Start here: [Documentation Index](docs/README.md)
 
 - [Core Domain Architecture](docs/architecture/core-domain/)
 - [Map Editor](docs/map-editor/)
+- [Map Generation](docs/map-generation/)
 - [Map Engine and Rendering](docs/map-engine/)
 - [AI Assistant](docs/ai-assistant/)
 - [Architecture Decision Records](docs/adr/)
