@@ -132,10 +132,10 @@ Application Bootstrap
        │    ├── 006_core_calendar_identity
        │    ├── 007_core_command_event_ordering
        │    ├── 008_core_calendar_configuration
-       │    ├── 009_core_asset_and_required_typed_links
-        │    ├── 010_core_map_field_dataset_and_revision
-        │    ├── 011_core_checkpoint_and_integrity_indexes_triggers
-       │    └── 010_core_integrity_indexes_triggers
+       │    ├── 009_core_asset_and_selected_typed_links
+       │    ├── 010_core_map_field_dataset_and_revision
+       │    ├── 011_core_checkpoint_and_integrity_indexes_triggers
+       │
        │
        └── AI Assistant migration namespace
             ├── 101_ai_task_execution
@@ -201,4 +201,4 @@ No LLM call, user interaction, long validation, file staging or network request 
 
 V0.7 reconciles the integrated inventory to P2-09-11 V0.11: 22 Core Domain baseline tables (the prior 20 plus `core_map_field_dataset` and `core_map_field_revision`), 2 required descriptor-driven typed links, up to 3 optional typed links, exactly 28 AI Assistant domain tables, and one shared Application migration ledger (53 baseline tables plus 0–3 optional Core links). Field Dataset/Revision authority is Map-owned, immutable and retroactive across that Map's Branches/History; it is not an Object, Initial State member, Command or Event. Field tables are created after Map and Asset metadata and before Checkpoints. The explicit Shared/Map-local Object registration invariant and Object Type compatibility pins remain unchanged. Relationship facts remain in their owning typed payloads and Commands; no relationship table is added.
 
-The inventory is not executable SQL, does not claim transaction proof, and does not authorize implementation. Checkpoint fingerprint details are governed by P2-09-16 V0.1 and the reconciled P2-09-11 V0.10. The development team remains responsible for implementation and test execution after the design gates are closed.
+The inventory is not executable SQL, does not claim transaction proof, and does not authorize implementation. Checkpoint fingerprint details are governed by P2-09-16 V0.1 and the reconciled P2-09-11 V0.11. The development team remains responsible for implementation and test execution after the design gates are closed.
