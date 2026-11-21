@@ -31,7 +31,7 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-04 | [Terrain Feature Authoring](world-view-me-02-terrain-feature-authoring-v0.1.md) | 0.1 | Specialist Feature Workflow Working Baseline | Landmass, Mountain Range/Peak and Terrain Region authoring, feature detection candidates, semantic relations and validation |
 | ME-02-05 | [Hydrology & Drainage Authoring](world-view-me-02-hydrology-and-drainage-authoring-v0.1.md) | 0.1 | Hydrology Specialist Workflow Working Baseline | Terrain-first drainage, depression policy, derived basins/channels, River/Lake authoring, formal flow network semantics and validation |
 | ME-02-06 | [Climate & Ecology Authoring](world-view-me-02-climate-and-ecology-authoring-v0.1.md) | 0.1 | Climate & Ecology Specialist Workflow Working Baseline | Planet/season assumptions, circulation, ocean/moisture influence, temperature/precipitation, climate classification, biome/habitat suitability and causal diagnostics |
-| ME-02-07 | [Calculation Contracts](world-view-me-02-calculation-contracts-v0.3.md) | 0.3 | Calculation Architecture Working Baseline | Reproducible inputs, determinism, tile/halo/resolution, bounded invalidation, Run/Artifact lifecycle, atomic publication, cancellation/recovery and diagnostics |
+| ME-02-07 | [Calculation Contracts](world-view-me-02-calculation-contracts-v0.4.md) | 0.3 | Calculation Architecture Working Baseline | Reproducible inputs, determinism, tile/halo/resolution, bounded invalidation, Run/Artifact lifecycle, atomic publication, cancellation/recovery and diagnostics |
 | ME-02-08 | [UX Scenarios & Acceptance](world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) | 0.2 | Natural Geography UX Working Baseline | Story-led initialization, direct authoring, terrain/hydrology/climate flows, local refinement, recovery, Candidate review, Inspector, diagnostics, accessibility and end-to-end acceptance |
 | ME-02-09 | [Cross-architecture Review](world-view-me-02-cross-architecture-review-v0.2.md) | 0.1 | Cross-architecture Review Working Baseline | Reconciliation with Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; explicit implementation gates and package disposition |
 
@@ -48,7 +48,7 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-G | **Complete** — UX scenarios and acceptance | End-to-end creator workflows, Inspector, diagnostics, Candidate review, accessibility and Figma handoff — [ME-02-08](world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) |
 | ME-02-H | **Complete** — Cross-architecture review | Reconciled Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; Field Dataset authority decision adopted in ME-05-01 V0.5 — [ME-02-09](world-view-me-02-cross-architecture-review-v0.2.md) |
 
-ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.4. Physical schema and provider-proof designs are documented in P2-09-11 V0.11 and P2-09-12 V0.6; the recommended Field Descriptor Registry V0.1 and 32 validation vectors are also documented. ME-05-07 V0.3 defines the package/tile logical contract; ME-05-08 V0.1 specifies the byte-level envelope; P2-09-32 and P2-09-33 provide 45 and 28 design vectors respectively. Parser/writer implementation, codec/precision selection, tile benchmarks and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
+ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through ME-02-H are complete as specialist design working baselines. The source Field Dataset authority/product-semantic gate H-G01 is closed by ME-05-01 V0.5. Physical schema and provider-proof designs are documented in P2-09-11 V0.11 and P2-09-12 V0.6; the recommended Field Descriptor Registry V0.1 and 32 validation vectors are also documented. ME-05-07 V0.3 defines the package/tile logical contract; ME-05-08 V0.1 specifies the byte-level envelope; P2-09-32 and P2-09-33 provide 45 and 28 design vectors respectively. Parser/writer implementation, codec/precision selection, tile benchmarks and Windows/macOS execution evidence remain open. Exact algorithms, physical field persistence implementation, numeric parameters and technology choices remain open until their respective gates are completed.
 
 ## ME-05 — Shared Geometry & Spatial Operations (active design)
 
@@ -71,19 +71,20 @@ ME-02-01 V0.6 is the reconciled product/domain working baseline. ME-02-A through
 - **ME-05-01 product/domain gate closed:** H-G01 adopted; Map Source Field Baseline is Map-owned and Field Revision updates apply retroactively to every Branch and Historical Time of that Map.
 - **Design contracts drafted:** ME-05-02 geometry identity/operation boundary; ME-05-03 spatial predicate and topology boundary; ME-05-04 coordinate reference, precision and measurement semantics.
 - **Existing Core Domain alignment:** P2-09-19 V0.2 stores component identity in typed owner payloads (no V1 component table); P2-09-15 V0.5 includes adjust/refine/add/remove and defers split/merge; P2-09-20 V0.2 keeps formal relationships typed and distinct from geometric coincidence.
-- **Open:** ME-05-05 publication integration and ME-05-07 logical payload/tiling contracts are documented; parser/writer implementation and fixtures, codec/precision benchmarks, implementation and Windows/macOS numerical/provider execution evidence; specialist topology validation and selected-library measurement/transform proof. ME-05-02/03 are recommended working contracts, not frozen ADRs, executable descriptors or implementation authorization.
+- **Open:** ME-05-05 publication integration, ME-05-07 logical payload/tiling and ME-05-08 byte-level envelope are documented; parser/writer implementation and fixtures, codec/precision benchmarks, implementation and Windows/macOS numerical/provider execution evidence; specialist topology validation and selected-library measurement/transform proof. ME-05-02/03 are recommended working contracts, not frozen ADRs, executable descriptors or implementation authorization.
 
 ### ME-05 work sequence
 
 | Work item | Focus | Main output |
 |---|---|---|
-| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.4 |
+| ME-05-A | **Complete as working contracts** — Field Dataset authority and persistence semantics | ME-05-01 V0.5 |
 | ME-05-B | **Complete as working contract** — Shared Geometry Model and Component Operations | ME-05-02 V0.1 |
 | ME-05-C | **Complete as working contract** — Topology and Spatial Predicates | ME-05-03 V0.1 |
 | ME-05-D | **Complete as working contract** — Coordinate Reference, Precision & Measurement | ME-05-04 V0.1 |
 | ME-05-E | **Complete as working contract** — Geometry/Field Asset Package & Publication Integration | ME-05-05 V0.3 |
 | ME-05-F | **Complete as review baseline** — Map Engine / Core Domain Integration & Cross-architecture Verification | ME-05-06 V0.4; implementation gates remain open |
-| ME-05-G | **Complete as logical technical contract** — Field Payload Package & Tiling | ME-05-07 V0.1; byte-level layout, codec/precision and performance proof remain open |
+| ME-05-G | **Complete as logical technical contract** — Field Payload Package & Tiling | ME-05-07 V0.3; parser/writer proof, codec/precision and performance proof remain open |
+| ME-05-H | **Complete as byte-level specification** — Field Package Binary Envelope & Directory | ME-05-08 V0.1; parser/writer implementation and fixture execution remain open |
 
 ## Subsequent specialist workstreams
 
