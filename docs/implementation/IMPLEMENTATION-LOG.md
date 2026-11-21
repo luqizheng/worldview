@@ -54,8 +54,8 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 | 层次 | 状态 | 说明 |
 |---|---|---|
 | 工程骨架 | 已提交 | Solution、项目分层、DI/MVVM 示例与测试项目 |
-| 正式 Core Domain 实现 | 尚未在当前工程骨架中体现 | 领域设计文档不能替代实现 |
-| 持久化实现 | 尚未在当前工程骨架中体现 | 当前示例 Repository 为内存实现 |
+| 正式 Core Domain 实现 | CD-02-B 已实现（Object 持久化/Reservation/Initial State） | 见 2026-11-22 CD-02-B 条目；`WorldView/src/WorldView.Domain` |
+| 持久化实现 | 已实现（SQLite 迁移 001–008 + 统一连接协调器） | CD-01/CD-01-F1/CD-02-B；示例内存 Repository 仅为工程分层验证 |
 | 地图编辑器 UI | 尚未在当前工程骨架中体现 | Avalonia 主窗口为工程启动示例，不是 ME-01/ME-02 产品界面 |
 | 地图渲染与空间计算 | 尚未在当前工程骨架中体现 | 技术评估与服务契约仍待完成 |
 | AI Assistant / Generation | 尚未在当前工程骨架中体现 | 需遵循 Proposal / Candidate / Change Set 权限边界 |
@@ -173,6 +173,16 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Domain fix:** `BranchLineageResolver` now validates the initial branch's own history (exists and is `branch_owned`) before walking ancestors.
 - **Verification:** 33 new real-SQLite tests (16 concurrency: shared connection/write-write/write-race/partial-write visibility, transactions incl. midway rollback + paired-count isolation, dispose races, migrations incl. two-connection same-file exactly-once; 15 integrity: two-package project isolation, composite-FK cross-project writes, planted corruption — cycle/dangling/ownerless/cross-map root/initial-own/depth-limit, schema CHECK/FK/UNIQUE/partial-index negatives; 2 domain lineage). Full suite 172/172; Debug and Release builds 0 errors.
 - **Verdict:** PASS WITH CONDITIONS — cross-call composite writes rely on V1 append-only semantics (revisit when delete/update lands); coordinator is serial per connection (mind long transactions); new adapters must go through the coordinator; P2-09-12/WAL open gates unchanged.
+
+## 2026-11-22 CD-02-B Object Persistence & Initial State Foundation implemented
+
+- **Code:** commits `13bd8cd`（migrations 005–008）、`60af79b`（Domain services + port + adapter）、`95f22e4`（real-SQLite verification suite）on master.
+- **Schema:** 8 new tables (`core_object_type`, `core_object`, `core_object_definition`, `core_object_id_allocator`, `core_object_id_reservation`, `core_map_object_ref`, `core_map_initial_state`, `core_map_initial_object`) via append-only migrations; map_local scope defense-in-depth triggers; member→registration composite FK (P3⇒P2 at the database level).
+- **Domain:** `WorldView.Domain/Objects/` — records, ObjectRules/ReservationRules, canonical JSON + InitialStateFingerprint (Domain-owned), ten-type seed catalog pinned to P2-09-26 V0.2, seeding (OD-4: inside the Project creation transaction via `ProjectCreationPlan`), reservation state machine with request_key idempotency, TX-55 atomic object creation, definition expected-hash CAS, map registration service, initial state CAS baseline service.
+- **Infrastructure:** all composite writes run inside single `SqliteConnectionAccess` critical sections with transaction-internal state re-reads (CD-01-F1 condition 1 response); read-side fail-closed pin validation; `CoreDomainConflictException` for semantic conflicts.
+- **Tests:** 268/268 total (96 new). Real SQLite evidence: seeding counts, allocator non-rollback, 8-thread concurrent reserve uniqueness, all five illegal reservation transitions rejected, ABORT-trigger mid-transaction failure injection with zero half-states and same-ID retry, scope/service+trigger rejections, CHECK/FK/UNIQUE negatives, CAS stale rejections, fingerprint determinism, pin-tamper read fail-closed, concurrent read/write no torn state.
+- **Report/handoff:** `docs/core-domain/CD-02-B_IMPLEMENTATION_REPORT_v0.1.md` (PASS WITH CONDITIONS: P2-09-12 proof suite + macOS unverified; no UI entry; OD-1/OD-2 open), `docs/core-domain/CD-02-B_DEVELOPER_HANDOFF_v0.1.md` (CD-02-C registry runtime contract).
+- **Defect found & fixed by the suite:** ReserveObjectId post-insert read-back used request_key lookup (null crash for keyless reserves) — now reads by reservation id.
 
 ## 2026-11-22 CD-02-A Object & Initial State authority closure
 
