@@ -11,6 +11,8 @@ This repository is the version-controlled documentation baseline for the World V
 - `P2-01-D01/`: historical-state and command-domain discussion record.
 - `ai-assistant/`: AI product architecture, task planning/execution, context, tools, providers, authorization, proposal/application, database schemas, and recovery.
 - `map-editor/`: shared desktop editor architecture (ME-01), Terrain & Natural Geography Editor (ME-02: land/water, elevation, terrain features, hydrology, climate, ecology, calculation contracts, UX acceptance and cross-architecture review), Shared Geometry & Spatial Operations (ME-05), world-knowledge/story-spatial bridge, Guided Initialization, multi-scale spatial consistency, map Object/geometry/presentation model, Canvas-centered interaction framework, and specialist work plan and status.
+- [ME-03 Settlements & Urban Geography Editor V0.2](map-editor/world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) — specialist scope and work plan, reconciled with exact Core Domain descriptor-registry endpoints.
+- [ME-03-A Domain Inventory & Descriptor Reconciliation V0.1](map-editor/world-view-me-03-a-domain-inventory-and-descriptor-reconciliation-v0.1.md) — exact Settlement/Road/PoliticalRegion capabilities, enabled relationship endpoint pairs and urban-domain gaps.
 - [ME-03 Settlements & Urban Geography Editor V0.1](map-editor/world-view-me-03-settlements-and-urban-geography-editor-v0.1.md) — specialist workstream scope, inherited Core Domain vocabulary, settlement/political/land-use/road semantics, work packages and open gates.
 - `map-generation/`: map generation specification, generation session lifecycle, and related source README.
 - `map-engine/`: renderer contract, map visualization, geometry interaction, natural geography, and Unit animation.
@@ -53,7 +55,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-05-05 Geometry & Field Asset Package and Publication Contract V0.1](map-editor/world-view-me-05-05-geometry-and-field-asset-package-publication-contract-v0.1.md) — immutable vector/field payload distinction, typed ownership, atomic publication, stale-write rejection, Asset retention and recovery.
 - [ME-05-06 Cross-architecture Integration Review & V1 Gates V0.1](map-editor/world-view-me-05-06-cross-architecture-integration-review-v0.1.md) — Core Domain/Map Engine/editor/specialist ownership reconciliation, design findings and implementation acceptance gates.
 - [ME-05-02 Shared Geometry Model & Component Operations V0.1](map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md) — shared component identity/lifecycle, formal geometry operation boundary, write-context routing and immutable Asset ownership.
-- [Map Editor Work Plan V1.6](map-editor/ME-01-work-plan-and-document-status-v1.6.md) — current workstream status and specialist design inventory.
+- [Map Editor Work Plan V1.7](map-editor/ME-01-work-plan-and-document-status-v1.7.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
 
