@@ -13,7 +13,7 @@
 3. Record Geometry Component identity/role metadata in existing typed owner payloads and immutable Asset references; no new Geometry Component table is introduced.
 4. Require `core_command_object_ref` for the enabled V1 Object/Geometry/Relationship Command descriptors and `core_command_asset` for formal geometry Command inputs.
 5. Expand Checkpoint reconstruction fingerprints to include the pinned Object Type semantics that affect Object/Command interpretation.
-6. Retain the 20 Core Domain baseline tables and up to 5 typed link tables; no new domain table is added.
+6. Retain the 20 Core Domain baseline tables, require 2 descriptor-driven typed links (`core_command_object_ref`, `core_command_asset`), and leave up to 3 additional typed links conditional; no new domain table is added.
 
 ## Change summary from V0.7
 

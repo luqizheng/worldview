@@ -54,14 +54,14 @@ The coordinator is not a third domain authority. Core Domain repositories do not
 | 19 | `core_asset` | Immutable formal Asset metadata and content identity |
 | 20 | `core_checkpoint` | File-backed reconstruction acceleration metadata |
 
-### 3.2 Conditional Core Domain typed link tables — up to 5
+### 3.2 Required and optional Core Domain typed link tables
 
-These are normalized reference tables and should be added only when the enabled descriptor/payload contracts require them. P2-09-15 V0.2 and P2-09-17 V0.2 provide the current reference matrix. Do not create speculative generic link frameworks.
+These are normalized reference tables. The enabled V1 descriptor/payload contracts require two links; the other three remain conditional on actual Event/definition/Initial State reference needs. P2-09-15 V0.3 and P2-09-17 V0.3 provide the current reference matrix. Do not create speculative generic link frameworks.
 
 | Table | Purpose | Inclusion condition |
 |---|---|---|
 | `core_command_object_ref` | Typed Object references from Commands | **Required V1 link** for Object creation/deactivation/attribute, Geometry and Relationship descriptors; roles are descriptor-declared and validated |
-| `core_event_object_ref` | Event participants/target Objects | Event model requires indexed/validated Object participation |
+| `core_event_object_ref` | Event participants/target Objects | Conditional: enable when the Event model requires indexed/validated Object participation |
 | `core_object_definition_asset` | Immutable Assets used by Object definitions | Conditional: enable when the adopted Shared Object definition schema carries formal geometry/other Asset references |
 | `core_map_initial_object_asset` | Assets used by Map Initial State object membership/placement | Conditional: enable when the adopted Initial State schema carries formal geometry/other Asset references |
 | `core_command_asset` | Immutable Assets used by formal Commands | **Required V1 link** for formal Geometry Component Command descriptors; immutable geometry Assets are part of deterministic replay inputs |
@@ -84,10 +84,10 @@ These are normalized reference tables and should be added only when the enabled 
 
 ### 3.5 Inventory count
 
-- Core Domain: 20 baseline tables + 0–5 conditional typed link tables.
+- Core Domain: 20 baseline tables + 2 required typed link tables + 0–3 optional typed link tables.
 - AI Assistant: 28 domain tables.
 - Application Bootstrap: 1 shared migration ledger.
-- Expected total: **49 baseline tables + 0–5 conditional Core link tables**, before final DDL-specific migration metadata or indexes/triggers (which are not domain tables).
+- Expected total: **51 baseline tables + 0–3 optional Core link tables**, before final DDL-specific migration metadata or indexes/triggers (which are not domain tables).
 
 ## 4. Cross-module key and reference rules
 
@@ -187,6 +187,6 @@ No LLM call, user interaction, long validation, file staging or network request 
 
 ## 9. Status
 
-V0.4 retains the V0.3 logical inventory: 20 Core Domain baseline tables, up to 5 conditional typed links, exactly 28 AI Assistant domain tables, and one shared Application migration ledger (49 baseline tables plus 0–5 conditional Core links). It preserves the migration dependency order required by `core_object.owner_map_id`, records the explicit Shared/Map-local Object registration invariant, and now pins Object Type descriptor semantics on each bound identity. The required V1 Command Object/Asset typed links are identified without adding new domain tables.
+V0.4 retains the V0.3 logical inventory: 20 Core Domain baseline tables, 2 required descriptor-driven typed links, up to 3 optional typed links, exactly 28 AI Assistant domain tables, and one shared Application migration ledger (51 baseline tables plus 0–3 optional Core links). It preserves the migration dependency order required by `core_object.owner_map_id`, records the explicit Shared/Map-local Object registration invariant, and now pins Object Type descriptor semantics on each bound identity. The required V1 Command Object/Asset typed links are identified without adding new domain tables.
 
 The inventory is not executable SQL, does not claim transaction proof, and does not authorize implementation. Checkpoint fingerprint details are governed by P2-09-16 V0.1 and the reconciled P2-09-11 V0.9. The development team remains responsible for implementation and test execution after the design gates are closed.
