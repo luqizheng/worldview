@@ -101,14 +101,14 @@ This was the only P0 cross-architecture domain gate in the ME-02 package. Its pr
 
 ### H-02 — Derived Artifact storage must remain distinct from Core Domain Assets
 
-**Severity: P1; resolved in ME-02-F V0.2**
+**Severity: P1; resolved in ME-02-F V0.3**
 
 P2-09-11 `core_asset` and typed Asset links represent immutable content referenced by formal domain payloads and enabled Commands. A calculation output used only for analysis is not automatically a formal Core Asset.
 
 ME-02-F V0.1 used “Asset Store” language that could be misread as requiring every derived raster/analysis output to enter `core_asset`.
 
 **Disposition:**
-- ME-02-F V0.2 clarifies that derived payloads use a Map Engine-owned derived-data file namespace and artifact catalog, with metadata in the existing project-local SQLite database under Calculation subsystem ownership.
+- ME-02-F V0.3 clarifies that derived payloads use a Map Engine-owned derived-data file namespace and artifact catalog, with metadata in the existing project-local SQLite database under Calculation subsystem ownership.
 - Do not create `core_asset` or formal typed links for every derived output.
 - If a creator adopts a derived geometry/field as a formal input, publish the exact accepted bytes through the Core Domain Asset contract and reference them through the appropriate typed owner/Command link.
 - Renderer SceneSnapshot, spatial indexes and viewport caches remain a third separate rebuildable representation.
@@ -239,7 +239,7 @@ ME-01-04 and the Spatial Presentation Contract distinguish Map Extent, Working S
 
 **Severity: P1; aligned**
 
-ME-02-D defines terrain-first drainage, legitimate closed basins, a bounded single-flow-direction V1 analysis and limited formal River relationships. ME-02-E defines seasonal, causal climate estimates and the distinction between suitability and actual ecology. ME-02-F V0.2 supplies their shared calculation contract.
+ME-02-D defines terrain-first drainage, legitimate closed basins, a bounded single-flow-direction V1 analysis and limited formal River relationships. ME-02-E defines seasonal, causal climate estimates and the distinction between suitability and actual ecology. ME-02-F V0.3 supplies their shared calculation contract.
 
 **Disposition:**
 - Hydrology must declare downstream propagation; a local terrain edit cannot be invalidated by a naive fixed-radius-only model.
@@ -323,7 +323,7 @@ The gates are intentionally bounded. They do not justify a new distributed sched
 
 The review produced the following controlled updates:
 
-1. **ME-02-F V0.2** clarifies the boundary between source Field Dataset, Derived Artifact, formal Core Asset and renderer cache. It adds an explicit source-field authority contract.
+1. **ME-02-F V0.3** clarifies the boundary between source Field Dataset, Derived Artifact, formal Core Asset and renderer cache. It adds an explicit source-field authority contract.
 2. **ME-02-G V0.2** requires the UX to identify Initial State, History-local and Project-shared formal authoring targets before any formal write.
 3. **ME-02 overall baseline V0.6** records ME-02-A through ME-02-H disposition and the remaining P0/P1 gates.
 4. **Work Plan V1.1** marks ME-02-H complete and transfers the remaining implementation contracts to ME-05/ME-07 and Core Domain owners.
