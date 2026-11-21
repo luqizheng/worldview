@@ -329,7 +329,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
                 failure = await CaptureAsync(async () =>
                 {
                     var entries = await _database.ReadLedgerAsync().ConfigureAwait(false);
-                    Assert.Equal(8, entries.Count);
+                    Assert.Equal(10, entries.Count);
                 }).ConfigureAwait(false);
             }
 
@@ -487,6 +487,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
                          "core_object_type", "core_object", "core_object_definition",
                          "core_object_id_allocator", "core_object_id_reservation",
                          "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
+                         "core_asset", "core_object_definition_asset",
                      })
             {
                 counts[table] = Scalar(connection, $"SELECT COUNT(*) FROM {table}");
@@ -694,7 +695,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             Assert.Empty(failures);
 
             var ledger = await staged.ReadLedgerAsync().ConfigureAwait(false);
-            Assert.Equal(9, ledger.Count); // 8 core-domain + 1 extra，无重复应用
+            Assert.Equal(11, ledger.Count); // 10 core-domain + 1 extra，无重复应用
             Assert.Equal(1, AccessOf(staged).Execute(c => Scalar(c, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'cd_f1_extra'")));
             Assert.True(await staged.IntegrityCheckAsync().ConfigureAwait(false));
         }
@@ -729,7 +730,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             // 回滚后连接可用：core-domain 正式迁移仍可正常补齐（schema 版本正确）。
             var repair = await _bootstrapper.ValidateExistingDatabaseAsync(database).ConfigureAwait(false);
             Assert.True(repair.Success, string.Join("; ", repair.Issues.Select(i => i.Message)));
-            Assert.Equal(8, repair.AppliedMigrations.Count);
+            Assert.Equal(10, repair.AppliedMigrations.Count);
         }
         finally
         {
@@ -768,8 +769,8 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             await verify.OpenAsync().ConfigureAwait(false);
             Assert.True(await verify.IntegrityCheckAsync().ConfigureAwait(false));
             var access = AccessOf(verify);
-            Assert.Equal(8, access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
-            Assert.Equal(8, access.Execute(
+            Assert.Equal(10, access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
+            Assert.Equal(10, access.Execute(
                 c => Scalar(c, "SELECT COUNT(DISTINCT migration_id) FROM schema_migration")));
         }
         finally
@@ -785,7 +786,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         var result = await _bootstrapper.ValidateExistingDatabaseAsync(_database).ConfigureAwait(false);
         Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
         Assert.Empty(result.AppliedMigrations);
-        Assert.Equal(8, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
+        Assert.Equal(10, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
     }
 
     // ---- 辅助 ----

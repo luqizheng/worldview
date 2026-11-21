@@ -174,6 +174,13 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Verification:** 33 new real-SQLite tests (16 concurrency: shared connection/write-write/write-race/partial-write visibility, transactions incl. midway rollback + paired-count isolation, dispose races, migrations incl. two-connection same-file exactly-once; 15 integrity: two-package project isolation, composite-FK cross-project writes, planted corruption — cycle/dangling/ownerless/cross-map root/initial-own/depth-limit, schema CHECK/FK/UNIQUE/partial-index negatives; 2 domain lineage). Full suite 172/172; Debug and Release builds 0 errors.
 - **Verdict:** PASS WITH CONDITIONS — cross-call composite writes rely on V1 append-only semantics (revisit when delete/update lands); coordinator is serial per connection (mind long transactions); new adapters must go through the coordinator; P2-09-12/WAL open gates unchanged.
 
+## 2026-11-22 CD-02-D Geometry & Asset foundation implemented
+
+- **Code:** migrations 009-010 (`core_asset`, `core_object_definition_asset`); `WorldView.Domain/Assets/` (AssetRecord/AssetRules/AssetService — content-addressed idempotent registration, path confinement, corrupt/missing assets blocked from new formal references); `WorldView.Domain/Geometry/` (GeometryComponentManifest per P2-09-19 s6.2, descriptor-driven manifest validation, manifest/link/asset consistency, worldview.geometry-json envelope structural validator per P2-09-25 recommended direction, operation policy with explicit split/merge rejection per P2-09-19 s7.5).
+- **Not built:** core_map_initial_object_asset (trigger not fired), core_command_asset (Command stage), core_geometry_component table (V1 forbids), geometry Command write paths (CD-03+).
+- **Tests:** 322/322 total (41 new; real-SQLite full-chain evidence: publish bytes -> register metadata -> link -> envelope validation -> three-way consistency); Release clean.
+- **Report:** `docs/core-domain/CD-02-D_IMPLEMENTATION_REPORT_v0.1.md`.
+
 ## 2026-11-22 CD-02-C Registry runtime & typed schema implemented
 
 - **Code:** `WorldView.Domain/Registry/ObjectTypeRegistry.cs` + embedded P2-09-26 V0.2 descriptor registry (csproj resource link — single data source, no copy drift); pin authority migrated from BuiltinObjectTypes constants to the registry; typed definition-payload validation wired into ObjectCreationService/ObjectDefinitionService; adapter Bind writes registry-derived pins.

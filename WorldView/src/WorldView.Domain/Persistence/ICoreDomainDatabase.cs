@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using WorldView.Domain.Assets;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Projects;
@@ -152,6 +153,43 @@ public interface ICoreDomainDatabase
     /// 对应注册行（P3⇒P2）且身份 active；校验在事务内完成。
     /// </summary>
     void EditMapInitialState(EditInitialStatePlan plan);
+
+    // ---- Core Asset 权威元数据（core_asset；P2-09-11 §4.6） ----
+
+    /// <summary>按 Asset ID 查找；不存在或跨 Project 返回 null。</summary>
+    AssetRecord? FindAsset(Guid projectId, Guid assetId);
+
+    /// <summary>按内容 hash 查找（内容寻址幂等依据）。</summary>
+    AssetRecord? FindAssetByContentHash(Guid projectId, string hashAlgorithm, string contentHash);
+
+    /// <summary>列出 Project 的全部 Asset 元数据（按 asset_id 稳定排序）。</summary>
+    IReadOnlyList<AssetRecord> ListAssets(Guid projectId);
+
+    /// <summary>
+    /// 事务：登记已发布 Asset 的权威元数据（字节层已发布并 hash 验证之后）。
+    /// 同 (hash_algorithm, content_hash) 已存在 → 幂等返回既有行（内容寻址）。
+    /// </summary>
+    AssetRecord RegisterAsset(RegisterAssetPlan plan);
+
+    /// <summary>事务：更新完整性扫描状态（corrupt/missing 状态阻止新建正式引用）。</summary>
+    void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
+
+    /// <summary>列出未被任何 typed link 引用的 Asset ID（孤儿对账；只读，不自动删除）。</summary>
+    IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId);
+
+    // ---- Definition Asset typed link（core_object_definition_asset；P2-09-19 §9） ----
+
+    /// <summary>按 (owner, asset, role) 查找 definition Asset link；不存在返回 null。</summary>
+    ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(Guid projectId, Guid objectIdentityId, Guid assetId, string role);
+
+    /// <summary>列出 Object 的全部 definition Asset links（按 asset_id/role 稳定排序）。</summary>
+    IReadOnlyList<ObjectDefinitionAssetLinkRecord> ListDefinitionAssetLinks(Guid projectId, Guid objectIdentityId);
+
+    /// <summary>事务：建立 definition Asset link（owner 存在、Asset 同 Project 且完整性可用、role 为已声明 geometry role）。</summary>
+    void LinkDefinitionAsset(LinkDefinitionAssetPlan plan);
+
+    /// <summary>事务：移除 definition Asset link（不存在则冲突）。</summary>
+    void UnlinkDefinitionAsset(Guid projectId, Guid objectIdentityId, Guid assetId, string role);
 }
 
 /// <summary>Core Domain 数据损坏（行不可解析、不变量破坏、结构缺失）：fail-closed，不静默修补。</summary>

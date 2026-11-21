@@ -350,8 +350,61 @@ public static class CoreDomainSchema
         """;
 
     /// <summary>
+    /// 009：core_asset（P2-09-11 §4.6；CD-02-D Asset 权威元数据）。
+    /// Asset 字节不可变且存于 SQLite 之外（FileAssetStore 内容寻址）；本表只承载
+    /// 语义元数据与完整性状态，绝不覆写已发布文件。hash_algorithm V1 仅 sha-256
+    /// （与 FileAssetStore 一致）；publication_state 仅 'published'——AI staging
+    /// 永不进入 core_asset（P2-09-06 §5/§6：正式引用前必须已发布）。
+    /// integrity_state 由完整性扫描服务管理（verified/unverified/corrupt/missing）。
+    /// </summary>
+    public const string Migration009CoreAsset = """
+        CREATE TABLE core_asset (
+            asset_id          TEXT    NOT NULL PRIMARY KEY,
+            project_id        TEXT    NOT NULL,
+            content_hash      TEXT    NOT NULL,
+            hash_algorithm    TEXT    NOT NULL CHECK (hash_algorithm = 'sha-256'),
+            byte_length       INTEGER NOT NULL CHECK (byte_length >= 0),
+            media_type        TEXT    NOT NULL,
+            format_version    TEXT    NOT NULL,
+            relative_path     TEXT    NOT NULL,
+            publication_state TEXT    NOT NULL CHECK (publication_state IN ('published')),
+            integrity_state   TEXT    NOT NULL CHECK (integrity_state IN ('verified', 'unverified', 'corrupt', 'missing')),
+            created_at_utc_ms INTEGER NOT NULL,
+            UNIQUE (project_id, asset_id),
+            UNIQUE (project_id, hash_algorithm, content_hash),
+            FOREIGN KEY (project_id) REFERENCES core_project (project_id)
+        );
+        """;
+
+    /// <summary>
+    /// 010：core_object_definition_asset（P2-09-11 §4.6 typed asset link；P2-09-19 §9）。
+    /// 行仅含 owner keys + asset_id + role——绝不塞入 content hash 或组件 ID
+    /// （权威 hash 从 core_asset 解析比对，组件 ID 在 owner payload manifest 内，
+    /// CD-02-A §12）。Definition geometry 引用随 Building/Cave adoption 启用
+    /// （P2-09-13 §3.2 条件性规则；启用触发条件已由 CD-02-E adoption 满足）。
+    /// core_map_initial_object_asset 不启用（当前 Initial State payload 无独立
+    /// geometry Asset 引用）；core_command_asset 属 Command 阶段。
+    /// </summary>
+    public const string Migration010CoreObjectDefinitionAsset = """
+        CREATE TABLE core_object_definition_asset (
+            object_definition_asset_id TEXT    NOT NULL PRIMARY KEY,
+            project_id                 TEXT    NOT NULL,
+            object_identity_id         TEXT    NOT NULL,
+            asset_id                   TEXT    NOT NULL,
+            role                       TEXT    NOT NULL,
+            created_at_utc_ms          INTEGER NOT NULL,
+            UNIQUE (project_id, object_definition_asset_id),
+            UNIQUE (project_id, object_identity_id, asset_id, role),
+            FOREIGN KEY (project_id) REFERENCES core_project (project_id),
+            FOREIGN KEY (project_id, object_identity_id) REFERENCES core_object (project_id, object_identity_id),
+            FOREIGN KEY (project_id, asset_id) REFERENCES core_asset (project_id, asset_id)
+        );
+        """;
+
+    /// <summary>
     /// 迁移清单（顺序即依赖序：project → map → history/branch → calendar →
-    /// object_type → object 系 → map_object_ref → initial_state 系）。
+    /// object_type → object 系 → map_object_ref → initial_state 系 → asset →
+    /// definition_asset link）。
     /// </summary>
     public static IReadOnlyList<(string MigrationId, string Sql)> Migrations { get; } =
     [
@@ -363,5 +416,7 @@ public static class CoreDomainSchema
         ("006_core_object_identity", Migration006CoreObjectIdentity),
         ("007_core_map_object_ref", Migration007CoreMapObjectRef),
         ("008_core_map_initial_state", Migration008CoreMapInitialState),
+        ("009_core_asset", Migration009CoreAsset),
+        ("010_core_object_definition_asset", Migration010CoreObjectDefinitionAsset),
     ];
 }

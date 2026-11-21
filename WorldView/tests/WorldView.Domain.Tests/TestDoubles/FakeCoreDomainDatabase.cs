@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using WorldView.Domain.Assets;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -39,6 +40,10 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public List<ReservationRecord> Reservations { get; } = new();
 
     public List<MapObjectRefRecord> MapObjectRefs { get; } = new();
+
+    public List<AssetRecord> Assets { get; } = new();
+
+    public List<ObjectDefinitionAssetLinkRecord> DefinitionAssetLinks { get; } = new();
 
     public List<MapInitialStateRecord> InitialStates { get; } = new();
 
@@ -495,6 +500,83 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
             ContentFingerprint = fingerprint,
             UpdatedAtUtcMs = plan.NowUtcMs,
         });
+    }
+
+    // ---- Asset / definition link ----
+
+    public AssetRecord? FindAsset(Guid projectId, Guid assetId) =>
+        Assets.FirstOrDefault(a => a.ProjectId == projectId && a.AssetId == assetId);
+
+    public AssetRecord? FindAssetByContentHash(Guid projectId, string hashAlgorithm, string contentHash) =>
+        Assets.FirstOrDefault(a =>
+            a.ProjectId == projectId && a.HashAlgorithm == hashAlgorithm && a.ContentHash == contentHash);
+
+    public IReadOnlyList<AssetRecord> ListAssets(Guid projectId) =>
+        Assets.Where(a => a.ProjectId == projectId).OrderBy(a => a.AssetId).ToArray();
+
+    public AssetRecord RegisterAsset(RegisterAssetPlan plan)
+    {
+        var hash = AssetRules.NormalizeContentHash(plan.ContentHash);
+        var record = new AssetRecord
+        {
+            AssetId = plan.AssetId,
+            ProjectId = plan.ProjectId,
+            ContentHash = hash,
+            HashAlgorithm = "sha-256",
+            ByteLength = plan.ByteLength,
+            MediaType = plan.MediaType,
+            FormatVersion = plan.FormatVersion,
+            RelativePath = AssetRules.ContentAddressedRelativePath(hash),
+            PublicationState = AssetPublicationState.Published,
+            IntegrityState = AssetIntegrityState.Unverified,
+            CreatedAtUtcMs = plan.CreatedAtUtcMs,
+        };
+        Assets.Add(record);
+        return record;
+    }
+
+    public void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
+    {
+        var asset = FindAsset(projectId, assetId)
+            ?? throw new CoreDomainConflictException("Asset 不存在。");
+        Assets.Remove(asset);
+        Assets.Add(asset with { IntegrityState = integrityState });
+    }
+
+    public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
+    {
+        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId).Select(l => l.AssetId).ToHashSet();
+        return Assets.Where(a => a.ProjectId == projectId && !linked.Contains(a.AssetId))
+            .Select(a => a.AssetId).OrderBy(g => g).ToArray();
+    }
+
+    public ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(Guid projectId, Guid objectIdentityId, Guid assetId, string role) =>
+        DefinitionAssetLinks.FirstOrDefault(l =>
+            l.ProjectId == projectId && l.ObjectIdentityId == objectIdentityId
+            && l.AssetId == assetId && l.Role == role);
+
+    public IReadOnlyList<ObjectDefinitionAssetLinkRecord> ListDefinitionAssetLinks(Guid projectId, Guid objectIdentityId) =>
+        DefinitionAssetLinks.Where(l => l.ProjectId == projectId && l.ObjectIdentityId == objectIdentityId)
+            .OrderBy(l => l.AssetId).ThenBy(l => l.Role, StringComparer.Ordinal).ToArray();
+
+    public void LinkDefinitionAsset(LinkDefinitionAssetPlan plan)
+    {
+        DefinitionAssetLinks.Add(new ObjectDefinitionAssetLinkRecord
+        {
+            ObjectDefinitionAssetId = plan.ObjectDefinitionAssetId,
+            ProjectId = plan.ProjectId,
+            ObjectIdentityId = plan.ObjectIdentityId,
+            AssetId = plan.AssetId,
+            Role = plan.Role,
+            CreatedAtUtcMs = plan.CreatedAtUtcMs,
+        });
+    }
+
+    public void UnlinkDefinitionAsset(Guid projectId, Guid objectIdentityId, Guid assetId, string role)
+    {
+        var link = FindDefinitionAssetLink(projectId, objectIdentityId, assetId, role)
+            ?? throw new CoreDomainConflictException("definition Asset link 不存在。");
+        DefinitionAssetLinks.Remove(link);
     }
 
     // ---- 内存写辅助（与适配器规则一致） ----
