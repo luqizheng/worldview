@@ -5,7 +5,7 @@
 - Status: Object Type / Geometry Component reconciled integrated logical inventory and migration dependency proposal — not executable SQL and not implementation authorization
 - Supersedes: P2-09-13 V0.3 for Object Type pinning and required descriptor-driven typed-link selection; V0.3 is retained as history
 - Supersedes: P2-09-13 V0.1 for migration dependency ordering and explicit ownership integration; V0.1 is retained as history
-- Depends on: P2-09-01~12; Core Domain P2-09-11 V0.9; AI Assistant Schema V1.16; AI/Core Integration Review V0.8; P2-09-16 V0.1; P2-09-14 V0.1; P2-09-15 V0.3; P2-09-17 V0.3; P2-09-18 V0.1; P2-09-19 V0.1
+- Depends on: P2-09-01~12; Core Domain P2-09-11 V0.9; AI Assistant Schema V1.16; AI/Core Integration Review V0.8; P2-09-16 V0.1; P2-09-14 V0.1; P2-09-15 V0.3; P2-09-17 V0.3; P2-09-18 V0.2; P2-09-19 V0.2
 
 ## 1. Purpose
 
@@ -189,4 +189,4 @@ No LLM call, user interaction, long validation, file staging or network request 
 
 V0.4 retains the V0.3 logical inventory: 20 Core Domain baseline tables, up to 5 conditional typed links, exactly 28 AI Assistant domain tables, and one shared Application migration ledger (49 baseline tables plus 0–5 conditional Core links). It preserves the migration dependency order required by `core_object.owner_map_id`, records the explicit Shared/Map-local Object registration invariant, and now pins Object Type descriptor semantics on each bound identity. The required V1 Command Object/Asset typed links are identified without adding new domain tables.
 
-The inventory is not executable SQL, does not claim transaction proof, and does not authorize implementation. Checkpoint fingerprint details are governed by P2-09-16 V0.1 and the reconciled P2-09-11 V0.8. The development team remains responsible for implementation and test execution after the design gates are closed.
+The inventory is not executable SQL, does not claim transaction proof, and does not authorize implementation. Checkpoint fingerprint details are governed by P2-09-16 V0.1 and the reconciled P2-09-11 V0.9. The development team remains responsible for implementation and test execution after the design gates are closed.
