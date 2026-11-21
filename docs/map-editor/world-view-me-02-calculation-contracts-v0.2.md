@@ -337,9 +337,9 @@ A calculation family is not implementation-ready until all applicable items are 
 
 ME-02-F establishes the shared calculation lifecycle and cross-cutting contracts. It does **not** select a raster library, geometry engine, database schema, file format, threading model or final scientific algorithm implementation.
 
-Next:
-- ME-02-G: end-to-end UX scenarios and acceptance criteria for natural-geography authoring and calculation review.
-- ME-02-H: cross-architecture review against Core Domain, Map Engine, Map Generation and ME-01 (completed in the ME-02 package).
-- Specialist implementation gates: exact algorithms, numeric calibration, physical-field Asset encoding, tile storage, cache layout and cross-platform performance.
+Package status:
+- ME-02-G UX scenarios and acceptance: completed; see ME-02-G V0.2.
+- ME-02-H cross-architecture review: completed; see ME-02-H V0.1.
+- Remaining specialist implementation gates: exact algorithms, numeric calibration, physical-field Asset encoding, tile storage, cache layout and cross-platform performance.
 
 No executable calculation service or automated test pass is implied by this design document.
