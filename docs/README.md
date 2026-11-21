@@ -44,7 +44,7 @@ This repository is the version-controlled documentation baseline for the World V
 - [ME-02-G UX Scenarios & Acceptance V0.2](map-editor/world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) — end-to-end natural-geography creator journeys, Inspector, diagnostics, formal authoring targets, failure/recovery and Figma handoff.
 - [ME-02-H Cross-architecture Review V0.2](map-editor/world-view-me-02-cross-architecture-review-v0.2.md) — Core Domain/Map Engine/Map Generation/ME-01 reconciliation, implementation gates and ME-02 package disposition.
 - [ME-02 Overall Baseline V0.6](map-editor/world-view-me-02-terrain-and-natural-geography-editor-v0.6.md) — reconciled natural-geography product/domain baseline through ME-02-H.
-- [ME-05-01 Field Dataset Authority & Persistence Contract V0.1](map-editor/world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.2.md) — adopted Map-owned source field identity, immutable revisions, typed Core Asset ownership and retroactive Map-wide Branch/History semantics; implementation and provider proof remain open.
+- [ME-05-01 Field Dataset Authority & Persistence Contract V0.2](map-editor/world-view-me-05-01-field-dataset-authority-and-persistence-contract-v0.2.md) — adopted Map-owned source field identity, immutable revisions, typed Core Asset ownership and retroactive Map-wide Branch/History semantics; implementation and provider proof remain open.
 - [Map Editor Work Plan V1.1](map-editor/ME-01-work-plan-and-document-status-v1.1.md) — current workstream status and specialist design inventory.
 
 - [AI Assistant Logical Schema V1.16](ai-assistant/world-view-ai-assistant-unified-logical-database-schema-v1.16.md) — 28 AI-owned domain tables.
