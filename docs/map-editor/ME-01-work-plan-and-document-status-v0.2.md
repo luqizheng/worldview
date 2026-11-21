@@ -10,19 +10,19 @@ This document tracks the Map Editor ME-01 design package. The editor design is a
 | ME-01-02 | [World Knowledge and Story-Spatial Bridge](world-view-me-01-02-world-knowledge-and-story-spatial-bridge-v0.1.md) | 0.1 | Design Working Baseline | Story facts, creator intent, inference, provenance and spatial intent |
 | ME-01-03 | [Guided Initialization](world-view-me-01-03-guided-initialization-v0.1.md) | 0.1 | Design Working Baseline | Adaptive conversation, staged generation, review and incremental refinement |
 | ME-01-04 | [Multi-scale Spatial Model & Global Consistency](world-view-me-01-04-multiscale-spatial-consistency-v0.1.md) | 0.1 | Architecture Working Baseline | Spatial scopes, resolution/LOD, cross-scale relations, constraints and bounded recalculation |
+| ME-01-05 | [Map Object, Geometry & Representation Model](world-view-me-01-05-map-object-geometry-representation-model-v0.1.md) | 0.1 | Architecture Working Baseline | Semantic identity, ObjectState, geometry association/components, spatial relationships, presentation, layers and derived render data |
 
 ## Remaining ME-01 work
 
 | ID | Planned deliverable | Main questions |
 |---|---|---|
-| ME-01-05 | Map Object, Geometry and Representation Model | Semantic identity, geometry ownership, geometry components, multiple representations, raster/vector association and provenance |
 | ME-01-06 | Editor Interaction Framework | Multi-scale navigation, scope transitions, selection/editing, candidate review, diagnostics and history context |
 | ME-01-07 | Cross-architecture Consistency Review | Reconcile ME-01 with Core Domain, AI Assistant, Map Generation, Map Engine and persistence contracts; record gaps and required follow-up |
 
 ## Working sequence and status rules
 
-1. ME-01-01 through ME-01-04 establish the product and architecture baseline.
-2. ME-01-05 and ME-01-06 refine the object/presentation model and interaction contracts.
+1. ME-01-01 through ME-01-05 establish the product, spatial and object/presentation architecture baseline.
+2. ME-01-06 defines the interaction framework over the shared model.
 3. ME-01-07 performs a cross-document consistency review before ME-01 is treated as complete.
 4. ME-02 through ME-07 then develop the specialist editors, shared geometry system, interaction/tool system and rendering/technical architecture.
 
