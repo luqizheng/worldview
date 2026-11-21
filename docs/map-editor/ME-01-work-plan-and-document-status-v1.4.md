@@ -33,7 +33,7 @@ ME-01 is complete as a shared product/architecture working baseline. The finding
 | ME-02-06 | [Climate & Ecology Authoring](world-view-me-02-climate-and-ecology-authoring-v0.1.md) | 0.1 | Climate & Ecology Specialist Workflow Working Baseline | Planet/season assumptions, circulation, ocean/moisture influence, temperature/precipitation, climate classification, biome/habitat suitability and causal diagnostics |
 | ME-02-07 | [Calculation Contracts](world-view-me-02-calculation-contracts-v0.4.md) | 0.3 | Calculation Architecture Working Baseline | Reproducible inputs, determinism, tile/halo/resolution, bounded invalidation, Run/Artifact lifecycle, atomic publication, cancellation/recovery and diagnostics |
 | ME-02-08 | [UX Scenarios & Acceptance](world-view-me-02-ux-scenarios-and-acceptance-v0.2.md) | 0.2 | Natural Geography UX Working Baseline | Story-led initialization, direct authoring, terrain/hydrology/climate flows, local refinement, recovery, Candidate review, Inspector, diagnostics, accessibility and end-to-end acceptance |
-| ME-02-09 | [Cross-architecture Review](world-view-me-02-cross-architecture-review-v0.2.md) | 0.1 | Cross-architecture Review Working Baseline | Reconciliation with Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; explicit implementation gates and package disposition |
+| ME-02-09 | [Cross-architecture Review](world-view-me-02-cross-architecture-review-v0.2.md) | 0.2 | Cross-architecture Review Working Baseline | Reconciliation with Core Domain, Map Engine, Map Generation, ME-01 and specialist ME-02 contracts; explicit implementation gates and package disposition |
 
 ### ME-02 work sequence
 
