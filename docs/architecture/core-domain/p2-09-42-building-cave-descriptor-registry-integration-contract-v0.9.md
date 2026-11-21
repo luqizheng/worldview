@@ -261,12 +261,12 @@ For this adoption profile:
 
 The current adoption therefore enables the existing `core_object_definition_asset` link; it does not add a component ID column or a new table. The Initial State Asset link remains out of scope unless a future Initial State payload introduces distinct immutable geometry Assets.
 
-P2-09-40 V0.6 models the relational link projection separately from `core_asset` hash metadata. It also distinguishes spatial and measurement semantics tests from schema/aggregate validation. The exact runner contract and audit limitations are recorded in P2-09-44 V0.1.
+P2-09-40 V0.6 models the relational link projection separately from `core_asset` hash metadata. It also distinguishes spatial and measurement semantics tests from schema/aggregate validation. The exact runner contract and audit limitations are recorded in P2-09-44 V0.2.
 
 
 ## 13. V0.8 — Registry Format V2 contract and migration preview
 
-P2-09-45 V0.2 now defines Registry Format V2 as an explicit dual-profile migration:
+P2-09-45 V0.3 now defines Registry Format V2 as an explicit dual-profile migration:
 
 - `legacy_compact_v1` is restricted to the existing ten P2-09-26 V0.2 Object Type keys and preserves their current `schema_version`, `semantics_id`, field catalogs, geometry declarations, policies and Command capabilities.
 - `typed_v2` requires the complete P2-09-18 descriptor surface, including metadata, identity/allocation, separate definition/runtime/Initial State schema references, geometry, Relationship participation, lifecycle, Commands, Asset contract, child aggregate contract and compatibility behavior.
