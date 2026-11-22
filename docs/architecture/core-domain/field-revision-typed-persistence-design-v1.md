@@ -59,9 +59,9 @@ The ownership boundary is now specified in [Map Space and Spatial Reference Owne
 - The Spatial Reference definition owns the selected coordinate precision profile and optional vertical-reference identity. The canonical manifest snapshots those IDs and owner-context validation must match them.
 - Elevation's `unit` is a sample-value unit, distinct from both coordinate units and vertical-reference identity.
 - Map Space and Spatial Reference IDs remain separate identities; neither is inferred from the other or from EPSG aliases.
-- Existing legacy revisions remain readable. Missing definitions/precision/unit/vertical values are not backfilled from current Map state.
+- The initial release has no historical user data; no legacy read, compatibility dispatcher or backfill path is implemented. Missing definitions/precision/unit/vertical values are rejected for every new publication.
 
-The exact EF entities/configuration and same-Project FK shape remain pending. The owner contract is a design baseline, not an implemented schema.
+The owner contract is implemented in Domain and EF. `core_map.spatial_reference_id` is constrained to the same-Project `core_spatial_reference` record; owner context is revalidated in the publication transaction.
 
 ## 4. Typed relational persistence shape
 
@@ -174,11 +174,10 @@ The command used from the `WorldView` solution directory was `dotnet ef migratio
 
 ## 10. Next implementation order
 
-1. Complete owner-context validation against Map Space and immutable Spatial Reference definitions.
-2. Define the Map Space and Spatial Reference owner records and their project/map scope; only then add relational foreign keys.
-3. Add typed revision scalar/child persistence and generate the EF migration with the real CLI.
-4. Since there is no historical user data, create the initial typed schema directly and prove typed reads do not depend on `manifest_json`.
-5. Implement the dedicated BLOB / managed-file Field Payload adapter and publication/recovery protocol.
-6. Migrate all production consumers, then retire internal manifest persistence where no interchange contract requires it; retain JCS where the package interchange contract requires canonical bytes.
+1. **Completed:** Map Space and immutable Spatial Reference Domain records, project-scoped persistence, initial binding and owner-context validation.
+2. **Completed:** typed Field Revision scalar columns and ordered plane/category-code/codec child tables; reads reconstruct metadata without parsing `manifest_json`.
+3. **Next:** implement the dedicated BLOB / managed-file Field Payload adapter and its publication, verification, recovery, path-confinement and orphan-cleanup protocol.
+4. Complete the package writer and regenerate canonical binary golden fixtures.
+5. Migrate remaining production consumers, then retire internal manifest persistence only where no interchange contract requires it; retain JCS where the package interchange contract requires canonical bytes.
 
 No historical user-data backfill or dual-read compatibility layer is required for the initial release. No universal BLOB/file threshold is introduced here. The application remains a single-user desktop application on Windows and macOS; no distributed storage or multi-node coordination is implied.
