@@ -31,6 +31,8 @@ This contract is executable first for Building and Cave System because their ado
 
 The ten legacy compact Object Types in P2-09-26 V0.2 do not yet persist the common Geometry Component manifest as a typed definition schema. Their current in-memory GeometryComponentManifest validation is not proof of owner-payload persistence. They must not be silently treated as fully published generic geometry aggregates. A future descriptor/schema revision must adopt the manifest payload before enabling the same atomic publication workflow for those types.
 
+For Building/Cave V1, initial Object creation must contain an empty geometry_components array. ObjectCreationService and the SQLite adapter reject non-empty initial manifests so the Object creation transaction cannot bypass the later Definition + Asset-link publication boundary. Geometry is added after the identity/Definition exists through PublishDefinitionWithGeometryAssets.
+
 ### 2.2 Initial State and Command owner contexts
 
 - Map Initial State geometry Asset links remain disabled under the current Building/Cave Initial State payload because it contains membership/placement, not distinct formal geometry Asset references.
@@ -112,7 +114,8 @@ The adapter must not trust Domain service pre-reads for mutable facts. It re-rea
 
 | Test | Required assertion |
 |---|---|
-| Initial empty geometry set | Definition with no geometry components commits with no geometry link rows |
+| Initial empty geometry set | Object creation with an empty geometry_components array commits with no geometry link rows |
+| Initial creation bypass | Non-empty Building/Cave geometry manifest is rejected; reservation remains Bound and Object remains Draft |
 | Successful first publication | Definition and all distinct geometry_component links commit together |
 | Missing Asset | Reject; prior Definition and links unchanged |
 | Asset not Verified | Reject; prior Definition and links unchanged |
