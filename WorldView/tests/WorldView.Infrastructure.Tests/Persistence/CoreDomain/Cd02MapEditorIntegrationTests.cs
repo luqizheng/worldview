@@ -61,6 +61,17 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         {"schema_version":1,"canonical_name":"NAME","building_class":"residential","description":"demo building","horizontal_frame":{"frame_id":"hframe-1","coordinate_kind":"local_cartesian","unit":"m","origin":{"x":0,"y":0},"orientation_degrees":0,"precision_profile_id":"hp-1"},"vertical_frame":{"vertical_frame_id":"vframe-1","unit":"m","positive_axis":"up","precision_profile_id":"vp-1"},"levels":[{"level_id":"level-ground","level_label":"Ground Floor","level_kind":"ground","display_order":0,"elevation_local":0,"status":"active"}],"spaces":[{"space_id":"space-hall","space_kind":"room","label":"Hall","status":"active"}],"plans":[],"boundaries":[],"access":{"entrances":[],"openings":[],"connections":[],"vertical_connectors":[],"exterior_anchors":[]},"geometry_components":[]}
         """.Replace("NAME", canonicalName);
 
+    private static string BuildingAggregateWithFootprint(string canonicalName, Guid assetId, string contentHash) =>
+        BuildingAggregate(canonicalName).Replace(
+            "\"geometry_components\":[]",
+            "\"geometry_components\":[{\"geometry_component_id\":\"" + Guid.NewGuid().ToString("D") +
+            "\",\"geometry_role\":\"footprint\",\"geometry_family\":\"polygon\",\"dimension\":2," +
+            "\"coordinate_context_id\":\"local-context-1\",\"child_context\":{}," +
+            "\"asset_id\":\"" + assetId.ToString("D") + "\",\"content_hash\":\"" + contentHash +
+            "\",\"spatial_reference_id\":\"sr-local-1\",\"geometry_schema_version\":\"1\"," +
+            "\"provenance\":{\"source_kind\":\"authored\"}," +
+            "\"validity_metadata\":{\"status\":\"valid\",\"validation_profile_id\":\"v1\",\"issue_codes\":[]}}]");
+
     [Fact]
     public void Me04_BuildingAuthoringPath_AllThroughDomainServices()
     {
@@ -107,14 +118,19 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
         core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
-        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 6);
+
+        // Manifest 必须先声明精确 Asset/role/hash；typed link 插入时在同一事务内对账。
+        var definition = core.ReadObjectDefinition(project.ProjectId, buildingId)!;
+        var manifested = ObjectDefinitionService.EditDefinition(
+            core, project.ProjectId, buildingId, definition.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall", asset.AssetId, asset.ContentHash), 1, Now + 6);
+        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 7);
         Assert.NotNull(core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "footprint"));
 
-        // 6) definition CAS 编辑（聚合 payload 更新 + hash 重写）。
-        var definition = core.ReadObjectDefinition(project.ProjectId, buildingId)!;
+        // 6) definition CAS 编辑必须保留仍被正式 link 引用的 manifest。
         var updated = ObjectDefinitionService.EditDefinition(
-            core, project.ProjectId, buildingId, definition.DefinitionHash,
-            BuildingAggregate("Demo Hall Renamed"), 1, Now + 7);
+            core, project.ProjectId, buildingId, manifested.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall Renamed", asset.AssetId, asset.ContentHash), 1, Now + 8);
         Assert.Contains("Demo Hall Renamed", updated.DefinitionPayloadJson);
 
         // 7) Initial State CAS 编辑（baseline 建立时成员已由 Insert 建立 → expected=null 非法；用重读凭据）。
