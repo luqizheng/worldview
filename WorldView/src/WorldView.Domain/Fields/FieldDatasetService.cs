@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -38,6 +39,7 @@ public static class FieldDatasetService
         var fingerprint = AssetRules.NormalizeContentHash(plan.ContentFingerprint);
         var manifest = CanonicalJson.Canonicalize(plan.ManifestJson);
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
+        ValidateManifestIdentity(manifest, plan, fingerprint);
 
         if (database.FindMap(plan.ProjectId, plan.MapId) is null)
             throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
@@ -70,5 +72,36 @@ public static class FieldDatasetService
             ManifestJson = manifest,
             ProvenanceJson = provenance,
         });
+    }
+
+    private static void ValidateManifestIdentity(
+        string canonicalManifest,
+        PublishFieldRevisionPlan plan,
+        string expectedFingerprint)
+    {
+        using var document = JsonDocument.Parse(canonicalManifest);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new CoreDomainConflictException("Field Revision manifest 必须是 JSON object。");
+
+        static string RequiredString(JsonElement value, string propertyName)
+        {
+            if (!value.TryGetProperty(propertyName, out var property)
+                || property.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(property.GetString()))
+                throw new CoreDomainConflictException(
+                    $"Field Revision manifest 缺少有效的 {propertyName}。");
+            return property.GetString()!;
+        }
+
+        var fieldKey = RequiredString(root, "field_key");
+        var mapId = RequiredString(root, "map_id");
+        var fingerprint = RequiredString(root, "content_fingerprint");
+        if (!string.Equals(fieldKey, plan.FieldKey, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision manifest field_key 与 Dataset 不一致。");
+        if (!Guid.TryParseExact(mapId, "D", out var manifestMapId) || manifestMapId != plan.MapId)
+            throw new CoreDomainConflictException("Field Revision manifest map_id 与目标 Map 不一致。");
+        if (!string.Equals(fingerprint, expectedFingerprint, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision manifest content_fingerprint 与发布计划不一致。");
     }
 }
