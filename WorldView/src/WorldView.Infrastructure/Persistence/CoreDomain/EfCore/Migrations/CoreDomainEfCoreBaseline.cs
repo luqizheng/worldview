@@ -59,7 +59,13 @@ internal sealed class CoreDomainEfCoreBaseline : Migration
 
         modelBuilder.Entity<CoreAssetEntity>(entity =>
         {
-            entity.ToTable("core_asset");
+            entity.ToTable("core_asset", table =>
+            {
+                table.HasCheckConstraint("CK_core_asset_hash_algorithm", "hash_algorithm = 'sha-256'");
+                table.HasCheckConstraint("CK_core_asset_byte_length", "byte_length >= 0");
+                table.HasCheckConstraint("CK_core_asset_publication_state", "publication_state IN ('published')");
+                table.HasCheckConstraint("CK_core_asset_integrity_state", "integrity_state IN ('verified', 'unverified', 'corrupt', 'missing')");
+            });
             entity.HasKey(x => x.AssetId);
             entity.Property(x => x.AssetId).HasColumnName("asset_id").HasColumnType("TEXT")
                 .HasConversion(CoreDomainValueConverters.GuidToText).ValueGeneratedNever();
