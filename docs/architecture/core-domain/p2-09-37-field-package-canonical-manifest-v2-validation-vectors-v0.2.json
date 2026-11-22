@@ -1,0 +1,145 @@
+{
+  "suite": "World View Field Package Canonical Manifest V2 Validation Vectors",
+  "version": "0.2",
+  "schema": "P2-09-36 Field Package Canonical Manifest Schema V0.2",
+  "status": "design vectors; executable validator and package-reader integration pending",
+  "compatibility": {
+    "manifest_v1": "legacy-read-only for already published revisions; must not be used for new elevation publication",
+    "manifest_v2": "required for new formal Field Revision publication",
+    "package_envelope": "WVFLDPK format 1.0 remains unchanged; manifest schema version is an independent version axis"
+  },
+  "cases": [
+    {
+      "id": "MNV2-001",
+      "expect": "valid",
+      "field_key": "elevation",
+      "case": "Elevation V2 declares unit m, stable vertical_reference_id, coordinate_precision_profile_id and valid grid metadata."
+    },
+    {
+      "id": "MNV2-002",
+      "expect": "valid",
+      "field_key": "elevation",
+      "case": "Elevation V2 declares unit ft; unit conversion to the calculation canonical unit is deterministic and recorded in provenance."
+    },
+    {
+      "id": "MNV2-003",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject elevation V2 without field.unit."
+    },
+    {
+      "id": "MNV2-004",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject elevation V2 with a unit other than m or ft."
+    },
+    {
+      "id": "MNV2-005",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject elevation V2 without spatial.vertical_reference_id."
+    },
+    {
+      "id": "MNV2-006",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject empty, whitespace-only or overlength vertical_reference_id."
+    },
+    {
+      "id": "MNV2-007",
+      "expect": "valid",
+      "field_key": "land_water",
+      "case": "Land/water V2 declares coordinate_precision_profile_id and omits dimensional unit and vertical_reference_id."
+    },
+    {
+      "id": "MNV2-008",
+      "expect": "invalid",
+      "field_key": "land_water",
+      "case": "Reject land_water V2 when a dimensional unit or vertical_reference_id is supplied; do not attach elevation semantics to categorical values."
+    },
+    {
+      "id": "MNV2-009",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject V2 manifest without spatial.coordinate_precision_profile_id."
+    },
+    {
+      "id": "MNV2-010",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject a coordinate precision profile ID that does not match the immutable profile selected by the referenced Spatial Reference definition."
+    },
+    {
+      "id": "MNV2-011",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject a vertical_reference_id that cannot be resolved to an immutable locally available vertical-reference definition before production publication."
+    },
+    {
+      "id": "MNV2-012",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject a spatial_reference_id whose immutable definition is unavailable or whose declared coordinate unit/axis/domain conflicts with the grid."
+    },
+    {
+      "id": "MNV2-013",
+      "expect": "valid",
+      "field_key": "all",
+      "case": "Treat grid resolution as spacing_x/spacing_y plus width/height; tile_width/tile_height describe storage tiling and do not redefine semantic resolution."
+    },
+    {
+      "id": "MNV2-014",
+      "expect": "valid",
+      "field_key": "all",
+      "case": "Treat grid alignment as origin_x/origin_y, axis_orientation and cell_registration; preserve all values exactly."
+    },
+    {
+      "id": "MNV2-015",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject incomplete resolution semantics when either spacing or either grid dimension is missing or invalid."
+    },
+    {
+      "id": "MNV2-016",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject incomplete grid alignment semantics when origin, axis orientation or cell registration is missing or invalid."
+    },
+    {
+      "id": "MNV2-017",
+      "expect": "valid",
+      "field_key": "elevation",
+      "case": "Keep coordinate_precision_profile_id separate from value_encoding.profile_id; one governs coordinate quantization and the other governs sample representation."
+    },
+    {
+      "id": "MNV2-018",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject a fixture-only value encoding profile for production publication."
+    },
+    {
+      "id": "MNV2-019",
+      "expect": "valid",
+      "field_key": "all",
+      "case": "Read a previously published V1 revision as legacy metadata without inventing unit, vertical reference or coordinate precision profile values."
+    },
+    {
+      "id": "MNV2-020",
+      "expect": "invalid",
+      "field_key": "elevation",
+      "case": "Reject a new formal elevation publication using Manifest V1 even if its old V1 shape passes schema validation."
+    },
+    {
+      "id": "MNV2-021",
+      "expect": "valid",
+      "field_key": "all",
+      "case": "Keep WVFLDPK envelope format 1.0 while using manifest_schema.version 2; the two version axes are independent."
+    },
+    {
+      "id": "MNV2-022",
+      "expect": "invalid",
+      "field_key": "all",
+      "case": "Reject unknown V2 properties, duplicate JSON keys, invalid UTF-8 and non-canonical JCS bytes under the existing canonicalization contract."
+    }
+  ]
+}
