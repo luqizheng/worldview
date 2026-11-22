@@ -134,13 +134,11 @@ Crash recovery must explicitly cover termination after staging, after final rena
 
 ## 7. Migration sequence
 
-1. **Model first:** add typed Field layout metadata and payload-reference records without deleting the existing manifest field.
-2. **Dual-read transition:** new code reads typed metadata when present and validates the legacy manifest for existing rows. New writes populate typed metadata and may temporarily retain the manifest for rollback/diagnostics.
-3. **Backfill:** deterministically parse existing manifest rows into typed metadata. Reject malformed or semantically inconsistent rows; do not silently repair them.
-4. **Storage adapter:** implement and test SQLite BLOB round trips and managed external-file round trips behind one storage interface.
-5. **Publication switch:** publish new revisions using payload references and typed metadata under the existing SQLite transaction/CAS rules.
-6. **Settings files:** migrate Project/Map settings with staged writes and path/hash references.
-7. **Retire legacy path:** only after all readers, writers, tests, fixtures, and package interchange consumers have migrated, remove internal ManifestJson authority and JCS dependency if no explicit interchange contract still requires them.
+1. **Model first:** add typed Field layout metadata and payload-reference records without hand-editing the generated EF model snapshot.
+2. **Storage adapter:** implement and test SQLite BLOB round trips and managed external-file round trips behind one storage interface.
+3. **Publication:** publish revisions using payload references and typed metadata under the existing SQLite transaction/CAS rules.
+4. **Settings files:** store Project/Map settings as versioned external documents with staged writes and path/hash references.
+5. **Retire transitional manifest persistence:** after all readers/writers and package interchange consumers use the typed model, remove internal ManifestJson authority where the interchange contract does not require it.
 
 Each schema change must use `dotnet ef migrations add <nameOfMigration>`; the initial migration remains unchanged and generated snapshots remain EF-owned.
 
@@ -151,7 +149,7 @@ The first Domain implementation slice now exists in `FieldRevisionMetadata.cs`:
 - The validated manifest is projected into typed descriptor, spatial identity, grid, coverage, edge, no-data, value-plane, codec, and tile-hash metadata.
 - Grid dimensions remain integer values and coordinate/origin/spacing values remain exact decimal strings; they are not converted to binary floating point.
 - Value planes are represented as typed records, and category codes are exposed as a read-only dictionary.
-- `PublishFieldRevisionPlan` and `FieldRevisionRecord` expose the typed projection. SQLite reads currently reconstruct it from the validated legacy manifest, and publication still writes `manifest_json`.
+- `PublishFieldRevisionPlan` and `FieldRevisionRecord` expose the typed projection. SQLite reads currently reconstruct it from the validated canonical manifest, and publication still writes `manifest_json`.
 - Integration tests verify typed values and the projection after reloading a revision.
 
 This is deliberately a compatibility bridge, **not yet the typed SQLite persistence migration**. No EF entity, generated migration, or model snapshot was changed in this slice. The next persistence slice must add normalized typed storage and payload references using the EF CLI migration workflow, then backfill and verify existing rows before retiring `manifest_json`.
@@ -164,10 +162,10 @@ The next design artifact is [Field Revision Typed Persistence Design V1](field-r
 - Grid origin/spacing remain canonical decimal TEXT; no conversion to SQLite REAL is permitted.
 - Map Space and Spatial Reference ownership is specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md): one Map-owned Map Space identity is stored on `core_map`; each Map binds to one immutable project-scoped Spatial Reference definition; no standalone Map Space table is introduced in V1.
 - The Spatial Reference definition owns the coordinate precision profile and optional vertical-reference identity. canonical manifest pins these IDs; Field Revision publication must match the owning Map and immutable definition. The physical EF model and migration remain pending.
-- The current P2-09-34 Manifest V1 omits elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. P2-09-36 defines a compatible Manifest V2 schema; P2-09-37 defines its validation vectors. V1 remains legacy-read-only and must not be used for new elevation publication.
+- The original P2-09-34 schema and validator omitted elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. The single P2-09-34 canonical schema and P2-09-35 validation vectors now include these semantics; new publication is rejected unless they are present.
 - The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
 
-No EF schema or generated snapshot was changed for this design slice. The next code/schema change remains gated on resolving the manifest semantic gap and running the real EF CLI migration workflow.
+The Domain validator and typed projection now cover the completed manifest semantics. No EF schema or generated snapshot was changed for this design slice. The next schema change must use the real EF CLI migration workflow.
 
 ## 7.3 Canonical manifest semantic requirements
 
