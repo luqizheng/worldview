@@ -185,19 +185,21 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void PublishRevision_RejectsNonCanonicalManifestWhitespace()
+    public void PublishRevision_CanonicalizesManifestBeforePersistence()
     {
         var (project, mapId) = SeedMap();
         var core = Core();
         var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with
         {
-            ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1") + "\n",
+            ManifestJson = canonical + "\\n",
         };
 
-        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
-        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+
+        Assert.Equal(canonical, revision.ManifestJson);
     }
 
     [Fact]
