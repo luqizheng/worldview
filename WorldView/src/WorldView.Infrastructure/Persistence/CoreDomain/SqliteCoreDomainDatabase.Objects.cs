@@ -491,6 +491,7 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+                ValidateExistingDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId, canonicalPayload);
                 using var update = connection.CreateCommand();
                 update.Transaction = transaction;
                 update.CommandText = """
