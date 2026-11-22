@@ -144,6 +144,18 @@ Crash recovery must explicitly cover termination after staging, after final rena
 
 Each schema change must use `dotnet ef migrations add <nameOfMigration>`; the initial migration remains unchanged and generated snapshots remain EF-owned.
 
+## 7.1 Implementation progress — typed projection slice
+
+The first Domain implementation slice now exists in `FieldRevisionMetadata.cs`:
+
+- The validated manifest is projected into typed descriptor, spatial identity, grid, coverage, edge, no-data, value-plane, codec, and tile-hash metadata.
+- Grid dimensions remain integer values and coordinate/origin/spacing values remain exact decimal strings; they are not converted to binary floating point.
+- Value planes are represented as typed records, and category codes are exposed as a read-only dictionary.
+- `PublishFieldRevisionPlan` and `FieldRevisionRecord` expose the typed projection. SQLite reads currently reconstruct it from the validated legacy manifest, and publication still writes `manifest_json`.
+- Integration tests verify typed values and the projection after reloading a revision.
+
+This is deliberately a compatibility bridge, **not yet the typed SQLite persistence migration**. No EF entity, generated migration, or model snapshot was changed in this slice. The next persistence slice must add normalized typed storage and payload references using the EF CLI migration workflow, then backfill and verify existing rows before retiring `manifest_json`.
+
 ## 8. Required tests
 
 - BLOB write/read byte-for-byte round trip, empty payload, and large payload boundaries.
