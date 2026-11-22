@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 using Xunit;
 using Xunit.Abstractions;
 
