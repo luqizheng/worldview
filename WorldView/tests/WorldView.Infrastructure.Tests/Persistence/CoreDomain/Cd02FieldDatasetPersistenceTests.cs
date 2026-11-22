@@ -210,7 +210,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             plane => plane.Name == "samples" && plane.SampleFormat == "float32_ieee754_le");
         var reloaded = core.FindFieldRevision(project.ProjectId, revision.FieldDatasetId, revision.FieldRevisionId);
         Assert.NotNull(reloaded?.Metadata);
-        Assert.Equal(revision.Metadata, reloaded!.Metadata);
+        Assert.Equal(revision.Metadata!.FieldKey, reloaded!.Metadata!.FieldKey);
+        Assert.Equal(revision.Metadata.Grid, reloaded.Metadata.Grid);
+        Assert.Equal(revision.Metadata.Planes, reloaded.Metadata.Planes);
+        Assert.Equal(revision.Metadata.Codecs, reloaded.Metadata.Codecs);
     }
 
     [Fact]
