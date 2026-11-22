@@ -127,7 +127,7 @@ Recommended internal layout:
 ```
 
 - `manifest.json` identifies the package format and the relative database path. It is package metadata, not a second Project identity authority.
-- `project.sqlite` is the single Project database. The database's Core Domain Project identity and format/version metadata remain authoritative for domain identity and database compatibility.
+- `data/project.sqlite` is the single Project database. The database's Core Domain Project identity and format/version metadata remain authoritative for domain identity and database compatibility.
 - `Assets/sha256/` stores immutable content-addressed Asset bytes. The Core Domain owns Asset identity, typed ownership and formal references; the storage adapter owns byte placement and retrieval.
 - `Staging/` is temporary, non-authoritative import/publication workspace. It must be safe to clean after verifying no active operation depends on it.
 - `Backups/` contains explicit backup artifacts, not a second live database.
