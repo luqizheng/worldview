@@ -18,7 +18,7 @@ public static class SettingsDocumentFormat
         Formatting = Formatting.None,
         Culture = CultureInfo.InvariantCulture,
         DateFormatHandling = DateFormatHandling.IsoDateFormat,
-        FloatFormatHandling = FloatFormatHandling.String,
+        FloatFormatHandling = FloatFormatHandling.Default,
         NullValueHandling = NullValueHandling.Include,
         MissingMemberHandling = MissingMemberHandling.Error,
         TypeNameHandling = TypeNameHandling.None,
@@ -72,7 +72,7 @@ public sealed record SettingsDocument
         root["settings"] = (JObject)Settings.DeepClone();
 
         return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
-            .GetBytes(root.ToString(Formatting.None));
+            .GetBytes(JsonConvert.SerializeObject(root, SettingsDocumentFormat.SerializerSettings));
     }
 
     public static SettingsDocument Parse(
@@ -99,7 +99,7 @@ public sealed record SettingsDocument
         var root = JObject.Load(jsonReader, new JsonLoadSettings
         {
             DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error,
-            CommentHandling = CommentHandling.Ignore,
+            CommentHandling = CommentHandling.Load,
             LineInfoHandling = LineInfoHandling.Load,
         });
 
@@ -108,6 +108,9 @@ public sealed record SettingsDocument
             if (jsonReader.TokenType != JsonToken.Comment)
                 throw new JsonSerializationException("Settings document contains trailing JSON content.");
         }
+
+        if (ContainsComment(root))
+            throw new JsonSerializationException("Comments are not permitted in settings documents.");
 
         var expectedFormat = expectedMapId.HasValue ? SettingsDocumentFormat.Map : SettingsDocumentFormat.Project;
         var allowed = expectedMapId.HasValue
@@ -170,6 +173,23 @@ public sealed record SettingsDocument
             throw new JsonSerializationException("Settings document Map ID cannot be empty.");
         if (Settings is null)
             throw new JsonSerializationException("Settings payload cannot be null.");
+    }
+
+    private static bool ContainsComment(JToken token)
+    {
+        if (token.Type == JTokenType.Comment)
+            return true;
+        if (token is JObject obj)
+        {
+            foreach (var property in obj.Properties())
+                if (ContainsComment(property.Value)) return true;
+        }
+        else if (token is JArray array)
+        {
+            foreach (var item in array)
+                if (ContainsComment(item)) return true;
+        }
+        return false;
     }
 
     private static Guid ParseCanonicalGuid(JToken? token, string propertyName)
