@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -13,7 +12,6 @@ public sealed class FakePackageDatabase : IPackageDatabase
 {
     private readonly object _gate = new();
     private bool _opened;
-    private bool _ledgerTableExists;
 
     public FakePackageDatabase(string databasePath)
     {
@@ -34,10 +32,6 @@ public sealed class FakePackageDatabase : IPackageDatabase
     public Func<CancellationToken, Task>? DelayHook { get; set; }
 
     public BootstrapMetadata? Metadata { get; set; }
-
-    public List<MigrationLedgerEntry> Ledger { get; } = new();
-
-    public List<ModuleMigration> ExecutedMigrations { get; } = new();
 
     public bool IsOpened => _opened;
 
@@ -90,49 +84,6 @@ public sealed class FakePackageDatabase : IPackageDatabase
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<MigrationLedgerEntry>> ReadLedgerAsync(CancellationToken cancellationToken = default)
-    {
-        Record("ReadLedger");
-        IReadOnlyList<MigrationLedgerEntry> snapshot;
-        lock (Ledger)
-        {
-            snapshot = Ledger.ToArray();
-        }
-
-        return Task.FromResult(snapshot);
-    }
-
-    public Task<bool> LedgerTableExistsAsync(CancellationToken cancellationToken = default)
-    {
-        Record("LedgerTableExists");
-        return Task.FromResult(_ledgerTableExists);
-    }
-
-    public Task EnsureLedgerTableAsync(CancellationToken cancellationToken = default)
-    {
-        Record("EnsureLedgerTable");
-        _ledgerTableExists = true;
-        return Task.CompletedTask;
-    }
-
-    public Task ExecuteMigrationAsync(ModuleMigration migration, CancellationToken cancellationToken = default)
-    {
-        Record($"ExecuteMigration:{migration.ModuleId}/{migration.MigrationId}");
-        ExecutedMigrations.Add(migration);
-        lock (Ledger)
-        {
-            Ledger.Add(new MigrationLedgerEntry
-            {
-                ModuleId = migration.ModuleId,
-                MigrationId = migration.MigrationId,
-                Checksum = migration.Checksum,
-                AppliedAtUtcMs = 42,
-            });
-        }
-
-        return Task.CompletedTask;
-    }
-
     public ValueTask DisposeAsync()
     {
         Record("Database:Dispose");
@@ -158,12 +109,6 @@ public sealed class FakePackageDatabaseFactory : IPackageDatabaseFactory
 
         return instance;
     }
-}
-
-/// <summary>假迁移来源。</summary>
-public sealed class FakeMigrationSource(params WorldView.Application.Bootstrap.ModuleMigration[] migrations) : IMigrationSource
-{
-    public IReadOnlyList<ModuleMigration> DiscoverMigrations() => migrations;
 }
 
 /// <summary>假项目身份读取器（仅限单元测试）。</summary>
