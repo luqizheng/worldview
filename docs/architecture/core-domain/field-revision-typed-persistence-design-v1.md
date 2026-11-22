@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-Define the next safe persistence step after the typed Field Revision projection. The design must remove the legacy manifest from the long-term internal authority path without inventing spatial ownership relationships, losing exact numeric meaning, or bypassing the accepted EF Core migration workflow.
+Define the next safe persistence step after the typed Field Revision projection. The design must remove the transitional JSON manifest from the long-term internal authority path without inventing spatial ownership relationships, losing exact numeric meaning, or bypassing the accepted EF Core migration workflow.
 
 This document is a design contract. It does not claim that typed SQLite persistence, payload BLOB/file storage, or the required migration has been implemented.
 
@@ -56,7 +56,7 @@ The ownership boundary is now specified in [Map Space and Spatial Reference Owne
 
 - One Map owns exactly one stable Map Space ID in V1. It is a typed property on `core_map`, not a separate Map Space aggregate/table.
 - Each Map has one active Spatial Reference binding. Spatial Reference definitions are immutable and project-scoped; multiple Maps in the same Project may reuse one definition.
-- The Spatial Reference definition owns the selected coordinate precision profile and optional vertical-reference identity. Manifest V2 snapshots those IDs and owner-context validation must match them.
+- The Spatial Reference definition owns the selected coordinate precision profile and optional vertical-reference identity. The canonical manifest snapshots those IDs and owner-context validation must match them.
 - Elevation's `unit` is a sample-value unit, distinct from both coordinate units and vertical-reference identity.
 - Map Space and Spatial Reference IDs remain separate identities; neither is inferred from the other or from EPSG aliases.
 - Existing legacy revisions remain readable. Missing definitions/precision/unit/vertical values are not backfilled from current Map state.
