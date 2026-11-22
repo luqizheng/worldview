@@ -95,7 +95,7 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
             entity.Property(x => x.DescriptorSchemaVersion).HasColumnName("descriptor_schema_version").HasColumnType("INTEGER");
             entity.Property(x => x.SemanticsId).HasColumnName("semantics_id").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CurrentFieldRevisionId).HasColumnName("current_field_revision_id").HasColumnType("TEXT")
-                .HasConversion(guidToText);
+                .HasConversion(guidToText).IsConcurrencyToken();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.Property(x => x.UpdatedAtUtcMs).HasColumnName("updated_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId });
