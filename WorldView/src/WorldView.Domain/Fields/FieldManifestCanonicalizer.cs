@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Linq;
 using MackySoft.Json.Canonicalization;
 using WorldView.Domain.Persistence;
 
@@ -40,6 +41,29 @@ public static class FieldManifestCanonicalizer
         {
             throw new CoreDomainDataException(
                 $"Field manifest violates the RFC 8785 JCS input contract ({ex.FailureKind}).", ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates that raw package manifest bytes are already strict RFC 8785 canonical UTF-8.
+    /// Unlike <see cref="Canonicalize(string)"/>, this method rejects rather than normalizes
+    /// BOMs, whitespace, trailing newlines, and any other byte-level difference.
+    /// </summary>
+    public static byte[] RequireCanonicalUtf8(ReadOnlySpan<byte> utf8Json)
+    {
+        try
+        {
+            var canonicalBytes = Rfc8785JsonCanonicalizer.Canonicalize(utf8Json);
+            if (!utf8Json.SequenceEqual(canonicalBytes))
+                throw new CoreDomainDataException(
+                    "Field package manifest bytes are valid JSON but are not byte-identical RFC 8785 canonical UTF-8.");
+
+            return canonicalBytes;
+        }
+        catch (JsonCanonicalizationException ex)
+        {
+            throw new CoreDomainDataException(
+                $"Field package manifest bytes violate the RFC 8785 JCS input contract ({ex.FailureKind}).", ex);
         }
     }
 }
