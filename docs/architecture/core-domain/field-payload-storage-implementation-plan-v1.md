@@ -164,10 +164,31 @@ The next design artifact is [Field Revision Typed Persistence Design V1](field-r
 - Grid origin/spacing remain canonical decimal TEXT; no conversion to SQLite REAL is permitted.
 - Map Space ID and Spatial Reference ID remain distinct. The current Core Domain model has no authoritative owner records for either, so the first metadata migration must preserve them as opaque validated identifiers and must not invent foreign keys to `core_map` or assume EPSG aliases.
 - A separate owner contract is required before spatial catalog foreign keys are introduced. ME-05-04 describes Spatial Reference as an immutable project-scoped definition; the exact Map Space owner/lifecycle still needs reconciliation.
-- The current P2-09-34 manifest schema omits dimensional unit, vertical-reference identity, precision profile and explicit resolution profile required by ME-05-01. These values cannot be backfilled from current manifests. Reconcile the semantic contract and validation vectors before declaring typed persistence complete.
+- The current P2-09-34 Manifest V1 omits elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. P2-09-36 defines a compatible Manifest V2 schema; P2-09-37 defines its validation vectors. V1 remains legacy-read-only and must not be used for new elevation publication.
 - The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
 
 No EF schema or generated snapshot was changed for this design slice. The next code/schema change remains gated on resolving the manifest semantic gap and running the real EF CLI migration workflow.
+
+## 7.3 Manifest semantic compatibility gate
+
+The Field Descriptor / Manifest audit found that P2-09-30 requires elevation unit and vertical-reference identity, while the original P2-09-34 Manifest V1 and current Domain validator do not represent/enforce them. ME-05-04 also defines coordinate precision profiles per immutable Spatial Reference.
+
+The compatible correction is documented in:
+
+- [P2-09-36 Manifest V2 Schema](p2-09-36-field-package-canonical-manifest-schema-v0.2.json)
+- [P2-09-37 Manifest V2 Validation Vectors](p2-09-37-field-package-canonical-manifest-v2-validation-vectors-v0.2.json)
+- [Field Revision Typed Persistence Design V1](field-revision-typed-persistence-design-v1.md), section 5
+
+Manifest V2 adds:
+- `field.unit` for elevation only;
+- `spatial.vertical_reference_id` for elevation only;
+- `spatial.coordinate_precision_profile_id` for all fields, pinning the profile selected by the immutable Spatial Reference.
+
+The sample `value_encoding.profile_id` remains a separate identity; it must not be confused with coordinate precision. Resolution is represented by grid spacing and dimensions. Grid alignment is represented by origin, axis orientation and cell registration. No duplicate semantic fields are introduced.
+
+The WVFLDPK envelope remains format 1.0; manifest schema version 2 is independent. Existing V1 golden packages remain byte-identical and are legacy-read-only. V1 backfill must not fabricate the newly required values.
+
+Schema and vectors are authored design artifacts only. The Domain validator, typed projection, owner-record lookup and executable V2 tests remain pending. Do not enable production publication with unresolved spatial/vertical reference IDs merely because they are non-empty strings.
 
 ## 8. Required tests
 
