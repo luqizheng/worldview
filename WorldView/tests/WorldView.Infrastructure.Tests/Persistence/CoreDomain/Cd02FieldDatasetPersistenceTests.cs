@@ -98,7 +98,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 planes,
             };
 
-        return CanonicalJson.Canonicalize(System.Text.Json.JsonSerializer.Serialize(new
+            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
         {
             byte_order = "little_endian",
             canonicalization = "RFC8785-JCS-UTF8",
@@ -207,7 +207,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var core = Core();
         var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
-            .Replace("\\"byte_order\\":\\"little_endian\\"",
+            .Replace("\"byte_order\":\"little_endian\"", "\"byte_order\":\"little_endian\",\"byte_order\":\"little_endian\"");
                 "\\"byte_order\\":\\"little_endian\\",\\"byte_order\\":\\"little_endian\\"");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
@@ -223,7 +223,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var core = Core();
         var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
-            .Replace("\\"width\\":2", "\\"width\\":NaN");
+            .Replace("\"width\":2", "\"width\":NaN");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
@@ -235,10 +235,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void CanonicalFieldManifest_IsIdempotentAndPropertyOrderIndependent()
     {
         var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
-        Assert.Equal(canonical, CanonicalJson.Canonicalize(canonical));
+            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
         Assert.Equal(
-            CanonicalJson.Canonicalize("{\\"z\\":1,\\"a\\":2}"),
-            CanonicalJson.Canonicalize("{\\"a\\":2,\\"z\\":1}"));
+            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
     }
 
     [Fact]
