@@ -122,12 +122,13 @@ The source review found a split publication boundary in the original G1 Building
 
 - Original G1 `EditObjectDefinition` and `LinkDefinitionAsset` used separate transactions; PR #7 blocks geometry-component changes through ordinary EditDefinition and blocks single-link/unlink calls for typed aggregates.
 - PR #7 adds `PublishDefinitionWithGeometryAssets`; the adapter derives the distinct Asset set from the payload, re-reads Verified Asset metadata inside the transaction, and commits Definition plus all geometry_component links together.
+- PR #7 also rejects non-empty Building/Cave geometry manifests during initial Object creation at both Domain service and SQLite adapter boundaries, preserving Bound reservation + Draft identity on failure.
 - `ValidatePublication` now enforces exact set equality even for an empty link set, generic link-role vocabulary, catalog completeness, duplicate link rejection and conflicting hashes for repeated Asset IDs.
 - The adapter validates the previous link-set shape without requiring old Assets to remain Verified, so a Corrupt/Missing Asset can be atomically removed or replaced; every target Asset must be Verified and hash-matched.
 
 The original two-step flow allowed a formal manifest to become visible before its typed Asset link. The revised integration test now exercises the atomic publication API and failure injection after link insertion, proving that the link and Definition both roll back. The previous intermediate state is not an accepted staging state; no pending/publication flag is introduced.
 
-PR #7 implements the required combined Domain Service / persistence-port operation and failure-injection coverage. Remaining acceptance work is to complete Windows CI, rebase/integrate after G2 Verified-evidence closure, add a deterministic migration or explicit package-repair path for pre-existing descriptor-role rows, and add broader owner-context tests. The atomic publication contract is no longer an open design question for Building/Cave V1. Initial State and Command owner contexts remain separate future slices.
+PR #7 implements the required combined Domain Service / persistence-port operation, closes initial-creation bypass, and adds failure-injection/recovery coverage. Remaining acceptance work is to complete Windows CI, rebase/integrate after G2 Verified-evidence closure, add a deterministic migration or explicit package-repair path for pre-existing descriptor-role rows, and add broader owner-context tests. The atomic publication contract is no longer an open design question for Building/Cave V1. Initial State and Command owner contexts remain separate future slices.
 
 
 ### 3.4 Remaining contract and implementation gaps
