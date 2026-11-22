@@ -483,7 +483,7 @@ public static class BuildingCaveAggregateValidator
             };
         }
 
-        var componentAssets = new Dictionary<string, string>(StringComparer.Ordinal);
+        var componentAssets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var component in IterateItems(payload, "geometry_components"))
         {
             var assetId = TryGetString(component, "asset_id");
@@ -512,7 +512,7 @@ public static class BuildingCaveAggregateValidator
 
         // publication context means a formal publication attempt. Empty links must not
         // bypass the set-equality gate when the owner manifest references Assets.
-        var linkAssetIds = new HashSet<string>(StringComparer.Ordinal);
+        var linkAssetIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var link in publication.AssetLinks)
         {
             if (!string.Equals(link.Role, "geometry_component", StringComparison.Ordinal))
@@ -543,7 +543,7 @@ public static class BuildingCaveAggregateValidator
             };
         }
 
-        var catalog = new Dictionary<string, string>(StringComparer.Ordinal);
+        var catalog = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var asset in publication.AssetCatalog)
         {
             if (!catalog.TryAdd(asset.AssetId, asset.ContentHash))
