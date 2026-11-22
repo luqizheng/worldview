@@ -83,7 +83,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         FieldDatasetId = datasetId,
         FieldKey = "elevation",
         DescriptorSchemaVersion = 1,
-        SemanticsId = "elevation-meters-v1",
+        SemanticsId = "world-view.field.elevation.v1",
         FieldRevisionId = revisionId,
         FieldRevisionAssetId = assetId,
         ExpectedCurrentFieldRevisionId = expectedRevision,
