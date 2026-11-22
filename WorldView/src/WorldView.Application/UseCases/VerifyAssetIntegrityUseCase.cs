@@ -49,7 +49,7 @@ public sealed class VerifyAssetIntegrityUseCase
 
         if (content is null)
         {
-            _database.UpdateAssetIntegrityState(
+            _database.RecordAssetIntegrityFailure(
                 projectId, assetId, AssetIntegrityState.Missing, _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
 
             return new AssetIntegrityVerificationResult(
@@ -64,9 +64,19 @@ public sealed class VerifyAssetIntegrityUseCase
         var matches = string.Equals(actualHash, asset.ContentHash, StringComparison.Ordinal)
             && actualLength == asset.ByteLength;
 
-        var state = matches ? AssetIntegrityState.Verified : AssetIntegrityState.Corrupt;
-        _database.UpdateAssetIntegrityState(
-            projectId, assetId, state, _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+        if (matches)
+        {
+            _database.MarkAssetVerified(
+                projectId,
+                assetId,
+                new AssetVerificationEvidence(asset.ContentHash, actualHash, asset.ByteLength, actualLength),
+                _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+        }
+        else
+        {
+            _database.RecordAssetIntegrityFailure(
+                projectId, assetId, AssetIntegrityState.Corrupt, _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+        }
 
         return new AssetIntegrityVerificationResult(
             matches ? AssetIntegrityVerificationOutcome.Verified : AssetIntegrityVerificationOutcome.Corrupt,

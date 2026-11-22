@@ -171,8 +171,14 @@ public interface ICoreDomainDatabase
     /// </summary>
     AssetRecord RegisterAsset(RegisterAssetPlan plan);
 
-    /// <summary>事务：更新完整性扫描状态（corrupt/missing 状态阻止新建正式引用）。</summary>
-    void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
+    /// <summary>记录字节扫描的失败结果；只允许 Corrupt/Missing，不能通过此接口写入 Verified。</summary>
+    void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
+
+    /// <summary>
+    /// 事务：仅在 evidence 的预期/实际 hash 与长度均一致，且预期值仍匹配当前 Asset 元数据时写入 Verified。
+    /// 实现方必须在同一写事务内重读当前元数据并验证 evidence。
+    /// </summary>
+    void MarkAssetVerified(Guid projectId, Guid assetId, AssetVerificationEvidence evidence, long nowUtcMs);
 
     /// <summary>列出未被任何 typed link 引用的 Asset ID（孤儿对账；只读，不自动删除）。</summary>
     IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId);

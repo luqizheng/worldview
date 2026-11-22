@@ -6,11 +6,8 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.UseCases;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Objects;
-using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
-using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Assets;
-using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using Xunit;
@@ -103,6 +100,50 @@ public sealed class AssetIntegrityVerificationTests : IDisposable
         Assert.Equal(AssetIntegrityVerificationOutcome.Corrupt, result.Outcome);
         Assert.NotEqual(asset.ContentHash, result.ActualHash);
         Assert.Equal(AssetIntegrityState.Corrupt, _core.FindAsset(_project.ProjectId, asset.AssetId)!.IntegrityState);
+    }
+
+    [Fact]
+    public void MarkAssetVerified_InconsistentEvidence_IsRejected()
+    {
+        var bytes = Encoding.UTF8.GetBytes("evidence test");
+        var hash = AssetRules.Sha256Hex(bytes);
+        var asset = AssetService.RegisterAsset(
+            _core, _project.ProjectId, Guid.NewGuid(), hash, bytes.Length,
+            "application/octet-stream", "1", Now);
+
+        Assert.Throws<CoreDomainConflictException>(() => _core.MarkAssetVerified(
+            _project.ProjectId, asset.AssetId,
+            new AssetVerificationEvidence(hash, new string('0', 64), bytes.Length, bytes.Length), Now));
+        Assert.Equal(AssetIntegrityState.Unverified, _core.FindAsset(_project.ProjectId, asset.AssetId)!.IntegrityState);
+    }
+
+    [Fact]
+    public void MarkAssetVerified_StaleExpectedMetadata_IsRejected()
+    {
+        var bytes = Encoding.UTF8.GetBytes("stale evidence");
+        var hash = AssetRules.Sha256Hex(bytes);
+        var asset = AssetService.RegisterAsset(
+            _core, _project.ProjectId, Guid.NewGuid(), hash, bytes.Length,
+            "application/octet-stream", "1", Now);
+
+        Assert.Throws<CoreDomainConflictException>(() => _core.MarkAssetVerified(
+            _project.ProjectId, asset.AssetId,
+            new AssetVerificationEvidence(new string('a', 64), new string('a', 64), bytes.Length, bytes.Length), Now));
+        Assert.Equal(AssetIntegrityState.Unverified, _core.FindAsset(_project.ProjectId, asset.AssetId)!.IntegrityState);
+    }
+
+    [Fact]
+    public void RecordAssetIntegrityFailure_CannotWriteVerified()
+    {
+        var bytes = Encoding.UTF8.GetBytes("failure state");
+        var hash = AssetRules.Sha256Hex(bytes);
+        var asset = AssetService.RegisterAsset(
+            _core, _project.ProjectId, Guid.NewGuid(), hash, bytes.Length,
+            "application/octet-stream", "1", Now);
+
+        Assert.Throws<CoreDomainConflictException>(() => _core.RecordAssetIntegrityFailure(
+            _project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now));
+        Assert.Equal(AssetIntegrityState.Unverified, _core.FindAsset(_project.ProjectId, asset.AssetId)!.IntegrityState);
     }
 
     [Fact]
