@@ -11,8 +11,8 @@ namespace WorldView.Infrastructure.Assets;
 
 /// <summary>
 /// Package-managed content-addressed Field Payload files. Staging files live beside final
-/// files so File.Move stays on the same filesystem. This class never deletes published
-/// content: orphan collection requires a fresh authoritative SQLite reference scan.
+/// files so File.Move stays on the same filesystem. This store never deletes files autonomously;
+/// explicit orphan collection must follow a fresh authoritative SQLite reference scan.
 /// </summary>
 public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
 {
