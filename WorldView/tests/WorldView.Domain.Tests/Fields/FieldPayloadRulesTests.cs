@@ -76,6 +76,33 @@ public sealed class FieldPayloadRulesTests
     }
 
     [Fact]
+    public void Create_RejectsUnsupportedHashAlgorithm()
+    {
+        var plan = Plan(FieldPayloadStorageKind.SqliteBlob) with { HashAlgorithm = "sha512" };
+
+        Assert.Throws<CoreDomainDataException>(() => FieldPayloadRules.Create(plan));
+    }
+
+    [Fact]
+    public void Create_RejectsNonCanonicalFormatIdentifiers()
+    {
+        var plan = Plan(FieldPayloadStorageKind.SqliteBlob) with { PayloadFormat = " raw " };
+
+        Assert.Throws<ArgumentException>(() => FieldPayloadRules.Create(plan));
+    }
+
+    [Fact]
+    public void Create_RejectsWhitespacePaddedManagedPath()
+    {
+        var plan = Plan(FieldPayloadStorageKind.ManagedFile) with
+        {
+            RelativePath = $" FieldPayloads/sha256/{Hash} ",
+        };
+
+        Assert.Throws<CoreDomainDataException>(() => FieldPayloadRules.Create(plan));
+    }
+
+    [Fact]
     public void Create_RejectsUnknownStorageKind()
     {
         var plan = Plan(FieldPayloadStorageKind.SqliteBlob) with { StorageKind = (FieldPayloadStorageKind)99 };
