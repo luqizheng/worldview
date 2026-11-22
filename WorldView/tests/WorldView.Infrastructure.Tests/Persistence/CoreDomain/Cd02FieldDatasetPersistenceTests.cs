@@ -534,6 +534,36 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void PublishRevision_PersistsManifestUsingRfc8785CanonicalBytes()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var parsed = JsonNode.Parse(
+            BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        var reordered = new JsonObject();
+        foreach (var property in parsed.Reverse())
+            reordered[property.Key] = property.Value?.DeepClone();
+
+        var rawManifest = reordered.ToJsonString();
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = rawManifest,
+        };
+
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+
+        Assert.NotEqual(rawManifest, revision.ManifestJson);
+        Assert.Equal(
+            FieldManifestCanonicalizer.Canonicalize(rawManifest),
+            revision.ManifestJson);
+        Assert.Equal(
+            BuildManifest("elevation", "world-view.field.elevation.v1"),
+            revision.ManifestJson);
+    }
+
+    [Fact]
     public void PublishedValidationVector_Mnf023CanonicalizationIsIdempotent()
     {
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
