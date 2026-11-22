@@ -203,6 +203,29 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     };
 
     [Fact]
+    public void SpatialReferenceDefinition_PersistsTypedProfileAndMapBinding()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+
+        var map = core.FindMap(project.ProjectId, mapId)!;
+        var definition = core.FindSpatialReferenceDefinition(project.ProjectId, "fixture:local-cartesian-v1");
+
+        Assert.NotNull(definition);
+        Assert.Equal("fixture-map-space-001", map.MapSpaceId);
+        Assert.Equal("fixture:local-cartesian-v1", map.SpatialReferenceId);
+        Assert.Equal("fixture:coordinate-precision-v1", definition!.PrecisionProfile.ProfileId);
+        Assert.Equal("m", definition.PrecisionProfile.CoordinateUnit);
+        Assert.Equal(SpatialAxisOrder.XY, definition.PrecisionProfile.AxisOrder);
+        Assert.Equal("fixture:vertical-reference-local-v1", definition.VerticalReferenceId);
+        Assert.Equal(64, definition.DefinitionFingerprint.Length);
+        Assert.Null(core.FindSpatialReferenceDefinition(Guid.NewGuid(), "fixture:local-cartesian-v1"));
+
+        Assert.Throws<CoreDomainConflictException>(() =>
+            core.BindMapSpatialReference(project.ProjectId, mapId, "another:reference", Now + 3));
+    }
+
+    [Fact]
     public void PublishRevision_CreatesDatasetThenAppendsImmutableLineage()
     {
         var (project, mapId) = SeedMap();
