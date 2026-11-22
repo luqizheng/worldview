@@ -183,6 +183,76 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void GeometryPublication_FailureAfterLinkInsertRollsBackDefinitionAndLinks()
+    {
+        var core = Core();
+        var project = ProjectRules.CreateProject("Atomic Geometry", Now);
+        core.InsertProject(ProjectCreationPlan.Create(project));
+
+        var allocation = ObjectIdReservationService.ReserveByTypeKey(core, project.ProjectId, "building", null, Now + 1);
+        var bound = ObjectIdReservationService.Bind(
+            core, project.ProjectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, Now + 2);
+        var objectId = bound.ObjectIdentityId!.Value;
+        ObjectCreationService.InsertObject(
+            core, project.ProjectId, bound.ReservationId,
+            new ObjectDefinitionRecord
+            {
+                ProjectId = project.ProjectId,
+                ObjectIdentityId = objectId,
+                DefinitionSchemaVersion = 1,
+                DefinitionPayloadJson = BuildingAggregate("Atomic Hall"),
+                DefinitionHash = string.Empty,
+                UpdatedAtUtcMs = Now + 3,
+            },
+            null, null, Now + 3);
+
+        var bytes = Encoding.UTF8.GetBytes(
+            """{"format_id":"worldview.geometry-json","format_version":1,"spatial_reference_id":"sr-local-1","axis_order":"x_y","unit":"m","coordinate_precision_profile_id":"p1","dimension":2,"geometry_family":"polygon","body":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}""");
+        var asset = AssetService.RegisterAsset(
+            core, project.ProjectId, Guid.NewGuid(), AssetRules.Sha256Hex(bytes), bytes.Length,
+            "application/json", "1", Now + 4);
+        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
+
+        var current = core.ReadObjectDefinition(project.ProjectId, objectId)!;
+        var componentId = Guid.NewGuid();
+        var proposed = BuildingAggregateWithFootprint("Atomic Hall", componentId, asset.AssetId, asset.ContentHash);
+        var access = ((ISqliteConnectionProvider)_database).GetAccess();
+        access.Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TRIGGER fail_geometry_definition_update
+                BEFORE UPDATE ON core_object_definition
+                BEGIN
+                    SELECT RAISE(ABORT, 'injected geometry publication failure');
+                END;
+                """;
+            command.ExecuteNonQuery();
+        });
+
+        Assert.ThrowsAny<Exception>(() => ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+            core, project.ProjectId, objectId, current.DefinitionHash, proposed, 1, Now + 6));
+
+        Assert.Equal(current.DefinitionHash, core.ReadObjectDefinition(project.ProjectId, objectId)!.DefinitionHash);
+        Assert.Empty(core.ListDefinitionAssetLinks(project.ProjectId, objectId));
+
+        access.Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TRIGGER fail_geometry_definition_update;";
+            command.ExecuteNonQuery();
+        });
+
+        var published = ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+            core, project.ProjectId, objectId, current.DefinitionHash, proposed, 1, Now + 7);
+        Assert.NotEqual(current.DefinitionHash, published.DefinitionHash);
+        var links = core.ListDefinitionAssetLinks(project.ProjectId, objectId);
+        Assert.Single(links);
+        Assert.Equal(asset.AssetId, links[0].AssetId);
+        Assert.Equal("geometry_component", links[0].Role);
+    }
+
+    [Fact]
     public void Me03_SettlementAuthoringPrimitives_ReachableThroughServices()
     {
         // ME-03 所需基础原语：settlement/road 对象 + 河流等地理对象可创建、可注册、
