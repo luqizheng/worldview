@@ -519,6 +519,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             case "MNF-017":
                 root["field"]!["field_key"] = "land_water";
                 root["field"]!["semantics_id"] = "world-view.field.land_water.v1";
+                root["field"]!.AsObject().Remove("unit");
+                root["spatial"]!.AsObject().Remove("vertical_reference_id");
                 root["value_encoding"]!["planes"]![0]!["name"] = "categories";
                 root["value_encoding"]!["planes"]![0]!["sample_format"] = "uint8_registered_category";
                 root["value_encoding"]!["planes"]![0]!["bytes_per_cell"] = 1;
