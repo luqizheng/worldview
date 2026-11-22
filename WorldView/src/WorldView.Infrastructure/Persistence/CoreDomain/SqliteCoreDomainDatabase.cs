@@ -390,6 +390,68 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
             ? value
             : throw new CoreDomainDataException($"UUID 文本 \"{text}\" 不可解析（预期 canonical 小写连字符格式）。");
 
+    private static ProjectRecord MapProject(CoreProjectEntity entity) => new()
+    {
+        ProjectId = entity.ProjectId,
+        ProjectName = entity.ProjectName,
+        ProjectFormatVersion = entity.ProjectFormatVersion,
+        CreatedAtUtcMs = entity.CreatedAtUtcMs,
+        UpdatedAtUtcMs = entity.UpdatedAtUtcMs,
+    };
+
+    private static MapRecord MapMap(CoreMapEntity entity) => new()
+    {
+        MapId = entity.MapId,
+        ProjectId = entity.ProjectId,
+        MapName = entity.MapName,
+        LifecycleStatus = entity.LifecycleStatus,
+        CreatedAtUtcMs = entity.CreatedAtUtcMs,
+        UpdatedAtUtcMs = entity.UpdatedAtUtcMs,
+    };
+
+    private static HistoryRecord MapHistory(CoreHistoryEntity entity)
+    {
+        var kind = entity.history_kind switch
+        {
+            "map_root" => HistoryKind.MapRoot,
+            "branch_owned" => HistoryKind.BranchOwned,
+            _ => throw new CoreDomainDataException($"history_kind \"{entity.history_kind}\" 不可识别。"),
+        };
+        if ((kind == HistoryKind.MapRoot && entity.owner_map_id is null)
+            || (kind == HistoryKind.BranchOwned && entity.owner_map_id is not null))
+            throw new CoreDomainDataException($"历史 {entity.history_id:D} 的 kind/owner 组合违反不变量。");
+
+        return new HistoryRecord
+        {
+            HistoryId = entity.history_id,
+            ProjectId = entity.project_id,
+            Kind = kind,
+            OwnerMapId = entity.owner_map_id,
+            CreatedAtUtcMs = entity.created_at_utc_ms,
+        };
+    }
+
+    private static BranchRecord MapBranch(CoreBranchEntity entity)
+    {
+        if (entity.parent_day_number < 0 || entity.parent_offset_seconds is < 0 or > 86399
+            || !HistoricalTime.TryCreate(entity.parent_day_number, (int)entity.parent_offset_seconds, out var parentAt)
+            || parentAt is null)
+            throw new CoreDomainDataException($"分支 {entity.branch_id:D} 的 parent_at 越界。");
+
+        return new BranchRecord
+        {
+            BranchId = entity.branch_id,
+            ProjectId = entity.project_id,
+            ParentHistoryId = entity.parent_history_id,
+            OwnHistoryId = entity.own_history_id,
+            ParentAt = parentAt,
+            BranchName = entity.branch_name,
+            LifecycleStatus = entity.lifecycle_status,
+            CreatedAtUtcMs = entity.created_at_utc_ms,
+            UpdatedAtUtcMs = entity.updated_at_utc_ms,
+        };
+    }
+
     private static ProjectRecord MapProject(SqliteDataReader reader) => new()
     {
         ProjectId = ParseUuid(reader.GetString(0)),
