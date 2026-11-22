@@ -84,6 +84,15 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 new { name = "samples", sample_format = "float32_ieee754_le", bytes_per_cell = 4 },
                 new { name = "validity_mask", sample_format = "uint8", bytes_per_cell = 1 },
             };
+        object field = isLandWater
+            ? new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId }
+            : new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId, unit = "m" };
+        object spatial = isLandWater
+            ? new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1",
+                coordinate_precision_profile_id = "fixture:coordinate-precision-v1" }
+            : new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1",
+                coordinate_precision_profile_id = "fixture:coordinate-precision-v1",
+                vertical_reference_id = "fixture:vertical-reference-local-v1" };
         object valueEncoding = isLandWater
             ? new
             {
@@ -105,7 +114,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             canonicalization = "RFC8785-JCS-UTF8",
             codec_registry = new[] { new { codec_id = 0, codec_name = "none", parameters = new { }, version = "1" } },
             coverage = new { mode = "full_grid" },
-            field = new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId },
+            field,
             format = new { major = 1, minor = 0 },
             grid = new
             {
@@ -127,7 +136,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 mask_plane = new { invalid_value = 1, plane_name = "validity_mask", valid_value = 0 },
                 policy = "explicit_validity_mask",
             },
-            spatial = new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1" },
+            spatial,
             tile_hash = new { algorithm = "SHA-256", version = 1 },
             value_encoding = valueEncoding,
         }));
@@ -203,6 +212,9 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(canonical, revision.ManifestJson);
         Assert.NotNull(revision.Metadata);
         Assert.Equal("elevation", revision.Metadata!.FieldKey);
+        Assert.Equal("m", revision.Metadata.Unit);
+        Assert.Equal("fixture:vertical-reference-local-v1", revision.Metadata.VerticalReferenceId);
+        Assert.Equal("fixture:coordinate-precision-v1", revision.Metadata.CoordinatePrecisionProfileId);
         Assert.Equal(2, revision.Metadata.Grid.Width);
         Assert.Equal("0", revision.Metadata.Grid.OriginX);
         Assert.Equal("1", revision.Metadata.Grid.SpacingX);
@@ -604,6 +616,60 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Contains("\"profile_scope\":\"golden_fixture_only\"", manifest);
     }
 
+
+    [Theory]
+    [InlineData("missing-unit")]
+    [InlineData("invalid-unit")]
+    [InlineData("missing-vertical-reference")]
+    [InlineData("missing-coordinate-precision")]
+    [InlineData("categorical-unit")]
+    [InlineData("categorical-vertical-reference")]
+    public void PublishRevision_EnforcesFieldAndSpatialSemanticRequirements(string scenario)
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        var fieldKey = "elevation";
+        var semanticsId = "world-view.field.elevation.v1";
+
+        switch (scenario)
+        {
+            case "missing-unit":
+                root["field"]!.AsObject().Remove("unit");
+                break;
+            case "invalid-unit":
+                root["field"]!["unit"] = "cm";
+                break;
+            case "missing-vertical-reference":
+                root["spatial"]!.AsObject().Remove("vertical_reference_id");
+                break;
+            case "missing-coordinate-precision":
+                root["spatial"]!.AsObject().Remove("coordinate_precision_profile_id");
+                break;
+            case "categorical-unit":
+            case "categorical-vertical-reference":
+                fieldKey = "land_water";
+                semanticsId = "world-view.field.land_water.v1";
+                root["field"]!["field_key"] = fieldKey;
+                root["field"]!["semantics_id"] = semanticsId;
+                root["field"]!.AsObject().Remove("unit");
+                root["spatial"]!["vertical_reference_id"] = "fixture:vertical-reference-local-v1";
+                if (scenario == "categorical-unit")
+                    root["field"]!["unit"] = "m";
+                break;
+        }
+
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            FieldKey = fieldKey,
+            SemanticsId = semanticsId,
+            ManifestJson = root.ToJsonString(),
+        };
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, fieldKey));
+    }
 
     [Fact]
     public void PublishRevision_RejectsManifestStringsOutsideSchemaBounds()
