@@ -462,7 +462,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void PublishRevision_PersistsAndReadsExactSqliteBlobPayload()
+    public async Task PublishRevision_PersistsAndReadsExactSqliteBlobPayload()
     {
         var (project, mapId) = SeedMap();
         var core = Core();
@@ -478,6 +478,13 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(expectedBytes.LongLength, payload.ByteLength);
         Assert.Equal(expectedBytes, core.ReadFieldPayloadBlob(project.ProjectId, revision.FieldRevisionId));
         Assert.Equal(payload.FieldPayloadId, revision.Payload.FieldPayloadId);
+
+        var reader = new FieldPayloadReader(core, new FieldPayloadFileStore(_root));
+        await using var opened = await reader.OpenReadAsync(project.ProjectId, revision.FieldRevisionId);
+        Assert.NotNull(opened);
+        using var copy = new MemoryStream();
+        await opened!.CopyToAsync(copy);
+        Assert.Equal(expectedBytes, copy.ToArray());
     }
 
     [Fact]
