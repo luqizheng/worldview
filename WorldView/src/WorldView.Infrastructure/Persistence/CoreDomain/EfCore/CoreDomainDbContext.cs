@@ -40,7 +40,7 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
             entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT")
                 .HasConversion(guidToText).ValueGeneratedNever();
             entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT")
-                .HasConversion(guidToText).IsConcurrencyToken();
+                .HasConversion(guidToText);
             entity.Property(x => x.MapName).HasColumnName("map_name").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.LifecycleStatus).HasColumnName("lifecycle_status").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
