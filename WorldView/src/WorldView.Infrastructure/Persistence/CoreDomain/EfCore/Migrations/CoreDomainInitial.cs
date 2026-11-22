@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using WorldView.Domain.Persistence;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 
@@ -16,7 +15,7 @@ public sealed class CoreDomainInitial : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        foreach (var (_, sql) in CoreDomainSchema.Migrations)
+        foreach (var (_, sql) in CoreDomainInitialSql.Migrations)
         {
             migrationBuilder.Sql(sql);
         }
