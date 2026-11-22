@@ -18,7 +18,7 @@ public class CreateProjectUseCaseTests : IDisposable
 {
     private readonly InMemoryFileSystem _fileSystem = new();
     private readonly FakePackageDatabaseFactory _databaseFactory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(Array.Empty<IMigrationSource>());
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly string _parent;
 
     public CreateProjectUseCaseTests()
@@ -150,15 +150,6 @@ public class CreateProjectUseCaseTests : IDisposable
             public Task WriteMetadataAsync(BootstrapMetadata metadata, CancellationToken cancellationToken = default)
                 => throw new IOException("注入失败：元数据写入失败。");
 
-            public Task<IReadOnlyList<MigrationLedgerEntry>> ReadLedgerAsync(CancellationToken cancellationToken = default)
-                => Task.FromResult<IReadOnlyList<MigrationLedgerEntry>>(Array.Empty<MigrationLedgerEntry>());
-
-            public Task<bool> LedgerTableExistsAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
-
-            public Task EnsureLedgerTableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-            public Task ExecuteMigrationAsync(ModuleMigration migration, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }
@@ -169,7 +160,7 @@ public class OpenProjectUseCaseTests : IDisposable
 {
     private readonly InMemoryFileSystem _fileSystem = new();
     private readonly FakePackageDatabaseFactory _databaseFactory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(Array.Empty<IMigrationSource>());
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly FakeAssetStoreFactory _assetStoreFactory = new();
     private readonly ProjectSessionRegistry _registry = new();
     private readonly string _packageRoot;
@@ -198,7 +189,6 @@ public class OpenProjectUseCaseTests : IDisposable
             var database = (FakePackageDatabase)_databaseFactory.CreateForFile(
                 Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseFileName));
             await database.OpenAsync();
-            await database.EnsureLedgerTableAsync();
             await database.WriteMetadataAsync(new BootstrapMetadata
             {
                 DatabaseFormatVersion = ProjectPackageFormat.SupportedDatabaseFormatVersion,
@@ -327,7 +317,7 @@ public class OpenProjectUseCaseTests : IDisposable
 /// <summary>会话生命周期与隔离测试（AF-02 §6）。</summary>
 public class ProjectSessionLifecycleTests
 {
-    private static readonly ApplicationBootstrapper Bootstrapper = new(Array.Empty<IMigrationSource>());
+    private static readonly ApplicationBootstrapper Bootstrapper = new();
 
     private static ProjectSession CreateSession(FakePackageDatabase database, FakeAssetStore assetStore)
         => new(Guid.NewGuid(), ProjectPackageStructure.NormalizePackagePath(Path.Combine(Path.GetTempPath(), $"wv-session-{Guid.NewGuid():N}.wvproject")),
