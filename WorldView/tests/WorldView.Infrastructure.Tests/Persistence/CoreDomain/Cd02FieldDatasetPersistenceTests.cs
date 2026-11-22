@@ -580,6 +580,34 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task ProjectOpenRecovery_CleansStagingAndOrphansAndVerifiesReferencedPayloads()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        var publisher = new FieldPayloadPublisher(core, store);
+        var revision = await publisher.PublishManagedFileRevisionAsync(
+            plan, new MemoryStream(new byte[] { 1, 3, 5, 7, 9 }));
+        var orphan = await store.PutAsync(new MemoryStream(new byte[] { 2, 4, 6, 8 }));
+        var staleStagingPath = Path.Combine(store.RootPath, ".staging-interrupted.tmp");
+        await File.WriteAllTextAsync(staleStagingPath, "partial");
+
+        var recovery = new CoreDomainFieldPayloadRecovery();
+        var report = await recovery.ReconcileAsync(_database, _root, project.ProjectId);
+
+        Assert.Equal(1, report.VerifiedPayloadCount);
+        Assert.Empty(report.MissingPayloadIds);
+        Assert.Empty(report.CorruptPayloadIds);
+        Assert.Equal(1, report.CleanedStagingFileCount);
+        Assert.Contains(orphan.ContentHash, report.CollectedOrphanContentHashes);
+        Assert.False(File.Exists(staleStagingPath));
+        Assert.False(store.Exists(orphan.ContentHash));
+        Assert.NotNull(core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId));
+    }
+
+    [Fact]
     public async Task FieldPayloadReader_RejectsManagedFileWithSameLengthWrongHash()
     {
         var (project, mapId) = SeedMap();
