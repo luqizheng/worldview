@@ -155,3 +155,25 @@ internal sealed class CoreSpatialReferenceEntity
     public required string DefinitionFingerprint { get; set; }
     public long CreatedAtUtcMs { get; set; }
 }
+
+/// <summary>
+/// Physical storage metadata and optional inline bytes for one immutable Field Revision.
+/// Exactly one row belongs to a revision; payload bytes are raw and never Base64/JSON wrapped.
+/// </summary>
+internal sealed class CoreFieldPayloadEntity
+{
+    public Guid FieldPayloadId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid FieldDatasetId { get; set; }
+    public Guid FieldRevisionId { get; set; }
+    public required string StorageKind { get; set; }
+    public required string PayloadFormat { get; set; }
+    public required string FormatVersion { get; set; }
+    public required string HashAlgorithm { get; set; }
+    public required string ContentHash { get; set; }
+    public long ByteLength { get; set; }
+    public byte[]? PayloadBlob { get; set; }
+    public string? RelativePath { get; set; }
+    public required string IntegrityState { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+}
