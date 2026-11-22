@@ -3,7 +3,7 @@
 - Version: 0.1
 - Date: 2026-11-22
 - Status: Repository-grounded coverage inventory; not a declaration of full P2-09-12 compliance
-- Specification: `docs/architecture/core-domain/p2-09-12-provider-transaction-proof-test-spec-v0.6.md`
+- Specification: `docs/architecture/core-domain/p2-09-12-provider-transaction-proof-test-spec-v0.6.md` (superseded by V0.7 on the G3 documentation branch; V0.7 preserves all TX cases and acceptance semantics while aligning the .NET/Avalonia/provider baseline)
 - Implementation baseline: CD-02-G1 `ab6d00f7afc13ba352df0c3b92eecd3a146afd99`
 - Test branch head at matrix creation: `e07f3668ef217ce6ed93e834892074fd507ef40a`
 - CI evidence for that test head: run `44978789680`, Windows/macOS Debug/Release, 386/386 in each configuration
@@ -24,7 +24,7 @@ A passing CI run proves the tests that were actually executed. It does not upgra
 |---|---|---|---|---|
 | TX-01 | Core Domain and AI repository receive the exact same connection and transaction instances | `SqliteConnectionAccess` serializes access to the package DB connection; no Application Commit Coordinator or AI Assistant repository implementation exists in `WorldView/src` | **Blocked** | Implement the real AI submission persistence participant and coordinator, then instrument exact connection/transaction identity |
 | TX-02 | No nested transaction or hidden commit in either repository | Core Domain adapters use the shared package DB access path; no AI repository/coordinator boundary exists | **Blocked** | Prove all real participants use the coordinator-supplied transaction and cannot open/commit independently |
-| TX-03 | FK enabled on every application connection | `PersistenceConcurrencyTests.ConnectionPolicy_EveryOpenedPackageConnectionEnablesForeignKeysAndBoundedTimeouts` opens two package DB connections, checks `foreign_keys=1`, `busy_timeout=5000`, `CommandTimeout=5`, and proves an invalid FK insert fails with SQLITE_CONSTRAINT_FOREIGNKEY | **Partial** | Enumerate and test every actual writer/read/migration/recovery connection type; current test proves two package connections from one factory |
+| TX-03 | FK enabled on every application connection | `PersistenceConcurrencyTests.ConnectionPolicy_EveryOpenedPackageConnectionEnablesForeignKeysAndBoundedTimeouts` opens two package DB connections, checks `foreign_keys=1`, `busy_timeout=5000`, `CommandTimeout=5`, and proves an invalid FK insert fails with SQLITE_CONSTRAINT_FOREIGNKEY | **Implemented for current connection type** | Re-run this proof for any future distinct reader/recovery connection type when such a type is introduced; current migration path uses the package connection |
 | TX-04 | Writer ownership and separate independent reader connections | `PersistenceConcurrencyTests.Concurrent_CompositionRootAdapterPair_QueriesSucceedOnSharedConnection`, `Concurrent_ReadersAndWriters_NeverObservePartialMapStructure`, and shared-coordinator tests prove safe serialized access through one connection | **Partial** | Spec requires independent reads on separate connections; current readers use adapters over the same package connection. Add explicit separate-reader connection policy and tests, or revise the spec with an approved architecture decision |
 
 ## 3. Cross-module atomicity and crash reconciliation
@@ -99,7 +99,7 @@ The inspected baseline has no Field Dataset/Field Revision production types, mig
 
 ## 9. Runtime and platform proof gaps
 
-The current repository CI uses .NET 11 Windows/macOS build-and-test jobs and Microsoft.Data.Sqlite 11.x. P2-09-12 V0.6 names .NET 10, Avalonia 12, and bundled SQLitePCLRaw `e_sqlite3`. CI also installs .NET 10 runtime alongside the .NET 11 SDK, but the project target and test assemblies are `net11.0`.
+The current repository CI uses .NET 11 Windows/macOS build-and-test jobs and Microsoft.Data.Sqlite 11.0.0. P2-09-12 V0.6 named .NET 10; V0.7 corrects the target to .NET 11 STS, Avalonia 12.1.6 and Microsoft.Data.Sqlite 11.0.0 without changing TX acceptance semantics. CI also installs the .NET 10 runtime alongside the .NET 11 SDK, but the project target and test assemblies are `net11.0`.
 
 The current CI proves library/application build and test execution on Windows and macOS runners. It does **not** prove:
 - packaged desktop startup on supported RIDs/architectures;
