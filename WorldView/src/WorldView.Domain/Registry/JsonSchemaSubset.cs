@@ -28,8 +28,8 @@ public sealed record SchemaViolation
 /// 支持关键词（与 P2-09-38/39 V0.5 实际使用集一致）：type / properties / required /
 /// additionalProperties(false) / items / enum / const / minLength / maxLength /
 /// minimum / maximum / exclusiveMinimum / minItems / maxItems / uniqueItems /
-/// pattern / oneOf / allOf / $ref(#/$defs/...) / $defs / dependentRequired /
-/// maxProperties。schema 内出现任何**不支持**的关键词即 fail-closed（拒绝静默跳过，
+/// pattern / oneOf / allOf / if / then / else / not / $ref(#/$defs/...) / $defs /
+/// dependentRequired / maxProperties。schema 内出现任何**不支持**的关键词即 fail-closed（拒绝静默跳过，
 /// 与 unknown_fields=reject 同一原则）。全量 Draft 2020-12 引擎与第三方包在 Domain
 /// 禁用（无第三方依赖原则）；若未来 schema 引入新关键词，本类是扩展点。
 /// </summary>
