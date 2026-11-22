@@ -254,6 +254,47 @@ internal static class CoreDomainV1ModelConfiguration
             entity.HasOne<CoreMapFieldRevisionEntity>().WithMany().HasForeignKey(x => x.FieldRevisionId)
                 .HasPrincipalKey(x => x.FieldRevisionId).OnDelete(DeleteBehavior.NoAction);
         });
+
+        modelBuilder.Entity<CoreFieldPayloadEntity>(entity =>
+        {
+            entity.ToTable("core_field_payload", table =>
+            {
+                table.HasCheckConstraint("CK_core_field_payload_storage_kind",
+                    "storage_kind IN ('sqlite_blob', 'managed_file')");
+                table.HasCheckConstraint("CK_core_field_payload_storage_location",
+                    "(storage_kind = 'sqlite_blob' AND payload_blob IS NOT NULL AND relative_path IS NULL) OR (storage_kind = 'managed_file' AND payload_blob IS NULL AND relative_path IS NOT NULL)");
+                table.HasCheckConstraint("CK_core_field_payload_blob_length",
+                    "storage_kind <> 'sqlite_blob' OR length(payload_blob) = byte_length");
+                table.HasCheckConstraint("CK_core_field_payload_byte_length", "byte_length > 0");
+                table.HasCheckConstraint("CK_core_field_payload_hash",
+                    "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+                table.HasCheckConstraint("CK_core_field_payload_hash_algorithm", "hash_algorithm = 'sha-256'");
+                table.HasCheckConstraint("CK_core_field_payload_integrity",
+                    "integrity_state IN ('verified', 'corrupt', 'missing')");
+            });
+            entity.HasKey(x => x.FieldPayloadId);
+            entity.Property(x => x.FieldPayloadId).HasColumnName("field_payload_id").HasColumnType("TEXT").HasConversion(guidToText).ValueGeneratedNever();
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.FieldDatasetId).HasColumnName("field_dataset_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.FieldRevisionId).HasColumnName("field_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.StorageKind).HasColumnName("storage_kind").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.PayloadFormat).HasColumnName("payload_format").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.FormatVersion).HasColumnName("format_version").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.HashAlgorithm).HasColumnName("hash_algorithm").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ContentHash).HasColumnName("content_hash").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ByteLength).HasColumnName("byte_length").HasColumnType("INTEGER");
+            entity.Property(x => x.PayloadBlob).HasColumnName("payload_blob").HasColumnType("BLOB");
+            entity.Property(x => x.RelativePath).HasColumnName("relative_path").HasColumnType("TEXT");
+            entity.Property(x => x.IntegrityState).HasColumnName("integrity_state").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasAlternateKey(x => new { x.ProjectId, x.FieldPayloadId });
+            entity.HasIndex(x => x.FieldRevisionId).IsUnique().HasDatabaseName("ux_core_field_payload_revision");
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
         CoreDomainV1AggregateModelConfiguration.Configure(modelBuilder);
     }
 }
