@@ -370,6 +370,50 @@ public sealed class PersistenceConcurrencyTests : IDisposable
     // ---- 5.2 Transaction Tests ----
 
     [Fact]
+    public async Task ConnectionPolicy_EveryOpenedPackageConnectionEnablesForeignKeysAndBoundedTimeouts()
+    {
+        // TX-03: PRAGMA and command defaults are per physical connection, not process-wide.
+        await using var second = (SqlitePackageDatabase)_factory.CreateForFile(_database.DatabasePath);
+        await second.OpenAsync();
+
+        foreach (var access in new[] { Access(), AccessOf(second) })
+        {
+            Assert.Equal(1L, access.Execute(c => Scalar(c, "PRAGMA foreign_keys;")));
+            Assert.Equal(5000L, access.Execute(c => Scalar(c, "PRAGMA busy_timeout;")));
+            Assert.Equal(5, access.Execute(c =>
+            {
+                using var command = c.CreateCommand();
+                return command.CommandTimeout;
+            }));
+        }
+
+        Access().Execute(c =>
+        {
+            using var command = c.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE tx03_parent (id INTEGER PRIMARY KEY);
+                CREATE TABLE tx03_child (
+                    id INTEGER PRIMARY KEY,
+                    parent_id INTEGER NOT NULL REFERENCES tx03_parent(id)
+                );
+                """;
+            command.ExecuteNonQuery();
+        });
+
+        var foreignKeyFailure = Assert.Throws<SqliteException>(() =>
+            AccessOf(second).Execute(c =>
+            {
+                using var command = c.CreateCommand();
+                command.CommandText = "INSERT INTO tx03_child (id, parent_id) VALUES (1, 999);";
+                command.ExecuteNonQuery();
+            }));
+
+        Assert.Equal(19, foreignKeyFailure.SqliteErrorCode); // SQLITE_CONSTRAINT
+        Assert.Equal(787, foreignKeyFailure.SqliteExtendedErrorCode); // SQLITE_CONSTRAINT_FOREIGNKEY
+        Assert.Equal(0L, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM tx03_child;")));
+    }
+
+    [Fact]
     public void BusyTimeout_ExternalWriterLock_FailsWithinBoundWithoutPartialWrite()
     {
         const string tableName = "tx32_busy_probe";
