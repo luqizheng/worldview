@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -61,6 +62,24 @@ public static class FieldDatasetService
         if (asset.IntegrityState != AssetIntegrityState.Verified)
             throw new CoreDomainConflictException(
                 $"Field Revision Asset {asset.AssetId} 必须先通过字节完整性验证；当前状态为 {asset.IntegrityState}。");
+
+        var payload = FieldPayloadRules.Create(plan.Payload);
+        if (payload.ProjectId != plan.ProjectId
+            || payload.FieldDatasetId != plan.FieldDatasetId
+            || payload.FieldRevisionId != plan.FieldRevisionId)
+            throw new CoreDomainConflictException("Field Payload owner IDs must match the Field Revision publication.");
+        if (payload.StorageKind == FieldPayloadStorageKind.SqliteBlob)
+        {
+            if (plan.PayloadBytes is null || plan.PayloadBytes.LongLength != payload.ByteLength)
+                throw new CoreDomainConflictException("SQLite BLOB payload bytes must be present and match the registered byte length.");
+            var actualHash = Convert.ToHexString(SHA256.HashData(plan.PayloadBytes)).ToLowerInvariant();
+            if (!string.Equals(actualHash, payload.ContentHash, StringComparison.Ordinal))
+                throw new CoreDomainConflictException("SQLite BLOB payload bytes do not match the registered SHA-256.");
+        }
+        else if (plan.PayloadBytes is not null)
+        {
+            throw new CoreDomainConflictException("ManagedFile payload registration must not also carry inline BLOB bytes.");
+        }
 
         var current = database.FindFieldDataset(plan.ProjectId, plan.MapId, plan.FieldKey);
         if (current is not null)
