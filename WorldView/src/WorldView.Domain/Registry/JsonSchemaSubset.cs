@@ -40,7 +40,7 @@ public static class JsonSchemaSubset
         "type", "properties", "required", "additionalProperties", "items", "enum", "const",
         "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "minItems",
         "maxItems", "uniqueItems", "pattern", "oneOf", "allOf", "$ref", "$defs",
-        "dependentRequired", "maxProperties",
+        "dependentRequired", "maxProperties", "if", "then", "else", "not",
     };
 
     /// <summary>校验 <paramref name="instance"/> 是否满足 schema；返回全部违规（空 = 通过）。</summary>
@@ -98,6 +98,17 @@ public static class JsonSchemaSubset
             {
                 EnsureSupportedKeywords(property.Value, $"{path}/{property.Name}");
             }
+            else if (property.Name is "if" or "then" or "else" or "not")
+            {
+                if (property.Value.ValueKind != JsonValueKind.Object)
+                {
+                    throw new RegistryException(
+                        "schema_invalid",
+                        $"schema 于 {path}/{property.Name} 的条件子模式必须为 object，本执行器不支持布尔子模式。");
+                }
+
+                EnsureSupportedKeywords(property.Value, $"{path}/{property.Name}");
+            }
             else if (property.Name is "oneOf" or "allOf" && property.Value.ValueKind == JsonValueKind.Array)
             {
                 var index = 0;
@@ -142,6 +153,35 @@ public static class JsonSchemaSubset
             foreach (var branch in allOf.EnumerateArray())
             {
                 ApplySchema(branch, instance, path, violations, context);
+            }
+        }
+
+        // Draft 2020-12 conditional assertions. The if subschema selects exactly one
+        // branch; failures inside the condition itself are not reported as instance errors.
+        if (schema.TryGetProperty("if", out var ifSchema))
+        {
+            var conditionViolations = new List<SchemaViolation>();
+            ApplySchema(ifSchema, instance, path, conditionViolations, context);
+            var branchKeyword = conditionViolations.Count == 0 ? "then" : "else";
+            if (schema.TryGetProperty(branchKeyword, out var conditionalBranch))
+            {
+                ApplySchema(conditionalBranch, instance, path, violations, context);
+            }
+        }
+
+        // not succeeds only when its subschema does not match the instance.
+        if (schema.TryGetProperty("not", out var notSchema))
+        {
+            var notViolations = new List<SchemaViolation>();
+            ApplySchema(notSchema, instance, path, notViolations, context);
+            if (notViolations.Count == 0)
+            {
+                violations.Add(new SchemaViolation
+                {
+                    Keyword = "not",
+                    InstancePath = path,
+                    Message = "实例满足了 not 子模式，但该子模式必须不匹配。",
+                });
             }
         }
 
