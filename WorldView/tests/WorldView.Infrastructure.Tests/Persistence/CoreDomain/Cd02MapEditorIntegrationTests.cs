@@ -117,7 +117,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var bytes = Encoding.UTF8.GetBytes(envelope);
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
+        core.MarkAssetVerified(project.ProjectId, asset.AssetId, new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength), Now + 5);
 
         // 缺少 manifest 或 manifest hash 不匹配时，正式 typed link 必须拒绝。
         Assert.Throws<CoreDomainConflictException>(

@@ -535,12 +535,27 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         return record;
     }
 
-    public void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
+    public void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
     {
+        if (integrityState is not (AssetIntegrityState.Corrupt or AssetIntegrityState.Missing))
+            throw new CoreDomainConflictException("完整性失败接口只接受 Corrupt 或 Missing。");
         var asset = FindAsset(projectId, assetId)
             ?? throw new CoreDomainConflictException("Asset 不存在。");
         Assets.Remove(asset);
         Assets.Add(asset with { IntegrityState = integrityState });
+    }
+
+    public void MarkAssetVerified(Guid projectId, Guid assetId, AssetVerificationEvidence evidence, long nowUtcMs)
+    {
+        var asset = FindAsset(projectId, assetId)
+            ?? throw new CoreDomainConflictException("Asset 不存在。");
+        if (!string.Equals(evidence.ExpectedHash, evidence.ActualHash, StringComparison.Ordinal)
+            || !string.Equals(asset.ContentHash, evidence.ExpectedHash, StringComparison.Ordinal)
+            || evidence.ExpectedByteLength != evidence.ActualByteLength
+            || asset.ByteLength != evidence.ExpectedByteLength)
+            throw new CoreDomainConflictException("Asset verification evidence 与当前 Asset 元数据不匹配。");
+        Assets.Remove(asset);
+        Assets.Add(asset with { IntegrityState = AssetIntegrityState.Verified });
     }
 
     public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
