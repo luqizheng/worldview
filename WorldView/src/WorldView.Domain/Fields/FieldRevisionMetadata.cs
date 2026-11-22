@@ -16,8 +16,11 @@ public sealed record FieldRevisionMetadata
     public required string FieldKey { get; init; }
     public required int DescriptorSchemaVersion { get; init; }
     public required string SemanticsId { get; init; }
+    public string? Unit { get; init; }
     public required string MapSpaceId { get; init; }
     public required string SpatialReferenceId { get; init; }
+    public required string CoordinatePrecisionProfileId { get; init; }
+    public string? VerticalReferenceId { get; init; }
     public required FieldGridMetadata Grid { get; init; }
     public required FieldCoverageMetadata Coverage { get; init; }
     public required string MapEdgeSemantics { get; init; }
@@ -71,8 +74,13 @@ public sealed record FieldRevisionMetadata
             FieldKey = field.GetProperty("field_key").GetString()!,
             DescriptorSchemaVersion = field.GetProperty("schema_version").GetInt32(),
             SemanticsId = field.GetProperty("semantics_id").GetString()!,
+            Unit = field.TryGetProperty("unit", out var unit) ? unit.GetString() : null,
             MapSpaceId = spatial.GetProperty("map_space_id").GetString()!,
             SpatialReferenceId = spatial.GetProperty("spatial_reference_id").GetString()!,
+            CoordinatePrecisionProfileId = spatial.GetProperty("coordinate_precision_profile_id").GetString()!,
+            VerticalReferenceId = spatial.TryGetProperty("vertical_reference_id", out var verticalReference)
+                ? verticalReference.GetString()
+                : null,
             Grid = new FieldGridMetadata(
                 grid.GetProperty("width").GetInt64(),
                 grid.GetProperty("height").GetInt64(),
