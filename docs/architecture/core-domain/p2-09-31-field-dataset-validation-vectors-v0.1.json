@@ -1,0 +1,200 @@
+{
+  "suite": "World View V1 Field Dataset / Field Revision Descriptor Validation Vectors",
+  "version": "0.1",
+  "registry": "P2-09-30 V1 Built-in Field Descriptor Registry V0.1",
+  "status": "design fixtures; not executed against implementation",
+  "cases": [
+    {
+      "id": "FDV-001",
+      "field_key": "elevation",
+      "expect": "valid",
+      "case": "Create the first Map-owned elevation Dataset with a supported descriptor and valid manifest."
+    },
+    {
+      "id": "FDV-002",
+      "field_key": "land_water",
+      "expect": "valid",
+      "case": "Create the first Map-owned land_water Dataset with registered categories and valid manifest."
+    },
+    {
+      "id": "FDV-003",
+      "field_key": "unknown",
+      "expect": "invalid",
+      "case": "Create a Field Dataset using an unregistered field_key."
+    },
+    {
+      "id": "FDV-004",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Publish elevation without a required unit."
+    },
+    {
+      "id": "FDV-005",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Publish elevation without a stable vertical_reference_id."
+    },
+    {
+      "id": "FDV-006",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Publish NaN, positive infinity or negative infinity as a numeric field value."
+    },
+    {
+      "id": "FDV-007",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Treat no-data as numeric zero or sea level without an explicit valid-data declaration."
+    },
+    {
+      "id": "FDV-008",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Use a missing, malformed or Map Space-incompatible spatial_reference_id."
+    },
+    {
+      "id": "FDV-009",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Omit coverage, resolution_profile or grid_alignment from the canonical manifest."
+    },
+    {
+      "id": "FDV-010",
+      "field_key": "elevation",
+      "expect": "valid",
+      "case": "Publish partial coverage when the exact coverage and outside-coverage behavior are explicitly declared."
+    },
+    {
+      "id": "FDV-011",
+      "field_key": "land_water",
+      "expect": "invalid",
+      "case": "Use an unregistered category such as marsh_unknown without a descriptor revision."
+    },
+    {
+      "id": "FDV-012",
+      "field_key": "land_water",
+      "expect": "invalid",
+      "case": "Collapse unknown, no-data and outside_coverage into one indistinguishable value."
+    },
+    {
+      "id": "FDV-013",
+      "field_key": "land_water",
+      "expect": "invalid",
+      "case": "Treat outside_coverage as water or infer coastline solely from the coverage edge."
+    },
+    {
+      "id": "FDV-014",
+      "field_key": "land_water",
+      "expect": "valid",
+      "case": "Retain land, water, unknown and outside_coverage as distinct registered states; keep no-data separate."
+    },
+    {
+      "id": "FDV-015",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Create two authoritative Datasets for the same (Map, field_key)."
+    },
+    {
+      "id": "FDV-016",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Create the same field_key in two different Maps with distinct Dataset identities."
+    },
+    {
+      "id": "FDV-017",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Point a Dataset current_field_revision_id to a revision owned by another Dataset."
+    },
+    {
+      "id": "FDV-018",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Publish a revision with an expected current revision that is stale."
+    },
+    {
+      "id": "FDV-019",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Publish the next monotonic immutable revision using compare-and-swap against the current revision."
+    },
+    {
+      "id": "FDV-020",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Mutate or delete a published Field Revision or overwrite its published Asset bytes."
+    },
+    {
+      "id": "FDV-021",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Reference a missing or cross-Project Core Asset from a Field Revision."
+    },
+    {
+      "id": "FDV-022",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Two Maps reuse identical immutable Asset bytes while retaining separate Dataset identities and current pointers."
+    },
+    {
+      "id": "FDV-023",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Publish a new revision in Map A; every Branch and Historical Time context in Map A resolves the new current baseline."
+    },
+    {
+      "id": "FDV-024",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Publish a new revision in Map A; Map B remains unchanged even when its Dataset references the same content-addressed Asset."
+    },
+    {
+      "id": "FDV-025",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Submit a Branch-local Field Dataset override or historical-time-specific Field Revision in V1."
+    },
+    {
+      "id": "FDV-026",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Represent a baseline correction as a post-zero Command, Event or State Change."
+    },
+    {
+      "id": "FDV-027",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Expose staged editor/AI field content as formally published before Core Domain confirms the transaction."
+    },
+    {
+      "id": "FDV-028",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Treat a Derived Artifact as a formal source field without explicit adoption of the exact bytes."
+    },
+    {
+      "id": "FDV-029",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Adopt a Derived Artifact explicitly, retaining exact source artifact identity, hash and transformation provenance in the new Field Revision."
+    },
+    {
+      "id": "FDV-030",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Fail the SQLite publication transaction after Asset file publication; leave no revision/pointer commit and reconcile the file as an orphan."
+    },
+    {
+      "id": "FDV-031",
+      "field_key": "all",
+      "expect": "valid",
+      "case": "Invalidate only dependent calculations and Checkpoints across all Branches/Times of the owning Map after a new current revision."
+    },
+    {
+      "id": "FDV-032",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Reuse a Checkpoint whose relevant Field Baseline fingerprint no longer matches the current Dataset revision."
+    }
+  ]
+}

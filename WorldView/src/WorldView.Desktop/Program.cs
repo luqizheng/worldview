@@ -1,0 +1,120 @@
+using System;
+using System.Threading.Tasks;
+using Avalonia;
+using Microsoft.Extensions.DependencyInjection;
+using WorldView.Application.Abstractions;
+using WorldView.Application.Bootstrap;
+using WorldView.Application.Sessions;
+using WorldView.Application.UseCases;
+using WorldView.Desktop.ViewModels;
+using WorldView.Infrastructure.Assets;
+using WorldView.Infrastructure.IO;
+using WorldView.Infrastructure.Logging;
+using WorldView.Infrastructure.Persistence;
+using WorldView.Infrastructure.Persistence.CoreDomain;
+using WorldView.Infrastructure.RecentProjects;
+
+namespace WorldView.Desktop;
+
+internal static class Program
+{
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        // 进程级异常边界（AF-01 §4.1）：详细异常进日志/诊断，不弹原始异常框。
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Console.Error.WriteLine($"[FATAL] UnhandledException: {e.ExceptionObject}");
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            e.SetObserved();
+            Console.Error.WriteLine($"[WARN] UnobservedTaskException: {e.Exception}");
+        };
+
+        using var services = BuildServices();
+        App.Services = services;
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+        // 停机（AF-01 §4.2）：UI 生命周期已结束后，停止接受新工作并关闭全部会话
+        // （先关子工作区，再逆序释放资源；不放弃未完成事务）。消息循环已退出，
+        // 此处无 SynchronizationContext，同步等待关闭完成是确定且安全的。
+        var registry = services.GetService<ProjectSessionRegistry>();
+        registry?.CloseAllAsync().GetAwaiter().GetResult();
+    }
+
+    // Avalonia configuration, don't remove; also used by visual designer.
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+#if DEBUG
+            .WithDeveloperTools()
+#endif
+            .WithInterFont()
+            .LogToTrace();
+
+    /// <summary>
+    /// 组合根：应用全部依赖在此装配。各层仅通过接口注册，保持依赖方向单向。
+    /// Core Domain 边界端口（IProjectIdentityReader / IProjectCreationService 全局单例；
+    /// IMapQueryService / IWorkspaceContextResolver 会话绑定——按 session.Database 构造）
+    /// 自 CD-01 起接入正式 Core Domain 实现（Infrastructure 适配器 + Domain 服务）。
+    /// </summary>
+    private static ServiceProvider BuildServices()
+    {
+        var services = new ServiceCollection();
+
+        // 基础设施适配
+        services.AddSingleton<IAppLog, FileAppLog>();
+        services.AddSingleton<IFileSystem, FileSystem>();
+        services.AddSingleton<IRecentProjectsStore, JsonRecentProjectsStore>();
+        services.AddSingleton<IPackageDatabaseFactory, SqlitePackageDatabaseFactory>();
+        services.AddSingleton<IAssetStoreFactory, FileAssetStoreFactory>();
+
+        // Core Domain 迁移来源（core-domain 模块 4 条迁移，CD-01）
+        services.AddSingleton<CoreDomainMigrationSource>();
+
+        // Application Bootstrap（core-domain 模块迁移经 IMigrationSource 登记）
+        services.AddSingleton<ApplicationBootstrapper>(sp => new ApplicationBootstrapper(
+            new IMigrationSource[] { sp.GetRequiredService<CoreDomainMigrationSource>() }, log: null));
+
+        // 会话注册表（实例由组合根创建，供停机关闭使用）
+        services.AddSingleton<ProjectSessionRegistry>();
+
+        // Core Domain 边界端口（正式实现；CD-01）
+        services.AddSingleton<IProjectCreationService>(sp => new CoreDomainProjectCreationService(
+            sp.GetRequiredService<IPackageDatabaseFactory>()));
+        services.AddSingleton<IProjectIdentityReader, CoreDomainProjectIdentityReader>();
+
+        // 用例
+        services.AddSingleton<CreateProjectUseCase>(sp => new CreateProjectUseCase(
+            sp.GetRequiredService<IFileSystem>(),
+            sp.GetRequiredService<IPackageDatabaseFactory>(),
+            sp.GetRequiredService<ApplicationBootstrapper>(),
+            sp.GetRequiredService<IProjectCreationService>(),
+            log: sp.GetRequiredService<IAppLog>()));
+        services.AddSingleton<OpenProjectUseCase>(sp => new OpenProjectUseCase(
+            sp.GetRequiredService<IFileSystem>(),
+            sp.GetRequiredService<IPackageDatabaseFactory>(),
+            sp.GetRequiredService<ApplicationBootstrapper>(),
+            sp.GetRequiredService<IAssetStoreFactory>(),
+            sp.GetRequiredService<ProjectSessionRegistry>(),
+            sp.GetRequiredService<IProjectIdentityReader>(),
+            log: sp.GetRequiredService<IAppLog>()));
+
+        // 启动面与工作区 ViewModel 工厂
+        services.AddSingleton<StartViewModel>();
+        services.AddSingleton<Func<ProjectSession, ProjectWorkspaceViewModel>>(sp => session =>
+        {
+            // 会话绑定的 Map 查询 / Workspace 上下文解析：按本会话数据库构造（项目范围隔离）。
+            IMapQueryService mapQuery = new CoreDomainMapQueryService(session.Database);
+            IWorkspaceContextResolver contextResolver = new CoreDomainWorkspaceContextResolver(session.Database);
+            return new ProjectWorkspaceViewModel(
+                session,
+                mapQuery,
+                contextResolver,
+                log: sp.GetRequiredService<IAppLog>());
+        });
+
+        return services.BuildServiceProvider();
+    }
+}

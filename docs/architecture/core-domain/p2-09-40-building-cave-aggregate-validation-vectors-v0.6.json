@@ -1,0 +1,1493 @@
+{
+  "schema_version": 6,
+  "title": "Building and Cave typed aggregate conformance vectors V0.6",
+  "status": "design-only; not executed",
+  "vector_semantics": "Each vector starts from the named base fixture and applies RFC 6902 JSON Patch operations in order. Aggregate/publication vectors require Core Domain cross-record and typed Asset-link validation beyond JSON Schema.",
+  "base_fixtures": {
+    "building": {
+      "schema_version": 1,
+      "canonical_name": "Example Hall",
+      "building_class": "institutional",
+      "horizontal_frame": {
+        "frame_id": "hframe-1",
+        "coordinate_kind": "local_cartesian",
+        "unit": "m",
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "orientation_degrees": 0,
+        "precision_profile_id": "hp-1"
+      },
+      "vertical_frame": {
+        "vertical_frame_id": "vframe-1",
+        "unit": "m",
+        "positive_axis": "up",
+        "precision_profile_id": "vp-1"
+      },
+      "levels": [
+        {
+          "level_id": "level-ground",
+          "level_label": "Ground Floor",
+          "level_kind": "ground",
+          "display_order": 0,
+          "elevation_local": 0,
+          "status": "active"
+        }
+      ],
+      "spaces": [
+        {
+          "space_id": "space-hall",
+          "space_kind": "room",
+          "label": "Great Hall",
+          "status": "active"
+        }
+      ],
+      "plans": [
+        {
+          "plan_id": "plan-main",
+          "completeness": "complete",
+          "level_slices": [
+            {
+              "slice_id": "slice-hall-ground",
+              "space_id": "space-hall",
+              "level_id": "level-ground",
+              "region_geometry_component_ids": [
+                "component-space-hall"
+              ],
+              "boundary_geometry_component_ids": [
+                "component-boundary-hall"
+              ]
+            }
+          ]
+        }
+      ],
+      "boundaries": [
+        {
+          "boundary_id": "boundary-hall",
+          "boundary_kind": "partition",
+          "participating_space_ids": [
+            "space-hall"
+          ],
+          "geometry_component_id": "component-boundary-hall"
+        }
+      ],
+      "access": {
+        "entrances": [],
+        "openings": [],
+        "connections": [],
+        "vertical_connectors": [],
+        "exterior_anchors": []
+      },
+      "geometry_components": [
+        {
+          "geometry_family": "polygon",
+          "dimension": 2,
+          "coordinate_context_id": "hframe-1",
+          "child_context": {},
+          "asset_id": "asset-footprint",
+          "geometry_component_id": "component-footprint",
+          "geometry_role": "footprint",
+          "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "spatial_reference_id": "spatial-ref-map-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        },
+        {
+          "geometry_family": "polygon",
+          "dimension": 2,
+          "coordinate_context_id": "hframe-1",
+          "child_context": {
+            "space_id": "space-hall",
+            "level_id": "level-ground",
+            "slice_id": "slice-hall-ground"
+          },
+          "asset_id": "asset-space",
+          "geometry_component_id": "component-space-hall",
+          "geometry_role": "space_region",
+          "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "spatial_reference_id": "spatial-ref-map-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        },
+        {
+          "geometry_family": "line_string",
+          "dimension": 2,
+          "coordinate_context_id": "hframe-1",
+          "child_context": {
+            "boundary_id": "boundary-hall"
+          },
+          "asset_id": "asset-boundary",
+          "geometry_component_id": "component-boundary-hall",
+          "geometry_role": "boundary",
+          "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "spatial_reference_id": "spatial-ref-map-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        }
+      ]
+    },
+    "cave": {
+      "schema_version": 1,
+      "canonical_name": "Limestone Cave System",
+      "cave_class": "limestone",
+      "survey_completeness": "partial",
+      "survey_frames": [
+        {
+          "survey_frame_id": "survey-frame-1",
+          "horizontal_context_kind": "cave_local_cartesian",
+          "horizontal_context_id": "cave-local-1",
+          "unit": "m",
+          "local_vertical_origin": 0,
+          "positive_axis": "up",
+          "precision_profile_id": "cave-precision-1",
+          "survey_method": "manual_survey",
+          "frame_version": 1,
+          "horizontal_origin": {
+            "x": 0,
+            "y": 0
+          },
+          "orientation_degrees": 0
+        }
+      ],
+      "chambers": [
+        {
+          "chamber_id": "chamber-a",
+          "chamber_kind": "chamber",
+          "label": "Main Chamber",
+          "status": "active",
+          "survey_confidence": "measured"
+        }
+      ],
+      "passages": [
+        {
+          "passage_id": "passage-a",
+          "passage_kind": "horizontal",
+          "label": "North Passage",
+          "status": "active",
+          "width_observation": 1.4,
+          "height_observation": 1.8,
+          "measurement_unit": "m",
+          "survey_confidence": "estimated"
+        }
+      ],
+      "entrances": [
+        {
+          "entrance_id": "cave-entrance-a",
+          "entrance_kind": "natural_opening",
+          "label": "North Entrance",
+          "status": "active",
+          "internal_endpoint_kind": "chamber",
+          "internal_endpoint_id": "chamber-a"
+        }
+      ],
+      "survey_stations": [
+        {
+          "station_id": "station-a",
+          "survey_frame_id": "survey-frame-1",
+          "label": "A0",
+          "vertical_value": -2,
+          "horizontal_uncertainty": 0.05,
+          "vertical_uncertainty": 0.1,
+          "geometry_component_id": "cave-station-a"
+        }
+      ],
+      "connections": [
+        {
+          "cave_connection_id": "cave-conn-a",
+          "from_endpoint": {
+            "kind": "chamber",
+            "id": "chamber-a"
+          },
+          "to_endpoint": {
+            "kind": "passage",
+            "id": "passage-a"
+          },
+          "connection_kind": "passage_continuity",
+          "confidence": "measured"
+        }
+      ],
+      "geometry_components": [
+        {
+          "geometry_family": "polygon",
+          "dimension": 2,
+          "coordinate_context_id": "survey-frame-1",
+          "child_context": {
+            "chamber_id": "chamber-a"
+          },
+          "asset_id": "asset-chamber",
+          "geometry_component_id": "cave-chamber-plan-a",
+          "geometry_role": "chamber_plan",
+          "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "spatial_reference_id": "spatial-ref-cave-local-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        },
+        {
+          "geometry_family": "line_string",
+          "dimension": 2,
+          "coordinate_context_id": "survey-frame-1",
+          "child_context": {
+            "passage_id": "passage-a"
+          },
+          "asset_id": "asset-passage",
+          "geometry_component_id": "cave-passage-plan-a",
+          "geometry_role": "passage_plan",
+          "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "spatial_reference_id": "spatial-ref-cave-local-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        },
+        {
+          "geometry_family": "point",
+          "dimension": 2,
+          "coordinate_context_id": "survey-frame-1",
+          "child_context": {
+            "station_id": "station-a"
+          },
+          "asset_id": "asset-station",
+          "geometry_component_id": "cave-station-a",
+          "geometry_role": "survey_station",
+          "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "spatial_reference_id": "spatial-ref-cave-local-1",
+          "geometry_schema_version": "worldview.geometry-json/1",
+          "provenance": {
+            "source_kind": "authored"
+          },
+          "validity_metadata": {
+            "status": "valid",
+            "validation_profile_id": "world-view.geometry.v1",
+            "issue_codes": []
+          }
+        }
+      ]
+    }
+  },
+  "vectors": [
+    {
+      "id": "BLD-001",
+      "input_source": "building",
+      "patches": [],
+      "validation_layer": "schema+aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Minimal typed Building aggregate with one Level, one Space, one plan slice and Object-owned geometry components."
+    },
+    {
+      "id": "BLD-002",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/unexpected",
+          "value": true
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_SCHEMA_UNKNOWN_FIELD",
+      "reason": "Unknown fields are rejected."
+    },
+    {
+      "id": "BLD-003",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/spaces/-",
+          "value": {
+            "space_id": "space-hall",
+            "space_kind": "corridor",
+            "status": "active"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_DUPLICATE_SPACE_ID",
+      "reason": "Child IDs must be unique within the owning Building."
+    },
+    {
+      "id": "BLD-004",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/plans/0/level_slices/0/level_id",
+          "value": "missing-level"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_LEVEL_REF_UNRESOLVED",
+      "reason": "A Level Slice must reference a Level in the same Building."
+    },
+    {
+      "id": "BLD-005",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/child_context/level_id",
+          "value": "missing-level"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_COMPONENT_CONTEXT_UNRESOLVED",
+      "reason": "Geometry child context must resolve to the same Building aggregate."
+    },
+    {
+      "id": "BLD-006",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/boundaries/0/participating_space_ids/-",
+          "value": "space-other"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_BOUNDARY_PARTICIPANT_UNRESOLVED",
+      "reason": "A boundary may reference no more than two valid participating Spaces."
+    },
+    {
+      "id": "BLD-007",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/0/content_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_SCHEMA_HASH",
+      "reason": "Asset hash must be lowercase SHA-256 hex."
+    },
+    {
+      "id": "BLD-008",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/access/openings/-",
+          "value": {
+            "opening_id": "opening-a",
+            "opening_kind": "door",
+            "boundary_id": "boundary-hall",
+            "anchor": {
+              "parameter_start": 0.8,
+              "parameter_end": 0.2,
+              "source_content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "geometry_component_id": "component-boundary-hall"
+            }
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_OPENING_ANCHOR_INTERVAL",
+      "reason": "Opening anchor interval must be ordered and within its source boundary revision."
+    },
+    {
+      "id": "BLD-009",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/access/connections/-",
+          "value": {
+            "access_connection_id": "connection-a",
+            "connection_kind": "doorway",
+            "endpoints": [
+              {
+                "kind": "space",
+                "space_id": "missing-space"
+              },
+              {
+                "kind": "entrance",
+                "entrance_id": "missing-entrance"
+              }
+            ],
+            "direction": "bidirectional"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_ACCESS_ENDPOINT_UNRESOLVED",
+      "reason": "Access endpoints must resolve to compatible child identities."
+    },
+    {
+      "id": "BLD-010",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/geometry_components/-",
+          "value": {
+            "geometry_family": "line_string",
+            "dimension": 2,
+            "coordinate_context_id": "hframe-1",
+            "child_context": {
+              "boundary_id": "boundary-hall"
+            },
+            "asset_id": "asset-duplicate",
+            "geometry_component_id": "component-boundary-hall",
+            "geometry_role": "boundary",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "spatial_reference_id": "spatial-ref-map-1",
+            "geometry_schema_version": "worldview.geometry-json/1",
+            "provenance": {
+              "source_kind": "authored"
+            },
+            "validity_metadata": {
+              "status": "valid",
+              "validation_profile_id": "world-view.geometry.v1",
+              "issue_codes": []
+            }
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_DUPLICATE_COMPONENT_ID",
+      "reason": "Component IDs must be unique within the Building."
+    },
+    {
+      "id": "BLD-011",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/horizontal_frame"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_FRAME_REQUIRED",
+      "reason": "Building-local plan coordinates require an explicit horizontal frame."
+    },
+    {
+      "id": "BLD-012",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/dimension",
+          "value": 3
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_2D_ONLY",
+      "reason": "V1 formal interior geometry is 2D."
+    },
+    {
+      "id": "BLD-013",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/access/openings/-",
+          "value": {
+            "opening_id": "opening-a",
+            "opening_kind": "door",
+            "boundary_id": "boundary-hall",
+            "anchor": {
+              "parameter_start": 0.2,
+              "parameter_end": 0.8,
+              "source_content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "geometry_component_id": "component-boundary-hall"
+            }
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "A valid boundary-relative Opening anchor is structurally admissible; it does not by itself create an Access Connection."
+    },
+    {
+      "id": "BLD-014",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/access/exterior_anchors/-",
+          "value": {
+            "anchor_id": "exterior-a",
+            "anchor_kind": "map_anchor",
+            "coordinate_context_id": "hframe-1"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/access/connections/-",
+          "value": {
+            "access_connection_id": "connection-a",
+            "connection_kind": "doorway",
+            "endpoints": [
+              {
+                "kind": "space",
+                "space_id": "space-hall",
+                "level_id": "level-ground"
+              },
+              {
+                "kind": "exterior_anchor",
+                "anchor_id": "exterior-a"
+              }
+            ],
+            "direction": "unknown"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "An explicit typed connection may target a declared exterior anchor; geometric proximity alone is not a connection."
+    },
+    {
+      "id": "BLD-015",
+      "input_source": "building",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "invalid",
+      "error_code": "CD_BLD_ASSET_LINK_MISMATCH",
+      "reason": "External typed Asset link inventory does not match the component asset_id/hash recorded in the owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-other",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-other",
+          "content_hash": "9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ]
+    },
+    {
+      "id": "BLD-016",
+      "input_source": "building",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "invalid",
+      "error_code": "CD_BLD_STALE_DEFINITION_CAS",
+      "reason": "Expected definition hash is stale; reject the aggregate update without overwriting the newer definition.",
+      "expected_definition_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "current_definition_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "id": "BLD-017",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/levels/0/display_order",
+          "value": 99
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Display order may change independently of physical elevation; it must not be used as altitude."
+    },
+    {
+      "id": "BLD-018",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/levels/0/elevation_local",
+          "value": -3.5
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Negative local elevation is valid and does not imply absolute world depth."
+    },
+    {
+      "id": "BLD-019",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/access/connections",
+          "value": [
+            {
+              "access_connection_id": "connection-a",
+              "connection_kind": "doorway",
+              "endpoints": [
+                {
+                  "kind": "space",
+                  "space_id": "space-hall"
+                },
+                {
+                  "kind": "space",
+                  "space_id": "space-hall"
+                }
+              ],
+              "direction": "bidirectional"
+            }
+          ]
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_BLD_CONNECTION_SELF_LINK",
+      "reason": "A connection cannot link an endpoint to itself."
+    },
+    {
+      "id": "BLD-020",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/spaces/-",
+          "value": {
+            "space_id": "space-other",
+            "space_kind": "room",
+            "label": "Adjacent Room",
+            "status": "active"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/plans/0/level_slices/-",
+          "value": {
+            "slice_id": "slice-other-ground",
+            "space_id": "space-other",
+            "level_id": "level-ground",
+            "boundary_component_ids": [
+              "component-boundary-other"
+            ],
+            "region_component_ids": [
+              "component-space-other"
+            ]
+          }
+        },
+        {
+          "op": "add",
+          "path": "/boundaries/-",
+          "value": {
+            "boundary_id": "boundary-other",
+            "boundary_kind": "partition",
+            "component_id": "component-boundary-other",
+            "participating_space_ids": [
+              "space-hall",
+              "space-other"
+            ]
+          }
+        },
+        {
+          "op": "add",
+          "path": "/geometry_components/-",
+          "value": {
+            "geometry_component_id": "component-space-other",
+            "geometry_role": "space_region",
+            "geometry_family": "polygon",
+            "dimension": 2,
+            "coordinate_context_id": "hframe-1",
+            "child_context": {
+              "space_id": "space-other",
+              "level_id": "level-ground",
+              "slice_id": "slice-other-ground"
+            },
+            "asset_id": "asset-space-other",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "spatial_reference_id": "spatial-ref-map-1",
+            "geometry_schema_version": "worldview.geometry-json/1",
+            "provenance": {
+              "source_kind": "authored"
+            },
+            "validity_metadata": {
+              "status": "valid",
+              "validation_profile_id": "world-view.geometry.v1",
+              "issue_codes": []
+            }
+          }
+        },
+        {
+          "op": "add",
+          "path": "/geometry_components/-",
+          "value": {
+            "geometry_component_id": "component-boundary-other",
+            "geometry_role": "boundary",
+            "geometry_family": "line_string",
+            "dimension": 2,
+            "coordinate_context_id": "hframe-1",
+            "child_context": {
+              "boundary_id": "boundary-other"
+            },
+            "asset_id": "asset-boundary-other",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "spatial_reference_id": "spatial-ref-map-1",
+            "geometry_schema_version": "worldview.geometry-json/1",
+            "provenance": {
+              "source_kind": "authored"
+            },
+            "validity_metadata": {
+              "status": "valid",
+              "validation_profile_id": "world-view.geometry.v1",
+              "issue_codes": []
+            }
+          }
+        }
+      ],
+      "validation_layer": "spatial_semantics",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Touching or overlapping Space geometry without an explicit connection record must not be converted into traversability.",
+      "spatial_evidence": {
+        "space_a": "space-hall",
+        "space_b": "space-other",
+        "component_a": "component-space-hall",
+        "component_b": "component-space-other",
+        "predicate": "touches"
+      },
+      "expected_connectivity": false
+    },
+    {
+      "id": "CAV-001",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "schema+aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Minimal partial Cave System with explicit Survey Frame, child identities, survey station and typed internal connection."
+    },
+    {
+      "id": "CAV-002",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/survey_frames",
+          "value": []
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_SURVEY_FRAME_REQUIRED",
+      "reason": "A Cave System requires at least one declared Survey Frame."
+    },
+    {
+      "id": "CAV-003",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/survey_stations/-",
+          "value": {
+            "station_id": "station-a",
+            "survey_frame_id": "survey-frame-1",
+            "geometry_component_id": "cave-station-a"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_DUPLICATE_STATION_ID",
+      "reason": "Survey Station IDs must be unique within the Cave System."
+    },
+    {
+      "id": "CAV-004",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/survey_stations/0/survey_frame_id",
+          "value": "missing-frame"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_FRAME_REF_UNRESOLVED",
+      "reason": "Every station must reference a Survey Frame in the same Cave."
+    },
+    {
+      "id": "CAV-005",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/child_context/passage_id",
+          "value": "missing-passage"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_COMPONENT_CONTEXT_UNRESOLVED",
+      "reason": "Geometry component child context must resolve to a Cave child record."
+    },
+    {
+      "id": "CAV-006",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/connections/0/to_endpoint/id",
+          "value": "missing-passage"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_CONNECTION_ENDPOINT_UNRESOLVED",
+      "reason": "Cave connections require explicit compatible endpoint references."
+    },
+    {
+      "id": "CAV-007",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/passages/-",
+          "value": {
+            "passage_id": "passage-b",
+            "passage_kind": "horizontal",
+            "label": "Crossing Passage",
+            "status": "active",
+            "survey_confidence": "measured"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/geometry_components/-",
+          "value": {
+            "geometry_component_id": "cave-passage-plan-b",
+            "geometry_role": "passage_plan",
+            "geometry_family": "line_string",
+            "dimension": 2,
+            "coordinate_context_id": "survey-frame-1",
+            "child_context": {
+              "passage_id": "passage-b"
+            },
+            "asset_id": "asset-passage-b",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "spatial_reference_id": "spatial-ref-cave-local-1",
+            "geometry_schema_version": "worldview.geometry-json/1",
+            "provenance": {
+              "source_kind": "authored"
+            },
+            "validity_metadata": {
+              "status": "valid",
+              "validation_profile_id": "world-view.geometry.v1",
+              "issue_codes": []
+            }
+          }
+        }
+      ],
+      "validation_layer": "spatial_semantics",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Survey line crossings without a connection record remain disconnected; geometry does not create cave connectivity.",
+      "spatial_evidence": {
+        "passage_a": "passage-a",
+        "passage_b": "passage-b",
+        "component_a": "cave-passage-plan-a",
+        "component_b": "cave-passage-plan-b",
+        "predicate": "crosses"
+      },
+      "expected_connectivity": false
+    },
+    {
+      "id": "CAV-008",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "A partial survey may end at an unexplored passage; missing continuation remains Unknown, not invalid."
+    },
+    {
+      "id": "CAV-009",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "measurement_semantics",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_ABSOLUTE_ALTITUDE_WITHOUT_DATUM",
+      "reason": "Relative station elevation is allowed in a local frame; absolute world altitude requires a compatible vertical reference.",
+      "measurement_semantics": "absolute_world_altitude",
+      "survey_frame_id": "survey-frame-1",
+      "station_id": "station-a"
+    },
+    {
+      "id": "CAV-010",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/survey_stations/0/vertical_uncertainty",
+          "value": -0.1
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_UNCERTAINTY_NEGATIVE",
+      "reason": "Survey uncertainty cannot be negative."
+    },
+    {
+      "id": "CAV-011",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/0/dimension",
+          "value": 3
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_2D_ONLY",
+      "reason": "V1 formal cave plan geometry is 2D; full 3D survey geometry is deferred."
+    },
+    {
+      "id": "CAV-012",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/survey_completeness",
+          "value": "complete"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_COMPLETENESS_ENUM",
+      "reason": "Only the declared completeness vocabulary is accepted."
+    },
+    {
+      "id": "CAV-013",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_ASSET_LINK_MISMATCH",
+      "reason": "External typed Asset link inventory must agree with component metadata.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-other",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-other",
+          "content_hash": "9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ]
+    },
+    {
+      "id": "CAV-014",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/geometry_components/-",
+          "value": {
+            "geometry_family": "line_string",
+            "dimension": 2,
+            "coordinate_context_id": "survey-frame-1",
+            "child_context": {
+              "passage_id": "passage-a"
+            },
+            "asset_id": "asset-extra",
+            "geometry_component_id": "cave-chamber-plan-a",
+            "geometry_role": "passage_plan",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "spatial_reference_id": "spatial-ref-cave-local-1",
+            "geometry_schema_version": "worldview.geometry-json/1",
+            "provenance": {
+              "source_kind": "authored"
+            },
+            "validity_metadata": {
+              "status": "valid",
+              "validation_profile_id": "world-view.geometry.v1",
+              "issue_codes": []
+            }
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_DUPLICATE_COMPONENT_ID",
+      "reason": "Geometry component identity is unique within the Cave Object."
+    },
+    {
+      "id": "CAV-015",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "measurement_semantics",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "A survey frame without vertical_reference_id may carry relative vertical measurements with explicit uncertainty; world altitude remains Unknown.",
+      "station_id": "station-a"
+    },
+    {
+      "id": "CAV-016",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/entrances/-",
+          "value": {
+            "entrance_id": "cave-entrance-b",
+            "entrance_kind": "sinkhole",
+            "status": "active",
+            "internal_endpoint_kind": "passage",
+            "internal_endpoint_id": "passage-a"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Multiple entrances may connect to one Cave System while preserving separate entrance identities."
+    },
+    {
+      "id": "CAV-017",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "add",
+          "path": "/connections/-",
+          "value": {
+            "cave_connection_id": "cave-conn-b",
+            "from_endpoint": {
+              "kind": "station",
+              "id": "station-a"
+            },
+            "to_endpoint": {
+              "kind": "passage",
+              "id": "passage-a"
+            },
+            "connection_kind": "survey_link",
+            "confidence": "confirmed"
+          }
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "An explicit typed cave connection is valid when both endpoints resolve; it is not inferred from geometry."
+    },
+    {
+      "id": "CAV-018",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_CROSS_OWNER_ENDPOINT",
+      "reason": "A Cave connection cannot reference a child identity owned by another Cave System.",
+      "owner_cave_id": "cave-a",
+      "endpoint_owner_cave_id": "cave-b"
+    },
+    {
+      "id": "BLD-022",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/child_context",
+          "value": {
+            "space_id": "space-hall",
+            "level_id": "level-ground"
+          }
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_SPACE_REGION_CONTEXT_INCOMPLETE",
+      "reason": "A space_region component must identify its Space, Level and exact Level Slice."
+    },
+    {
+      "id": "BLD-023",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/2/child_context",
+          "value": {
+            "space_id": "space-hall"
+          }
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_BOUNDARY_CONTEXT_REQUIRED",
+      "reason": "A boundary component must carry boundary_id context, not a Space context."
+    },
+    {
+      "id": "BLD-024",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/geometry_family",
+          "value": "line_string"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_ROLE_FAMILY_MISMATCH",
+      "reason": "Space region role only permits polygonal 2D geometry."
+    },
+    {
+      "id": "CAV-019",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/child_context",
+          "value": {
+            "chamber_id": "chamber-a"
+          }
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_PASSAGE_CONTEXT_REQUIRED",
+      "reason": "A passage_plan component must identify a Cave-owned Passage."
+    },
+    {
+      "id": "CAV-020",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/2/child_context",
+          "value": {
+            "passage_id": "passage-a"
+          }
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_STATION_CONTEXT_REQUIRED",
+      "reason": "A survey_station component must identify a Survey Station."
+    },
+    {
+      "id": "CAV-021",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/survey_stations/0/geometry_component_id",
+          "value": "cave-passage-plan-a"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_STATION_COMPONENT_ROLE_MISMATCH",
+      "reason": "A Survey Station must reference a point component with matching station_id context."
+    },
+    {
+      "id": "CAV-022",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/coordinate_context_id",
+          "value": "missing-frame"
+        }
+      ],
+      "validation_layer": "aggregate",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_COORDINATE_CONTEXT_UNRESOLVED",
+      "reason": "Every Cave geometry component must reference a declared Survey Frame."
+    },
+    {
+      "id": "BLD-025",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/spatial_reference_id"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_SPATIAL_REFERENCE_REQUIRED",
+      "reason": "Geometry owner payload must pin the exact immutable spatial-reference identity."
+    },
+    {
+      "id": "BLD-026",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/geometry_schema_version"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_GEOMETRY_SCHEMA_VERSION_REQUIRED",
+      "reason": "Geometry owner payload must pin the geometry schema version independently of Object Type schema."
+    },
+    {
+      "id": "BLD-027",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/provenance"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_BLD_GEOMETRY_PROVENANCE_REQUIRED",
+      "reason": "Formal geometry component metadata must retain provenance."
+    },
+    {
+      "id": "CAV-023",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/validity_metadata"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_GEOMETRY_VALIDITY_REQUIRED",
+      "reason": "Formal geometry component metadata must retain typed validity metadata."
+    },
+    {
+      "id": "CAV-024",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/content_hash"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_GEOMETRY_CONTENT_HASH_REQUIRED",
+      "reason": "Formal geometry component metadata must carry the exact immutable Asset content hash."
+    },
+    {
+      "id": "CAV-025",
+      "input_source": "cave",
+      "patches": [
+        {
+          "op": "remove",
+          "path": "/geometry_components/0/geometry_component_id"
+        }
+      ],
+      "validation_layer": "schema",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_GEOMETRY_COMPONENT_ID_REQUIRED",
+      "reason": "Geometry component identity uses the canonical P2-09-19 field name."
+    },
+    {
+      "id": "BLD-028",
+      "input_source": "building",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "invalid",
+      "error_code": "CD_BLD_ASSET_HASH_MISMATCH",
+      "reason": "Typed links resolve the expected Asset IDs, but core_asset content_hash does not match the immutable hash pinned by the Building component owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-footprint",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-space",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-footprint",
+          "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "asset_id": "asset-space",
+          "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    {
+      "id": "CAV-026",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "invalid",
+      "error_code": "CD_CAVE_ASSET_HASH_MISMATCH",
+      "reason": "Typed links resolve the expected Asset IDs, but core_asset content_hash does not match the immutable hash pinned by the Cave component owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-chamber",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-passage",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-station",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-chamber",
+          "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "asset_id": "asset-passage",
+          "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "asset_id": "asset-station",
+          "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
+    },
+    {
+      "id": "BLD-029",
+      "input_source": "building",
+      "patches": [
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/asset_id",
+          "value": "asset-footprint"
+        },
+        {
+          "op": "replace",
+          "path": "/geometry_components/1/content_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "validation_layer": "publication",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "Two Building Geometry Components may reference the same immutable Asset; one owner/asset/role link row is sufficient while component identity remains in the owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-footprint",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-footprint",
+          "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "asset_id": "asset-boundary",
+          "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    {
+      "id": "CAV-027",
+      "input_source": "cave",
+      "patches": [],
+      "validation_layer": "publication",
+      "expected": "valid",
+      "error_code": null,
+      "reason": "All Cave component Asset IDs resolve through one owner-scoped typed link per unique Asset and each core_asset content hash matches the owner payload.",
+      "external_asset_links": [
+        {
+          "asset_id": "asset-chamber",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-passage",
+          "role": "geometry_component"
+        },
+        {
+          "asset_id": "asset-station",
+          "role": "geometry_component"
+        }
+      ],
+      "asset_catalog": [
+        {
+          "asset_id": "asset-chamber",
+          "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "asset_id": "asset-passage",
+          "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        {
+          "asset_id": "asset-station",
+          "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
+    }
+  ],
+  "vector_contract": {
+    "base_fixtures": "Each vector starts from a deep copy of base_fixtures[input_source]. Base fixtures are immutable inputs.",
+    "patches": "Apply patches in listed order using RFC 6902 JSON Patch semantics. Empty patches are valid when explicit external context fields define the test operation.",
+    "validation_layers": {
+      "schema": "Validate the patched owner payload against the pinned JSON Schema Draft 2020-12 schema only.",
+      "aggregate": "Run deterministic same-owner child identity, reference, endpoint, geometry-role and domain invariant validation.",
+      "schema+aggregate": "Both schema and aggregate validation must pass.",
+      "publication": "Run owner-definition publication preflight using external_asset_links, asset_catalog and/or compare-and-swap context; verify rollback/no-overwrite semantics.",
+      "spatial_semantics": "Evaluate supplied spatial_evidence against explicit connectivity records; geometric contact/crossing must not synthesize a connection.",
+      "measurement_semantics": "Evaluate measurement_semantics against the referenced Survey Frame and datum; local relative values must not be promoted to absolute world altitude without a compatible vertical reference."
+    },
+    "external_asset_links": "Models typed owner Asset-link rows. Each row contains only asset_id and role; owner keys are implicit from input_source. The table has no geometry_component_id or content_hash column.",
+    "asset_catalog": "Models core_asset rows as asset_id/content_hash pairs. The owner payload maps geometry_component_id to asset_id/content_hash; publication validation joins the typed link to core_asset and verifies this mapping.",
+    "role_convention": "For this Building/Cave adoption profile, definition Asset-link rows for formal geometry use role=geometry_component. Component identity remains in the owner payload.",
+    "expected_result": "expected=valid means the tested operation/query/interpretation succeeds; expected=invalid means it fails with the exact stable error_code. Spatial/measurement semantics vectors are not aggregate-payload invalidity tests.",
+    "determinism": "A vector runner reports vector ID, schema/descriptor versions, validator build, actual error code, platform and pass/fail. JSON parsing or patch application alone is never a test pass."
+  }
+}

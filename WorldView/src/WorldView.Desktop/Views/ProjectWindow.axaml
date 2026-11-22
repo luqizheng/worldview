@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:WorldView.Desktop.ViewModels"
+        xmlns:app="using:WorldView.Application.Abstractions"
+        xmlns:session="using:WorldView.Application.Sessions"
+        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="520"
+        x:Class="WorldView.Desktop.Views.ProjectWindow"
+        x:DataType="vm:ProjectWorkspaceViewModel"
+        Title="World View — 项目工作区" Width="760" Height="520" MinWidth="640" MinHeight="460">
+
+    <!--
+      项目工作区（AF-01 §6/§7.1）：项目身份 + Core Domain 地图摘要列表 + 地图工作区会话。
+      本窗口为文本基线：地图渲染属 PRA-01/PRA-02 之后的阶段。
+    -->
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="文件(_F)">
+                <MenuItem Header="关闭项目(_C)" Command="{Binding CloseProjectCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <Border DockPanel.Dock="Bottom" Padding="12,6"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseBrush}" BorderThickness="0,1,0,0">
+            <StackPanel>
+                <TextBlock Text="{Binding WorkspaceStatusText}" TextWrapping="Wrap" />
+                <TextBlock Opacity="0.6" FontSize="11"
+                           Text="{Binding SessionId, StringFormat='进程内会话 ID（临时，非 Project ID）：{0}'}" />
+            </StackPanel>
+        </Border>
+
+        <Grid Margin="16,12" ColumnDefinitions="*,*" ColumnSpacing="16">
+            <!-- 项目身份与地图列表 -->
+            <StackPanel Grid.Column="0" Spacing="10">
+                <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding ProjectDisplayName}" />
+                <TextBlock Opacity="0.7" Text="{Binding ProjectId, StringFormat='项目 ID：{0}'}" />
+
+                <Separator />
+
+                <TextBlock FontWeight="SemiBold" Text="地图（Core Domain 读投影）" />
+                <ListBox Height="180" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="app:MapSummary">
+                            <TextBlock Text="{Binding DisplayName}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Opacity="0.8" Text="{Binding MapsStatusText}" TextWrapping="Wrap" />
+                <Button Content="打开地图工作区" Command="{Binding OpenWorkspaceCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- 工作区会话 -->
+            <StackPanel Grid.Column="1" Spacing="10">
+                <TextBlock FontWeight="SemiBold" Text="地图工作区会话" />
+                <ListBox Height="180" ItemsSource="{Binding Workspaces}" SelectedItem="{Binding SelectedWorkspace}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="session:MapWorkspaceSession">
+                            <StackPanel>
+                                <TextBlock Text="{Binding WorkspaceId}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Opacity="0.7" FontSize="11"
+                                           Text="{Binding Context.MapId, StringFormat='Map {0}'}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="关闭所选工作区" Command="{Binding CloseWorkspaceCommand}" />
+                </StackPanel>
+                <Separator />
+                <Button Content="关闭项目会话" Command="{Binding CloseProjectCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</Window>

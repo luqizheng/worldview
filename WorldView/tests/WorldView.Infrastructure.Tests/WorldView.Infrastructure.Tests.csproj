@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.1.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WorldView.Infrastructure\WorldView.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- CD-02-E S10：P2-09-40 V0.6 聚合校验向量（55 条）作为嵌入资源执行。 -->
+  <ItemGroup>
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\p2-09-40-building-cave-aggregate-validation-vectors-v0.6.json"
+      Link="Conformance\p2-09-40-building-cave-aggregate-validation-vectors-v0.6.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
