@@ -387,8 +387,8 @@ public sealed partial class SqliteCoreDomainDatabase
                 var mapId = plan.Registration?.MapId;
                 if (plan.Registration is not null)
                 {
-                    RegisterInTransaction(
-                        sqliteTransaction,
+                    RegisterInDbContext(
+                        db,
                         plan.ProjectId,
                         plan.Registration,
                         identity);
@@ -521,52 +521,57 @@ public sealed partial class SqliteCoreDomainDatabase
     // ---- Map 注册（P2 存在层） ----
 
     public MapObjectRefRecord? FindMapObjectRef(Guid projectId, Guid mapId, Guid objectIdentityId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadMapObjectRefRow(transaction, projectId, mapId, objectIdentityId);
+            var entity = db.MapObjectRefs.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId
+                && x.map_id == mapId
+                && x.object_identity_id == objectIdentityId);
+            return entity is null ? null : MapMapObjectRef(entity);
         });
 
-    public IReadOnlyList<MapObjectRefRecord> ListMapObjectRefs(Guid projectId, Guid mapId)
-    {
-        const string sql = """
-            SELECT map_object_ref_id, project_id, map_id, object_identity_id, created_at_utc_ms
-            FROM core_map_object_ref
-            WHERE project_id = $projectId AND map_id = $mapId
-            ORDER BY object_identity_id;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$mapId", Uuid(mapId));
-            using var reader = command.ExecuteReader();
-            var rows = new List<MapObjectRefRecord>();
-            while (reader.Read())
-            {
-                rows.Add(MapMapObjectRef(reader));
-            }
-
-            return (IReadOnlyList<MapObjectRefRecord>)rows;
-        });
-    }
+    public IReadOnlyList<MapObjectRefRecord> ListMapObjectRefs(Guid projectId, Guid mapId) =>
+        _ef.Execute(db => (IReadOnlyList<MapObjectRefRecord>)db.MapObjectRefs.AsNoTracking()
+            .Where(x => x.project_id == projectId && x.map_id == mapId)
+            .OrderBy(x => x.object_identity_id)
+            .AsEnumerable()
+            .Select(MapMapObjectRef)
+            .ToArray());
 
     public void RegisterMapObject(MapObjectRegistrationPlan plan)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                var identity = ReadObjectRow(transaction, plan.ProjectId, plan.ObjectIdentityId);
-                RegisterInTransaction(
-                    transaction,
+                var identityEntity = db.Objects.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId);
+                if (identityEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object {plan.ObjectIdentityId} 不存在或不属于项目 {plan.ProjectId}。");
+                }
+
+                var typeKey = db.ObjectTypes
+                    .Where(x => x.project_id == plan.ProjectId && x.object_type_id == identityEntity.object_type_id)
+                    .Select(x => x.type_key)
+                    .SingleOrDefault()
+                    ?? throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 引用的 Object Type 不存在（数据损坏）。");
+                var identity = MapObject(identityEntity, typeKey);
+
+                RegisterInDbContext(
+                    db,
                     plan.ProjectId,
-                    new MapObjectRegistration { MapObjectRefId = plan.MapObjectRefId, MapId = plan.MapId },
+                    new MapObjectRegistration
+                    {
+                        MapObjectRefId = plan.MapObjectRefId,
+                        MapId = plan.MapId,
+                    },
                     identity);
+
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }
             catch
@@ -579,34 +584,33 @@ public sealed partial class SqliteCoreDomainDatabase
 
     public void UnregisterMapObject(Guid projectId, Guid mapId, Guid objectIdentityId)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                if (TryReadMapObjectRefRow(transaction, projectId, mapId, objectIdentityId) is null)
+                var registration = db.MapObjectRefs.SingleOrDefault(x =>
+                    x.project_id == projectId
+                    && x.map_id == mapId
+                    && x.object_identity_id == objectIdentityId);
+                if (registration is null)
                 {
-                    throw new CoreDomainConflictException($"Object {objectIdentityId} 未注册到 Map {mapId}，无法取消。");
+                    throw new CoreDomainConflictException(
+                        $"Object {objectIdentityId} 未注册到 Map {mapId}，无法取消。");
                 }
 
                 // P3⇒P2：仍有 Initial State 成员行时拒绝（须先经 Initial State 编辑移除成员）。
-                if (TryReadInitialObjectRow(transaction, projectId, mapId, objectIdentityId) is not null)
+                if (db.MapInitialObjects.Any(x =>
+                    x.project_id == projectId
+                    && x.map_id == mapId
+                    && x.object_identity_id == objectIdentityId))
                 {
                     throw new CoreDomainConflictException(
                         $"Object {objectIdentityId} 仍是 Map {mapId} Initial State 成员，须先移除成员再取消注册（P3⇒P2）。");
                 }
 
-                using var delete = connection.CreateCommand();
-                delete.Transaction = transaction;
-                delete.CommandText = """
-                    DELETE FROM core_map_object_ref
-                    WHERE project_id = $projectId AND map_id = $mapId AND object_identity_id = $identityId;
-                    """;
-                delete.Parameters.AddWithValue("$projectId", Uuid(projectId));
-                delete.Parameters.AddWithValue("$mapId", Uuid(mapId));
-                delete.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
-                delete.ExecuteNonQuery();
-
+                db.MapObjectRefs.Remove(registration);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }
             catch
@@ -792,38 +796,45 @@ public sealed partial class SqliteCoreDomainDatabase
 
     // ---- 事务内写路径辅助 ----
 
-    /// <summary>注册写入（InsertObject 与 RegisterMapObject 共用）；scope 规则事务内校验 + 触发器纵深防御。</summary>
-    private void RegisterInTransaction(SqliteTransaction transaction, Guid projectId, MapObjectRegistration registration, ObjectRecord identity)
+    /// <summary>
+    /// Register an Object in a Map inside the caller's EF transaction.
+    /// Map-local ownership and duplicate-registration rules are checked before SaveChanges.
+    /// </summary>
+    private static void RegisterInDbContext(
+        CoreDomainDbContext db,
+        Guid projectId,
+        MapObjectRegistration registration,
+        ObjectRecord identity)
     {
-        if (TryReadMapRow(transaction, projectId, registration.MapId) is null)
+        if (!db.Maps.Any(x => x.ProjectId == projectId && x.MapId == registration.MapId))
         {
-            throw new CoreDomainConflictException($"Map {registration.MapId} 不存在或不属于项目 {projectId}，拒绝注册。");
+            throw new CoreDomainConflictException(
+                $"Map {registration.MapId} 不存在或不属于项目 {projectId}，拒绝注册。");
         }
 
-        if (identity.SharingScope == ObjectSharingScope.MapLocal && identity.OwnerMapId != registration.MapId)
+        if (identity.SharingScope == ObjectSharingScope.MapLocal
+            && identity.OwnerMapId != registration.MapId)
         {
             throw new CoreDomainConflictException("map_local Object 只能注册到 owner Map（R-注册）。");
         }
 
-        if (TryReadMapObjectRefRow(transaction, projectId, registration.MapId, identity.ObjectIdentityId) is not null)
+        if (db.MapObjectRefs.Any(x =>
+            x.project_id == projectId
+            && x.map_id == registration.MapId
+            && x.object_identity_id == identity.ObjectIdentityId))
         {
             throw new CoreDomainConflictException(
                 $"Object {identity.ObjectIdentityId} 已注册到 Map {registration.MapId}，拒绝重复注册。");
         }
 
-        using var insert = transaction.Connection!.CreateCommand();
-        insert.Transaction = transaction;
-        insert.CommandText = """
-            INSERT INTO core_map_object_ref
-                (map_object_ref_id, project_id, map_id, object_identity_id, created_at_utc_ms)
-            VALUES ($refId, $projectId, $mapId, $identityId, $now);
-            """;
-        insert.Parameters.AddWithValue("$refId", Uuid(registration.MapObjectRefId));
-        insert.Parameters.AddWithValue("$projectId", Uuid(projectId));
-        insert.Parameters.AddWithValue("$mapId", Uuid(registration.MapId));
-        insert.Parameters.AddWithValue("$identityId", Uuid(identity.ObjectIdentityId));
-        insert.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        insert.ExecuteNonQuery();
+        db.MapObjectRefs.Add(new CoreMapObjectRefEntity
+        {
+            map_object_ref_id = registration.MapObjectRefId,
+            project_id = projectId,
+            map_id = registration.MapId,
+            object_identity_id = identity.ObjectIdentityId,
+            created_at_utc_ms = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
     }
 
     /// <summary>
@@ -1314,6 +1325,15 @@ public sealed partial class SqliteCoreDomainDatabase
             UpdatedAtUtcMs = reader.GetInt64(9),
         };
     }
+
+    private static MapObjectRefRecord MapMapObjectRef(CoreMapObjectRefEntity entity) => new()
+    {
+        MapObjectRefId = entity.map_object_ref_id,
+        ProjectId = entity.project_id,
+        MapId = entity.map_id,
+        ObjectIdentityId = entity.object_identity_id,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
+    };
 
     private static MapObjectRefRecord MapMapObjectRef(SqliteDataReader reader) => new()
     {
