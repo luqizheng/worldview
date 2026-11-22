@@ -78,34 +78,18 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
 
     
 
-    public IReadOnlyList<RawProjectIdentityRow> ReadProjectIdentityRows()
-    {
-        const string sql = """
-            SELECT project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms
-            FROM core_project
-            ORDER BY rowid;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            using var reader = command.ExecuteReader();
-            var rows = new List<RawProjectIdentityRow>();
-            while (reader.Read())
+    public IReadOnlyList<RawProjectIdentityRow> ReadProjectIdentityRows() =>
+        _ef.Execute(db => (IReadOnlyList<RawProjectIdentityRow>)db.Projects.AsNoTracking()
+            .OrderBy(x => x.ProjectId)
+            .Select(x => new RawProjectIdentityRow
             {
-                rows.Add(new RawProjectIdentityRow
-                {
-                    ProjectIdText = reader.GetString(0),
-                    ProjectName = reader.GetString(1),
-                    ProjectFormatVersion = reader.GetInt64(2),
-                    CreatedAtUtcMs = reader.GetInt64(3),
-                    UpdatedAtUtcMs = reader.GetInt64(4),
-                });
-            }
-
-            return (IReadOnlyList<RawProjectIdentityRow>)rows;
-        });
-    }
+                ProjectIdText = x.ProjectId.ToString("D"),
+                ProjectName = x.ProjectName,
+                ProjectFormatVersion = x.ProjectFormatVersion,
+                CreatedAtUtcMs = x.CreatedAtUtcMs,
+                UpdatedAtUtcMs = x.UpdatedAtUtcMs,
+            })
+            .ToArray());
 
     public void InsertProject(ProjectCreationPlan plan)
     {
@@ -369,27 +353,6 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
 
     
 
-    // ---- 事务与行映射辅助 ----
-
-    private static void Execute(
-        SqliteTransaction scope,
-        string sql,
-        Action<SqliteCommand> configure)
-    {
-        using var command = scope.Connection!.CreateCommand();
-        command.Transaction = scope;
-        command.CommandText = sql;
-        configure(command);
-        command.ExecuteNonQuery();
-    }
-
-    private static string Uuid(Guid value) => value.ToString("D");
-
-    private static Guid ParseUuid(string text) =>
-        Guid.TryParseExact(text, "D", out var value)
-            ? value
-            : throw new CoreDomainDataException($"UUID 文本 \"{text}\" 不可解析（预期 canonical 小写连字符格式）。");
-
     private static ProjectRecord MapProject(CoreProjectEntity entity) => new()
     {
         ProjectId = entity.ProjectId,
@@ -452,71 +415,4 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         };
     }
 
-    private static ProjectRecord MapProject(SqliteDataReader reader) => new()
-    {
-        ProjectId = ParseUuid(reader.GetString(0)),
-        ProjectName = reader.GetString(1),
-        ProjectFormatVersion = reader.GetInt64(2),
-        CreatedAtUtcMs = reader.GetInt64(3),
-        UpdatedAtUtcMs = reader.GetInt64(4),
-    };
-
-    private static MapRecord MapMap(SqliteDataReader reader) => new()
-    {
-        MapId = ParseUuid(reader.GetString(0)),
-        ProjectId = ParseUuid(reader.GetString(1)),
-        MapName = reader.GetString(2),
-        LifecycleStatus = reader.GetString(3),
-        CreatedAtUtcMs = reader.GetInt64(4),
-        UpdatedAtUtcMs = reader.GetInt64(5),
-    };
-
-    private static HistoryRecord MapHistory(SqliteDataReader reader)
-    {
-        var kindText = reader.GetString(2);
-        var kind = kindText switch
-        {
-            "map_root" => HistoryKind.MapRoot,
-            "branch_owned" => HistoryKind.BranchOwned,
-            _ => throw new CoreDomainDataException($"history_kind \"{kindText}\" 不可识别。"),
-        };
-        Guid? ownerMap = reader.IsDBNull(3) ? null : ParseUuid(reader.GetString(3));
-        if ((kind == HistoryKind.MapRoot && ownerMap is null)
-            || (kind == HistoryKind.BranchOwned && ownerMap is not null))
-        {
-            throw new CoreDomainDataException($"历史 {reader.GetString(0)} 的 kind/owner 组合违反不变量。");
-        }
-
-        return new HistoryRecord
-        {
-            HistoryId = ParseUuid(reader.GetString(0)),
-            ProjectId = ParseUuid(reader.GetString(1)),
-            Kind = kind,
-            OwnerMapId = ownerMap,
-            CreatedAtUtcMs = reader.GetInt64(4),
-        };
-    }
-
-    private static BranchRecord MapBranch(SqliteDataReader reader)
-    {
-        var day = reader.GetInt64(4);
-        var offset = reader.GetInt32(5);
-        if (!HistoricalTime.TryCreate(day, offset, out var parentAt) || parentAt is null)
-        {
-            throw new CoreDomainDataException($"分支 {reader.GetString(0)} 的 parent_at ({day}:{offset}) 越界。");
-        }
-
-        return new BranchRecord
-        {
-            BranchId = ParseUuid(reader.GetString(0)),
-            ProjectId = ParseUuid(reader.GetString(1)),
-            ParentHistoryId = ParseUuid(reader.GetString(2)),
-            OwnHistoryId = ParseUuid(reader.GetString(3)),
-            ParentAt = parentAt,
-            BranchName = reader.GetString(6),
-            LifecycleStatus = reader.GetString(7),
-            CreatedAtUtcMs = reader.GetInt64(8),
-            UpdatedAtUtcMs = reader.GetInt64(9),
-        };
-    }
 }
