@@ -145,6 +145,20 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         Assert.NotNull(link);
         Assert.Equal("geometry_component", link.Role);
 
+        // Persistence port 也必须在事务内重新检查 Definition CAS，不能只依赖 Domain 预读。
+        Assert.Throws<CoreDomainConflictException>(() => core.PublishObjectDefinitionWithGeometryAssets(
+            new ObjectDefinitionPublicationPlan
+            {
+                ProjectId = project.ProjectId,
+                ObjectIdentityId = buildingId,
+                ExpectedDefinitionHash = definition.DefinitionHash,
+                DefinitionPayloadJson = published.DefinitionPayloadJson,
+                DefinitionSchemaVersion = 1,
+                NowUtcMs = Now + 8,
+            }));
+        Assert.Equal(published.DefinitionHash, core.ReadObjectDefinition(project.ProjectId, buildingId)!.DefinitionHash);
+        Assert.Single(core.ListDefinitionAssetLinks(project.ProjectId, buildingId));
+
         // 不允许通过单独 unlink 或普通 Definition CAS 移除/改变正式 geometry 组件。
         Assert.Throws<CoreDomainConflictException>(
             () => AssetService.UnlinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "geometry_component"));
