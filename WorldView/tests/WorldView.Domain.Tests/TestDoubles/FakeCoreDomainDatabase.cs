@@ -604,6 +604,18 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId) =>
         FieldPayloads.FirstOrDefault(x => x.ProjectId == projectId && x.FieldRevisionId == fieldRevisionId);
 
+    public IReadOnlyList<FieldPayloadRecord> ListFieldPayloads(Guid projectId) =>
+        FieldPayloads.Where(x => x.ProjectId == projectId)
+            .OrderBy(x => x.FieldPayloadId).ToArray();
+
+    public void SetFieldPayloadIntegrityState(Guid projectId, Guid fieldPayloadId, FieldPayloadIntegrityState state)
+    {
+        var index = FieldPayloads.FindIndex(x => x.ProjectId == projectId && x.FieldPayloadId == fieldPayloadId);
+        if (index < 0)
+            throw new CoreDomainConflictException("Field Payload does not exist in the requested Project.");
+        FieldPayloads[index] = FieldPayloads[index] with { IntegrityState = state };
+    }
+
     public byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId)
     {
         var payload = FindFieldPayload(projectId, fieldRevisionId);
