@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Projects;
@@ -176,6 +177,27 @@ public interface ICoreDomainDatabase
 
     /// <summary>列出未被任何 typed link 引用的 Asset ID（孤儿对账；只读，不自动删除）。</summary>
     IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId);
+
+    // ---- Map Source Field Baseline（ME-05-01；Map-wide and retroactive） ----
+
+    /// <summary>读取 Map + field_key 的唯一正式 Field Dataset；不存在返回 null。</summary>
+    FieldDatasetRecord? FindFieldDataset(Guid projectId, Guid mapId, string fieldKey);
+
+    /// <summary>读取 Field Dataset 当前修订；Dataset 不存在或尚无修订时返回 null。</summary>
+    FieldRevisionRecord? FindCurrentFieldRevision(Guid projectId, Guid mapId, string fieldKey);
+
+    /// <summary>按稳定 ID 读取不可变 Field Revision；不存在或跨 Project 返回 null。</summary>
+    FieldRevisionRecord? FindFieldRevision(Guid projectId, Guid fieldRevisionId);
+
+    /// <summary>按 Dataset 读取全部不可变修订，按 revision_number 升序。</summary>
+    IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId);
+
+    /// <summary>
+    /// 原子发布：创建/复用 Dataset，验证 expected-current CAS，在同一事务插入不可变
+    /// Revision 并推进同 Dataset current pointer。Asset 必须已 Published + Verified。
+    /// 首次发布 expected=null；后续发布必须传入当前 revision ID。失败不留半成品。
+    /// </summary>
+    FieldRevisionRecord PublishFieldRevision(FieldRevisionPublishPlan plan);
 
     // ---- Definition Asset typed link（core_object_definition_asset；P2-09-19 §9） ----
 
