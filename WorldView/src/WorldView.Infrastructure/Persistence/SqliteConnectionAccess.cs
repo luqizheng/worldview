@@ -61,6 +61,9 @@ internal sealed class SqliteConnectionAccess : IAsyncDisposable
                 DataSource = _databasePath,
                 Mode = SqliteOpenMode.ReadWriteCreate,
                 Pooling = false,
+                // Microsoft.Data.Sqlite applies CommandTimeout per command; setting only
+                // PRAGMA busy_timeout is insufficient because the command default is 30s.
+                DefaultTimeout = 5,
             };
             var connection = new SqliteConnection(builder.ConnectionString);
             connection.Open();

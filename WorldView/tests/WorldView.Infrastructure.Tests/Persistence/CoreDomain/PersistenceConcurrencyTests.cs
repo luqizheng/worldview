@@ -376,6 +376,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
 
         // TX-32: the production connection policy sets a bounded 5-second busy timeout.
         Assert.Equal(5000L, Access().Execute(c => Scalar(c, "PRAGMA busy_timeout;")));
+        Assert.Equal(5, Access().Execute(c =>
+        {
+            using var command = c.CreateCommand();
+            return command.CommandTimeout;
+        }));
 
         Access().Execute(c =>
         {
@@ -412,12 +417,13 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         {
             using var competingWrite = c.CreateCommand();
             competingWrite.CommandText = $"INSERT INTO {tableName} (value) VALUES (2);";
+            competingWrite.CommandTimeout = 1;
             competingWrite.ExecuteNonQuery();
         }));
         stopwatch.Stop();
 
         Assert.Equal(5, exception.SqliteErrorCode); // SQLITE_BUSY
-        Assert.InRange(stopwatch.ElapsedMilliseconds, 50, 3000);
+        Assert.InRange(stopwatch.ElapsedMilliseconds, 500, 3000);
 
         externalTransaction.Rollback();
         Assert.Equal(0L, Access().Execute(c => Scalar(c, $"SELECT COUNT(*) FROM {tableName};")));
