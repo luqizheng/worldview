@@ -1,7 +1,7 @@
 {
-  "title": "World View V1 Built-in Field Descriptor Registry",
+  "title": "World View Built-in Field Descriptor Registry",
   "registry_version": "0.1",
-  "status": "recommended V1 seed registry; adopted Field Dataset ownership contract; not a frozen ADR",
+  "status": "initial-release seed registry; adopted Field Dataset ownership contract",
   "authority": "Core Domain static Field Descriptor Registry",
   "common_rules": {
     "identity": "A stable field_key identifies one semantic field role within a Map; it is not a filename, tile ID, Object ID or derived artifact ID.",
@@ -14,7 +14,7 @@
     "staging": "Editor and AI may stage and preview content. Only Core Domain Field Dataset Domain Services may publish formal Dataset/Revision records.",
     "immutable_payload": "Published Asset bytes are immutable. Updates publish new Asset content and a new Field Revision; never overwrite a published payload.",
     "unknown_fields": "reject",
-    "manifest": "Every new formal revision uses Manifest V2: it pins Map/Map Space, immutable Spatial Reference and its coordinate_precision_profile_id, coverage, map-edge semantics, resolution (spacing_x/spacing_y plus width/height), grid alignment (origin_x/origin_y, axis_orientation and cell_registration), value type, dimensional units, vertical reference where required, no-data, sample encoding, tile manifest where applicable, provenance and content fingerprint. Manifest V1 is legacy-read-only.",
+    "manifest": "Every formal revision uses the single canonical Field Package manifest. It pins Map/Map Space, immutable Spatial Reference and its coordinate_precision_profile_id, coverage, map-edge semantics, resolution (spacing_x/spacing_y plus width/height), grid alignment (origin_x/origin_y, axis_orientation and cell_registration), value type, dimensional units, vertical reference where required, no-data, sample encoding, tile manifest where applicable, provenance and content fingerprint.",
     "derived_adoption": "A Derived Artifact is not a source Field Dataset unless the creator explicitly adopts the exact output bytes through the Core Domain publication path."
   },
   "field_descriptors": {
@@ -84,7 +84,7 @@
         "ecology"
       ],
       "status": "enabled V1 source field",
-      "manifest_v2_required": [
+      "manifest_required_fields": [
         "field.unit",
         "spatial.vertical_reference_id",
         "spatial.coordinate_precision_profile_id"
@@ -149,7 +149,7 @@
         "ecology"
       ],
       "status": "enabled V1 source field",
-      "manifest_v2_required": [
+      "manifest_required_fields": [
         "spatial.coordinate_precision_profile_id"
       ]
     }
