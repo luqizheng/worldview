@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -20,83 +23,58 @@ public sealed partial class SqliteCoreDomainDatabase
 {
     // ---- Object Type（Project 级配置权威） ----
 
-    public IReadOnlyList<ObjectTypeRecord> ListObjectTypes(Guid projectId)
-    {
-        const string sql = """
-            SELECT object_type_id, project_id, type_key, display_name, allocatable,
-                   allocation_format_json, allocation_format_version, created_at_utc_ms, updated_at_utc_ms
-            FROM core_object_type
-            WHERE project_id = $projectId
-            ORDER BY type_key;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            using var reader = command.ExecuteReader();
-            var rows = new List<ObjectTypeRecord>();
-            while (reader.Read())
-            {
-                rows.Add(MapObjectType(reader));
-            }
-
-            return (IReadOnlyList<ObjectTypeRecord>)rows;
-        });
-    }
+    public IReadOnlyList<ObjectTypeRecord> ListObjectTypes(Guid projectId) =>
+        _ef.Execute(db => (IReadOnlyList<ObjectTypeRecord>)db.ObjectTypes.AsNoTracking()
+            .Where(x => x.project_id == projectId)
+            .OrderBy(x => x.type_key)
+            .AsEnumerable()
+            .Select(MapObjectType)
+            .ToArray());
 
     public ObjectTypeRecord? FindObjectType(Guid projectId, Guid objectTypeId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadObjectTypeRow(transaction, projectId, objectTypeId);
+            var entity = db.ObjectTypes.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.object_type_id == objectTypeId);
+            return entity is null ? null : MapObjectType(entity);
         });
 
     public ObjectTypeRecord? FindObjectTypeByTypeKey(Guid projectId, string typeKey)
     {
-        const string sql = """
-            SELECT object_type_id, project_id, type_key, display_name, allocatable,
-                   allocation_format_json, allocation_format_version, created_at_utc_ms, updated_at_utc_ms
-            FROM core_object_type
-            WHERE project_id = $projectId AND type_key = $typeKey;
-            """;
-        return _access.Execute(connection =>
+        var normalizedTypeKey = ObjectRules.NormalizeTypeKey(typeKey);
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$typeKey", ObjectRules.NormalizeTypeKey(typeKey));
-            using var reader = command.ExecuteReader();
-            return reader.Read() ? MapObjectType(reader) : null;
+            var entity = db.ObjectTypes.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.type_key == normalizedTypeKey);
+            return entity is null ? null : MapObjectType(entity);
         });
     }
 
     // ---- Object ID Reservation ----
 
     public ReservationRecord? FindReservation(Guid projectId, Guid reservationId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadReservationRow(transaction, projectId, reservationId);
+            var entity = db.ObjectIdReservations.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.reservation_id == reservationId);
+            return entity is null ? null : MapReservation(entity);
         });
 
     public ReservationAllocation ReserveObjectId(ObjectIdReservationRequest request)
     {
-        return _access.Execute(connection =>
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
                 // request_key 幂等对账（P2-09-04 §6；TX-21/22）：响应丢失的重试返回同一分配。
                 if (request.RequestKey is not null)
                 {
-                    var recovered = TryReadReservationByRequestKey(transaction, request.ProjectId, request.RequestKey);
-                    if (recovered is not null)
+                    var existing = db.ObjectIdReservations.SingleOrDefault(x =>
+                        x.project_id == request.ProjectId && x.request_key == request.RequestKey);
+                    if (existing is not null)
                     {
+                        var recovered = MapReservation(existing);
                         if (recovered.ObjectTypeId != request.ObjectTypeId)
                         {
                             throw new CoreDomainConflictException(
@@ -104,78 +82,65 @@ public sealed partial class SqliteCoreDomainDatabase
                         }
 
                         transaction.Commit();
-                        return new ReservationAllocation { Reservation = recovered, RecoveredByRequestKey = true };
+                        return new ReservationAllocation
+                        {
+                            Reservation = recovered,
+                            RecoveredByRequestKey = true,
+                        };
                     }
                 }
 
-                var type = ReadObjectTypeRow(transaction, request.ProjectId, request.ObjectTypeId);
+                var typeEntity = db.ObjectTypes.SingleOrDefault(x =>
+                    x.project_id == request.ProjectId && x.object_type_id == request.ObjectTypeId);
+                if (typeEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object Type {request.ObjectTypeId} 不存在或不属于项目 {request.ProjectId}。");
+                }
+
+                var type = MapObjectType(typeEntity);
                 if (!type.Allocatable)
                 {
-                    throw new CoreDomainConflictException($"Object Type \"{type.TypeKey}\" 不可分配（allocatable=false）。");
+                    throw new CoreDomainConflictException(
+                        $"Object Type \"{type.TypeKey}\" 不可分配（allocatable=false）。");
                 }
 
                 // allocator 读改写：next_sequence 仅在本事务内前进、永不回退（P2-09-11 §4.2）。
-                long nextSequence;
-                using (var read = connection.CreateCommand())
+                var allocator = db.ObjectIdAllocators.SingleOrDefault(x =>
+                    x.project_id == request.ProjectId && x.object_type_id == request.ObjectTypeId);
+                if (allocator is null)
                 {
-                    read.Transaction = transaction;
-                    read.CommandText = """
-                        SELECT next_sequence FROM core_object_id_allocator
-                        WHERE project_id = $projectId AND object_type_id = $typeId;
-                        """;
-                    read.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
-                    read.Parameters.AddWithValue("$typeId", Uuid(request.ObjectTypeId));
-                    var value = read.ExecuteScalar();
-                    if (value is null)
-                    {
-                        throw new CoreDomainDataException(
-                            $"Object Type {request.ObjectTypeId} 缺少 allocator 行（应随 Project 播种建立，数据损坏）。");
-                    }
-
-                    nextSequence = (long)value;
+                    throw new CoreDomainDataException(
+                        $"Object Type {request.ObjectTypeId} 缺少 allocator 行（应随 Project 播种建立，数据损坏）。");
                 }
 
-                using (var advance = connection.CreateCommand())
-                {
-                    advance.Transaction = transaction;
-                    advance.CommandText = """
-                        UPDATE core_object_id_allocator
-                        SET next_sequence = $next, updated_at_utc_ms = $now
-                        WHERE project_id = $projectId AND object_type_id = $typeId;
-                        """;
-                    advance.Parameters.AddWithValue("$next", nextSequence + 1);
-                    advance.Parameters.AddWithValue("$now", request.NowUtcMs);
-                    advance.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
-                    advance.Parameters.AddWithValue("$typeId", Uuid(request.ObjectTypeId));
-                    advance.ExecuteNonQuery();
-                }
+                var nextSequence = allocator.next_sequence;
+                allocator.next_sequence = checked(nextSequence + 1);
+                allocator.updated_at_utc_ms = request.NowUtcMs;
 
-                var reservationId = Guid.NewGuid();
-                using (var insert = connection.CreateCommand())
+                var reservation = new CoreObjectIdReservationEntity
                 {
-                    insert.Transaction = transaction;
-                    insert.CommandText = """
-                        INSERT INTO core_object_id_reservation
-                            (reservation_id, project_id, object_type_id, object_identity_id,
-                             allocated_sequence, allocated_id_value, reservation_state, request_key,
-                             abandon_reason, created_at_utc_ms, updated_at_utc_ms)
-                        VALUES ($reservationId, $projectId, $typeId, NULL,
-                                $sequence, $idValue, 'Reserved', $requestKey,
-                                NULL, $now, $now);
-                        """;
-                    insert.Parameters.AddWithValue("$reservationId", Uuid(reservationId));
-                    insert.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
-                    insert.Parameters.AddWithValue("$typeId", Uuid(request.ObjectTypeId));
-                    insert.Parameters.AddWithValue("$sequence", nextSequence);
-                    insert.Parameters.AddWithValue("$idValue", ObjectAllocationFormat.DeriveAllocatedIdValue(nextSequence));
-                    insert.Parameters.AddWithValue("$requestKey", (object?)request.RequestKey ?? DBNull.Value);
-                    insert.Parameters.AddWithValue("$now", request.NowUtcMs);
-                    insert.ExecuteNonQuery();
-                }
+                    reservation_id = Guid.NewGuid(),
+                    project_id = request.ProjectId,
+                    object_type_id = request.ObjectTypeId,
+                    object_identity_id = null,
+                    allocated_sequence = nextSequence,
+                    allocated_id_value = ObjectAllocationFormat.DeriveAllocatedIdValue(nextSequence),
+                    reservation_state = "Reserved",
+                    request_key = request.RequestKey,
+                    abandon_reason = null,
+                    created_at_utc_ms = request.NowUtcMs,
+                    updated_at_utc_ms = request.NowUtcMs,
+                };
+                db.ObjectIdReservations.Add(reservation);
 
-                var reservation = ReadReservationRow(transaction, request.ProjectId, reservationId);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
-                return new ReservationAllocation { Reservation = reservation, RecoveredByRequestKey = false };
+                return new ReservationAllocation
+                {
+                    Reservation = MapReservation(reservation),
+                    RecoveredByRequestKey = false,
+                };
             }
             catch
             {
@@ -187,16 +152,32 @@ public sealed partial class SqliteCoreDomainDatabase
 
     public ReservationRecord BindReservation(ObjectBindRequest request)
     {
-        return _access.Execute(connection =>
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
                 // 事务内重读前置状态（CD-02-A §13.3：状态机 UPDATE 不依赖调用方传值）。
-                var reservation = ReadReservationRow(transaction, request.ProjectId, request.ReservationId);
+                var reservationEntity = db.ObjectIdReservations.SingleOrDefault(x =>
+                    x.project_id == request.ProjectId && x.reservation_id == request.ReservationId);
+                if (reservationEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Reservation {request.ReservationId} 不存在或不属于项目 {request.ProjectId}。");
+                }
+
+                var reservation = MapReservation(reservationEntity);
                 ReservationRules.ValidateTransition(reservation.State, ReservationState.Bound);
 
-                var type = ReadObjectTypeRow(transaction, request.ProjectId, reservation.ObjectTypeId);
+                var typeEntity = db.ObjectTypes.SingleOrDefault(x =>
+                    x.project_id == request.ProjectId && x.object_type_id == reservation.ObjectTypeId);
+                if (typeEntity is null)
+                {
+                    throw new CoreDomainDataException(
+                        $"Reservation {request.ReservationId} 引用的 Object Type 不存在（数据损坏）。");
+                }
+
+                var type = MapObjectType(typeEntity);
                 // pin 按 descriptor registry（CD-02-C 编译期权威）。
                 var descriptor = ObjectTypeRegistry.Require(type.TypeKey);
                 var semanticsId = descriptor.SemanticsId;
@@ -204,59 +185,35 @@ public sealed partial class SqliteCoreDomainDatabase
                 ObjectRules.ValidateScopePairing(request.SharingScope, request.OwnerMapId);
 
                 if (request.SharingScope == ObjectSharingScope.MapLocal
-                    && TryReadMapRow(transaction, request.ProjectId, request.OwnerMapId!.Value) is null)
+                    && !db.Maps.Any(x => x.ProjectId == request.ProjectId && x.MapId == request.OwnerMapId!.Value))
                 {
                     throw new CoreDomainConflictException(
                         $"owner Map {request.OwnerMapId.Value} 不存在或不属于项目 {request.ProjectId}。");
                 }
 
-                using (var insert = connection.CreateCommand())
+                db.Objects.Add(new CoreObjectEntity
                 {
-                    insert.Transaction = transaction;
-                    insert.CommandText = """
-                        INSERT INTO core_object
-                            (object_identity_id, project_id, object_type_id,
-                             object_type_schema_version, object_type_semantics_id,
-                             sharing_scope, owner_map_id, lifecycle_status,
-                             created_at_utc_ms, updated_at_utc_ms)
-                        VALUES ($identityId, $projectId, $typeId,
-                                $schemaVersion, $semanticsId,
-                                $scope, $ownerMapId, 'draft',
-                                $now, $now);
-                        """;
-                    insert.Parameters.AddWithValue("$identityId", Uuid(request.ObjectIdentityId));
-                    insert.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
-                    insert.Parameters.AddWithValue("$typeId", Uuid(reservation.ObjectTypeId));
-                    insert.Parameters.AddWithValue("$schemaVersion", descriptor.SchemaVersion);
-                    insert.Parameters.AddWithValue("$semanticsId", semanticsId);
-                    insert.Parameters.AddWithValue(
-                        "$scope",
-                        request.SharingScope == ObjectSharingScope.ProjectShared ? "project_shared" : "map_local");
-                    insert.Parameters.AddWithValue(
-                        "$ownerMapId",
-                        request.OwnerMapId is null ? DBNull.Value : Uuid(request.OwnerMapId.Value));
-                    insert.Parameters.AddWithValue("$now", request.NowUtcMs);
-                    insert.ExecuteNonQuery();
-                }
+                    object_identity_id = request.ObjectIdentityId,
+                    project_id = request.ProjectId,
+                    object_type_id = reservation.ObjectTypeId,
+                    object_type_schema_version = descriptor.SchemaVersion,
+                    object_type_semantics_id = semanticsId,
+                    sharing_scope = request.SharingScope == ObjectSharingScope.ProjectShared
+                        ? "project_shared"
+                        : "map_local",
+                    owner_map_id = request.OwnerMapId,
+                    lifecycle_status = "draft",
+                    created_at_utc_ms = request.NowUtcMs,
+                    updated_at_utc_ms = request.NowUtcMs,
+                });
 
-                using (var update = connection.CreateCommand())
-                {
-                    update.Transaction = transaction;
-                    update.CommandText = """
-                        UPDATE core_object_id_reservation
-                        SET object_identity_id = $identityId, reservation_state = 'Bound', updated_at_utc_ms = $now
-                        WHERE project_id = $projectId AND reservation_id = $reservationId;
-                        """;
-                    update.Parameters.AddWithValue("$identityId", Uuid(request.ObjectIdentityId));
-                    update.Parameters.AddWithValue("$now", request.NowUtcMs);
-                    update.Parameters.AddWithValue("$projectId", Uuid(request.ProjectId));
-                    update.Parameters.AddWithValue("$reservationId", Uuid(request.ReservationId));
-                    update.ExecuteNonQuery();
-                }
+                reservationEntity.object_identity_id = request.ObjectIdentityId;
+                reservationEntity.reservation_state = "Bound";
+                reservationEntity.updated_at_utc_ms = request.NowUtcMs;
 
-                var bound = ReadReservationRow(transaction, request.ProjectId, request.ReservationId);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
-                return bound;
+                return MapReservation(reservationEntity);
             }
             catch
             {
@@ -266,53 +223,51 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    public ReservationRecord AbandonReservation(Guid projectId, Guid reservationId, string? abandonReason, long nowUtcMs)
+    public ReservationRecord AbandonReservation(
+        Guid projectId,
+        Guid reservationId,
+        string? abandonReason,
+        long nowUtcMs)
     {
-        return _access.Execute(connection =>
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                var reservation = ReadReservationRow(transaction, projectId, reservationId);
+                var reservationEntity = db.ObjectIdReservations.SingleOrDefault(x =>
+                    x.project_id == projectId && x.reservation_id == reservationId);
+                if (reservationEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Reservation {reservationId} 不存在或不属于项目 {projectId}。");
+                }
+
+                var reservation = MapReservation(reservationEntity);
                 ReservationRules.ValidateTransition(reservation.State, ReservationState.Abandoned);
 
                 if (reservation.ObjectIdentityId is not null)
                 {
                     // Bound→Abandoned：identity 行保留为 abandoned 墓碑（仅 draft 可降级）。
-                    using var tombstone = connection.CreateCommand();
-                    tombstone.Transaction = transaction;
-                    tombstone.CommandText = """
-                        UPDATE core_object
-                        SET lifecycle_status = 'abandoned', updated_at_utc_ms = $now
-                        WHERE project_id = $projectId AND object_identity_id = $identityId
-                          AND lifecycle_status = 'draft';
-                        """;
-                    tombstone.Parameters.AddWithValue("$now", nowUtcMs);
-                    tombstone.Parameters.AddWithValue("$projectId", Uuid(projectId));
-                    tombstone.Parameters.AddWithValue("$identityId", Uuid(reservation.ObjectIdentityId.Value));
-                    if (tombstone.ExecuteNonQuery() != 1)
+                    var identity = db.Objects.SingleOrDefault(x =>
+                        x.project_id == projectId
+                        && x.object_identity_id == reservation.ObjectIdentityId.Value);
+                    if (identity is null || identity.lifecycle_status != "draft")
                     {
                         throw new CoreDomainConflictException(
                             $"绑定身份 {reservation.ObjectIdentityId.Value} 不是 draft 状态，无法放弃（状态不一致，fail-closed）。");
                     }
+
+                    identity.lifecycle_status = "abandoned";
+                    identity.updated_at_utc_ms = nowUtcMs;
                 }
 
-                using var update = connection.CreateCommand();
-                update.Transaction = transaction;
-                update.CommandText = """
-                    UPDATE core_object_id_reservation
-                    SET reservation_state = 'Abandoned', abandon_reason = $reason, updated_at_utc_ms = $now
-                    WHERE project_id = $projectId AND reservation_id = $reservationId;
-                    """;
-                update.Parameters.AddWithValue("$reason", (object?)abandonReason ?? DBNull.Value);
-                update.Parameters.AddWithValue("$now", nowUtcMs);
-                update.Parameters.AddWithValue("$projectId", Uuid(projectId));
-                update.Parameters.AddWithValue("$reservationId", Uuid(reservationId));
-                update.ExecuteNonQuery();
+                reservationEntity.reservation_state = "Abandoned";
+                reservationEntity.abandon_reason = abandonReason;
+                reservationEntity.updated_at_utc_ms = nowUtcMs;
 
-                var abandoned = ReadReservationRow(transaction, projectId, reservationId);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
-                return abandoned;
+                return MapReservation(reservationEntity);
             }
             catch
             {
@@ -1121,6 +1076,54 @@ public sealed partial class SqliteCoreDomainDatabase
         }
 
         return rows;
+    }
+
+    private static ObjectTypeRecord MapObjectType(CoreObjectTypeEntity entity) => new()
+    {
+        ObjectTypeId = entity.object_type_id,
+        ProjectId = entity.project_id,
+        TypeKey = ObjectRules.NormalizeTypeKey(entity.type_key),
+        DisplayName = ObjectRules.NormalizeDisplayName(entity.display_name),
+        Allocatable = entity.allocatable != 0,
+        AllocationFormatJson = entity.allocation_format_json,
+        AllocationFormatVersion = entity.allocation_format_version,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
+        UpdatedAtUtcMs = entity.updated_at_utc_ms,
+    };
+
+    private static ReservationRecord MapReservation(CoreObjectIdReservationEntity entity)
+    {
+        var state = entity.reservation_state switch
+        {
+            "Reserved" => ReservationState.Reserved,
+            "Bound" => ReservationState.Bound,
+            "Inserted" => ReservationState.Inserted,
+            "Abandoned" => ReservationState.Abandoned,
+            _ => throw new CoreDomainDataException(
+                $"reservation_state \"{entity.reservation_state}\" 不可识别。"),
+        };
+
+        if ((state == ReservationState.Reserved && entity.object_identity_id is not null)
+            || (state is ReservationState.Bound or ReservationState.Inserted && entity.object_identity_id is null))
+        {
+            throw new CoreDomainDataException(
+                $"Reservation {entity.reservation_id} 的 state/identity 组合违反不变量。");
+        }
+
+        return new ReservationRecord
+        {
+            ReservationId = entity.reservation_id,
+            ProjectId = entity.project_id,
+            ObjectTypeId = entity.object_type_id,
+            ObjectIdentityId = entity.object_identity_id,
+            AllocatedSequence = entity.allocated_sequence,
+            AllocatedIdValue = entity.allocated_id_value,
+            State = state,
+            RequestKey = entity.request_key,
+            AbandonReason = entity.abandon_reason,
+            CreatedAtUtcMs = entity.created_at_utc_ms,
+            UpdatedAtUtcMs = entity.updated_at_utc_ms,
+        };
     }
 
     // ---- 行映射（fail-closed 解析） ----
