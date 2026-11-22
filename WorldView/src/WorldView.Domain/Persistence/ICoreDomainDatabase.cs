@@ -217,6 +217,12 @@ public interface ICoreDomainDatabase
     /// current pointer。首次发布在同一事务建立 Dataset；Asset 必须已登记且 Verified。
     /// </summary>
     FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan);
+
+    /// <summary>Find immutable payload metadata by its owning Field Revision.</summary>
+    FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId);
+
+    /// <summary>Read exact raw bytes for a SQLite BLOB payload; ManagedFile payloads are rejected.</summary>
+    byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId);
 }
 
 /// <summary>Core Domain 数据损坏（行不可解析、不变量破坏、结构缺失）：fail-closed，不静默修补。</summary>
