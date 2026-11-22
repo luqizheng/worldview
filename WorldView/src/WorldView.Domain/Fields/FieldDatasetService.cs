@@ -43,6 +43,7 @@ public static class FieldDatasetService
 
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
         ValidateManifestIdentity(manifest, plan);
+        var metadata = FieldRevisionMetadata.FromValidatedManifest(manifest);
 
         if (database.FindMap(plan.ProjectId, plan.MapId) is null)
             throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
@@ -73,6 +74,7 @@ public static class FieldDatasetService
         {
             ContentFingerprint = fingerprint,
             ManifestJson = manifest,
+            Metadata = metadata,
             ProvenanceJson = provenance,
         });
     }
