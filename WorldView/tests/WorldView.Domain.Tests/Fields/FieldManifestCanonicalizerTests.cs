@@ -25,8 +25,8 @@ public sealed class FieldManifestCanonicalizerTests
     [InlineData("2e-3", "0.002")]
     public void Canonicalize_UsesEcmaScriptNumberThresholds(string inputNumber, string expectedNumber)
     {
-        var input = "{\\"n\\":" + inputNumber + "}";
-        var expected = "{\\"n\\":" + expectedNumber + "}";
+        var input = @"{""n"":" + inputNumber + "}";
+        var expected = @"{""n"":" + expectedNumber + "}";
 
         Assert.Equal(expected, FieldManifestCanonicalizer.Canonicalize(input));
     }
@@ -96,9 +96,9 @@ public sealed class FieldManifestCanonicalizerTests
     }
 
     [Theory]
-    [InlineData(" {\\"a\\":1}")]
-    [InlineData("{\\"a\\":1}\\n")]
-    [InlineData("{\\"n\\":1.0}")]
+    [InlineData(" {\"a\":1}")]
+    [InlineData("{\"a\":1}\n")]
+    [InlineData("{\"n\":1.0}")]
     public void RequireCanonicalUtf8_RejectsNonCanonicalWhitespace(string json)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
