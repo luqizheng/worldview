@@ -607,6 +607,7 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
             FieldRevisionAssetId = plan.FieldRevisionAssetId,
             ContentFingerprint = plan.ContentFingerprint,
             ManifestJson = plan.ManifestJson,
+            Metadata = plan.Metadata,
             ProvenanceJson = plan.ProvenanceJson,
             CreatedAtUtcMs = plan.CreatedAtUtcMs,
         };
