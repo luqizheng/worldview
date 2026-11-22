@@ -44,10 +44,14 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
         var differences = session.Execute(db =>
         {
-            var snapshotModel = new CoreDomainDbContextModelSnapshot().Model;
             var differ = db.GetService<IMigrationsModelDiffer>();
-            return differ.GetDifferences(snapshotModel.GetRelationalModel(), db.Model.GetRelationalModel())
-                .Select(operation => operation.GetType().Name)
+            var runtimeModel = db.Model.GetRelationalModel();
+            var snapshotModel = new CoreDomainDbContextModelSnapshot().Model.GetRelationalModel();
+            var migrationModel = new CoreDomainInitial().TargetModel.GetRelationalModel();
+            return differ.GetDifferences(snapshotModel, runtimeModel)
+                .Select(operation => $"snapshot:{operation.GetType().Name}")
+                .Concat(differ.GetDifferences(migrationModel, runtimeModel)
+                    .Select(operation => $"migration:{operation.GetType().Name}"))
                 .ToArray();
         });
 
