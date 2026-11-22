@@ -81,7 +81,7 @@ internal sealed class CoreDomainEfCoreBaseline : Migration
             entity.Property(x => x.IntegrityState).HasColumnName("integrity_state").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.AssetId });
-            entity.HasIndex(x => new { x.ProjectId, x.HashAlgorithm, x.ContentHash }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.HashAlgorithm, x.ContentHash });
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction).HasConstraintName("FK_core_asset_core_project_project_id");
         });
