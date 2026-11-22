@@ -94,6 +94,6 @@ public static class ProjectPackageStructure
             return true;
         }
 
-        return path[0] is '\\\\' or '/';
+        return path[0] == '\\' || path[0] == '/';
     }
 }
