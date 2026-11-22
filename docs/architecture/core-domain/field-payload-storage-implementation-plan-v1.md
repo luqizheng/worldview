@@ -163,32 +163,21 @@ The next design artifact is [Field Revision Typed Persistence Design V1](field-r
 - Immutable revision scalar metadata is stored on the revision row; ordered planes/codecs and category codes use typed child rows.
 - Grid origin/spacing remain canonical decimal TEXT; no conversion to SQLite REAL is permitted.
 - Map Space and Spatial Reference ownership is specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md): one Map-owned Map Space identity is stored on `core_map`; each Map binds to one immutable project-scoped Spatial Reference definition; no standalone Map Space table is introduced in V1.
-- The Spatial Reference definition owns the coordinate precision profile and optional vertical-reference identity. Manifest V2 pins these IDs; Field Revision publication must match the owning Map and immutable definition. The physical EF model and migration remain pending.
+- The Spatial Reference definition owns the coordinate precision profile and optional vertical-reference identity. canonical manifest pins these IDs; Field Revision publication must match the owning Map and immutable definition. The physical EF model and migration remain pending.
 - The current P2-09-34 Manifest V1 omits elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. P2-09-36 defines a compatible Manifest V2 schema; P2-09-37 defines its validation vectors. V1 remains legacy-read-only and must not be used for new elevation publication.
 - The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
 
 No EF schema or generated snapshot was changed for this design slice. The next code/schema change remains gated on resolving the manifest semantic gap and running the real EF CLI migration workflow.
 
-## 7.3 Manifest semantic compatibility gate
+## 7.3 Canonical manifest semantic requirements
 
-The Field Descriptor / Manifest audit found that P2-09-30 requires elevation unit and vertical-reference identity, while the original P2-09-34 Manifest V1 and current Domain validator do not represent/enforce them. ME-05-04 also defines coordinate precision profiles per immutable Spatial Reference.
+The initial World View release has one canonical manifest contract and no historical user data requiring compatibility handling. The current P2-09-34 schema and P2-09-35 validation vectors are updated in place.
 
-The compatible correction is documented in:
+The contract requires `field.unit` for elevation (`m` or `ft`), `spatial.vertical_reference_id` for elevation, and `spatial.coordinate_precision_profile_id` for every Field. Categorical `land_water` omits elevation unit and vertical-reference semantics. The sample `value_encoding.profile_id` remains distinct from coordinate precision.
 
-- [P2-09-36 Manifest V2 Schema](p2-09-36-field-package-canonical-manifest-schema-v0.2.json)
-- [P2-09-37 Manifest V2 Validation Vectors](p2-09-37-field-package-canonical-manifest-v2-validation-vectors-v0.2.json)
-- [Field Revision Typed Persistence Design V1](field-revision-typed-persistence-design-v1.md), section 5
+Resolution is represented by grid spacing and dimensions. Grid alignment is represented by origin, axis orientation and cell registration. WVFLDPK envelope format remains 1.0.
 
-Manifest V2 adds:
-- `field.unit` for elevation only;
-- `spatial.vertical_reference_id` for elevation only;
-- `spatial.coordinate_precision_profile_id` for all fields, pinning the profile selected by the immutable Spatial Reference.
-
-The sample `value_encoding.profile_id` remains a separate identity; it must not be confused with coordinate precision. Resolution is represented by grid spacing and dimensions. Grid alignment is represented by origin, axis orientation and cell registration. No duplicate semantic fields are introduced.
-
-The WVFLDPK envelope remains format 1.0; manifest schema version 2 is independent. Existing V1 golden packages remain byte-identical and are legacy-read-only. V1 backfill must not fabricate the newly required values.
-
-Schema and vectors are authored design artifacts only. The Domain validator, typed projection, owner-record lookup and executable V2 tests remain pending. Do not enable production publication with unresolved spatial/vertical reference IDs merely because they are non-empty strings.
+The Domain validator and typed projection now enforce/carry these fields. Immutable owner-record lookup and matching against the owning Map's Spatial Reference remain pending. No compatibility dispatcher or legacy-data backfill is required.
 
 ## 8. Required tests
 
