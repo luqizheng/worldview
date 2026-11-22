@@ -24,6 +24,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\minimal-elevation-2x2.manifest.json" Link="Fixtures\minimal-elevation-2x2.manifest.json" />
     <EmbeddedResource Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\land-water-4x2-two-tiles.manifest.json" Link="Fixtures\land-water-4x2-two-tiles.manifest.json" />
+    <EmbeddedResource Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\edge-elevation-3x2.manifest.json" Link="Fixtures\edge-elevation-3x2.manifest.json" />
   </ItemGroup>
 
   <ItemGroup>
