@@ -72,6 +72,19 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
         });
     }
 
+    private void ExecuteRawInTransaction(string sql)
+    {
+        Access().Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+            transaction.Commit();
+        });
+    }
+
     private static string U(Guid value) => value.ToString("D");
 
     /// <summary>rules_payload_json 占位值（原始插值字符串内不能内联连续大括号字面量）。</summary>
@@ -463,7 +476,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
             parent = historyId;
         }
 
-        ExecuteRaw(builder.ToString());
+        ExecuteRawInTransaction(builder.ToString());
 
         var deepest = core.FindBranchByOwnHistory(project.ProjectId, deepestOwn);
         Assert.NotNull(deepest);
