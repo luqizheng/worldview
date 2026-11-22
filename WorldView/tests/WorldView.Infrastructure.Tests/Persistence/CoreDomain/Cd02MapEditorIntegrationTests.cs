@@ -183,6 +183,60 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void ObjectCreation_CannotBypassAtomicGeometryPublicationWithInitialManifest()
+    {
+        var core = Core();
+        var project = ProjectRules.CreateProject("No Initial Geometry", Now);
+        core.InsertProject(ProjectCreationPlan.Create(project));
+
+        var allocation = ObjectIdReservationService.ReserveByTypeKey(core, project.ProjectId, "building", null, Now + 1);
+        var bound = ObjectIdReservationService.Bind(
+            core, project.ProjectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, Now + 2);
+        var objectId = bound.ObjectIdentityId!.Value;
+        var nonEmptyGeometry = new ObjectDefinitionRecord
+        {
+            ProjectId = project.ProjectId,
+            ObjectIdentityId = objectId,
+            DefinitionSchemaVersion = 1,
+            DefinitionPayloadJson = BuildingAggregateWithFootprint(
+                "Premature Geometry", Guid.NewGuid(), Guid.NewGuid(), new string('a', 64)),
+            DefinitionHash = string.Empty,
+            UpdatedAtUtcMs = Now + 3,
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => ObjectCreationService.InsertObject(
+            core, project.ProjectId, bound.ReservationId, nonEmptyGeometry, null, null, Now + 3));
+        Assert.Throws<CoreDomainConflictException>(() => core.InsertObject(new ObjectInsertPlan
+        {
+            ProjectId = project.ProjectId,
+            ObjectIdentityId = objectId,
+            ReservationId = bound.ReservationId,
+            Definition = nonEmptyGeometry,
+            Registration = null,
+            InitialMembership = null,
+            NowUtcMs = Now + 3,
+        }));
+
+        Assert.Equal(ReservationState.Bound, core.FindReservation(project.ProjectId, bound.ReservationId)!.State);
+        Assert.Equal(ObjectLifecycleStatus.Draft, core.FindObject(project.ProjectId, objectId)!.LifecycleStatus);
+        Assert.Null(core.ReadObjectDefinition(project.ProjectId, objectId));
+
+        ObjectCreationService.InsertObject(
+            core, project.ProjectId, bound.ReservationId,
+            new ObjectDefinitionRecord
+            {
+                ProjectId = project.ProjectId,
+                ObjectIdentityId = objectId,
+                DefinitionSchemaVersion = 1,
+                DefinitionPayloadJson = BuildingAggregate("No Geometry Yet"),
+                DefinitionHash = string.Empty,
+                UpdatedAtUtcMs = Now + 4,
+            },
+            null, null, Now + 4);
+        Assert.Equal(ObjectLifecycleStatus.Active, core.FindObject(project.ProjectId, objectId)!.LifecycleStatus);
+    }
+
+    [Fact]
     public void GeometryPublication_FailureAfterLinkInsertRollsBackDefinitionAndLinks()
     {
         var core = Core();
