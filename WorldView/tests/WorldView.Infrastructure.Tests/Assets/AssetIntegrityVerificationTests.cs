@@ -10,6 +10,7 @@ using WorldView.Domain.Projects;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.Persistence;
+using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using Xunit;
 
