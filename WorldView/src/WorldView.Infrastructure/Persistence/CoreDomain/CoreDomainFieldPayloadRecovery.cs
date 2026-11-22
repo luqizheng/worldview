@@ -20,7 +20,21 @@ public sealed class CoreDomainFieldPayloadRecovery : IProjectFieldPayloadRecover
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
         var core = new SqliteCoreDomainDatabase(database);
         var fileStore = new FieldPayloadFileStore(packageRoot);
+        var cleanedStagingFiles = fileStore.CleanupStagingFiles();
         var reconciler = new FieldPayloadIntegrityReconciler(core, fileStore);
-        return reconciler.ReconcileAsync(projectId, cancellationToken);
+        return ReconcileAndCollectAsync(reconciler, projectId, cleanedStagingFiles, cancellationToken);
+    }
+
+    private static async Task<FieldPayloadIntegrityReport> ReconcileAndCollectAsync(
+        FieldPayloadIntegrityReconciler reconciler,
+        Guid projectId,
+        int cleanedStagingFiles,
+        CancellationToken cancellationToken)
+    {
+        var report = await reconciler.ReconcileAsync(projectId, cancellationToken).ConfigureAwait(false);
+        // Reconciliation has established the complete authoritative reference set. The second
+        // operation rescans it immediately before deleting only unreferenced content-addressed files.
+        _ = await reconciler.CollectOrphanFilesAsync(projectId, cancellationToken).ConfigureAwait(false);
+        return report with { CleanedStagingFileCount = cleanedStagingFiles };
     }
 }
