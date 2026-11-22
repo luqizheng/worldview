@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,7 @@ public sealed partial class SqliteCoreDomainDatabase
                 x.ProjectId == projectId
                 && x.FieldDatasetId == fieldDatasetId
                 && x.FieldRevisionId == fieldRevisionId);
-            return entity is null ? null : MapFieldRevision(entity);
+            return entity is null ? null : MapFieldRevision(db, entity);
         });
 
     public IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId) =>
@@ -41,7 +42,7 @@ public sealed partial class SqliteCoreDomainDatabase
             .Where(x => x.ProjectId == projectId && x.FieldDatasetId == fieldDatasetId)
             .OrderBy(x => x.RevisionNumber)
             .AsEnumerable()
-            .Select(MapFieldRevision)
+            .Select(entity => MapFieldRevision(db, entity))
             .ToArray());
 
     public FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan) =>
@@ -57,10 +58,18 @@ public sealed partial class SqliteCoreDomainDatabase
                 var spatialReferenceEntity = db.SpatialReferences.SingleOrDefault(x =>
                     x.ProjectId == plan.ProjectId && x.SpatialReferenceId == mapEntity.SpatialReferenceId)
                     ?? throw new CoreDomainConflictException("Map 的 Spatial Reference 定义不存在或不属于当前 Project。");
-                if (plan.Metadata is null)
-                    throw new CoreDomainConflictException("Field Revision publication 必须携带经 Domain 验证的 typed metadata。");
+                var canonicalManifest = CanonicalJson.Canonicalize(plan.ManifestJson);
+                if (!string.Equals(canonicalManifest, plan.ManifestJson, StringComparison.Ordinal))
+                    throw new CoreDomainDataException("Field Revision ManifestJson must be canonical before persistence.");
+                var manifestMetadata = FieldRevisionMetadata.FromValidatedManifest(canonicalManifest);
+                if (plan.Metadata is null || !MetadataEquals(manifestMetadata, plan.Metadata))
+                    throw new CoreDomainConflictException("Field Revision typed metadata does not match its canonical manifest.");
+                if (!string.Equals(manifestMetadata.FieldKey, plan.FieldKey, StringComparison.Ordinal)
+                    || manifestMetadata.DescriptorSchemaVersion != plan.DescriptorSchemaVersion
+                    || !string.Equals(manifestMetadata.SemanticsId, plan.SemanticsId, StringComparison.Ordinal))
+                    throw new CoreDomainConflictException("Field Revision typed descriptor pins do not match the publication plan.");
                 SpatialReferenceRules.ValidateFieldOwnerContext(
-                    MapMap(mapEntity), MapSpatialReference(spatialReferenceEntity), plan.Metadata);
+                    MapMap(mapEntity), MapSpatialReference(spatialReferenceEntity), manifestMetadata);
 
                 var asset = db.Assets.SingleOrDefault(x =>
                     x.ProjectId == plan.ProjectId && x.AssetId == plan.FieldRevisionAssetId);
@@ -123,8 +132,63 @@ public sealed partial class SqliteCoreDomainDatabase
                     ManifestJson = plan.ManifestJson,
                     ProvenanceJson = plan.ProvenanceJson,
                     CreatedAtUtcMs = plan.CreatedAtUtcMs,
+                    FieldKey = manifestMetadata.FieldKey,
+                    DescriptorSchemaVersion = manifestMetadata.DescriptorSchemaVersion,
+                    SemanticsId = manifestMetadata.SemanticsId,
+                    Unit = manifestMetadata.Unit,
+                    MapSpaceId = manifestMetadata.MapSpaceId,
+                    SpatialReferenceId = manifestMetadata.SpatialReferenceId,
+                    CoordinatePrecisionProfileId = manifestMetadata.CoordinatePrecisionProfileId,
+                    VerticalReferenceId = manifestMetadata.VerticalReferenceId,
+                    GridWidth = manifestMetadata.Grid.Width,
+                    GridHeight = manifestMetadata.Grid.Height,
+                    GridTileWidth = manifestMetadata.Grid.TileWidth,
+                    GridTileHeight = manifestMetadata.Grid.TileHeight,
+                    GridOriginX = manifestMetadata.Grid.OriginX,
+                    GridOriginY = manifestMetadata.Grid.OriginY,
+                    GridSpacingX = manifestMetadata.Grid.SpacingX,
+                    GridSpacingY = manifestMetadata.Grid.SpacingY,
+                    GridAxisOrientation = manifestMetadata.Grid.AxisOrientation,
+                    GridCellRegistration = manifestMetadata.Grid.CellRegistration,
+                    CoverageMode = manifestMetadata.Coverage.Mode,
+                    CoverageMaskPlaneName = manifestMetadata.Coverage.MaskPlaneName,
+                    MapEdgeSemantics = manifestMetadata.MapEdgeSemantics,
+                    NoDataPolicy = manifestMetadata.NoData.Policy,
+                    NoDataMaskPlaneName = manifestMetadata.NoData.MaskPlaneName,
+                    NoDataValidValue = manifestMetadata.NoData.ValidValue,
+                    NoDataInvalidValue = manifestMetadata.NoData.InvalidValue,
+                    ValueProfileId = manifestMetadata.ValueProfileId,
+                    ValueProfileScope = manifestMetadata.ValueProfileScope,
+                    TileHashAlgorithm = manifestMetadata.TileHashAlgorithm,
+                    TileHashVersion = manifestMetadata.TileHashVersion,
                 };
                 db.FieldRevisions.Add(revision);
+                db.FieldRevisionPlanes.AddRange(manifestMetadata.Planes.Select((plane, ordinal) =>
+                    new CoreMapFieldRevisionPlaneEntity
+                    {
+                        FieldRevisionId = revision.FieldRevisionId,
+                        Ordinal = ordinal,
+                        Name = plane.Name,
+                        SampleFormat = plane.SampleFormat,
+                        BytesPerCell = plane.BytesPerCell,
+                    }));
+                db.FieldRevisionCategoryCodes.AddRange(manifestMetadata.CategoryCodes.Select(pair =>
+                    new CoreMapFieldRevisionCategoryCodeEntity
+                    {
+                        FieldRevisionId = revision.FieldRevisionId,
+                        CategoryKey = pair.Key,
+                        CategoryCode = pair.Value,
+                    }));
+                db.FieldRevisionCodecs.AddRange(manifestMetadata.Codecs.Select((codec, ordinal) =>
+                    new CoreMapFieldRevisionCodecEntity
+                    {
+                        FieldRevisionId = revision.FieldRevisionId,
+                        Ordinal = ordinal,
+                        CodecId = codec.CodecId,
+                        CodecName = codec.CodecName,
+                        Version = codec.Version,
+                        ParametersJson = codec.ParametersJson,
+                    }));
                 SaveChangesOrThrowSqlite(db);
 
                 // CurrentFieldRevisionId is an EF concurrency token. The generated UPDATE
@@ -142,7 +206,7 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 transaction.Commit();
-                return MapFieldRevision(revision);
+                return MapFieldRevision(db, revision);
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -184,18 +248,88 @@ public sealed partial class SqliteCoreDomainDatabase
         };
     }
 
-    private static FieldRevisionRecord MapFieldRevision(CoreMapFieldRevisionEntity entity)
+    private static FieldRevisionRecord MapFieldRevision(CoreDomainDbContext db, CoreMapFieldRevisionEntity entity)
     {
         if (entity.RevisionNumber < 1 || !AssetRules.IsSha256Hex(entity.ContentFingerprint))
             throw new CoreDomainDataException(
                 $"Field Revision {entity.FieldRevisionId:D} has an invalid revision number or content fingerprint.");
 
-        var manifest = CanonicalJson.Canonicalize(entity.ManifestJson);
         var provenance = CanonicalJson.Canonicalize(entity.ProvenanceJson);
-        if (!string.Equals(manifest, entity.ManifestJson, StringComparison.Ordinal)
-            || !string.Equals(provenance, entity.ProvenanceJson, StringComparison.Ordinal))
+        if (!string.Equals(provenance, entity.ProvenanceJson, StringComparison.Ordinal))
             throw new CoreDomainDataException(
-                $"Field Revision {entity.FieldRevisionId:D} contains non-canonical manifest or provenance JSON.");
+                $"Field Revision {entity.FieldRevisionId:D} contains non-canonical provenance JSON.");
+
+        var planeRows = db.FieldRevisionPlanes.AsNoTracking()
+            .Where(x => x.FieldRevisionId == entity.FieldRevisionId)
+            .OrderBy(x => x.Ordinal)
+            .ToArray();
+        if (planeRows.Where((row, index) => row.Ordinal != index).Any())
+            throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has non-contiguous plane ordinals.");
+
+        var categoryRows = db.FieldRevisionCategoryCodes.AsNoTracking()
+            .Where(x => x.FieldRevisionId == entity.FieldRevisionId)
+            .OrderBy(x => x.CategoryKey, StringComparer.Ordinal)
+            .ToArray();
+        var categories = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var row in categoryRows)
+        {
+            if (string.IsNullOrWhiteSpace(row.CategoryKey) || !categories.TryAdd(row.CategoryKey, row.CategoryCode))
+                throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has invalid or duplicate category-code rows.");
+        }
+
+        var codecRows = db.FieldRevisionCodecs.AsNoTracking()
+            .Where(x => x.FieldRevisionId == entity.FieldRevisionId)
+            .OrderBy(x => x.Ordinal)
+            .ToArray();
+        if (codecRows.Where((row, index) => row.Ordinal != index).Any())
+            throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has non-contiguous codec ordinals.");
+
+        var codecs = codecRows.Select(row =>
+        {
+            var parameters = CanonicalJson.Canonicalize(row.ParametersJson);
+            if (!string.Equals(parameters, row.ParametersJson, StringComparison.Ordinal))
+                throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has non-canonical codec parameters.");
+            return new FieldCodecMetadata(row.CodecId, row.CodecName, row.Version, parameters);
+        }).ToArray();
+
+        if (!FieldDescriptorRegistry.TryGetSemanticsId(
+                entity.FieldKey, entity.DescriptorSchemaVersion, out var expectedSemanticsId)
+            || !string.Equals(entity.SemanticsId, expectedSemanticsId, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(entity.MapSpaceId)
+            || string.IsNullOrWhiteSpace(entity.SpatialReferenceId)
+            || string.IsNullOrWhiteSpace(entity.CoordinatePrecisionProfileId)
+            || entity.GridWidth < 1 || entity.GridHeight < 1
+            || entity.GridTileWidth < 1 || entity.GridTileHeight < 1
+            || entity.TileHashVersion < 1)
+            throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has invalid typed semantic columns.");
+
+        var metadata = new FieldRevisionMetadata
+        {
+            FieldKey = entity.FieldKey,
+            DescriptorSchemaVersion = entity.DescriptorSchemaVersion,
+            SemanticsId = entity.SemanticsId,
+            Unit = entity.Unit,
+            MapSpaceId = entity.MapSpaceId,
+            SpatialReferenceId = entity.SpatialReferenceId,
+            CoordinatePrecisionProfileId = entity.CoordinatePrecisionProfileId,
+            VerticalReferenceId = entity.VerticalReferenceId,
+            Grid = new FieldGridMetadata(
+                entity.GridWidth, entity.GridHeight, entity.GridTileWidth, entity.GridTileHeight,
+                entity.GridOriginX, entity.GridOriginY, entity.GridSpacingX, entity.GridSpacingY,
+                entity.GridAxisOrientation, entity.GridCellRegistration),
+            Coverage = new FieldCoverageMetadata(entity.CoverageMode, entity.CoverageMaskPlaneName),
+            MapEdgeSemantics = entity.MapEdgeSemantics,
+            NoData = new FieldNoDataMetadata(
+                entity.NoDataPolicy, entity.NoDataMaskPlaneName, entity.NoDataValidValue, entity.NoDataInvalidValue),
+            ValueProfileId = entity.ValueProfileId,
+            ValueProfileScope = entity.ValueProfileScope,
+            Planes = Array.AsReadOnly(planeRows.Select(row =>
+                new FieldValuePlaneMetadata(row.Name, row.SampleFormat, row.BytesPerCell)).ToArray()),
+            CategoryCodes = new ReadOnlyDictionary<string, int>(categories),
+            Codecs = Array.AsReadOnly(codecs),
+            TileHashAlgorithm = entity.TileHashAlgorithm,
+            TileHashVersion = entity.TileHashVersion,
+        };
 
         return new FieldRevisionRecord
         {
@@ -206,10 +340,33 @@ public sealed partial class SqliteCoreDomainDatabase
             ParentRevisionId = entity.ParentRevisionId,
             FieldRevisionAssetId = entity.FieldRevisionAssetId,
             ContentFingerprint = entity.ContentFingerprint,
-            ManifestJson = manifest,
-            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
+            ManifestJson = entity.ManifestJson,
+            Metadata = metadata,
             ProvenanceJson = provenance,
             CreatedAtUtcMs = entity.CreatedAtUtcMs,
         };
     }
+
+    private static bool MetadataEquals(FieldRevisionMetadata left, FieldRevisionMetadata right) =>
+        string.Equals(left.FieldKey, right.FieldKey, StringComparison.Ordinal)
+        && left.DescriptorSchemaVersion == right.DescriptorSchemaVersion
+        && string.Equals(left.SemanticsId, right.SemanticsId, StringComparison.Ordinal)
+        && string.Equals(left.Unit, right.Unit, StringComparison.Ordinal)
+        && string.Equals(left.MapSpaceId, right.MapSpaceId, StringComparison.Ordinal)
+        && string.Equals(left.SpatialReferenceId, right.SpatialReferenceId, StringComparison.Ordinal)
+        && string.Equals(left.CoordinatePrecisionProfileId, right.CoordinatePrecisionProfileId, StringComparison.Ordinal)
+        && string.Equals(left.VerticalReferenceId, right.VerticalReferenceId, StringComparison.Ordinal)
+        && left.Grid == right.Grid
+        && left.Coverage == right.Coverage
+        && string.Equals(left.MapEdgeSemantics, right.MapEdgeSemantics, StringComparison.Ordinal)
+        && left.NoData == right.NoData
+        && string.Equals(left.ValueProfileId, right.ValueProfileId, StringComparison.Ordinal)
+        && string.Equals(left.ValueProfileScope, right.ValueProfileScope, StringComparison.Ordinal)
+        && left.Planes.SequenceEqual(right.Planes)
+        && left.CategoryCodes.Count == right.CategoryCodes.Count
+        && left.CategoryCodes.All(pair =>
+            right.CategoryCodes.TryGetValue(pair.Key, out var value) && value == pair.Value)
+        && left.Codecs.SequenceEqual(right.Codecs)
+        && string.Equals(left.TileHashAlgorithm, right.TileHashAlgorithm, StringComparison.Ordinal)
+        && left.TileHashVersion == right.TileHashVersion;
 }
