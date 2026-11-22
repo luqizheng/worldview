@@ -75,6 +75,8 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
             return names;
         });
 
+        Assert.Contains("__EFMigrationsHistory", tables);
+        Assert.DoesNotContain("schema_migration", tables);
         Assert.Contains("core_project", tables);
         Assert.Contains("core_map", tables);
         Assert.Contains("core_history", tables);
