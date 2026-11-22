@@ -9,6 +9,7 @@ using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 using Xunit;
 
 namespace WorldView.Infrastructure.Tests.Persistence.CoreDomain;
