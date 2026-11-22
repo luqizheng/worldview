@@ -1,8 +1,8 @@
 {
-  "suite": "World View V1 Field Dataset / Field Revision Descriptor Validation Vectors",
+  "suite": "Field Dataset / Field Revision Descriptor Validation Vectors",
   "version": "0.1",
   "registry": "P2-09-30 V1 Built-in Field Descriptor Registry V0.1",
-  "status": "design fixtures; not executed against implementation. FDV-004/005 and FDV-009 require Manifest V2 semantics; the original Manifest V1 cannot express the required unit, vertical reference or coordinate precision-profile pin.",
+  "status": "design fixtures; core manifest validation partially implemented. Owner-context checks and package-reader integration remain open.",
   "cases": [
     {
       "id": "FDV-001",
@@ -195,15 +195,24 @@
       "field_key": "all",
       "expect": "invalid",
       "case": "Reuse a Checkpoint whose relevant Field Baseline fingerprint no longer matches the current Dataset revision."
+    },
+    {
+      "id": "FDV-033",
+      "field_key": "all",
+      "expect": "invalid",
+      "case": "Publish a Field Revision without spatial.coordinate_precision_profile_id."
+    },
+    {
+      "id": "FDV-034",
+      "field_key": "land_water",
+      "expect": "invalid",
+      "case": "Supply an elevation sample unit or vertical reference for the categorical land_water descriptor."
+    },
+    {
+      "id": "FDV-035",
+      "field_key": "elevation",
+      "expect": "invalid",
+      "case": "Publish elevation with a unit outside the descriptor-approved m/ft vocabulary."
     }
-  ],
-  "manifest_compatibility": {
-    "legacy_v1": "Existing published V1 revisions remain readable; missing semantic values are explicitly unavailable and must not be inferred.",
-    "new_publication": "New formal Field Revision publication uses Manifest V2.",
-    "v2_schema": "P2-09-36",
-    "v2_validation_vectors": "P2-09-37",
-    "resolution_profile": "Represented by grid.spacing_x, grid.spacing_y, grid.width and grid.height.",
-    "grid_alignment": "Represented by grid.origin_x, grid.origin_y, grid.axis_orientation and grid.cell_registration.",
-    "coordinate_precision": "Pinned by spatial.coordinate_precision_profile_id and resolved through the immutable Spatial Reference definition."
-  }
+  ]
 }
