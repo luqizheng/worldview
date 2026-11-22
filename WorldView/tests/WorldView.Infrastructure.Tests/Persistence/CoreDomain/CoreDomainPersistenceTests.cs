@@ -101,7 +101,6 @@ public sealed class CoreDomainPersistenceTests : IDisposable
             await second.OpenAsync();
             var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
             Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
-            Assert.Empty(result.AppliedMigrations); // 无待执行迁移
         }
     }
 
@@ -406,10 +405,6 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         public Task<bool> IntegrityCheckAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<BootstrapMetadata?> ReadMetadataAsync(CancellationToken cancellationToken = default) => Task.FromResult<BootstrapMetadata?>(null);
         public Task WriteMetadataAsync(BootstrapMetadata metadata, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<System.Collections.Generic.IReadOnlyList<MigrationLedgerEntry>> ReadLedgerAsync(CancellationToken cancellationToken = default) => Task.FromResult<System.Collections.Generic.IReadOnlyList<MigrationLedgerEntry>>(Array.Empty<MigrationLedgerEntry>());
-        public Task<bool> LedgerTableExistsAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task EnsureLedgerTableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task ExecuteMigrationAsync(ModuleMigration migration, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
