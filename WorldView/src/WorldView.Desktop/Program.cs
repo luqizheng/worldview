@@ -81,6 +81,7 @@ internal static class Program
         services.AddSingleton<IProjectCreationService>(sp => new CoreDomainProjectCreationService(
             sp.GetRequiredService<IPackageDatabaseFactory>()));
         services.AddSingleton<IProjectIdentityReader, CoreDomainProjectIdentityReader>();
+        services.AddSingleton<IProjectFieldPayloadRecovery, CoreDomainFieldPayloadRecovery>();
 
         // 用例
         services.AddSingleton<CreateProjectUseCase>(sp => new CreateProjectUseCase(
@@ -96,7 +97,8 @@ internal static class Program
             sp.GetRequiredService<IAssetStoreFactory>(),
             sp.GetRequiredService<ProjectSessionRegistry>(),
             sp.GetRequiredService<IProjectIdentityReader>(),
-            log: sp.GetRequiredService<IAppLog>()));
+            log: sp.GetRequiredService<IAppLog>(),
+            fieldPayloadRecovery: sp.GetRequiredService<IProjectFieldPayloadRecovery>()));
 
         // 启动面与工作区 ViewModel 工厂
         services.AddSingleton<StartViewModel>();
