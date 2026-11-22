@@ -93,7 +93,7 @@ public static class ProjectPackageStructure
             return false;
         }
 
-        if (path[0] is '\\\\' or '/')
+        if (path[0] is '\\' or '/')
         {
             return true;
         }
@@ -101,6 +101,6 @@ public static class ProjectPackageStructure
         return path.Length >= 3
             && char.IsAsciiLetter(path[0])
             && path[1] == ':'
-            && path[2] is '\\\\' or '/';
+            && path[2] is '\\' or '/';
     }
 }
