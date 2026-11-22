@@ -17,7 +17,7 @@ public class PackageManifestTests
         Assert.True(parse.Success);
         Assert.Equal(1, parse.Manifest!.PackageFormatVersion);
         Assert.Equal("data/project.sqlite", parse.Manifest.DatabaseRelativePath);
-        Assert.Equal(ProjectPackageFormat.DatabaseFileName, parse.Manifest.DatabaseRelativePath);
+        Assert.Equal(ProjectPackageFormat.DatabaseRelativePath, parse.Manifest.DatabaseRelativePath);
         Assert.Equal(manifest.CreatedAtUtc, parse.Manifest.CreatedAtUtc);
     }
 
