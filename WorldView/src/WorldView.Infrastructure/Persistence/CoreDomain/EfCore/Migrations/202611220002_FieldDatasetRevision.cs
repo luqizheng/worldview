@@ -170,7 +170,7 @@ internal sealed class FieldDatasetRevision : Migration
             });
             entity.HasKey(x => x.FieldDatasetId);
             entity.Property(x => x.FieldDatasetId).HasColumnName("field_dataset_id").HasColumnType("TEXT").HasConversion(guidToText).ValueGeneratedNever();
-            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText).IsConcurrencyToken();
             entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.FieldKey).HasColumnName("field_key").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.DescriptorSchemaVersion).HasColumnName("descriptor_schema_version").HasColumnType("INTEGER");
