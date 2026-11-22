@@ -69,7 +69,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         return core.FindAsset(projectId, asset.AssetId)!;
     }
 
-    private static string BuildManifest(string fieldKey, string semanticsId)
+    private static string BuildManifest(string fieldKey, string semanticsId, string originX = "0")
     {
         var isLandWater = fieldKey == "land_water";
         object[] planes = isLandWater
@@ -98,7 +98,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 planes,
             };
 
-        return System.Text.Json.JsonSerializer.Serialize(new
+        return CanonicalJson.Canonicalize(System.Text.Json.JsonSerializer.Serialize(new
         {
             byte_order = "little_endian",
             canonicalization = "RFC8785-JCS-UTF8",
@@ -111,7 +111,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 axis_orientation = "x_east_y_north",
                 cell_registration = "area",
                 height = 2,
-                origin_x = "0",
+                origin_x = originX,
                 origin_y = "0",
                 spacing_x = "1",
                 spacing_y = "1",
@@ -129,7 +129,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             spatial = new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1" },
             tile_hash = new { algorithm = "SHA-256", version = 1 },
             value_encoding = valueEncoding,
-        });
+        }));
     }
 
     private static PublishFieldRevisionPlan Plan(
@@ -182,6 +182,81 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             core.FindFieldDataset(project.ProjectId, mapId, "elevation")!.CurrentFieldRevisionId);
         Assert.Equal(new[] { first.FieldRevisionId, second.FieldRevisionId },
             core.ListFieldRevisions(project.ProjectId, datasetId).Select(x => x.FieldRevisionId).ToArray());
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsNonCanonicalManifestWhitespace()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1") + "\n",
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsDuplicateManifestObjectKeys()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
+            .Replace("\\"byte_order\\":\\"little_endian\\"",
+                "\\"byte_order\\":\\"little_endian\\",\\"byte_order\\":\\"little_endian\\"");
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsNaNManifestNumbers()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
+            .Replace("\\"width\\":2", "\\"width\\":NaN");
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+
+        Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void CanonicalFieldManifest_IsIdempotentAndPropertyOrderIndependent()
+    {
+        var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
+        Assert.Equal(canonical, CanonicalJson.Canonicalize(canonical));
+        Assert.Equal(
+            CanonicalJson.Canonicalize("{\\"z\\":1,\\"a\\":2}"),
+            CanonicalJson.Canonicalize("{\\"a\\":2,\\"z\\":1}"));
+    }
+
+    [Fact]
+    public void PublishRevision_PreservesExactDecimalStringPrecision()
+    {
+        const string originX = "123.45678901234567890123456789";
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1", originX),
+        };
+
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+
+        Assert.Contains(originX, revision.ManifestJson);
     }
 
     [Fact]
