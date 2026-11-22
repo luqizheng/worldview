@@ -508,6 +508,28 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void ReadFieldPayloadBlob_RejectsSameLengthBytesWithWrongHash()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var revision = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4));
+
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE core_field_payload SET payload_blob = x'00000000' WHERE field_revision_id = $id;";
+            command.Parameters.AddWithValue("$id", revision.FieldRevisionId.ToString("D"));
+            command.ExecuteNonQuery();
+        });
+
+        Assert.Throws<CoreDomainDataException>(() =>
+            core.ReadFieldPayloadBlob(project.ProjectId, revision.FieldRevisionId));
+    }
+
+    [Fact]
     public void PublishedRevisionRows_AreImmutable()
     {
         var (project, mapId) = SeedMap();
