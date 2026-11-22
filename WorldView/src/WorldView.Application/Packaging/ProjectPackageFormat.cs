@@ -5,7 +5,7 @@ namespace WorldView.Application.Packaging;
 /// <code>
 /// &lt;MyWorld&gt;.wvproject/
 ///   manifest.json
-///   project.sqlite
+///   data/\n///     project.sqlite
 ///   Assets/sha256/
 ///   Staging/
 ///   Backups/
