@@ -136,8 +136,7 @@ public sealed partial class SqliteCoreDomainDatabase
         _ef.Execute(db => (IReadOnlyList<Guid>)db.Assets.AsNoTracking()
             .Where(asset => asset.ProjectId == projectId
                 && !db.ObjectDefinitionAssets.Any(link =>
-                    link.project_id == asset.ProjectId && link.asset_id == asset.AssetId)
-)
+                    link.project_id == asset.ProjectId && link.asset_id == asset.AssetId))
             .OrderBy(asset => asset.AssetId)
             .Select(asset => asset.AssetId)
             .ToArray());
