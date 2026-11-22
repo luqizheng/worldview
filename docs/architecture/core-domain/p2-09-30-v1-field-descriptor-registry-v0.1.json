@@ -14,7 +14,7 @@
     "staging": "Editor and AI may stage and preview content. Only Core Domain Field Dataset Domain Services may publish formal Dataset/Revision records.",
     "immutable_payload": "Published Asset bytes are immutable. Updates publish new Asset content and a new Field Revision; never overwrite a published payload.",
     "unknown_fields": "reject",
-    "manifest": "Every revision manifest pins Map/Map Space, spatial reference, coverage, map-edge semantics, resolution, grid alignment, value type, units, no-data, precision, tile manifest where applicable, provenance and content fingerprint.",
+    "manifest": "Every new formal revision uses Manifest V2: it pins Map/Map Space, immutable Spatial Reference and its coordinate_precision_profile_id, coverage, map-edge semantics, resolution (spacing_x/spacing_y plus width/height), grid alignment (origin_x/origin_y, axis_orientation and cell_registration), value type, dimensional units, vertical reference where required, no-data, sample encoding, tile manifest where applicable, provenance and content fingerprint. Manifest V1 is legacy-read-only.",
     "derived_adoption": "A Derived Artifact is not a source Field Dataset unless the creator explicitly adopts the exact output bytes through the Core Domain publication path."
   },
   "field_descriptors": {
@@ -46,7 +46,10 @@
           "coverage",
           "map_edge_semantics",
           "resolution_profile",
-          "grid_alignment"
+          "grid_alignment",
+          "coordinate_precision_profile_id",
+          "vertical_reference_id",
+          "unit"
         ],
         "partial_coverage": "allowed only when explicitly declared; uncovered cells must not be fabricated."
       },
@@ -61,7 +64,9 @@
       },
       "precision": {
         "logical_representation": "finite_number",
-        "physical_encoding": "deferred to immutable field payload package contract; do not infer float width or raster format from this descriptor."
+        "coordinate_precision": "Pinned by spatial.coordinate_precision_profile_id selected by the immutable Spatial Reference definition; this is coordinate quantization, not elevation sample encoding.",
+        "sample_encoding": "Physical sample encoding and quantization are pinned separately by value_encoding.profile_id and its immutable profile definition; do not infer float width or raster format from this descriptor.",
+        "physical_encoding": "Deferred to immutable field payload package contract; no production float width or quantization profile is selected by this registry."
       },
       "provenance": {
         "required": true,
@@ -112,13 +117,16 @@
           "coverage",
           "map_edge_semantics",
           "resolution_profile",
-          "grid_alignment"
+          "grid_alignment",
+          "coordinate_precision_profile_id"
         ],
         "partial_coverage": "allowed only when explicit; outside_coverage must not be silently treated as water or coastline."
       },
       "precision": {
         "logical_representation": "registered_category",
-        "physical_encoding": "deferred to immutable field payload package contract."
+        "physical_encoding": "deferred to immutable field payload package contract.",
+        "coordinate_precision": "Pinned by spatial.coordinate_precision_profile_id selected by the immutable Spatial Reference definition.",
+        "sample_encoding": "Categorical sample representation is pinned separately by value_encoding.profile_id."
       },
       "provenance": {
         "required": true,
