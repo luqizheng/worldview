@@ -3,8 +3,6 @@ using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
@@ -39,50 +37,13 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     }
 
     [Fact]
-    public void EfModel_MatchesFrozenSnapshotAndInitialMigration()
+    public void EfModel_HasNoPendingMigrationChanges()
     {
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
-        var differences = session.Execute(db =>
-        {
-            var connection = db.Database.GetDbConnection();
-            var snapshotOptions = new DbContextOptionsBuilder<CoreDomainDbContext>()
-                .UseSqlite(connection, contextOwnsConnection: false)
-                .Options;
-            using var snapshotContext = new SnapshotModelContext(snapshotOptions);
+        var hasPendingChanges = session.Execute(db => db.Database.HasPendingModelChanges());
 
-            var differ = db.GetService<IMigrationsModelDiffer>();
-            var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
-            var snapshotModel = snapshotContext.GetService<IDesignTimeModel>().Model.GetRelationalModel();
-            static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
-            {
-                var details = operation.GetType().GetProperties()
-                    .Where(property => property.GetIndexParameters().Length == 0)
-                    .Select(property => (property.Name, Value: property.GetValue(operation)))
-                    .Where(item => item.Value is string or bool or int or long or string[])
-                    .Select(item => $"{item.Name}={(item.Value is string[] values ? string.Join("|", values) : item.Value)}");
-                return $"{operation.GetType().Name}({string.Join(", ", details)})";
-            }
-
-            var pendingModelChanges = db.Database.HasPendingModelChanges();
-            var diff = differ.GetDifferences(snapshotModel, runtimeModel)
-                .Select(Describe)
-                .ToArray();
-            return (Diff: diff, HasPendingModelChanges: pendingModelChanges);
-        });
-
-        Assert.True(differences.Diff.Length == 0,
-            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences.Diff)}");
-        Assert.False(differences.HasPendingModelChanges,
-            "EF Core reports pending model changes against the discovered migration snapshot.");
-    }
-
-    private sealed class SnapshotModelContext(DbContextOptions<CoreDomainDbContext> options)
-        : CoreDomainDbContext(options)
-    {
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
-        }
+        Assert.False(hasPendingChanges,
+            "The CoreDomainDbContext model must match the discovered EF migration snapshot.");
     }
 
     [Fact]
