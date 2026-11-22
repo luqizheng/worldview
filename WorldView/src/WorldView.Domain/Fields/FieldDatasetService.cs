@@ -33,8 +33,8 @@ public static class FieldDatasetService
             throw new CoreDomainConflictException(
                 $"Field descriptor semantics_id must be {expectedSemanticsId} for {plan.FieldKey}@{plan.DescriptorSchemaVersion}.");
         if (plan.FieldDatasetId == Guid.Empty || plan.FieldRevisionId == Guid.Empty
-            || plan.FieldRevisionAssetId == Guid.Empty || plan.ProjectId == Guid.Empty || plan.MapId == Guid.Empty)
-            throw new ArgumentException("Field Dataset、Revision、Asset、Project 和 Map ID 均必须为非空 UUID。", nameof(plan));
+            || plan.ProjectId == Guid.Empty || plan.MapId == Guid.Empty)
+            throw new ArgumentException("Field Dataset、Revision、Project 和 Map ID 均必须为非空 UUID。", nameof(plan));
 
         var fingerprint = AssetRules.NormalizeContentHash(plan.ContentFingerprint);
         // The Field Package manifest has an explicit RFC 8785 contract. Do not reuse
@@ -55,13 +55,6 @@ public static class FieldDatasetService
             database, plan.ProjectId, map.SpatialReferenceId)
             ?? throw new CoreDomainConflictException("Map 的 Spatial Reference 定义不存在或不属于当前 Project。");
         SpatialReferenceRules.ValidateFieldOwnerContext(map, spatialReference, metadata);
-
-        var asset = database.FindAsset(plan.ProjectId, plan.FieldRevisionAssetId)
-            ?? throw new CoreDomainConflictException(
-                $"Field Revision Asset {plan.FieldRevisionAssetId} 不存在或不属于项目 {plan.ProjectId}。");
-        if (asset.IntegrityState != AssetIntegrityState.Verified)
-            throw new CoreDomainConflictException(
-                $"Field Revision Asset {asset.AssetId} 必须先通过字节完整性验证；当前状态为 {asset.IntegrityState}。");
 
         var payload = FieldPayloadRules.Create(plan.Payload);
         if (payload.ProjectId != plan.ProjectId
