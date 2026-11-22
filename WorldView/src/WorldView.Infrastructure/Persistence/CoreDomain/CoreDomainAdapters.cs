@@ -1,11 +1,13 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Packaging;
 using WorldView.Domain.Persistence;
+using WorldView.Domain.Projects;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Workspace;
 
@@ -84,8 +86,19 @@ public sealed class CoreDomainProjectIdentityReader : IProjectIdentityReader
     {
         cancellationToken.ThrowIfCancellationRequested();
         var core = new SqliteCoreDomainDatabase(database);
-        var (outcome, record) = ProjectRules.ValidateIdentityRows(core.ReadProjectIdentityRows());
+        IReadOnlyList<RawProjectIdentityRow> rows;
+        try
+        {
+            rows = core.ReadProjectIdentityRows();
+        }
+        catch (FormatException)
+        {
+            return Task.FromResult(ProjectIdentityReadResult.Failed(
+                ProjectIdentityFailure.Invalid,
+                "项目身份 UUID 文本不可解析。"));
+        }
 
+        var (outcome, record) = ProjectRules.ValidateIdentityRows(rows);
         return Task.FromResult(outcome switch
         {
             ProjectIdentityOutcome.Ok when record is not null => ProjectIdentityReadResult.Ok(new ProjectIdentity
