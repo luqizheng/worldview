@@ -48,7 +48,7 @@ The codebase now contains authoritative Map Space ownership on `core_map` and im
 - inferring a Map's spatial reference from its current Field Revision;
 - silently changing or normalizing either identifier during persistence.
 
-For the first typed-persistence migration, preserve both IDs exactly as validated opaque identifiers on the immutable Field Revision. Validate their presence, length and equality against the submitted typed metadata. Enforce the existing Field Dataset → Map ownership boundary. Do not claim referential integrity to a spatial catalog that does not yet exist.
+For typed Field Revision persistence, preserve both IDs exactly on the immutable revision snapshot. `spatial_reference_id` is also constrained by the project-scoped `core_spatial_reference` owner record at Map binding and publication; `map_space_id` remains a stable Map-owned identity on `core_map`, not a separate catalog. Validate both IDs against the submitted manifest and current Map owner context.
 
 ### 3.3 Owner contract
 
@@ -158,7 +158,7 @@ The command used from the `WorldView` solution directory was `dotnet ef migratio
 - Do not alter the initial migration.
 - Do not use `EnsureCreated`, suppress pending-model warnings, or skip migration checks.
 - Update runtime model configuration, generated migration and generated snapshot as one schema change.
-- Include migration/backfill tests against real temporary SQLite databases.
+- Include migration-chain and typed round-trip tests against fresh temporary SQLite databases; no historical backfill test is required.
 - Both ownership and typed metadata migrations were generated on GitHub Actions runners using the pinned .NET 11 / EF Core 11 CLI. Their generated migration files and model snapshot were committed unchanged.
 
 ## 9. Required acceptance tests
