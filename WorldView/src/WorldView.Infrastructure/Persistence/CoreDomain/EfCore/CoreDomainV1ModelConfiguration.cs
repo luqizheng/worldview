@@ -132,6 +132,6 @@ internal static class CoreDomainV1ModelConfiguration
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
                 .OnDelete(DeleteBehavior.NoAction);
         });
-        CoreDomainV1ModelSnapshotConfiguration.Configure(modelBuilder);
+        CoreDomainV1AggregateModelConfiguration.Configure(modelBuilder);
     }
 }
