@@ -19,7 +19,7 @@ namespace WorldView.Infrastructure.Tests.Persistence.CoreDomain;
 
 /// <summary>
 /// Real SQLite proof for Map-owned Field Dataset publication: revision lineage, immutable
-/// published rows, current-pointer CAS, typed Asset retention, and transaction rollback.
+/// published rows, current-pointer CAS, dedicated payload ownership, and transaction rollback.
 /// </summary>
 public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
 {
@@ -93,15 +93,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         _ = MapSpatialReferenceService.BindInitial(
             core, project.ProjectId, mapPlan.Map.MapId, "fixture:local-cartesian-v1", Now + 2);
         return (project, mapPlan.Map.MapId);
-    }
-
-    private AssetRecord RegisterVerifiedAsset(Guid projectId, string hash, long now)
-    {
-        var core = Core();
-        var asset = AssetService.RegisterAsset(
-            core, projectId, Guid.NewGuid(), hash, 1024, "application/octet-stream", "field-package-v1", now);
-        core.UpdateAssetIntegrityState(projectId, asset.AssetId, AssetIntegrityState.Verified, now + 1);
-        return core.FindAsset(projectId, asset.AssetId)!;
     }
 
     private static string BuildManifest(string fieldKey, string semanticsId, string originX = "0")
@@ -181,7 +172,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Guid mapId,
         Guid datasetId,
         Guid revisionId,
-        Guid assetId,
         Guid? expectedRevision,
         string fingerprint,
         long now) => new()
@@ -193,7 +183,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         DescriptorSchemaVersion = 1,
         SemanticsId = "world-view.field.elevation.v1",
         FieldRevisionId = revisionId,
-        FieldRevisionAssetId = assetId,
         Payload = CreatePayloadPlan(projectId, datasetId, revisionId, now),
         PayloadBytes = new byte[] { 0x57, 0x56, 0x46, 0x50 },
         ExpectedCurrentFieldRevisionId = expectedRevision,
@@ -257,7 +246,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
         manifest = mismatch switch
         {
@@ -268,7 +256,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(mismatch)),
         };
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -280,18 +268,16 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var (project, mapId) = SeedMap();
         var core = Core();
         var datasetId = Guid.NewGuid();
-        var asset1 = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var first = FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset1.AssetId, null, Fingerprint1, Now + 4));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
 
         Assert.Equal(1, first.RevisionNumber);
         Assert.Null(first.ParentRevisionId);
         Assert.Equal(Fingerprint1, first.ContentFingerprint);
         Assert.Contains("world-view.field.elevation.v1", first.ManifestJson);
 
-        var asset2 = RegisterVerifiedAsset(project.ProjectId, Fingerprint2, Now + 5);
         var second = FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset2.AssetId, first.FieldRevisionId, Fingerprint2, Now + 7));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), first.FieldRevisionId, Fingerprint2, Now + 7));
 
         Assert.Equal(2, second.RevisionNumber);
         Assert.Equal(first.FieldRevisionId, second.ParentRevisionId);
@@ -306,10 +292,9 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = canonical + "\n",
         };
@@ -340,12 +325,11 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
             .Replace("\"byte_order\":\"little_endian\"",
                 "\"byte_order\":\"little_endian\",\"byte_order\":\"little_endian\"");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -356,11 +340,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
             .Replace("\"width\":2", "\"width\":NaN");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -382,9 +365,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         const string originX = "0.12345678901234567890123456789";
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1", originX),
         };
@@ -399,9 +381,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             FieldKey = "land_water",
             SemanticsId = "world-view.field.land_water.v1",
@@ -420,9 +401,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = "{}",
         };
@@ -436,9 +416,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             SemanticsId = "world-view.field.elevation.experimental",
         };
@@ -452,9 +431,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = BuildManifest("elevation", "world-view.field.land_water.v1"),
         };
@@ -469,18 +447,13 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var (project, mapId) = SeedMap();
         var core = Core();
         var datasetId = Guid.NewGuid();
-        var asset1 = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var first = FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset1.AssetId, null, Fingerprint1, Now + 4));
-        var asset2 = RegisterVerifiedAsset(project.ProjectId, Fingerprint2, Now + 5);
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
         var second = FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset2.AssetId, first.FieldRevisionId, Fingerprint2, Now + 7));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), first.FieldRevisionId, Fingerprint2, Now + 7));
 
-        var staleAsset = RegisterVerifiedAsset(project.ProjectId,
-            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", Now + 8);
         Assert.Throws<CoreDomainConflictException>(() => core.PublishFieldRevision(Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), staleAsset.AssetId,
-            first.FieldRevisionId, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", Now + 10)));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), first.FieldRevisionId, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", Now + 10)));
 
         Assert.Equal(2, core.ListFieldRevisions(project.ProjectId, datasetId).Count);
         Assert.Equal(second.FieldRevisionId,
@@ -492,9 +465,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4);
+            null, Fingerprint1, Now + 4);
         var expectedBytes = plan.PayloadBytes!.ToArray();
 
         var revision = FieldDatasetService.PublishRevision(core, plan);
@@ -512,10 +484,9 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var revision = FieldDatasetService.PublishRevision(core, Plan(
             project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4));
+            null, Fingerprint1, Now + 4));
 
         Access().Execute(connection =>
         {
@@ -535,9 +506,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var (project, mapId) = SeedMap();
         var core = Core();
         var datasetId = Guid.NewGuid();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var revision = FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset.AssetId, null, Fingerprint1, Now + 4));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
 
         Assert.Throws<SqliteException>(() => Access().Execute(connection =>
         {
@@ -562,7 +532,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var (project, mapId) = SeedMap();
         var core = Core();
         var datasetId = Guid.NewGuid();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         Access().Execute(connection =>
         {
             using var command = connection.CreateCommand();
@@ -577,22 +546,11 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         });
 
         Assert.Throws<SqliteException>(() => core.PublishFieldRevision(Plan(
-            project.ProjectId, mapId, datasetId, Guid.NewGuid(), asset.AssetId, null, Fingerprint1, Now + 4)));
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4)));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
         Assert.Empty(core.ListFieldRevisions(project.ProjectId, datasetId));
     }
 
-    [Fact]
-    public void FieldRevisionAsset_IsNotReportedAsOrphan()
-    {
-        var (project, mapId) = SeedMap();
-        var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
-        FieldDatasetService.PublishRevision(core, Plan(
-            project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(), asset.AssetId, null, Fingerprint1, Now + 4));
-
-        Assert.DoesNotContain(asset.AssetId, core.FindOrphanAssetIds(project.ProjectId));
-    }
 
 
     [Theory]
@@ -618,7 +576,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
 
         switch (vectorId)
@@ -695,7 +652,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         }
 
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             FieldKey = vectorId == "MNF-017" ? "land_water" : "elevation",
             SemanticsId = vectorId == "MNF-017"
@@ -714,7 +671,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var parsed = JsonNode.Parse(
             BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         var reordered = new JsonObject();
@@ -723,7 +679,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
 
         var rawManifest = reordered.ToJsonString();
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = rawManifest,
         };
@@ -779,7 +735,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         var fieldKey = "elevation";
         var semanticsId = "world-view.field.elevation.v1";
@@ -818,7 +773,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         }
 
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             FieldKey = fieldKey,
             SemanticsId = semanticsId,
@@ -833,13 +788,12 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
 
         var spatialManifest = JsonNode.Parse(
             BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         spatialManifest["spatial"]!["spatial_reference_id"] = new string('s', 513);
         var spatialPlan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = spatialManifest.ToJsonString(),
         };
@@ -849,7 +803,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         planeManifest["value_encoding"]!["planes"]![0]!["name"] = new string('p', 65);
         var planePlan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 5) with
+            null, Fingerprint1, Now + 5) with
         {
             ManifestJson = planeManifest.ToJsonString(),
         };
@@ -863,12 +817,11 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = JsonNode.Parse(
             BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         manifest["manifest_schema"]!.AsObject().Remove("id");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = manifest.ToJsonString(),
         };
@@ -882,9 +835,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             DescriptorSchemaVersion = 2,
         };
@@ -898,7 +850,6 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     {
         var (project, mapId) = SeedMap();
         var core = Core();
-        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = JsonNode.Parse(
             BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
         manifest["codec_registry"]!.AsArray().Add(new JsonObject
@@ -909,7 +860,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             ["parameters"] = new JsonObject(),
         });
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            asset.AssetId, null, Fingerprint1, Now + 4) with
+            null, Fingerprint1, Now + 4) with
         {
             ManifestJson = manifest.ToJsonString(),
         };
