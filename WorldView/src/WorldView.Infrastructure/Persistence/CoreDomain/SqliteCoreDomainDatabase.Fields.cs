@@ -160,6 +160,16 @@ public sealed partial class SqliteCoreDomainDatabase
                 transaction.Rollback();
                 throw new CoreDomainConflictException("Field Dataset current revision 已被并发发布推进；本次发布已回滚。");
             }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 5 or 6 })
+            {
+                transaction.Rollback();
+                throw new CoreDomainConflictException("Field Dataset 发布遇到 SQLite 并发写锁冲突；本次发布已回滚。");
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6)
+            {
+                transaction.Rollback();
+                throw new CoreDomainConflictException("Field Dataset 发布遇到 SQLite 并发写锁冲突；本次发布已回滚。");
+            }
             catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
             {
                 transaction.Rollback();
