@@ -212,6 +212,28 @@ public sealed class FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void PublishRevision_EnforcesConditionalFieldManifestRules()
+    {
+        var (projectId, mapId, _) = SeedProjectAndMaps();
+        var assetId = RegisterVerifiedAsset(projectId, "conditional manifest validation");
+        var core = Core();
+
+        var missingLandWaterCodes = Manifest("land_water", "world-view.field.land_water.v1")
+            .Replace(",\\"category_codes\\":{\\"land\\":1,\\"water\\":2,\\"unknown\\":3,\\"outside_coverage\\":4}", string.Empty, StringComparison.Ordinal);
+        Assert.Throws<ArgumentException>(() => FieldDatasetService.PublishRevision(
+            core, projectId, mapId, "land_water", assetId,
+            missingLandWaterCodes, Provenance("imported"), null, Now + 5));
+
+        var elevationWithCategoryCodes = Manifest("land_water", "world-view.field.land_water.v1")
+            .Replace("\\"field_key\\":\\"land_water\\"", "\\"field_key\\":\\"elevation\\"", StringComparison.Ordinal)
+            .Replace("\\"semantics_id\\":\\"world-view.field.land_water.v1\\"",
+                "\\"semantics_id\\":\\"world-view.field.elevation.v1\\"", StringComparison.Ordinal);
+        Assert.Throws<ArgumentException>(() => FieldDatasetService.PublishRevision(
+            core, projectId, mapId, "elevation", assetId,
+            elevationWithCategoryCodes, Provenance("imported"), null, Now + 6));
+    }
+
+    [Fact]
     public void PublishedRevision_RawUpdateAndDeleteAreBlockedByDatabase()
     {
         var (projectId, mapId, _) = SeedProjectAndMaps();
