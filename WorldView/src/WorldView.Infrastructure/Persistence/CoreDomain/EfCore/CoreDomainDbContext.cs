@@ -134,6 +134,7 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId });
             entity.HasIndex(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber }).IsUnique();
+            entity.HasIndex(x => new { x.ProjectId, x.FieldRevisionAssetId }).HasDatabaseName("ix_core_map_field_revision_asset");
             entity.HasOne<CoreMapFieldDatasetEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId })
