@@ -45,9 +45,10 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         var differences = session.Execute(db =>
         {
             var differ = db.GetService<IMigrationsModelDiffer>();
+            var initializer = db.GetService<IModelRuntimeInitializer>();
             var runtimeModel = db.Model.GetRelationalModel();
-            var snapshotModel = new CoreDomainDbContextModelSnapshot().Model.GetRelationalModel();
-            var migrationModel = new CoreDomainInitial().TargetModel.GetRelationalModel();
+            var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true).GetRelationalModel();
+            var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true).GetRelationalModel();
             return differ.GetDifferences(snapshotModel, runtimeModel)
                 .Select(operation => $"snapshot:{operation.GetType().Name}")
                 .Concat(differ.GetDifferences(migrationModel, runtimeModel)
