@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
@@ -193,6 +194,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         SemanticsId = "world-view.field.elevation.v1",
         FieldRevisionId = revisionId,
         FieldRevisionAssetId = assetId,
+        Payload = CreatePayloadPlan(projectId, datasetId, revisionId, now),
+        PayloadBytes = new byte[] { 0x57, 0x56, 0x46, 0x50 },
         ExpectedCurrentFieldRevisionId = expectedRevision,
         ContentFingerprint = fingerprint,
         ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1"),
@@ -201,6 +204,26 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         ProvenanceJson = """{"source":"test-fixture"}""",
         CreatedAtUtcMs = now,
     };
+
+    private static RegisterFieldPayloadPlan CreatePayloadPlan(
+        Guid projectId, Guid datasetId, Guid revisionId, long now)
+    {
+        var bytes = new byte[] { 0x57, 0x56, 0x46, 0x50 };
+        return new RegisterFieldPayloadPlan
+        {
+            FieldPayloadId = Guid.NewGuid(),
+            ProjectId = projectId,
+            FieldDatasetId = datasetId,
+            FieldRevisionId = revisionId,
+            StorageKind = FieldPayloadStorageKind.SqliteBlob,
+            PayloadFormat = "application/vnd.worldview.field-payload",
+            FormatVersion = "1",
+            HashAlgorithm = "sha-256",
+            ByteLength = bytes.LongLength,
+            ContentHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
+            CreatedAtUtcMs = now,
+        };
+    }
 
     [Fact]
     public void SpatialReferenceDefinition_PersistsTypedProfileAndMapBinding()
@@ -462,6 +485,26 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(2, core.ListFieldRevisions(project.ProjectId, datasetId).Count);
         Assert.Equal(second.FieldRevisionId,
             core.FindFieldDataset(project.ProjectId, mapId, "elevation")!.CurrentFieldRevisionId);
+    }
+
+    [Fact]
+    public void PublishRevision_PersistsAndReadsExactSqliteBlobPayload()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4);
+        var expectedBytes = plan.PayloadBytes!.ToArray();
+
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+
+        var payload = core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId);
+        Assert.NotNull(payload);
+        Assert.Equal(FieldPayloadStorageKind.SqliteBlob, payload!.StorageKind);
+        Assert.Equal(expectedBytes.LongLength, payload.ByteLength);
+        Assert.Equal(expectedBytes, core.ReadFieldPayloadBlob(project.ProjectId, revision.FieldRevisionId));
+        Assert.Equal(payload.FieldPayloadId, revision.Payload.FieldPayloadId);
     }
 
     [Fact]
