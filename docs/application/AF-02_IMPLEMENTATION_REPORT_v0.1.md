@@ -95,7 +95,7 @@ fast-forward 拉取；`luqizheng/world-view-rs`（TV-01 Rust 原型仓库）仅�
 ```text
 <MyWorld>.wvproject/
   manifest.json          # v1: packageFormatVersion=1, database.relativePath, createdAtUtc
-  project.sqlite         # 单逻辑项目数据库（schema_migration + wv_bootstrap_metadata 由 Bootstrap 拥有）
+  data/project.sqlite         # 单逻辑项目数据库（schema_migration + wv_bootstrap_metadata 由 Bootstrap 拥有）
   Assets/sha256/         # 内容寻址不可变 Asset
   Staging/               # 临时、非权威
   Backups/               # 显式备份产物
