@@ -70,4 +70,56 @@ public sealed class FieldManifestCanonicalizerTests
 
         Assert.Equal(canonical, FieldManifestCanonicalizer.Canonicalize(canonical));
     }
+
+    [Fact]
+    public void RequireCanonicalUtf8_AcceptsByteIdenticalJcs()
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes("""{"a":1,"b":2}""");
+
+        Assert.Equal(bytes, FieldManifestCanonicalizer.RequireCanonicalUtf8(bytes));
+    }
+
+    [Theory]
+    [InlineData(" {\\"a\\":1}")]
+    [InlineData("{\\"a\\":1}\\n")]
+    public void RequireCanonicalUtf8_RejectsNonCanonicalWhitespace(string json)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+
+        Assert.Throws<CoreDomainDataException>(
+            () => FieldManifestCanonicalizer.RequireCanonicalUtf8(bytes));
+    }
+
+    [Fact]
+    public void RequireCanonicalUtf8_RejectsUtf8Bom()
+    {
+        byte[] bytes = [0xEF, 0xBB, 0xBF, 0x7B, 0x7D];
+
+        Assert.Throws<CoreDomainDataException>(
+            () => FieldManifestCanonicalizer.RequireCanonicalUtf8(bytes));
+    }
+
+    [Fact]
+    public void RequireCanonicalUtf8_RejectsInvalidUtf8()
+    {
+        byte[] bytes = [0x22, 0xC3, 0x28, 0x22];
+
+        Assert.Throws<CoreDomainDataException>(
+            () => FieldManifestCanonicalizer.RequireCanonicalUtf8(bytes));
+    }
+
+    [Theory]
+    [InlineData("{\\"value\\":NaN}")]
+    [InlineData("{\\"value\\":Infinity}")]
+    [InlineData("{\\"value\\":-Infinity}")]
+    [InlineData("{\\"value\\":-0}")]
+    [InlineData("{\\"outer\\":{\\"value\\":1,\\"\\\\u0076alue\\":2}}")]
+    public void RequireCanonicalUtf8_RejectsInvalidJcsInput(string json)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+
+        Assert.Throws<CoreDomainDataException>(
+            () => FieldManifestCanonicalizer.RequireCanonicalUtf8(bytes));
+    }
+
 }
