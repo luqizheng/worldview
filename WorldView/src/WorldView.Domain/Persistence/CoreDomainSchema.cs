@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace WorldView.Domain.Persistence;
 
 /// <summary>
-/// Core Domain 模块（module_id="core-domain"）的迁移内容（CD-01 + CD-02-B 子集）。
+/// Core Domain 模块（module_id="core-domain"）的迁移内容（CD-01 + CD-02-B/D 子集）。
 /// 表结构取自 P2-09-11 V0.11 §4（提案；本文件是其最小可执行子集的正式落地），
 /// 迁移槽位顺序遵循 P2-09-13 V0.6 §5 依赖图（ledger → core_project → core_map →
 /// core_history/core_branch → core_calendar → core_object_type → core_object 系 →
@@ -14,8 +14,8 @@ namespace WorldView.Domain.Persistence;
 /// 每连接 PRAGMA foreign_keys=ON；正式身份/历史表不用 ON DELETE CASCADE（默认 NO ACTION）；
 /// 同 Project 归属以 UNIQUE(project_id, entity_id) + 复合外键防跨库误引用。
 /// 仍刻意排除的表（open gate，未授权落地）：core_command 系、core_event 系、
-/// core_asset/core_checkpoint、core_object_definition_asset/core_map_initial_object_asset
-/// （条件性 typed link，启用触发条件见 CD-02-A §17）、field dataset 系、
+/// core_checkpoint、core_map_initial_object_asset（条件性 typed link，启用触发条件见 CD-02-A §17）、
+/// field dataset 系；core_asset 与 core_object_definition_asset 已由迁移 009/010 实现。
 /// state change 系、全部 AI Assistant 表、任何 Building/Cave 或 per-child 表。
 /// </summary>
 public static class CoreDomainSchema
