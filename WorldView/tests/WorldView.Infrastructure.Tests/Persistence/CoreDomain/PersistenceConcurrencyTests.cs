@@ -591,9 +591,9 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             Assert.True(await verify.IntegrityCheckAsync().ConfigureAwait(false));
             var access = AccessOf(verify);
             var branches = access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_branch"));
-            // 成功提交的写数量取决于 dispose 与写者的交错（0..workers*rounds/2 均合法），
+            // i=0,2,...,24 共 (rounds+1)/2 次写；成功提交数量取决于 dispose 交错。
             // 但任何已提交的写必须完整（branch 行与 branch_owned history 一一对应）。
-            Assert.True(branches is >= 0 and <= workers * rounds / 2, $"branches={branches}");
+            Assert.True(branches is >= 0 and <= workers * ((rounds + 1) / 2), $"branches={branches}");
             Assert.Equal(
                 branches,
                 access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_history WHERE history_kind = 'branch_owned'")));
