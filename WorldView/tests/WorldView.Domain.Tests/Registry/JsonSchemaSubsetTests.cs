@@ -114,6 +114,7 @@ public sealed class JsonSchemaSubsetTests
         {
             "WorldView.Domain.Tests.Fixtures.minimal-elevation-2x2.manifest.json",
             "WorldView.Domain.Tests.Fixtures.land-water-4x2-two-tiles.manifest.json",
+            "WorldView.Domain.Tests.Fixtures.edge-elevation-3x2.manifest.json",
         })
         {
             using var fixture = LoadResource(typeof(JsonSchemaSubsetTests).Assembly, fixtureName);
