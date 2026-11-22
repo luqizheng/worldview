@@ -61,10 +61,10 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         {"schema_version":1,"canonical_name":"NAME","building_class":"residential","description":"demo building","horizontal_frame":{"frame_id":"hframe-1","coordinate_kind":"local_cartesian","unit":"m","origin":{"x":0,"y":0},"orientation_degrees":0,"precision_profile_id":"hp-1"},"vertical_frame":{"vertical_frame_id":"vframe-1","unit":"m","positive_axis":"up","precision_profile_id":"vp-1"},"levels":[{"level_id":"level-ground","level_label":"Ground Floor","level_kind":"ground","display_order":0,"elevation_local":0,"status":"active"}],"spaces":[{"space_id":"space-hall","space_kind":"room","label":"Hall","status":"active"}],"plans":[],"boundaries":[],"access":{"entrances":[],"openings":[],"connections":[],"vertical_connectors":[],"exterior_anchors":[]},"geometry_components":[]}
         """.Replace("NAME", canonicalName);
 
-    private static string BuildingAggregateWithFootprint(string canonicalName, Guid assetId, string contentHash) =>
+    private static string BuildingAggregateWithFootprint(string canonicalName, Guid componentId, Guid assetId, string contentHash) =>
         BuildingAggregate(canonicalName).Replace(
             "\"geometry_components\":[]",
-            "\"geometry_components\":[{\"geometry_component_id\":\"" + Guid.NewGuid().ToString("D") +
+            "\"geometry_components\":[{\"geometry_component_id\":\"" + componentId.ToString("D") +
             "\",\"geometry_role\":\"footprint\",\"geometry_family\":\"polygon\",\"dimension\":2," +
             "\"coordinate_context_id\":\"local-context-1\",\"child_context\":{}," +
             "\"asset_id\":\"" + assetId.ToString("D") + "\",\"content_hash\":\"" + contentHash +
@@ -119,18 +119,32 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
         core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
 
-        // Manifest 必须先声明精确 Asset/role/hash；typed link 插入时在同一事务内对账。
+        // 缺少 manifest 或 manifest hash 不匹配时，正式 typed link 必须拒绝。
+        Assert.Throws<CoreDomainConflictException>(
+            () => AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 6));
         var definition = core.ReadObjectDefinition(project.ProjectId, buildingId)!;
-        var manifested = ObjectDefinitionService.EditDefinition(
+        var componentId = Guid.NewGuid();
+        var badManifest = ObjectDefinitionService.EditDefinition(
             core, project.ProjectId, buildingId, definition.DefinitionHash,
-            BuildingAggregateWithFootprint("Demo Hall", asset.AssetId, asset.ContentHash), 1, Now + 6);
-        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 7);
+            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, new string('0', 64)), 1, Now + 6);
+        Assert.Throws<CoreDomainConflictException>(
+            () => AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 7));
+
+        // Manifest 必须先声明精确 Asset/role/hash；typed link 插入时在同一事务内对账。
+        var manifested = ObjectDefinitionService.EditDefinition(
+            core, project.ProjectId, buildingId, badManifest.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, asset.ContentHash), 1, Now + 8);
+        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 9);
         Assert.NotNull(core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "footprint"));
 
-        // 6) definition CAS 编辑必须保留仍被正式 link 引用的 manifest。
+        // Definition CAS 不得移除已链接组件；组件身份也必须保持稳定。
+        Assert.Throws<CoreDomainConflictException>(
+            () => ObjectDefinitionService.EditDefinition(
+                core, project.ProjectId, buildingId, manifested.DefinitionHash,
+                BuildingAggregate("Demo Hall Renamed"), 1, Now + 10));
         var updated = ObjectDefinitionService.EditDefinition(
             core, project.ProjectId, buildingId, manifested.DefinitionHash,
-            BuildingAggregateWithFootprint("Demo Hall Renamed", asset.AssetId, asset.ContentHash), 1, Now + 8);
+            BuildingAggregateWithFootprint("Demo Hall Renamed", componentId, asset.AssetId, asset.ContentHash), 1, Now + 11);
         Assert.Contains("Demo Hall Renamed", updated.DefinitionPayloadJson);
 
         // 7) Initial State CAS 编辑（baseline 建立时成员已由 Insert 建立 → expected=null 非法；用重读凭据）。
