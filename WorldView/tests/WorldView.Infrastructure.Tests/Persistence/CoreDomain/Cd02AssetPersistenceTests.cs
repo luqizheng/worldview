@@ -236,7 +236,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
                         INSERT INTO core_map_field_dataset
                             (field_dataset_id, project_id, map_id, field_key, descriptor_schema_version,
                              semantics_id, current_field_revision_id, created_at_utc_ms, updated_at_utc_ms)
-                        VALUES ($dataset, $project, $map, 'elevation', 1, 'elevation-meters-v1', NULL, $now, $now);
+                        VALUES ($dataset, $project, $map, 'elevation', 1, 'world-view.field.elevation.v1', NULL, $now, $now);
                         """;
                     dataset.Parameters.AddWithValue("$dataset", datasetId.ToString("D"));
                     dataset.Parameters.AddWithValue("$project", projectId.ToString("D"));
