@@ -169,8 +169,9 @@ The following implementation is committed in PR #11:
 - `PublishFieldRevisionPlan` now carries a Field Payload registration plan and optional raw bytes. SQLite BLOB registrations are rechecked for owner IDs, byte length and SHA-256 inside the publication transaction.
 - BLOB bytes and Field Payload metadata are inserted in the same SQLite transaction as the immutable Field Revision and Dataset current-pointer CAS. A failed publication rolls back the BLOB row with the Revision.
 - `FindFieldPayload` and `ReadFieldPayloadBlob` expose metadata and exact raw BLOB readback. Readback verifies byte length and SHA-256 before returning a copy.
-- Infrastructure tests cover a byte-for-byte BLOB publication/read round trip. Domain test doubles implement the new payload port methods.
-- The managed-file adapter remains content-addressed and streaming; its metadata registration shape is compatible with `managed_file`, but it is not yet integrated into the same Field Revision publication workflow.
+- `FieldPayloadReader` is the storage-kind-neutral Application read API. It returns a read-only memory stream for verified BLOB bytes and verifies ManagedFile length/SHA-256 incrementally before reopening the immutable content-addressed file for streaming consumption.
+- `FieldPayloadPublisher` streams ManagedFile bytes to the content-addressed store, then publishes the payload metadata, immutable Revision and Dataset CAS through the authoritative SQLite transaction. A failed DB publication deliberately retains the final file as a recoverable orphan; it never eagerly deletes potentially shared content.
+- Infrastructure tests cover BLOB and ManagedFile readback, managed-file publication orchestration, and same-length hash corruption rejection. Domain test doubles implement the payload port methods.
 
 The generic Asset dependency has now been removed from Field Revision records, publication plans, Domain validation, SQLite persistence and the fresh V1 schema. `core_field_payload` is the sole Field byte-storage reference; generic Assets remain available for unrelated project assets and typed consumers.
 
@@ -178,11 +179,8 @@ The generic Asset dependency has now been removed from Field Revision records, p
 
 The repository does not yet provide:
 
-- a single Application read API that dispatches transparently between SQLite BLOB and ManagedFile storage;
-- full ManagedFile publication integration with staging, atomic rename, DB reference transaction and Dataset CAS;
 - startup crash recovery, DB/file integrity reconciliation and safe orphan cleanup;
 - a supported integrity-scan update path for `corrupt` / `missing` payload states;
-- removal of the legacy `FieldRevisionAssetId` dependency from Field Revision publication and orphan-Asset logic;
 - Project / Map settings-document persistence as versioned external files;
 - production package writer integration and regenerated binary golden fixtures from the current canonical Manifest contract.
 
@@ -190,9 +188,9 @@ Generic Assets remain valid for generic project assets and definition links. The
 
 ## 7.4 Next implementation sequence
 
-1. Remove `FieldRevisionAssetId` from Field Revision records/plans and the EF schema; make the dedicated Field Payload the only Field byte-storage reference. Generate the schema change using the real EF CLI and commit generated migration/Designer/snapshot.
-2. Add a storage-kind-neutral Application read service: SQLite BLOB returns a read-only memory stream; ManagedFile delegates to `IFieldPayloadFileStore.OpenReadAsync`; both verify the metadata contract.
-3. Integrate ManagedFile writes with Field Revision publication: stage, flush, verify hash/length, same-filesystem atomic rename, then commit payload metadata + Revision + Dataset CAS in SQLite.
+1. **Completed:** remove the generic Asset reference from Field Revision records, plans, EF schema and orphan-Asset logic. The fresh V1 schema uses `core_field_payload` as the only Field byte-storage reference.
+2. **Completed:** add the storage-kind-neutral Application read API for verified BLOB and ManagedFile content.
+3. **Completed:** integrate ManagedFile staging, streaming hash/length verification, atomic content-addressed publication and the SQLite payload/Revision/Dataset transaction. Cross-resource crash recovery and orphan cleanup remain separate work.
 4. Add integrity scan transitions and startup crash recovery / DB-file reconciliation. Orphan files are candidates only after a fresh authoritative reference scan and package-root confinement check.
 5. Add Project/Map settings-document storage as a separate follow-up slice.
 6. Complete the production package writer and regenerate binary golden fixtures from the current canonical Manifest contract.
