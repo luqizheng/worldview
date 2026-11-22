@@ -63,13 +63,17 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
                 return $"{operation.GetType().Name}({string.Join(", ", details)})";
             }
 
-            return differ.GetDifferences(snapshotModel, runtimeModel)
+            var pendingModelChanges = db.Database.HasPendingModelChanges();
+            var diff = differ.GetDifferences(snapshotModel, runtimeModel)
                 .Select(Describe)
                 .ToArray();
+            return (Diff: diff, HasPendingModelChanges: pendingModelChanges);
         });
 
-        Assert.True(differences.Length == 0,
-            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences)}");
+        Assert.True(differences.Diff.Length == 0,
+            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences.Diff)}");
+        Assert.False(differences.HasPendingModelChanges,
+            "EF Core reports pending model changes against the discovered migration snapshot.");
     }
 
     private sealed class SnapshotModelContext(DbContextOptions<CoreDomainDbContext> options)
