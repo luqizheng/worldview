@@ -194,7 +194,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with
         {
-            ManifestJson = canonical + "\\n",
+            ManifestJson = canonical + "\n",
         };
 
         var revision = FieldDatasetService.PublishRevision(core, plan);
