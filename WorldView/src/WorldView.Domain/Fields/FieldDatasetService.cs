@@ -243,7 +243,7 @@ public static class FieldDatasetService
 
         var codecs = RequiredArray(root, "codec_registry");
         if (codecs.GetArrayLength() is < 1 or > 32)
-            throw new CoreDomainConflictException("Field manifest codec_registry count is outside V1 bounds.");
+            throw new CoreDomainConflictException("Field manifest codec_registry count is outside registered bounds.");
         var codecIds = new HashSet<int>();
         var hasNoneCodec = false;
         foreach (var codec in codecs.EnumerateArray())
