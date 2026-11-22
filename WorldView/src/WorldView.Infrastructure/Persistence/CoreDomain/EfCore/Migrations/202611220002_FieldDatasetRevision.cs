@@ -11,7 +11,7 @@ namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 /// </summary>
 [DbContext(typeof(CoreDomainDbContext))]
 [Migration("202611220002_FieldDatasetRevision")]
-internal sealed class FieldDatasetRevision : Migration
+public sealed class FieldDatasetRevision : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
