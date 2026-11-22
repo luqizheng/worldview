@@ -25,6 +25,7 @@ public sealed record FieldRevisionRecord
     public required long RevisionNumber { get; init; }
     public Guid? ParentRevisionId { get; init; }
     public required Guid FieldRevisionAssetId { get; init; }
+    public required FieldPayloadRecord Payload { get; init; }
     public required string ContentFingerprint { get; init; }
     public required string ManifestJson { get; init; }
     /// <summary>Authoritative typed semantic projection; ManifestJson is retained for interchange/diagnostics.</summary>
