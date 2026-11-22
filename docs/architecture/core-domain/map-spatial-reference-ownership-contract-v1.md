@@ -134,4 +134,4 @@ Exact column types and parameter JSON bounds must be finalized against the exist
 4. Generate Map Space IDs and establish Spatial Reference bindings as part of initial Map creation; do not synthesize unknown reference definitions.
 5. Add owner-context validation to Field Revision publication.
 6. Persist the canonical manifest's typed semantic fields in the SQLite typed metadata schema.
-7. Only then enable new V2 Field Revision publication and BLOB/file payload publication.
+7. Only then enable Field Revision publication and BLOB/file payload publication.
