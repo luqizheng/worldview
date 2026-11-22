@@ -21,10 +21,16 @@ public static class FieldDatasetService
 
         if (plan.FieldKey is not ("elevation" or "land_water"))
             throw new CoreDomainConflictException($"Field key \"{plan.FieldKey}\" is not registered in the V1 Field Descriptor Registry.");
-        if (plan.DescriptorSchemaVersion < 1)
-            throw new ArgumentException("descriptor_schema_version 必须 >= 1。", nameof(plan));
-        if (string.IsNullOrWhiteSpace(plan.SemanticsId))
-            throw new ArgumentException("semantics_id 不能为空白。", nameof(plan));
+        var expectedSemanticsId = plan.FieldKey switch
+        {
+            "elevation" when plan.DescriptorSchemaVersion == 1 => "world-view.field.elevation.v1",
+            "land_water" when plan.DescriptorSchemaVersion == 1 => "world-view.field.land_water.v1",
+            _ => throw new CoreDomainConflictException(
+                $"Field descriptor {plan.FieldKey}@{plan.DescriptorSchemaVersion} is not registered in the V1 registry."),
+        };
+        if (!string.Equals(plan.SemanticsId, expectedSemanticsId, StringComparison.Ordinal))
+            throw new CoreDomainConflictException(
+                $"Field descriptor semantics_id must be {expectedSemanticsId} for {plan.FieldKey}@{plan.DescriptorSchemaVersion}.");
         if (plan.FieldDatasetId == Guid.Empty || plan.FieldRevisionId == Guid.Empty
             || plan.FieldRevisionAssetId == Guid.Empty || plan.ProjectId == Guid.Empty || plan.MapId == Guid.Empty)
             throw new ArgumentException("Field Dataset、Revision、Asset、Project 和 Map ID 均必须为非空 UUID。", nameof(plan));
