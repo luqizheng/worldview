@@ -44,13 +44,13 @@ The header has no embedded self-hash. The complete Core Asset content hash cover
 
 ### 2.2 Canonical manifest
 
-The manifest is UTF-8 JSON and is not null-terminated. It uses canonical key ordering, invariant numeric serialization, no duplicate keys, and no NaN/Infinity tokens.
+The manifest is UTF-8 JSON and is not null-terminated. It uses canonical key ordering, invariant numeric serialization, no duplicate keys, and no NaN/Infinity tokens. The initial application release has one canonical manifest schema; the `manifest_schema.version` value identifies that single current contract and does not introduce a legacy/new compatibility split.
 
 Required logical groups:
 
 - format identity and manifest schema version;
 - Field Descriptor key, schema version and semantics ID;
-- Map Space and spatial-reference identity;
+- Map Space and spatial-reference identity plus `coordinate_precision_profile_id` for all fields; elevation additionally requires `vertical_reference_id`;
 - grid dimensions, origin, spacing, axis orientation and cell registration;
 - coverage and Map edge semantics;
 - tile width/height and expected tile count;
@@ -154,7 +154,7 @@ Integer overflow, truncation, invalid ranges, decompression-size excess, unknown
 - A backward-compatible optional manifest extension may increment format_minor only when old readers can safely ignore it.
 - Unknown required flags, unsupported major versions and unknown required codec profiles are rejected.
 - Package format version is independent of Field Descriptor version, Field Revision number, Core Asset hash version and calculation algorithm version.
-- The exact package bytes and format version are included in calculation provenance/fingerprints under ME-02-F.
+- The exact package bytes and envelope format version are included in calculation provenance/fingerprints under ME-02-F. The manifest uses one canonical schema contract for the initial release.
 
 ## 8. Explicitly deferred
 
