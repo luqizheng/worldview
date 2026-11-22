@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,6 +29,12 @@ public interface IFieldPayloadFileStore
 
     /// <summary>Checks whether a content-addressed payload file exists.</summary>
     bool Exists(string contentHash);
+
+    /// <summary>Lists canonical content hashes currently published in the managed store.</summary>
+    IReadOnlyList<string> ListContentHashes();
+
+    /// <summary>Deletes one validated content-addressed file; staging files are never enumerated.</summary>
+    bool Delete(string contentHash);
 }
 
 /// <summary>Verified result of publishing a managed Field Payload file.</summary>
