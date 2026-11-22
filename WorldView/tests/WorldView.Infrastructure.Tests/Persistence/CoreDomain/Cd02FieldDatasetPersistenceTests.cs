@@ -89,7 +89,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         FieldRevisionAssetId = assetId,
         ExpectedCurrentFieldRevisionId = expectedRevision,
         ContentFingerprint = fingerprint,
-        ManifestJson = """{"field_key":"elevation","unit":"m"}""",
+        ManifestJson = $"""{"field_key":"elevation","map_id":"{{mapId:D}}","content_fingerprint":"{{fingerprint}}","unit":"m"}""",
         ProvenanceJson = """{"source":"test-fixture"}""",
         CreatedAtUtcMs = now,
     };
@@ -107,7 +107,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(1, first.RevisionNumber);
         Assert.Null(first.ParentRevisionId);
         Assert.Equal(Fingerprint1, first.ContentFingerprint);
-        Assert.Equal("""{"field_key":"elevation","unit":"m"}""", first.ManifestJson);
+        Assert.Contains($"\\"map_id\\":\\"{mapId:D}\\"", first.ManifestJson);
+        Assert.Contains($"\\"content_fingerprint\\":\\"{Fingerprint1}\\"", first.ManifestJson);
 
         var asset2 = RegisterVerifiedAsset(project.ProjectId, Fingerprint2, Now + 5);
         var second = FieldDatasetService.PublishRevision(core, Plan(
@@ -119,6 +120,38 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             core.FindFieldDataset(project.ProjectId, mapId, "elevation")!.CurrentFieldRevisionId);
         Assert.Equal(new[] { first.FieldRevisionId, second.FieldRevisionId },
             core.ListFieldRevisions(project.ProjectId, datasetId).Select(x => x.FieldRevisionId).ToArray());
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsUnregisteredDescriptorSemantics()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            SemanticsId = "world-view.field.elevation.experimental",
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsManifestForDifferentMap()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = $"""{"field_key":"elevation","map_id":"{{Guid.NewGuid():D}}","content_fingerprint":"{{Fingerprint1}}"}""",
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
     }
 
     [Fact]
