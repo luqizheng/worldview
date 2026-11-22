@@ -77,6 +77,6 @@ public static class FieldPayloadRules
         var expected = ManagedPayloadPrefix + hash;
         if (!string.Equals(relativePath, expected, StringComparison.Ordinal))
             throw new CoreDomainDataException($"Managed Field Payload path 必须为 {expected}。");
-        return path;
+        return relativePath;
     }
 }
