@@ -7,6 +7,7 @@ using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Abstractions;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
 
@@ -47,6 +48,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         }
 
         _access = provider.GetAccess();
+        new CoreDomainEfSession(_access).ApplyMigrations();
     }
 
     /// <summary>
