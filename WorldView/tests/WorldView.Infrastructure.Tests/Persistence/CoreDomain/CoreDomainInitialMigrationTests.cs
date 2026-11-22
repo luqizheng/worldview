@@ -58,7 +58,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     [Fact]
     public void InitialMigration_CreatesCoreDomainSchemaFromEmptyDatabase()
     {
-        var core = new SqliteCoreDomainDatabase(_database);
+        _ = new SqliteCoreDomainDatabase(_database);
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
 
         var tables = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
