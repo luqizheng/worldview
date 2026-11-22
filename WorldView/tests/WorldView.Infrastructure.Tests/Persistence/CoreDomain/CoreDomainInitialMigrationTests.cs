@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -49,10 +50,18 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
             var runtimeModel = db.Model.GetRelationalModel();
             var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true).GetRelationalModel();
             var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true).GetRelationalModel();
+            static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
+            {
+                var details = operation.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                    .Where(property => property.PropertyType.IsPrimitive || property.PropertyType == typeof(string))
+                    .Select(property => $"{property.Name}={property.GetValue(operation)}");
+                return $"{operation.GetType().Name}({string.Join(", ", details)})";
+            }
+
             return differ.GetDifferences(snapshotModel, runtimeModel)
-                .Select(operation => $"snapshot:{operation.GetType().Name}")
+                .Select(operation => $"snapshot:{Describe(operation)}")
                 .Concat(differ.GetDifferences(migrationModel, runtimeModel)
-                    .Select(operation => $"migration:{operation.GetType().Name}"))
+                    .Select(operation => $"migration:{Describe(operation)}"))
                 .ToArray();
         });
 
