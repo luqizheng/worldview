@@ -51,31 +51,75 @@ public sealed class EfCoreFoundationTests : IDisposable
     [Fact]
     public void EfCore_BaselineIsNonDestructive_AndReadsLegacyProjectMapAndAssetRows()
     {
-        var core = Core();
-        var project = ProjectRules.CreateProject("EF Core foundation", Now);
-        core.InsertProject(ProjectCreationPlan.Create(project));
-        var map = MapService.CreateMap(core, project.ProjectId, "EF Core Map", Now + 1);
-        var asset = AssetService.RegisterAsset(
-            core, project.ProjectId, Guid.NewGuid(),
-            "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
-            128, "application/json", "1", Now + 2);
+        // Seed rows using only the legacy schema, before the EF migration ledger exists.
+        var projectId = Guid.NewGuid();
+        var mapId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        const string contentHash = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
+        ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            using (var project = connection.CreateCommand())
+            {
+                project.Transaction = transaction;
+                project.CommandText = """
+                    INSERT INTO core_project
+                        (project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms)
+                    VALUES ($id, 'EF Core foundation', 1, 50000, 50000);
+                    """;
+                project.Parameters.AddWithValue("$id", projectId.ToString("D"));
+                project.ExecuteNonQuery();
+            }
+            using (var map = connection.CreateCommand())
+            {
+                map.Transaction = transaction;
+                map.CommandText = """
+                    INSERT INTO core_map
+                        (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+                    VALUES ($id, $projectId, 'EF Core Map', 'active', 50001, 50001);
+                    """;
+                map.Parameters.AddWithValue("$id", mapId.ToString("D"));
+                map.Parameters.AddWithValue("$projectId", projectId.ToString("D"));
+                map.ExecuteNonQuery();
+            }
+            using (var asset = connection.CreateCommand())
+            {
+                asset.Transaction = transaction;
+                asset.CommandText = """
+                    INSERT INTO core_asset
+                        (asset_id, project_id, content_hash, hash_algorithm, byte_length, media_type,
+                         format_version, relative_path, publication_state, integrity_state, created_at_utc_ms)
+                    VALUES ($id, $projectId, $hash, 'sha-256', 128, 'application/json',
+                            '1', $path, 'published', 'verified', 50002);
+                    """;
+                asset.Parameters.AddWithValue("$id", assetId.ToString("D"));
+                asset.Parameters.AddWithValue("$projectId", projectId.ToString("D"));
+                asset.Parameters.AddWithValue("$hash", contentHash);
+                asset.Parameters.AddWithValue("$path", $"Assets/sha256/{contentHash}");
+                asset.ExecuteNonQuery();
+            }
+            transaction.Commit();
+        });
 
         var session = EfSession();
         session.ApplyMigrations();
 
-        var actualProject = session.Execute(db => db.Projects.AsNoTracking().Single(x => x.ProjectId == project.ProjectId));
-        var actualMap = session.Execute(db => db.Maps.AsNoTracking().Single(x => x.MapId == map.Map.MapId));
-        var actualAsset = session.Execute(db => db.Assets.AsNoTracking().Single(x => x.AssetId == asset.AssetId));
+        var actualProject = session.Execute(db => db.Projects.AsNoTracking().Single(x => x.ProjectId == projectId));
+        var actualMap = session.Execute(db => db.Maps.AsNoTracking().Single(x => x.MapId == mapId));
+        var actualAsset = session.Execute(db => db.Assets.AsNoTracking().Single(x => x.AssetId == assetId));
 
-        Assert.Equal(project.ProjectId, actualProject.ProjectId);
-        Assert.Equal(project.ProjectName, actualProject.ProjectName);
-        Assert.Equal(map.Map.MapId, actualMap.MapId);
-        Assert.Equal(project.ProjectId, actualMap.ProjectId);
-        Assert.Equal(asset.AssetId, actualAsset.AssetId);
-        Assert.Equal(asset.ContentHash, actualAsset.ContentHash);
+        Assert.Equal(projectId, actualProject.ProjectId);
+        Assert.Equal("EF Core foundation", actualProject.ProjectName);
+        Assert.Equal(mapId, actualMap.MapId);
+        Assert.Equal(projectId, actualMap.ProjectId);
+        Assert.Equal(assetId, actualAsset.AssetId);
+        Assert.Equal(contentHash, actualAsset.ContentHash);
         Assert.Equal("published", actualAsset.PublicationState);
-        Assert.Equal(new[] { "202611220001_CoreDomainEfCoreBaseline", "202611220002_FieldDatasetRevision" },
-            session.Execute(db => db.Database.GetAppliedMigrations().ToArray()));
+        Assert.Equal(new[]
+        {
+            "202611220001_CoreDomainEfCoreBaseline",
+            "202611220002_FieldDatasetRevision",
+        }, session.Execute(db => db.Database.GetAppliedMigrations().ToArray()));
 
         // Disposing the short-lived DbContext must not close the package-owned connection.
         var foreignKeysEnabled = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
@@ -86,8 +130,8 @@ public sealed class EfCoreFoundationTests : IDisposable
         });
         Assert.Equal(1, foreignKeysEnabled);
 
-        // Existing SQL adapter and EF Core observe the same committed row on the same connection.
-        Assert.Equal(project.ProjectId, core.FindProject(project.ProjectId)!.ProjectId);
+        // The legacy adapter and EF Core read the same pre-existing row.
+        Assert.Equal(projectId, Core().FindProject(projectId)!.ProjectId);
     }
 
     [Fact]
