@@ -42,13 +42,13 @@ This does not add a component table or change Object identity semantics.
 - ME-04 end-to-end test for missing manifest, wrong hash, matching manifest, stable component identity and Definition CAS protection.
 - JSON Schema $defs unsupported-keyword fail-closed test.
 
-**No test result is claimed in this report yet.** The new GitHub Actions workflow runs full Debug and Release build/test on Windows with .NET 11. CI must complete successfully before this stage is accepted.
+**No test result is claimed in this report yet.** The new GitHub Actions workflow runs full Debug and Release build/test on Windows and macOS with .NET 11. CI must complete successfully before this stage is accepted.
 
 ## 3. Explicit remaining limitations
 
 1. UpdateAssetIntegrityState remains a persistence port operation. This hardening requires Verified for formal links but does not yet provide a complete user-facing IAssetStore byte-verification workflow; that integration must calculate the hash from actual immutable bytes before setting Verified.
 2. Manifest/link transaction enforcement is enabled for typed aggregate descriptors (Building/Cave). Simple descriptors do not yet have a common typed geometry_components payload schema; their geometry publication contract needs a separate registry/schema decision rather than an invented generic payload field.
-3. macOS verification and the existing P2-09-12 full transaction-proof suite remain outside this patch.
+3. macOS verification is now included in the new CI matrix; the existing P2-09-12 full transaction-proof suite remains outside this patch.
 
 ## 4. Git / verification
 
