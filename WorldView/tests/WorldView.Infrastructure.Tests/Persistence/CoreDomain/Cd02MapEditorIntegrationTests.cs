@@ -250,6 +250,15 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         Assert.Single(links);
         Assert.Equal(asset.AssetId, links[0].AssetId);
         Assert.Equal("geometry_component", links[0].Role);
+
+        // A previously linked Asset that later becomes Corrupt can still be removed
+        // through a complete atomic publication; recovery must not be blocked by old integrity state.
+        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 8);
+        var removed = ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+            core, project.ProjectId, objectId, published.DefinitionHash,
+            BuildingAggregate("Atomic Hall without footprint"), 1, Now + 9);
+        Assert.NotEqual(published.DefinitionHash, removed.DefinitionHash);
+        Assert.Empty(core.ListDefinitionAssetLinks(project.ProjectId, objectId));
     }
 
     [Fact]
