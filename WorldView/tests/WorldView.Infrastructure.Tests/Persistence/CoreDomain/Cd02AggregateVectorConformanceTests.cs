@@ -89,6 +89,83 @@ public sealed class Cd02AggregateVectorConformanceTests
     }
 
     [Fact]
+    public void PublicationContext_EmptyLinksCannotPublishManifestAssets()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var context = BuildPublicationContext(vector)! with
+        {
+            AssetLinks = Array.Empty<(string AssetId, string Role)>(),
+        };
+
+        var issues = BuildingCaveAggregateValidator.Validate(typeKey, payloadJson, context);
+
+        Assert.Contains(issues, issue => issue.ErrorCode == "CD_BLD_ASSET_LINK_MISMATCH");
+    }
+
+    [Fact]
+    public void PublicationContext_RequiresEveryReferencedAssetInCatalog()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var context = BuildPublicationContext(vector)! with
+        {
+            AssetCatalog = Array.Empty<(string AssetId, string ContentHash)>(),
+        };
+
+        var issues = BuildingCaveAggregateValidator.Validate(typeKey, payloadJson, context);
+
+        Assert.Contains(issues, issue => issue.ErrorCode == "CD_BLD_ASSET_MISSING");
+    }
+
+    [Fact]
+    public void PublicationContext_RequiresGenericGeometryComponentLinkRole()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var original = BuildPublicationContext(vector)!;
+        var context = original with
+        {
+            AssetLinks = original.AssetLinks
+                .Select(link => (link.AssetId, Role: "footprint"))
+                .ToArray(),
+        };
+
+        var issues = BuildingCaveAggregateValidator.Validate(typeKey, payloadJson, context);
+
+        Assert.Contains(issues, issue => issue.ErrorCode == "CD_BLD_ASSET_LINK_ROLE_INVALID");
+    }
+
+    [Fact]
+    public void PublicationContext_RejectsSameAssetPinnedToDifferentHashes()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var payload = JsonNode.Parse(payloadJson)!.AsObject();
+        payload["geometry_components"]![1]!["content_hash"] =
+            new string('b', 64);
+
+        var issues = BuildingCaveAggregateValidator.Validate(
+            typeKey,
+            payload.ToJsonString(),
+            BuildPublicationContext(vector));
+
+        Assert.Contains(issues, issue => issue.ErrorCode == "CD_BLD_ASSET_COMPONENT_HASH_CONFLICT");
+    }
+
+    [Fact]
+    public void PublicationContext_RejectsDuplicateTypedLinksForSameAsset()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var original = BuildPublicationContext(vector)!;
+        var first = original.AssetLinks[0];
+        var context = original with
+        {
+            AssetLinks = original.AssetLinks.Concat(new[] { first }).ToArray(),
+        };
+
+        var issues = BuildingCaveAggregateValidator.Validate(typeKey, payloadJson, context);
+
+        Assert.Contains(issues, issue => issue.ErrorCode == "CD_BLD_ASSET_LINK_DUPLICATE");
+    }
+
+    [Fact]
     public void Suite_Has55Vectors_AllExecuted()
     {
         var (_, _, vectors) = LoadSuite();
@@ -134,6 +211,23 @@ public sealed class Cd02AggregateVectorConformanceTests
             () => JsonSchemaSubset.Validate(schema.RootElement, instance.RootElement));
     }
 
+
+    private static (string TypeKey, string PayloadJson, JsonObject Vector) BuildPayloadForVector(string vectorId)
+    {
+        var (building, cave, vectors) = LoadSuite();
+        var vector = vectors.OfType<JsonObject>().Single(v => (string)v["id"]! == vectorId);
+        var inputSource = (string)vector["input_source"]!;
+        var typeKey = inputSource == "building" ? "building" : "cave_system";
+        var payload = (JsonObject)(inputSource == "building" ? building.DeepClone() : cave.DeepClone());
+
+        foreach (var patch in (vector["patches"] as JsonArray ?? new JsonArray()).OfType<JsonObject>())
+        {
+            NormalizeLegacyFieldNames(patch);
+            ApplyPatch(payload, patch);
+        }
+
+        return (typeKey, payload.ToJsonString(new JsonSerializerOptions { WriteIndented = false }), vector);
+    }
 
     // ---- RFC 6902 子集（add / remove / replace） ----
 
