@@ -173,7 +173,7 @@ The following implementation is committed in PR #11:
 - `FieldPayloadPublisher` streams ManagedFile bytes to the content-addressed store, then publishes the payload metadata, immutable Revision and Dataset CAS through the authoritative SQLite transaction. A failed DB publication deliberately retains the final file as a recoverable orphan; it never eagerly deletes potentially shared content.
 - `FieldPayloadIntegrityReconciler` verifies all project payloads, updates `verified` / `missing` / `corrupt` state, reports unreferenced managed files, and offers an explicit collection operation that performs a fresh DB reference scan before deleting only unreferenced content-addressed files. Referenced corrupt/missing files are retained.
 - Project open now runs startup recovery before the session becomes Ready: stale `.staging-*.tmp` files are removed, all referenced payloads are verified and their integrity states updated, then a fresh DB reference scan collects orphan content-addressed files. Recovery counts are written to the application log.
-- Infrastructure tests cover BLOB and ManagedFile readback, managed-file publication orchestration, same-length hash corruption, missing files, integrity-state updates, safe orphan collection and interrupted-staging cleanup. Domain test doubles implement the payload reconciliation port methods.
+- Infrastructure tests cover BLOB and ManagedFile readback, managed-file publication orchestration, same-length hash corruption, missing files, integrity-state updates and safe orphan collection. Publication-boundary recovery tests explicitly cover: stale staging left by interruption before rename; cancellation immediately after atomic content-addressed publication but before SQLite publication (the file remains an orphan and startup recovery collects it); SQLite transaction failure after file publication (the file remains an orphan and recovery collects it); and a committed DB reference alongside stale staging/orphan files (recovery preserves the referenced payload while cleaning only the stale staging file and true orphan). Domain test doubles implement the payload reconciliation port methods.
 
 The generic Asset dependency has now been removed from Field Revision records, publication plans, Domain validation, SQLite persistence and the fresh V1 schema. `core_field_payload` is the sole Field byte-storage reference; generic Assets remain available for unrelated project assets and typed consumers.
 
@@ -181,7 +181,7 @@ The generic Asset dependency has now been removed from Field Revision records, p
 
 The repository does not yet provide:
 
-- failure-injection coverage for every process-crash boundary on both Windows and macOS, including interrupted write/rename/DB commit timing;
+- hard process-termination tests that kill a running process at each filesystem/SQLite instruction boundary are not implemented. The deterministic state-transition tests cover the recoverable states on both Windows and macOS CI; a separate process-kill harness is not required for the single-machine V1 baseline unless platform-specific failures appear;
 - Project / Map settings-document persistence as versioned external files;
 - production package writer integration and regenerated binary golden fixtures from the current canonical Manifest contract.
 
