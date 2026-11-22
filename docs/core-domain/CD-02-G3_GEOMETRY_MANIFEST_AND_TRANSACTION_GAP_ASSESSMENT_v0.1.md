@@ -19,7 +19,7 @@ The existing contracts already establish the logical owner fields and ownership 
 
 The common logical record and first validation layers are implemented: `GeometryComponentManifest`, per-record `GeometryRules.ValidateManifest`, `GeometryRules.ValidateManifestConsistency`, `GeometryAssetEnvelope`, and Building/Cave aggregate checks. PR #5 (`02299c5`, CI in progress at this assessment) adds `Guid.Empty` rejection plus `GeometryRules.ValidateManifestCollection`, which checks each record, descriptor role min/max, `combined_min`, and duplicate component IDs within one owner snapshot. This closes the reusable collection-validation helper gap but does not yet wire it into persisted owner-context publication. The remaining bridge is owner-context integration: persist/deserialize the record through adopted typed definition, Initial State and Command schemas; invoke collection validation in each owning Domain Service; and enforce exact typed-link ↔ manifest ↔ Asset agreement atomically. The current implementation/test must not be described as if the manifest record itself were absent. The generic consistency helper still permits a null typed link, so it is not a complete publication gate.
 
-P2-09-12 V0.7 is explicitly a **test specification**, not an implementation report. The current repository has real SQLite persistence and concurrency tests, but no AI Assistant source module or Application Commit Coordinator was found in the source tree. Consequently, the cross-module atomicity tests cannot honestly be marked implemented or passed yet.
+P2-09-12 V0.7 is explicitly a **test specification**, not an implementation report; its TX-04/TX-31 reader policy is amended by V0.8 to match CD-01-F1. The current repository has real SQLite persistence and concurrency tests, but no AI Assistant source module or Application Commit Coordinator was found in the source tree. Consequently, the cross-module atomicity tests cannot honestly be marked implemented or passed yet.
 
 ## 2. Repository evidence inspected
 
@@ -29,7 +29,8 @@ P2-09-12 V0.7 is explicitly a **test specification**, not an implementation repo
 - `docs/architecture/core-domain/p2-09-26-v1-object-type-descriptor-registry-v0.2.json`
 - `docs/architecture/core-domain/p2-09-41-building-cave-object-type-descriptor-extension-v0.4.json`
 - `docs/architecture/core-domain/p2-09-46-object-type-descriptor-registry-format-v2-json-schema-v0.2.json`
-- `docs/architecture/core-domain/p2-09-12-provider-transaction-proof-test-spec-v0.6.md`
+- `docs/architecture/core-domain/p2-09-12-provider-transaction-proof-test-spec-v0.7.md` (supersedes V0.6)
+- `docs/core-domain/P2-09-12_V0.8_SINGLE_CONNECTION_READ_ISOLATION_AMENDMENT.md`
 - `docs/map-editor/world-view-me-05-02-shared-geometry-model-and-component-operations-v0.1.md`
 - `docs/map-editor/world-view-me-05-05-geometry-and-field-asset-package-publication-contract-v0.3.md`
 
@@ -152,7 +153,7 @@ Do not add a generic `geometry_components` property to an Object Type schema unl
 
 The current implementation provides a shared per-connection `SqliteConnectionAccess`, serialized connection access, transactional migrations, real SQLite persistence adapters, foreign-key enablement on the package connection, and concurrency/end-to-end tests.
 
-These are useful foundations for TX-03, TX-30, TX-32, TX-40, TX-41, TX-42 and parts of TX-43. A new TX-03 test now opens two independent `SqlitePackageDatabase` instances against the same file and verifies per-connection `foreign_keys=ON`, `busy_timeout=5000`, `CommandTimeout=5`, and an actual rejected foreign-key write. A TX-32 test holds an external SQLite writer lock and verifies bounded `SQLITE_BUSY` failure with no partial write. These are not substitutes for test-by-test proof. The current connection coordinator still owns one connection per package database; TX-04/TX-31's independent application read-connection requirement is not implemented and must be reconciled with the actual UI read model before claiming full compliance.
+These are useful foundations for TX-03, TX-30, TX-32, TX-40, TX-41, TX-42 and parts of TX-43. A new TX-03 test now opens two independent `SqlitePackageDatabase` instances against the same file and verifies per-connection `foreign_keys=ON`, `busy_timeout=5000`, `CommandTimeout=5`, and an actual rejected foreign-key write. A TX-32 test holds an external SQLite writer lock and verifies bounded `SQLITE_BUSY` failure with no partial write. These are not substitutes for test-by-test proof. The current connection coordinator owns one connection per ProjectSession package database and serializes all package/Core Domain access. CD-01-F1 explicitly selected this model for single-user V1 and rejected speculative multi-connection/WAL complexity absent measured contention. The former independent-reader clause in TX-04/TX-31 is therefore superseded by the P2-09-12 V0.8 Single-Connection Read Isolation Amendment: readers serialize behind active writes, and coherent multi-query reads use InSnapshotScope. A deterministic explicit writer-held/read-blocked/commit-or-rollback test remains required to close the amended TX-31 evidence.
 
 ### 4.2 Cross-module tests are blocked by missing implementation
 
@@ -174,10 +175,10 @@ Before claiming P2-09-12 compliance, add packaged application/native SQLite runt
 |---|---|---|
 | TX-01 / TX-02 shared transaction across Core + AI | No coordinator or AI repository found | Blocked — implementation prerequisite |
 | TX-03 foreign-key enforcement | `ConnectionPolicy_EveryOpenedPackageConnectionEnablesForeignKeysAndBoundedTimeouts` opens two independent package DB connections, asserts FK=ON on both, and proves a real FK violation is rejected | Implemented for every currently implemented package connection constructor; no distinct reader/recovery connection type exists yet |
-| TX-04 connection ownership/threading | Shared per-connection coordinator and same-connection concurrency tests exist; independent reader connection is not implemented | Partial; separate-reader requirement unresolved |
+| TX-04 connection ownership/threading | CD-01-F1 shared coordinator, same-connection concurrency, disposal and migration tests; P2-09-12 V0.8 formally supersedes separate-reader requirement for V1 | Implemented for selected V1 single-connection model; no concurrent object use |
 | TX-10–TX-23 cross-module atomicity/crash reconciliation | No AI submission persistence boundary found | Blocked — production AI/Core commit participants absent |
 | TX-30 write serialization | `Concurrent_TwoWritersOnSameConnection_BothCommitFully`, `Concurrent_InsertProjectRace_ExactlyOneWinsWithDefinedDomainFailure`, `Concurrent_PackageDbOperationsAndCoreAccess_ShareSingleCoordinator` use real SQLite | Implemented evidence for same-connection serialization; multi-process coordination is out of scope |
-| TX-31 independent reader isolation | All current application adapters share the package database connection; no dedicated read connection or active writer/read isolation test | Gap / architecture reconciliation required |
+| TX-31 reader isolation | Shared-coordinator concurrency and InSnapshotScope tests prevent partial aggregate visibility; explicit reader-blocked-by-open-writer assertion remains absent | Partial under amended V1 semantics; add deterministic explicit blocking test |
 | TX-32 busy/locked handling | `BusyTimeout_ExternalWriterLock_FailsWithinBoundWithoutPartialWrite` holds a second connection's write transaction, asserts bounded SQLITE_BUSY and no partial row; production `DefaultTimeout=5` aligns command and PRAGMA timeouts | Bounded failure is tested; automatic retry is intentionally absent because no stable idempotency key is part of the write API. Spec's retry clause remains open |
 | TX-40–TX-42 migrations/bootstrap | `SqlitePackageDatabaseTests` covers fresh bootstrap, migration transaction+ledger, idempotent revalidation, new migration, checksum mismatch, unknown migration, failed migration rollback and corrupt file quick check; concurrency suite adds cross-connection initialization race and concurrent migration/read | Strong current evidence; full schema/index/trigger/FK inventory and packaged runtime remain incomplete |
 | TX-43 full cross-table audit | Domain integrity and aggregate tests exist; every listed invariant not yet mapped | Partial |
@@ -194,7 +195,7 @@ This table is a planning classification, not a test result.
 1. **G2 closeout:** Windows/macOS Debug/Release CI on documentation HEAD `cf5dd1a` passed; keep PR #2 unmerged.
 2. **Geometry manifest integration:** extend the existing `GeometryComponentManifest` implementation rather than recreating it. Owner-snapshot cardinality and duplicate-ID validation now exist on PR #5; define owner-context serialization and mandatory typed-link semantics, then invoke the helper from actual owner persistence. Reconcile against all ten built-in Registry V0.2 descriptors and the Building/Cave extension.
 3. **Geometry persistence hardening:** implement only the missing owner-context paths and adapter-level atomic checks after the contract is internally consistent. Add positive/negative tests for cardinality, component identity uniqueness, owner context, required link presence, exact Asset ID/hash/role pair and stale CAS.
-4. **Provider proof baseline:** continue adding executable tests for capabilities already present. TX-03 and bounded-failure TX-32 now have explicit tests; next cover exact schema inventory/audit and remaining migration/runtime clauses. Keep TX-04/TX-31 blocked until the separate-reader architecture is implemented or the specification is formally revised.
+4. **Provider proof baseline:** continue adding executable tests for capabilities already present. TX-03 and bounded-failure TX-32 now have explicit tests; next cover exact schema inventory/audit and remaining migration/runtime clauses. TX-04/TX-31 now follow the adopted single-connection V1 policy in P2-09-12 V0.8; add the explicit writer-held/read-blocked test before closing TX-31.
 5. **AI/Core commit boundary:** implement the real AI submission persistence model and Application Commit Coordinator as a separate architecture/implementation slice; then implement TX-01/02/10–23 and AI-dependent typed-link cases.
 6. **Packaged runtime and durability:** add Windows/macOS packaged startup/native SQLite feature checks, then backup/restore and crash/reconciliation tests before any full atomicity claim.
 
@@ -207,5 +208,9 @@ This table is a planning classification, not a test result.
 - Do not mark P2-09-12 V0.7 complete until all mandatory acceptance clauses are either proven or explicitly superseded by an approved architecture revision.
 
 ## 8. Status
+
+PR #4 (`d603afde`) provider-only tests passed Windows/macOS Debug/Release, 386/386 in each configuration (runs `44981884502` and `44981888051`). It covers current-connection FK policy and bounded external writer-lock failure; TX-32 remains partial because automatic retry/idempotency is intentionally deferred until stable operation keys exist.
+
+PR #7 (`a8d31f9a`) implements the Building/Cave atomic Definition + typed Asset-link path. macOS Debug/Release passed; Windows Debug passed and Windows Release was still running at the time of this update. It remains based on PR #5 and the pre-G2 Verified-state interface; integration must rebase onto G2 and replace direct test-only Verified mutation with byte-verification evidence before merge.
 
 This assessment remains a documentation-only artifact. The common C# manifest record and collection validator exist; PR #7 adds a draft Building/Cave atomic Definition + Asset-link publication path. PR #7 head dcf0b482 passed macOS Debug/Release at 397/397; the latest persistence-CAS follow-up head a8d31f9a and Windows matrix are still running. PR #4's TX-03/TX-32 provider tests are independently tracked. Neither PR claims P2-09-12 full completion or cross-module AI/Core atomicity.
