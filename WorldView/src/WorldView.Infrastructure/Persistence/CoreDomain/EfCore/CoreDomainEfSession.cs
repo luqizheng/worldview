@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Persistence;
 
