@@ -19,6 +19,10 @@ public class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) 
     internal DbSet<CoreMapFieldRevisionCategoryCodeEntity> FieldRevisionCategoryCodes => Set<CoreMapFieldRevisionCategoryCodeEntity>();
     internal DbSet<CoreMapFieldRevisionCodecEntity> FieldRevisionCodecs => Set<CoreMapFieldRevisionCodecEntity>();
     internal DbSet<CoreFieldPayloadEntity> FieldPayloads => Set<CoreFieldPayloadEntity>();
+    internal DbSet<CoreProjectSettingsRevisionEntity> ProjectSettingsRevisions => Set<CoreProjectSettingsRevisionEntity>();
+    internal DbSet<CoreProjectSettingsCurrentEntity> ProjectSettingsCurrent => Set<CoreProjectSettingsCurrentEntity>();
+    internal DbSet<CoreMapSettingsRevisionEntity> MapSettingsRevisions => Set<CoreMapSettingsRevisionEntity>();
+    internal DbSet<CoreMapSettingsCurrentEntity> MapSettingsCurrent => Set<CoreMapSettingsCurrentEntity>();
     internal DbSet<CoreHistoryEntity> Histories => Set<CoreHistoryEntity>();
     internal DbSet<CoreBranchEntity> Branches => Set<CoreBranchEntity>();
     internal DbSet<CoreCalendarEntity> Calendars => Set<CoreCalendarEntity>();
