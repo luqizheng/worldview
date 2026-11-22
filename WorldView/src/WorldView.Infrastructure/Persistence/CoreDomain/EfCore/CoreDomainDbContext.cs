@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
@@ -35,7 +34,7 @@ public class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) 
 
         // The migration snapshot and runtime context must be the same relational model.
         // A schema change updates this canonical configuration together with a forward migration.
-        CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
+        CoreDomainV1ModelConfiguration.Configure(modelBuilder);
     }
 }
 
