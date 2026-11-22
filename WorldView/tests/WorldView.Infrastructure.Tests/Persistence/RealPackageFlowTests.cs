@@ -180,8 +180,10 @@ public class RealPackageFlowTests : IDisposable
             Path.Combine(packageRoot, ProjectPackageFormat.ManifestFileName),
             PackageManifest.CreateV1(DateTimeOffset.UtcNow).ToJson());
         Directory.CreateDirectory(Path.Combine(packageRoot, ProjectPackageFormat.AssetsDirectoryName, ProjectPackageFormat.AssetHashDirectoryName));
+        Directory.CreateDirectory(Path.GetDirectoryName(
+            Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath))!);
 
-        // 写入非 SQLite 的垃圾字节。
+        // 写入非 SQLite 的垃圾字节.
         await File.WriteAllBytesAsync(
             Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath),
             await RandomBytesAsync(2048));
