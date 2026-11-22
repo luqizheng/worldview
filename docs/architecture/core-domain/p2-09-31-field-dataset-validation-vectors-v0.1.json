@@ -2,7 +2,7 @@
   "suite": "World View V1 Field Dataset / Field Revision Descriptor Validation Vectors",
   "version": "0.1",
   "registry": "P2-09-30 V1 Built-in Field Descriptor Registry V0.1",
-  "status": "design fixtures; not executed against implementation",
+  "status": "design fixtures; not executed against implementation. FDV-004/005 and FDV-009 require Manifest V2 semantics; the original Manifest V1 cannot express the required unit, vertical reference or coordinate precision-profile pin.",
   "cases": [
     {
       "id": "FDV-001",
@@ -196,5 +196,14 @@
       "expect": "invalid",
       "case": "Reuse a Checkpoint whose relevant Field Baseline fingerprint no longer matches the current Dataset revision."
     }
-  ]
+  ],
+  "manifest_compatibility": {
+    "legacy_v1": "Existing published V1 revisions remain readable; missing semantic values are explicitly unavailable and must not be inferred.",
+    "new_publication": "New formal Field Revision publication uses Manifest V2.",
+    "v2_schema": "P2-09-36",
+    "v2_validation_vectors": "P2-09-37",
+    "resolution_profile": "Represented by grid.spacing_x, grid.spacing_y, grid.width and grid.height.",
+    "grid_alignment": "Represented by grid.origin_x, grid.origin_y, grid.axis_orientation and grid.cell_registration.",
+    "coordinate_precision": "Pinned by spatial.coordinate_precision_profile_id and resolved through the immutable Spatial Reference definition."
+  }
 }
