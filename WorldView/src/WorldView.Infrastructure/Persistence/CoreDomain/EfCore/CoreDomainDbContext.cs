@@ -7,7 +7,7 @@ namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 /// The single EF Core relational model for Core Domain. Infrastructure-only; Domain and
 /// Application continue to depend on ICoreDomainDatabase, never on DbContext.
 /// </summary>
-internal sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) : DbContext(options)
+public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) : DbContext(options)
 {
     internal DbSet<CoreProjectEntity> Projects => Set<CoreProjectEntity>();
     internal DbSet<CoreMapEntity> Maps => Set<CoreMapEntity>();
