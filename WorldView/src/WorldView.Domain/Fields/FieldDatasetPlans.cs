@@ -19,6 +19,8 @@ public sealed record PublishFieldRevisionPlan
     public Guid? ExpectedCurrentFieldRevisionId { get; init; }
     public required string ContentFingerprint { get; init; }
     public required string ManifestJson { get; init; }
+    /// <summary>Validated typed semantic projection populated by FieldDatasetService.</summary>
+    public FieldRevisionMetadata? Metadata { get; init; }
     public required string ProvenanceJson { get; init; }
     public required long CreatedAtUtcMs { get; init; }
 }
