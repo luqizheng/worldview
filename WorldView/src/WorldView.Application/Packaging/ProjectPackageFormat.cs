@@ -21,7 +21,7 @@ public static class ProjectPackageFormat
     public const string ManifestFileName = "manifest.json";
 
     /// <summary>数据库包内相对路径（v1 固定值，使用正斜杠）。</summary>
-    public const string DatabaseFileName = "data/project.sqlite";
+    public const string DatabaseRelativePath = "data/project.sqlite";
 
     /// <summary>Asset Store 根目录名。</summary>
     public const string AssetsDirectoryName = "Assets";
