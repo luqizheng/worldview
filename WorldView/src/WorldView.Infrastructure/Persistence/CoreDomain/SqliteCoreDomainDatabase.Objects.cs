@@ -500,6 +500,12 @@ public sealed partial class SqliteCoreDomainDatabase
                 ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
                 if (descriptor.HasTypedAggregateSchema)
                 {
+                    if (typeKey is not ("building" or "cave_system"))
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Object Type {typeKey} has no adopted typed Geometry publication adapter yet.");
+                    }
+
                     if (!string.Equals(
                         ReadGeometryComponents(current.DefinitionPayloadJson),
                         ReadGeometryComponents(canonicalPayload),
@@ -565,10 +571,10 @@ public sealed partial class SqliteCoreDomainDatabase
                 ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
                 var typeKey = ReadObjectTypeKey(transaction, plan.ProjectId, plan.ObjectIdentityId);
                 var descriptor = ObjectTypeRegistry.Require(typeKey);
-                if (!descriptor.HasTypedAggregateSchema)
+                if (!descriptor.HasTypedAggregateSchema || typeKey is not ("building" or "cave_system"))
                 {
                     throw new CoreDomainConflictException(
-                        $"Object Type {typeKey} 没有 typed Geometry Component owner schema，拒绝原子 Geometry Asset 发布。");
+                        $"Object Type {typeKey} 没有已采纳的 Building/Cave typed Geometry publication adapter。");
                 }
 
                 var current = TryReadDefinitionRow(transaction, plan.ProjectId, plan.ObjectIdentityId)
