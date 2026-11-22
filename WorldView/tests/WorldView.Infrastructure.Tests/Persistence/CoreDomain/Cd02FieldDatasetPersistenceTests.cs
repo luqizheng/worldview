@@ -500,6 +500,36 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void FieldRevisionSchema_UsesDedicatedPayloadWithoutGenericAssetForeignKey()
+    {
+        var columns = Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA table_info('core_map_field_revision');";
+            using var reader = command.ExecuteReader();
+            var names = new System.Collections.Generic.List<string>();
+            while (reader.Read())
+                names.Add(reader.GetString(1));
+            return names;
+        });
+        var foreignTables = Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA foreign_key_list('core_map_field_revision');";
+            using var reader = command.ExecuteReader();
+            var names = new System.Collections.Generic.List<string>();
+            while (reader.Read())
+                names.Add(reader.GetString(2));
+            return names;
+        });
+
+        Assert.DoesNotContain("field_revision_asset_id", columns);
+        Assert.DoesNotContain("core_asset", foreignTables);
+        Assert.Contains("core_map_field_dataset", foreignTables);
+        Assert.Contains("core_map_field_revision", foreignTables);
+    }
+
+    [Fact]
     public void PublishedRevisionRows_AreImmutable()
     {
         var (project, mapId) = SeedMap();
