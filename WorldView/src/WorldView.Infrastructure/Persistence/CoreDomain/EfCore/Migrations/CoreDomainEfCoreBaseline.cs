@@ -27,7 +27,6 @@ internal sealed class CoreDomainEfCoreBaseline : Migration
     {
         modelBuilder.HasAnnotation("ProductVersion", "11.0.0");
         modelBuilder.HasAnnotation("Relational:MaxIdentifierLength", 64);
-        var guidToText = CoreDomainValueConverters.GuidToText;
 
         modelBuilder.Entity<CoreProjectEntity>(entity =>
         {
