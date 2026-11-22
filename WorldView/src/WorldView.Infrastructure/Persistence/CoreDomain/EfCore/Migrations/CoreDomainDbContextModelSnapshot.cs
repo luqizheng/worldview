@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122090235_CoreDomainInitial";
+    public override string LastMigrationId => "20261122140144_MapSpatialReferenceOwnership";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -320,10 +320,19 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("TEXT")
                     .HasColumnName("map_name");
 
+                b.Property<string>("MapSpaceId")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("map_space_id");
+
                 b.Property<string>("ProjectId")
                     .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("project_id");
+
+                b.Property<string>("SpatialReferenceId")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("spatial_reference_id");
 
                 b.Property<long>("UpdatedAtUtcMs")
                     .HasColumnType("INTEGER")
@@ -331,7 +340,16 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("MapId");
 
-                b.ToTable("core_map");
+                b.HasIndex("MapSpaceId")
+                    .IsUnique()
+                    .HasDatabaseName("ux_core_map_map_space_id");
+
+                b.HasIndex("ProjectId", "SpatialReferenceId");
+
+                b.ToTable("core_map", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_map_map_space_id", "length(map_space_id) BETWEEN 1 AND 128");
+                    });
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapFieldDatasetEntity", b =>
@@ -845,6 +863,139 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("core_project");
             });
 
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", b =>
+            {
+                b.Property<string>("ProjectId")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("project_id");
+
+                b.Property<string>("SpatialReferenceId")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("spatial_reference_id");
+
+                b.Property<string>("AxisOrder")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("axis_order");
+
+                b.Property<string>("CoordinateUnit")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("coordinate_unit");
+
+                b.Property<long>("CreatedAtUtcMs")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("created_at_utc_ms");
+
+                b.Property<string>("DefinitionFingerprint")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("definition_fingerprint");
+
+                b.Property<string>("DefinitionParametersJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("definition_parameters_json");
+
+                b.Property<int>("DefinitionVersion")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("definition_version");
+
+                b.Property<int>("Dimension")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("dimension");
+
+                b.Property<string>("MaximumAbsoluteQuantizationError")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("maximum_absolute_quantization_error");
+
+                b.Property<string>("MeasurementCapabilitiesJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("measurement_capabilities_json");
+
+                b.Property<string>("MinimumAuthoringTolerance")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("minimum_authoring_tolerance");
+
+                b.Property<string>("NumericRepresentation")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("numeric_representation");
+
+                b.Property<string>("PrecisionAxisOrder")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("precision_axis_order");
+
+                b.Property<string>("PrecisionCoordinateUnit")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("precision_coordinate_unit");
+
+                b.Property<string>("PrecisionProfileId")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("precision_profile_id");
+
+                b.Property<int>("PrecisionProfileVersion")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("precision_profile_version");
+
+                b.Property<string>("ProvenanceJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("provenance_json");
+
+                b.Property<string>("ReferenceKind")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("reference_kind");
+
+                b.Property<string>("RoundingMode")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("rounding_mode");
+
+                b.Property<string>("SmallestMeaningfulFeatureSize")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("smallest_meaningful_feature_size");
+
+                b.Property<string>("ValidDomainJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("valid_domain_json");
+
+                b.Property<string>("VerticalReferenceId")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("vertical_reference_id");
+
+                b.Property<string>("WrapBehavior")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("wrap_behavior");
+
+                b.HasKey("ProjectId", "SpatialReferenceId");
+
+                b.ToTable("core_spatial_reference", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_spatial_reference_axis_order", "axis_order IN ('XY', 'YX')");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_definition_version", "definition_version >= 1");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_dimension", "dimension IN (2, 3)");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_kind", "reference_kind IN ('Geographic', 'Projected', 'LocalCartesian')");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_precision_version", "precision_profile_version >= 1");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_wrap", "wrap_behavior IN ('None', 'WrapX', 'WrapY', 'WrapXY')");
+                    });
+            });
+
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreAssetEntity", b =>
             {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
@@ -928,6 +1079,11 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired()
                     .HasConstraintName("FK_core_map_core_project_project_id");
+
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", null)
+                    .WithMany()
+                    .HasForeignKey("ProjectId", "SpatialReferenceId")
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapFieldDatasetEntity", b =>
@@ -1112,6 +1268,15 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
                     .WithMany()
                     .HasForeignKey("project_id")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
+                    .WithMany()
+                    .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
             });
