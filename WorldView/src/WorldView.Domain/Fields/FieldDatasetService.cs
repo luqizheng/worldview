@@ -114,12 +114,14 @@ public static class FieldDatasetService
         RequireProperties(field, "field_key", "schema_version", "semantics_id");
         RequireEqual(RequiredString(field, "field_key"), plan.FieldKey, "field.field_key");
         RequireEqual(RequiredInt32(field, "schema_version"), plan.DescriptorSchemaVersion, "field.schema_version");
-        RequireEqual(RequiredString(field, "semantics_id"), plan.SemanticsId, "field.semantics_id");
+        var manifestSemanticsId = RequiredString(field, "semantics_id");
+        RequireLength(manifestSemanticsId, 1, 160, "field.semantics_id");
+        RequireEqual(manifestSemanticsId, plan.SemanticsId, "field.semantics_id");
 
         var spatial = RequiredObject(root, "spatial");
         RequireProperties(spatial, "map_space_id", "spatial_reference_id");
-        _ = RequiredString(spatial, "map_space_id");
-        _ = RequiredString(spatial, "spatial_reference_id");
+        RequireLength(RequiredString(spatial, "map_space_id"), 1, 256, "spatial.map_space_id");
+        RequireLength(RequiredString(spatial, "spatial_reference_id"), 1, 512, "spatial.spatial_reference_id");
 
         var grid = RequiredObject(root, "grid");
         RequireProperties(grid,
@@ -147,7 +149,7 @@ public static class FieldDatasetService
         else if (coverageMode == "explicit_mask")
         {
             RequireProperties(coverage, "mode", "mask_plane_name");
-            _ = RequiredString(coverage, "mask_plane_name");
+            RequireLength(RequiredString(coverage, "mask_plane_name"), 1, 64, "coverage.mask_plane_name");
         }
         else
             throw new CoreDomainConflictException("Field manifest coverage.mode is unsupported.");
@@ -169,7 +171,7 @@ public static class FieldDatasetService
             ? new[] { "profile_id", "profile_scope", "planes", "category_codes" }
             : new[] { "profile_id", "profile_scope", "planes" };
         RequireProperties(encoding, allowedEncodingProperties);
-        _ = RequiredString(encoding, "profile_id");
+        RequireLength(RequiredString(encoding, "profile_id"), 1, 160, "value_encoding.profile_id");
         RequireOneOf(RequiredString(encoding, "profile_scope"), "golden_fixture_only", "production");
         var planes = RequiredArray(encoding, "planes");
         if (planes.GetArrayLength() is < 1 or > 8)
@@ -180,6 +182,7 @@ public static class FieldDatasetService
             RequireObject(plane, "value_encoding plane");
             RequireProperties(plane, "name", "sample_format", "bytes_per_cell");
             var name = RequiredString(plane, "name");
+            RequireLength(name, 1, 64, "value_encoding.planes.name");
             var sampleFormat = RequiredString(plane, "sample_format");
             RequireOneOf(sampleFormat,
                 "uint8", "uint8_registered_category", "int16_le", "uint16_le",
@@ -242,7 +245,8 @@ public static class FieldDatasetService
             RequireProperties(codec, "codec_id", "codec_name", "version", "parameters");
             var codecId = RequiredInt32(codec, "codec_id");
             var codecName = RequiredString(codec, "codec_name");
-            _ = RequiredString(codec, "version");
+            RequireLength(codecName, 1, 64, "codec_registry.codec_name");
+            RequireLength(RequiredString(codec, "version"), 1, 64, "codec_registry.version");
             RequireObject(RequiredObject(codec, "parameters"), "codec parameters");
             if (codecId is < 0 or > 65535 || !codecIds.Add(codecId))
                 throw new CoreDomainConflictException("Field manifest codec_registry contains an invalid or duplicate codec_id.");
@@ -344,6 +348,13 @@ public static class FieldDatasetService
                 throw new CoreDomainConflictException($"Field manifest contains unknown property {property.Name}.");
         if (expected.Count != 0)
             throw new CoreDomainConflictException($"Field manifest is missing required property {expected.First()}.");
+    }
+
+    private static void RequireLength(string value, int minimum, int maximum, string name)
+    {
+        if (value.Length < minimum || value.Length > maximum)
+            throw new CoreDomainConflictException(
+                $"Field manifest {name} length must be between {minimum} and {maximum} characters.");
     }
 
     private static void RequireEqual<T>(T actual, T expected, string name)
