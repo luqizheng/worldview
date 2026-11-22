@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using WorldView.Domain.Persistence;
 
 namespace WorldView.Domain.Objects;
@@ -47,7 +48,17 @@ public static class ObjectDefinitionService
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"身份 {objectIdentityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
         var (canonicalPayload, hash) = CanonicalJson.CanonicalizeAndHash(definitionPayloadJson);
+        var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
         Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonicalPayload);
+        if (descriptor.HasTypedAggregateSchema
+            && !string.Equals(
+                ReadGeometryComponents(current.DefinitionPayloadJson),
+                ReadGeometryComponents(canonicalPayload),
+                StringComparison.Ordinal))
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave geometry_components 变更必须通过 PublishDefinitionWithGeometryAssets 原子发布 Definition 与完整 Asset links。");
+        }
 
         database.EditObjectDefinition(new ObjectDefinitionEditPlan
         {
@@ -65,6 +76,73 @@ public static class ObjectDefinitionService
             DefinitionHash = hash,
             UpdatedAtUtcMs = nowUtcMs,
         };
+    }
+
+    /// <summary>
+    /// Building/Cave typed aggregate 的正式 Geometry Component 发布。
+    /// 新 Definition 与完整 geometry_component typed-link set 必须在同一 SQLite 事务提交。
+    /// </summary>
+    public static ObjectDefinitionRecord PublishDefinitionWithGeometryAssets(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid objectIdentityId,
+        string expectedDefinitionHash,
+        string definitionPayloadJson,
+        long definitionSchemaVersion,
+        long nowUtcMs)
+    {
+        var identity = database.FindObject(projectId, objectIdentityId)
+            ?? throw new CoreDomainConflictException($"Object {objectIdentityId} 不存在或不属于项目 {projectId}，拒绝发布定义。");
+
+        if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+        {
+            throw new CoreDomainConflictException($"Object {objectIdentityId} 非 active 状态，拒绝发布 Geometry Definition。");
+        }
+
+        var current = database.ReadObjectDefinition(projectId, objectIdentityId)
+            ?? throw new CoreDomainDataException($"active Object {objectIdentityId} 缺少定义行（数据损坏）。");
+        if (!string.Equals(current.DefinitionHash, expectedDefinitionHash?.Trim(), StringComparison.Ordinal))
+        {
+            throw new CoreDomainConflictException($"定义 CAS 冲突：Object {objectIdentityId} 已被并发编辑或凭据过期。");
+        }
+
+        ObjectRules.ValidateDefinitionSchemaVersion(identity, definitionSchemaVersion);
+        var type = database.FindObjectType(projectId, identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException($"Object {objectIdentityId} 的 Object Type 不存在（数据损坏）。");
+        var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
+        if (!descriptor.HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException(
+                $"Object Type {type.TypeKey} 尚无 typed Geometry Component owner schema，不能使用正式 Geometry Asset 发布路径。");
+        }
+
+        var (canonicalPayload, hash) = CanonicalJson.CanonicalizeAndHash(definitionPayloadJson);
+        Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonicalPayload);
+
+        database.PublishObjectDefinitionWithGeometryAssets(new ObjectDefinitionPublicationPlan
+        {
+            ProjectId = projectId,
+            ObjectIdentityId = objectIdentityId,
+            ExpectedDefinitionHash = current.DefinitionHash,
+            DefinitionPayloadJson = canonicalPayload,
+            DefinitionSchemaVersion = definitionSchemaVersion,
+            NowUtcMs = nowUtcMs,
+        });
+
+        return current with
+        {
+            DefinitionPayloadJson = canonicalPayload,
+            DefinitionHash = hash,
+            UpdatedAtUtcMs = nowUtcMs,
+        };
+    }
+
+    private static string ReadGeometryComponents(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        return document.RootElement.TryGetProperty("geometry_components", out var components)
+            ? components.GetRawText()
+            : "null";
     }
 }
 

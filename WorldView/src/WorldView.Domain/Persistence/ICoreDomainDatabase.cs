@@ -118,6 +118,13 @@ public interface ICoreDomainDatabase
     /// </summary>
     void EditObjectDefinition(ObjectDefinitionEditPlan plan);
 
+    /// <summary>
+    /// 事务：Building/Cave Definition + 完整 geometry_component Asset link set 原子发布。
+    /// Asset 集合从 payload 派生；事务内重读 CAS、Object、Asset integrity/hash，
+    /// Definition 与 link set 同时提交或整体回滚。
+    /// </summary>
+    void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan);
+
     // ---- Map 注册（P2 存在层） ----
 
     /// <summary>查找注册行；不存在返回 null。</summary>
