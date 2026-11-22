@@ -201,6 +201,16 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var revision = FieldDatasetService.PublishRevision(core, plan);
 
         Assert.Equal(canonical, revision.ManifestJson);
+        Assert.NotNull(revision.Metadata);
+        Assert.Equal("elevation", revision.Metadata!.FieldKey);
+        Assert.Equal(2, revision.Metadata.Grid.Width);
+        Assert.Equal("0", revision.Metadata.Grid.OriginX);
+        Assert.Equal("1", revision.Metadata.Grid.SpacingX);
+        Assert.Contains(revision.Metadata.Planes,
+            plane => plane.Name == "samples" && plane.SampleFormat == "float32_ieee754_le");
+        var reloaded = core.FindFieldRevision(project.ProjectId, revision.FieldDatasetId, revision.FieldRevisionId);
+        Assert.NotNull(reloaded?.Metadata);
+        Assert.Equal(revision.Metadata, reloaded!.Metadata);
     }
 
     [Fact]
