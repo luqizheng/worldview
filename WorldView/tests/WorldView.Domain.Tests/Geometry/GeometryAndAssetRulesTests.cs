@@ -157,6 +157,64 @@ public sealed class GeometryAndAssetRulesTests
     }
 
     [Fact]
+    public void ValidateManifestCollection_River_EnforcesRequiredAndOptionalRoleCounts()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+
+        Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, Array.Empty<GeometryComponentManifest>()));
+
+        GeometryRules.ValidateManifestCollection(descriptor, new[]
+        {
+            Manifest(role: "centerline", family: "line_string"),
+            Manifest(role: "reach", family: "multi_line_string"),
+        });
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_RejectsDuplicateComponentIdentityWithinOwner()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var componentId = Guid.NewGuid();
+        var first = Manifest(role: "centerline", family: "line_string") with { GeometryComponentId = componentId };
+        var second = Manifest(role: "reach", family: "multi_line_string") with { GeometryComponentId = componentId };
+
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, new[] { first, second }));
+
+        Assert.Contains("重复", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_EnforcesRoleMaximum()
+    {
+        var descriptor = ObjectTypeRegistry.Require("settlement");
+        var manifests = new[]
+        {
+            Manifest(role: "anchor", family: "point"),
+            Manifest(role: "extent", family: "polygon"),
+            Manifest(role: "extent", family: "multi_polygon"),
+        };
+
+        Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, manifests));
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_EnforcesCombinedMinimum()
+    {
+        var descriptor = ObjectTypeRegistry.Require("mountain_range");
+
+        Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, Array.Empty<GeometryComponentManifest>()));
+
+        GeometryRules.ValidateManifestCollection(descriptor, new[]
+        {
+            Manifest(role: "ridge", family: "line_string"),
+        });
+    }
+
+    [Fact]
     public void ValidateManifest_CaveSurveyStation_PointRole_Pass()
     {
         // Cave descriptor（P2-09-41 设计态）不在现行 registry——验证用 building 系声明不可用；

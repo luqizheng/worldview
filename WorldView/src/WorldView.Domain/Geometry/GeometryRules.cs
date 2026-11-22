@@ -129,6 +129,51 @@ public static class GeometryRules
     }
 
     /// <summary>
+    /// 校验一个 owner payload 中的完整 Geometry Component manifest 集合：
+    /// 每项先执行 descriptor role/family 校验，再执行各 role 的 min/max 基数、
+    /// descriptor combined_min 和 owner 内 component identity 唯一性检查。
+    /// 本方法只校验单个 owner 快照；跨 revision 的 ID 永不复用仍由持久化 owner 服务保证。
+    /// </summary>
+    public static void ValidateManifestCollection(
+        ObjectTypeDescriptor descriptor,
+        IEnumerable<GeometryComponentManifest> manifests)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(manifests);
+
+        var items = manifests.ToArray();
+        var componentIds = new HashSet<Guid>();
+
+        foreach (var manifest in items)
+        {
+            ValidateManifest(descriptor, manifest);
+            if (!componentIds.Add(manifest.GeometryComponentId))
+            {
+                throw new CoreDomainConflictException(
+                    $"geometry_component_id \"{manifest.GeometryComponentId:D}\" 在同一 owner payload 中重复。");
+            }
+        }
+
+        foreach (var role in descriptor.GeometryRoles)
+        {
+            var count = items.LongCount(m => string.Equals(m.GeometryRole, role.Role, StringComparison.Ordinal));
+            if (count < role.Min || (role.Max is not null && count > role.Max.Value))
+            {
+                throw new CoreDomainConflictException(
+                    $"Object Type \"{descriptor.TypeKey}\" 的 geometry role \"{role.Role}\" 数量 {count} "
+                    + $"超出 descriptor 基数 [{role.Min}, {(role.Max?.ToString() ?? "unbounded")}]。");
+            }
+        }
+
+        if (descriptor.GeometryCombinedMin is { } combinedMin && items.LongLength < combinedMin)
+        {
+            throw new CoreDomainConflictException(
+                $"Object Type \"{descriptor.TypeKey}\" 的 geometry component 总数 {items.LongLength} "
+                + $"小于 combined_min {combinedMin}。");
+        }
+    }
+
+    /// <summary>
     /// manifest ↔ typed link ↔ core_asset 三方一致性（CD-02-A §12：两侧在 Core Domain
     /// 验证下必须一致；权威 hash 从 core_asset 解析比对；link role == manifest role）。
     /// </summary>
