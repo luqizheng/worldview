@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
@@ -13,6 +14,7 @@ internal static class CoreDomainAggregateModel
     {
         modelBuilder.Entity<CoreHistoryEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_history", t =>
             {
                 t.HasCheckConstraint("CK_core_history_kind", "history_kind IN ('map_root', 'branch_owned')");
@@ -33,6 +35,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreBranchEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_branch", t =>
             {
                 t.HasCheckConstraint("CK_core_branch_parent_time", "parent_day_number >= 0 AND parent_offset_seconds BETWEEN 0 AND 86399");
@@ -50,6 +53,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreCalendarEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_calendar", t => t.HasCheckConstraint("CK_core_calendar_role", "calendar_role IN ('default', 'auxiliary')"));
             e.HasKey(x => x.calendar_id);
             e.HasAlternateKey(x => new { x.project_id, x.calendar_id });
@@ -62,6 +66,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreCalendarConfigurationEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_calendar_configuration", t =>
             {
                 t.HasCheckConstraint("CK_core_calendar_configuration_origin",
@@ -86,6 +91,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectTypeEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object_type", t => t.HasCheckConstraint("CK_core_object_type_allocatable", "allocatable IN (0, 1)"));
             e.HasKey(x => x.object_type_id);
             e.HasAlternateKey(x => new { x.project_id, x.object_type_id });
@@ -95,6 +101,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object", t =>
             {
                 t.HasCheckConstraint("CK_core_object_scope", "sharing_scope IN ('project_shared', 'map_local')");
@@ -116,6 +123,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectDefinitionEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object_definition");
             e.HasKey(x => new { x.project_id, x.object_identity_id });
             e.HasOne<CoreObjectEntity>().WithMany()
@@ -125,6 +133,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectIdAllocatorEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object_id_allocator", t => t.HasCheckConstraint("CK_core_object_id_allocator_sequence", "next_sequence >= 1"));
             e.HasKey(x => new { x.project_id, x.object_type_id });
             e.HasOne<CoreObjectTypeEntity>().WithMany()
@@ -134,6 +143,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectIdReservationEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object_id_reservation", t =>
             {
                 t.HasCheckConstraint("CK_core_object_id_reservation_sequence", "allocated_sequence >= 1");
@@ -157,6 +167,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreMapObjectRefEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_map_object_ref");
             e.HasKey(x => x.map_object_ref_id);
             e.HasAlternateKey(x => new { x.project_id, x.map_object_ref_id });
@@ -169,6 +180,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreMapInitialStateEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_map_initial_state");
             e.HasKey(x => x.initial_state_id);
             e.HasAlternateKey(x => new { x.project_id, x.initial_state_id });
@@ -180,6 +192,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreMapInitialObjectEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_map_initial_object", t => t.HasCheckConstraint("CK_core_map_initial_object_placement_pair",
                 "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)"));
             e.HasKey(x => new { x.initial_state_id, x.object_identity_id });
@@ -196,6 +209,7 @@ internal static class CoreDomainAggregateModel
 
         modelBuilder.Entity<CoreObjectDefinitionAssetEntity>(e =>
         {
+            ConfigureGuidText(e);
             e.ToTable("core_object_definition_asset");
             e.HasKey(x => x.object_definition_asset_id);
             e.HasAlternateKey(x => new { x.project_id, x.object_definition_asset_id });
@@ -208,4 +222,20 @@ internal static class CoreDomainAggregateModel
                 .HasPrincipalKey(x => new { x.ProjectId, x.AssetId }).OnDelete(DeleteBehavior.NoAction);
         });
     }
+    
+    private static void ConfigureGuidText<TEntity>(EntityTypeBuilder<TEntity> entity)
+        where TEntity : class
+    {
+        foreach (var property in typeof(TEntity).GetProperties())
+        {
+            var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            if (type == typeof(Guid))
+            {
+                entity.Property(property.Name)
+                    .HasColumnType("TEXT")
+                    .HasConversion(CoreDomainValueConverters.GuidToText);
+            }
+        }
+    }
+
 }
