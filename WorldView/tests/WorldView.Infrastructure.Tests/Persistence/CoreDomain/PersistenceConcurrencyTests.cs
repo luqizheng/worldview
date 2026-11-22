@@ -470,11 +470,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             foreach (var table in new[]
                      {
                          "core_project", "core_map", "core_history", "core_branch",
-                         "core_calendar", "core_calendar_configuration", "schema_migration",
+                         "core_calendar", "core_calendar_configuration",
                          "core_object_type", "core_object", "core_object_definition",
                          "core_object_id_allocator", "core_object_id_reservation",
                          "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
-                         "core_asset", "core_object_definition_asset",
+                         "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision",
                      })
             {
                 counts[table] = Scalar(connection, $"SELECT COUNT(*) FROM {table}");
