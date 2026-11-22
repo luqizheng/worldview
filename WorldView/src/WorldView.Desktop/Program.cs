@@ -70,7 +70,7 @@ internal static class Program
         services.AddSingleton<IPackageDatabaseFactory, SqlitePackageDatabaseFactory>();
         services.AddSingleton<IAssetStoreFactory, FileAssetStoreFactory>();
 
-        // Core Domain 迁移来源（core-domain 模块 4 条迁移，CD-01）
+        // Core Domain legacy SQL bootstrap（001-010）；EF Core post-baseline migrations 在 SQLite adapter 建立时执行。
         services.AddSingleton<CoreDomainMigrationSource>();
 
         // Application Bootstrap（core-domain 模块迁移经 IMigrationSource 登记）
