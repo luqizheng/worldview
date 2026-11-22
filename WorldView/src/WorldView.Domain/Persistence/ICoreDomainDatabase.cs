@@ -221,6 +221,15 @@ public interface ICoreDomainDatabase
     /// <summary>Find immutable payload metadata by its owning Field Revision.</summary>
     FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId);
 
+    /// <summary>List all payload metadata for one Project in stable identity order.</summary>
+    IReadOnlyList<FieldPayloadRecord> ListFieldPayloads(Guid projectId);
+
+    /// <summary>
+    /// Update the integrity state after an authoritative byte verification pass.
+    /// Callers may set Verified only after validating the complete payload bytes.
+    /// </summary>
+    void SetFieldPayloadIntegrityState(Guid projectId, Guid fieldPayloadId, FieldPayloadIntegrityState state);
+
     /// <summary>Read exact raw bytes for a SQLite BLOB payload; ManagedFile payloads are rejected.</summary>
     byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId);
 }
