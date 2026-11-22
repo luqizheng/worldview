@@ -3,7 +3,7 @@
 - Version: 0.1
 - Date: 2026-11-21
 - Status: **Recommended initial-release serialization contract; canonical schema updated; binary golden packages require regeneration against the completed manifest**
-- Owner: Map Engine field I/O; Core Domain retains Field Dataset, Field Revision and Core Asset authority
+- Owner: Map Engine field I/O; Core Domain retains Field Dataset, Field Revision and dedicated Field Payload authority
 - Depends on: ME-05-01 V0.5; ME-05-07 V0.3; ME-05-08 V0.1; P2-09-30; P2-09-31; P2-09-32; P2-09-33
 
 ## 1. Deliverables
@@ -84,14 +84,14 @@ The golden packages use ME-05-08 V0.1 without changing its 72-byte header, 16-by
 - Every tile payload begins at an 8-byte boundary; all padding is zero.
 - Package length equals physical file length; no trailing bytes.
 - Directory entries are ordered by (tile_y, tile_x).
-- Tile SHA-256 covers decoded tile bytes; Core Asset SHA-256 covers the complete package bytes.
+- Tile SHA-256 covers decoded tile bytes; the interchange package SHA-256 covers the complete exported package bytes.
 
 ## 6. Parser/writer conformance
 
 A production reader/writer is conformant only when it:
 
 1. Parses all three golden packages and reproduces the exact manifest bytes.
-2. Recomputes every tile hash and complete package hash exactly.
+2. Recomputes every tile hash and complete interchange-package hash exactly.
 3. Re-serializes each manifest to byte-identical JCS bytes.
 4. Writes byte-identical packages for identical semantic input, codec version and parameters.
 5. Rejects every negative case in P2-09-35 and P2-09-33.
