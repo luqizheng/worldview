@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
