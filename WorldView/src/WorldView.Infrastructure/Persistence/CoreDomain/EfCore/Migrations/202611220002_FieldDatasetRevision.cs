@@ -87,11 +87,8 @@ internal sealed class FieldDatasetRevision : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_core_map_field_dataset_pin_immutable;");
-        migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_core_map_field_revision_immutable_delete;");
-        migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_core_map_field_revision_immutable_update;");
-        migrationBuilder.Sql("DROP TABLE IF EXISTS core_map_field_dataset;");
-        migrationBuilder.Sql("DROP TABLE IF EXISTS core_map_field_revision;");
+        throw new NotSupportedException(
+            "Field Revision history is immutable; downgrade requires an explicit data-retention migration.");
     }
 
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
