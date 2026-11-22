@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://world-view.local/schemas/field-package-manifest-v2.schema.json",
+  "title": "World View Field Package Canonical Manifest V2",
+  "description": "Strict V2 manifest shape. V2 adds explicit dimensional unit, vertical-reference identity and the coordinate precision profile pinned by the immutable spatial-reference definition. Package envelope format remains 1.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "byte_order",
+    "canonicalization",
+    "codec_registry",
+    "coverage",
+    "field",
+    "format",
+    "grid",
+    "manifest_schema",
+    "map_edge_semantics",
+    "no_data",
+    "spatial",
+    "tile_hash",
+    "value_encoding"
+  ],
+  "properties": {
+    "byte_order": {
+      "const": "little_endian"
+    },
+    "canonicalization": {
+      "const": "RFC8785-JCS-UTF8"
+    },
+    "manifest_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "const": "world-view.field-package-manifest"
+        },
+        "version": {
+          "const": 2
+        }
+      }
+    },
+    "format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "const": 1
+        },
+        "minor": {
+          "const": 0
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_key",
+        "schema_version",
+        "semantics_id"
+      ],
+      "properties": {
+        "field_key": {
+          "enum": [
+            "elevation",
+            "land_water"
+          ]
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "semantics_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "m",
+            "ft"
+          ],
+          "description": "Required for elevation. Physical unit of sample values; distinct from coordinate units."
+        }
+      }
+    },
+    "spatial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "map_space_id",
+        "spatial_reference_id",
+        "coordinate_precision_profile_id"
+      ],
+      "properties": {
+        "map_space_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "spatial_reference_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "coordinate_precision_profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Immutable precision-profile identity selected by the referenced Spatial Reference definition. This pins coordinate quantization semantics, not sample-value encoding."
+        },
+        "vertical_reference_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Required for elevation. Stable identity of the vertical datum/reference; distinct from horizontal spatial_reference_id and sample unit."
+        }
+      }
+    },
+    "grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height",
+        "tile_width",
+        "tile_height",
+        "origin_x",
+        "origin_y",
+        "spacing_x",
+        "spacing_y",
+        "axis_orientation",
+        "cell_registration"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "tile_width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "tile_height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "origin_x": {
+          "$ref": "#/$defs/decimalString",
+          "description": "Grid alignment origin X; grid_alignment is represented by origin_x/origin_y, axis_orientation and cell_registration."
+        },
+        "origin_y": {
+          "$ref": "#/$defs/decimalString",
+          "description": "Grid alignment origin Y; grid_alignment is represented by origin_x/origin_y, axis_orientation and cell_registration."
+        },
+        "spacing_x": {
+          "$ref": "#/$defs/positiveDecimalString",
+          "description": "Grid resolution along X; together with spacing_y, width and height this is the V1 resolution profile representation."
+        },
+        "spacing_y": {
+          "$ref": "#/$defs/positiveDecimalString",
+          "description": "Grid resolution along Y; together with spacing_x, width and height this is the V1 resolution profile representation."
+        },
+        "axis_orientation": {
+          "enum": [
+            "x_east_y_north",
+            "x_east_y_south",
+            "x_west_y_north",
+            "x_west_y_south"
+          ]
+        },
+        "cell_registration": {
+          "enum": [
+            "area",
+            "point"
+          ]
+        }
+      }
+    },
+    "coverage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "full_grid"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "mask_plane_name"
+          ],
+          "properties": {
+            "mode": {
+              "const": "explicit_mask"
+            },
+            "mask_plane_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        }
+      ]
+    },
+    "map_edge_semantics": {
+      "enum": [
+        "bounded_non_wrapping",
+        "wrap_x",
+        "wrap_y",
+        "wrap_xy",
+        "unknown"
+      ]
+    },
+    "no_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "mask_plane"
+      ],
+      "properties": {
+        "policy": {
+          "const": "explicit_validity_mask"
+        },
+        "mask_plane": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "plane_name",
+            "valid_value",
+            "invalid_value"
+          ],
+          "properties": {
+            "plane_name": {
+              "const": "validity_mask"
+            },
+            "valid_value": {
+              "const": 0
+            },
+            "invalid_value": {
+              "const": 1
+            }
+          }
+        }
+      }
+    },
+    "value_encoding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "profile_scope",
+        "planes"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Immutable sample value encoding profile identity. This is not the coordinate precision profile selected by the Spatial Reference."
+        },
+        "profile_scope": {
+          "enum": [
+            "golden_fixture_only",
+            "production"
+          ]
+        },
+        "planes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sample_format",
+              "bytes_per_cell"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "sample_format": {
+                "enum": [
+                  "uint8",
+                  "uint8_registered_category",
+                  "int16_le",
+                  "uint16_le",
+                  "int32_le",
+                  "uint32_le",
+                  "float32_ieee754_le",
+                  "float64_ieee754_le"
+                ]
+              },
+              "bytes_per_cell": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 16
+              }
+            }
+          }
+        },
+        "category_codes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "land",
+            "water",
+            "unknown",
+            "outside_coverage"
+          ],
+          "properties": {
+            "land": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "water": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "unknown": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "outside_coverage": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          }
+        }
+      }
+    },
+    "codec_registry": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codec_id",
+          "codec_name",
+          "version",
+          "parameters"
+        ],
+        "properties": {
+          "codec_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "codec_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "parameters": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "tile_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "version"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "SHA-256"
+        },
+        "version": {
+          "const": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decimalString": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^(0|[1-9][0-9]*|-[1-9][0-9]*|-?0\\.[0-9]*[1-9]|-[1-9][0-9]*\\.[0-9]*[1-9])$"
+    },
+    "positiveDecimalString": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^(0\\.[0-9]*[1-9]|[1-9][0-9]*(\\.[0-9]*[1-9])?)$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "land_water"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value_encoding": {
+            "required": [
+              "category_codes"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "elevation"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value_encoding": {
+            "not": {
+              "required": [
+                "category_codes"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "elevation"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "field": {
+            "required": [
+              "unit"
+            ]
+          },
+          "spatial": {
+            "required": [
+              "vertical_reference_id"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "land_water"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "field": {
+            "not": {
+              "required": [
+                "unit"
+              ]
+            }
+          },
+          "spatial": {
+            "not": {
+              "required": [
+                "vertical_reference_id"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}
