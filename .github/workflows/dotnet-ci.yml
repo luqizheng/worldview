@@ -35,6 +35,10 @@ jobs:
       - name: Install the pinned EF CLI
         run: dotnet tool install --global dotnet-ef --version 11.0.0
 
+      - name: Restore EF design-time project
+        working-directory: WorldView
+        run: dotnet restore src/WorldView.Infrastructure/WorldView.Infrastructure.csproj
+
       - name: Generate the forward migration
         working-directory: WorldView
         run: dotnet ef migrations add MapSpatialReferenceOwnership --project src/WorldView.Infrastructure --startup-project src/WorldView.Infrastructure --context CoreDomainDbContext
