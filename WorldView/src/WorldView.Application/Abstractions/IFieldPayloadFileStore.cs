@@ -33,6 +33,9 @@ public interface IFieldPayloadFileStore
     /// <summary>Lists canonical content hashes currently published in the managed store.</summary>
     IReadOnlyList<string> ListContentHashes();
 
+    /// <summary>Deletes stale staging files left by an interrupted process; call only during package recovery.</summary>
+    int CleanupStagingFiles();
+
     /// <summary>Deletes one validated content-addressed file; staging files are never enumerated.</summary>
     bool Delete(string contentHash);
 }
