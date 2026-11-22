@@ -97,4 +97,5 @@ public sealed class CoreDomainInitial : Migration
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
         CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
-    }}
+    }
+}
