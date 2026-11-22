@@ -44,14 +44,14 @@ This is a **strangler migration**, not a big-bang rewrite.
 ### Phase 0 — foundation (this change)
 
 - Add EF Core SQLite provider and design-time tooling dependencies to Infrastructure only.
-- Add the CoreDomainDbContext and explicit mappings for the first vertical slice: Project, Map, and Asset.
-- Add a no-op EF baseline migration and model snapshot. The baseline records that those tables are already created by the existing checksummed bootstrap migrations; it must not recreate or alter them.
-- Add a connection-sharing session that creates/disposes a short-lived DbContext inside the existing SQLite connection coordinator lock.
+- Add the CoreDomainDbContext and explicit mappings for Project, Map, Asset, Field Dataset, and Field Revision.
+- Add a no-op EF baseline migration and model snapshot for the legacy Project/Map/Asset tables. The baseline must not recreate or alter them. Add the first non-empty EF migration for Field Dataset/Revision, including deferred current-pointer FK and immutable-revision triggers.
+- Add a connection-sharing session that creates/disposes a short-lived DbContext inside the existing SQLite connection coordinator lock. Apply EF migrations after legacy bootstrap when the Core Domain adapter is first constructed.
 - Prove the EF model against a real SQLite database created by the existing bootstrap path.
 
 ### Phase 1 — complete model coverage
 
-Map every existing Core Domain table into the one DbContext, including History, Branch, Calendar, Object identity/type/allocator/reservation, Map registration, Initial State, Definition typed links, and Field Dataset/Revision. Keep table/column names and storage contracts byte-for-byte compatible.
+Field Dataset/Revision is the first new EF-managed aggregate and is implemented alongside the foundation. Map every remaining existing Core Domain table into the one DbContext, including History, Branch, Calendar, Object identity/type/allocator/reservation, Map registration, Initial State, and Definition typed links. Keep table/column names and storage contracts byte-for-byte compatible.
 
 ### Phase 2 — vertical-slice adapter migration
 
