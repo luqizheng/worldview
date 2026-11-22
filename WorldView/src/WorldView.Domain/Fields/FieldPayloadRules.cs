@@ -19,6 +19,12 @@ public static class FieldPayloadRules
             throw new ArgumentOutOfRangeException(nameof(plan), "Field Payload byte length 必须大于 0。");
 
         var hash = AssetRules.NormalizeContentHash(plan.ContentHash);
+        if (!string.Equals(plan.HashAlgorithm, "sha-256", StringComparison.Ordinal))
+            throw new CoreDomainDataException("Field Payload hash_algorithm must be sha-256.");
+        if (string.IsNullOrWhiteSpace(plan.PayloadFormat) || plan.PayloadFormat.Length > 160)
+            throw new ArgumentException("Field Payload format must contain 1-160 characters.", nameof(plan));
+        if (string.IsNullOrWhiteSpace(plan.FormatVersion) || plan.FormatVersion.Length > 64)
+            throw new ArgumentException("Field Payload format version must contain 1-64 characters.", nameof(plan));
         string? relativePath;
         switch (plan.StorageKind)
         {
@@ -44,6 +50,10 @@ public static class FieldPayloadRules
             FieldDatasetId = plan.FieldDatasetId,
             FieldRevisionId = plan.FieldRevisionId,
             StorageKind = plan.StorageKind,
+            PayloadFormat = plan.PayloadFormat,
+            FormatVersion = plan.FormatVersion,
+            HashAlgorithm = plan.HashAlgorithm,
+            IntegrityState = FieldPayloadIntegrityState.Verified,
             ByteLength = plan.ByteLength,
             ContentHash = hash,
             RelativePath = relativePath,
