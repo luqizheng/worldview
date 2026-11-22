@@ -126,11 +126,11 @@ public sealed class FieldManifestCanonicalizerTests
     }
 
     [Theory]
-    [InlineData("{\\"value\\":NaN}")]
-    [InlineData("{\\"value\\":Infinity}")]
-    [InlineData("{\\"value\\":-Infinity}")]
-    [InlineData("{\\"value\\":-0}")]
-    [InlineData("{\\"outer\\":{\\"value\\":1,\\"\\\\u0076alue\\":2}}")]
+    [InlineData(@"{""value"":NaN}")]
+    [InlineData(@"{""value"":Infinity}")]
+    [InlineData(@"{""value"":-Infinity}")]
+    [InlineData(@"{""value"":-0}")]
+    [InlineData(@"{""outer"":{""value"":1,""\u0076alue"":2}}")]
     public void RequireCanonicalUtf8_RejectsInvalidJcsInput(string json)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
