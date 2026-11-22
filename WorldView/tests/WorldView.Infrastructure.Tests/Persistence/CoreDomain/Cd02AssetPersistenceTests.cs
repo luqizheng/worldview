@@ -316,11 +316,13 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         {
             using var foreignKeyCommand = connection.CreateCommand();
             foreignKeyCommand.CommandText = "PRAGMA foreign_key_check;";
-            using var foreignKeyReader = foreignKeyCommand.ExecuteReader();
             var foreignKeyViolations = 0;
-            while (foreignKeyReader.Read())
+            using (var foreignKeyReader = foreignKeyCommand.ExecuteReader())
             {
-                foreignKeyViolations++;
+                while (foreignKeyReader.Read())
+                {
+                    foreignKeyViolations++;
+                }
             }
 
             using var integrityCommand = connection.CreateCommand();
