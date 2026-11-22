@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
+using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Maps;
@@ -229,7 +230,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
             command.ExecuteNonQuery();
         });
 
-        Assert.ThrowsAny<Exception>(() => ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+        Assert.Throws<SqliteException>(() => ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
             core, project.ProjectId, objectId, current.DefinitionHash, proposed, 1, Now + 6));
 
         Assert.Equal(current.DefinitionHash, core.ReadObjectDefinition(project.ProjectId, objectId)!.DefinitionHash);
