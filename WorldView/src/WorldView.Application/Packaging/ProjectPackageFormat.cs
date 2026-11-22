@@ -20,8 +20,8 @@ public static class ProjectPackageFormat
     /// <summary>清单文件名（包元数据，不是第二项目身份权威）。</summary>
     public const string ManifestFileName = "manifest.json";
 
-    /// <summary>默认数据库文件名（v1 固定值）。</summary>
-    public const string DatabaseFileName = "project.sqlite";
+    /// <summary>数据库包内相对路径（v1 固定值，使用正斜杠）。</summary>
+    public const string DatabaseFileName = "data/project.sqlite";
 
     /// <summary>Asset Store 根目录名。</summary>
     public const string AssetsDirectoryName = "Assets";
