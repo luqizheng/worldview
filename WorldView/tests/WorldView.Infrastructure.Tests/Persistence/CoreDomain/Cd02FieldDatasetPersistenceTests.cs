@@ -501,6 +501,25 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task FieldPayloadPublisher_RetainsPublishedFileWhenDatabasePublicationFails()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var bytes = new byte[] { 0x10, 0x20, 0x30, 0x40, 0x50 };
+        var expectedHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4) with { MapId = Guid.NewGuid() };
+        var publisher = new FieldPayloadPublisher(core, store);
+
+        await Assert.ThrowsAsync<CoreDomainConflictException>(() =>
+            publisher.PublishManagedFileRevisionAsync(plan, new MemoryStream(bytes)));
+
+        Assert.True(store.Exists(expectedHash));
+        Assert.Null(core.FindFieldPayload(project.ProjectId, plan.FieldRevisionId));
+    }
+
+    [Fact]
     public async Task FieldPayloadReader_RejectsManagedFileWithSameLengthWrongHash()
     {
         var (project, mapId) = SeedMap();
