@@ -30,7 +30,7 @@ public sealed record PackageManifest
     public string DatabaseRelativePath => Database.RelativePath;
 
     public static PackageManifest CreateV1(DateTimeOffset createdAtUtc, string databaseRelativePath
-        = ProjectPackageFormat.DatabaseFileName) => new()
+        = ProjectPackageFormat.DatabaseRelativePath) => new()
     {
         PackageFormatVersion = ProjectPackageFormat.SupportedPackageFormatVersion,
         Database = new ManifestDatabaseEntry { RelativePath = databaseRelativePath },
