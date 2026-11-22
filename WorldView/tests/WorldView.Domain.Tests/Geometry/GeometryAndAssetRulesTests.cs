@@ -101,6 +101,28 @@ public sealed class GeometryAndAssetRulesTests
     }
 
     [Fact]
+    public void ValidateManifest_EmptyComponentId_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var manifest = Manifest() with { GeometryComponentId = Guid.Empty };
+
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifest(descriptor, manifest));
+        Assert.Contains("geometry_component_id", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifest_EmptyAssetId_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var manifest = Manifest() with { AssetId = Guid.Empty };
+
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifest(descriptor, manifest));
+        Assert.Contains("asset_id", ex.Message);
+    }
+
+    [Fact]
     public void ValidateManifest_UndeclaredRole_Rejected()
     {
         var descriptor = ObjectTypeRegistry.Require("river");

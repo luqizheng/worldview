@@ -76,6 +76,16 @@ public static class GeometryRules
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(manifest);
 
+        if (manifest.GeometryComponentId == Guid.Empty)
+        {
+            throw new CoreDomainConflictException("geometry_component_id 不能为空（必须是稳定的 opaque identity）。");
+        }
+
+        if (manifest.AssetId == Guid.Empty)
+        {
+            throw new CoreDomainConflictException("asset_id 不能为空（必须引用已登记的 Core Asset）。");
+        }
+
         var role = descriptor.FindGeometryRole(manifest.GeometryRole)
             ?? throw new CoreDomainConflictException(
                 $"geometry role \"{manifest.GeometryRole}\" 未在 {descriptor.TypeKey} descriptor 中声明（declared_geometry_roles_only）。");
