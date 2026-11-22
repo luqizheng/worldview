@@ -57,7 +57,7 @@ public sealed class SpatialReferenceServiceTests
         var bound = MapSpatialReferenceService.BindInitial(
             database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2);
 
-        Assert.Equal($"map-space:{mapPlan.Map.MapId:D}", bound.MapSpaceId);
+        Assert.True(Guid.TryParseExact(bound.MapSpaceId, "D", out _));
         Assert.Equal(definition.SpatialReferenceId, bound.SpatialReferenceId);
         Assert.Equal(definition.DefinitionFingerprint,
             SpatialReferenceService.FindDefinition(database, project.ProjectId, definition.SpatialReferenceId)!.DefinitionFingerprint);

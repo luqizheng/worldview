@@ -128,11 +128,11 @@ public sealed partial class SqliteCoreDomainDatabase
             || !Enum.IsDefined(precisionAxisOrder)
             || !Enum.TryParse<MidpointRounding>(entity.RoundingMode, ignoreCase: false, out var roundingMode)
             || !Enum.IsDefined(roundingMode)
-            || !decimal.TryParse(entity.MaximumAbsoluteQuantizationError, NumberStyles.Number, CultureInfo.InvariantCulture, out var maxError)
-            || !decimal.TryParse(entity.MinimumAuthoringTolerance, NumberStyles.Number, CultureInfo.InvariantCulture, out var minTolerance)
-            || !decimal.TryParse(entity.SmallestMeaningfulFeatureSize, NumberStyles.Number, CultureInfo.InvariantCulture, out var minFeature))
+            || !decimal.TryParse(entity.MaximumAbsoluteQuantizationError, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxError)
+            || !decimal.TryParse(entity.MinimumAuthoringTolerance, NumberStyles.Float, CultureInfo.InvariantCulture, out var minTolerance)
+            || !decimal.TryParse(entity.SmallestMeaningfulFeatureSize, NumberStyles.Float, CultureInfo.InvariantCulture, out var minFeature))
             throw new CoreDomainDataException(
-                $"Spatial Reference {entity.SpatialReferenceId} contains an invalid enum or precision value.");
+                $"Spatial Reference {entity.SpatialReferenceId} contains invalid values: kind='{entity.ReferenceKind}', axis='{entity.AxisOrder}', wrap='{entity.WrapBehavior}', precisionAxis='{entity.PrecisionAxisOrder}', rounding='{entity.RoundingMode}', maxError='{entity.MaximumAbsoluteQuantizationError}', tolerance='{entity.MinimumAuthoringTolerance}', feature='{entity.SmallestMeaningfulFeatureSize}'.");
 
         var definition = new SpatialReferenceDefinitionRecord
         {

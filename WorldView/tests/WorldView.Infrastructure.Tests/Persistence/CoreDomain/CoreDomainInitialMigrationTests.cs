@@ -135,6 +135,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Contains("core_object_definition_asset", tables);
         Assert.Contains("core_map_field_dataset", tables);
         Assert.Contains("core_map_field_revision", tables);
+        Assert.Contains("core_spatial_reference", tables);
 
         var mappedTables = session.Execute(db => db.Model.GetEntityTypes()
             .Select(entity => entity.GetTableName())
@@ -147,7 +148,11 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(new[] { "20261122090235_CoreDomainInitial" }, migrationIds);
+        Assert.Equal(new[]
+        {
+            "20261122090235_CoreDomainInitial",
+            "20261122140144_MapSpatialReferenceOwnership",
+        }, migrationIds);
 
         var triggerCount = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {

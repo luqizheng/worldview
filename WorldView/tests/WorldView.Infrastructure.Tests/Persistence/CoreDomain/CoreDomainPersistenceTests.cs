@@ -77,7 +77,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
     [Fact]
     public void FreshBootstrap_AppliesCoreDomainMigrations()
     {
-        Assert.Equal(1, CountRows("__EFMigrationsHistory"));
+        Assert.Equal(2, CountRows("__EFMigrationsHistory"));
         foreach (var table in new[]
                  {
                      "core_project", "core_map", "core_history", "core_branch",
@@ -273,8 +273,8 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         // Calendar 插入在事务中途违反 UNIQUE → 整体回滚。
         var occupierMapId = Guid.NewGuid();
         ExecuteRaw($"""
-            INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
-            VALUES ('{occupierMapId}', '{projectId}', 'occupier', 'active', 1, 1);
+            INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{occupierMapId}', '{projectId}', '{Guid.NewGuid():D}', 'occupier', 'active', 1, 1);
             INSERT INTO core_calendar (calendar_id, project_id, map_id, calendar_role, calendar_type, calendar_name, created_at_utc_ms, updated_at_utc_ms)
             VALUES ('{plan.DefaultCalendar.CalendarId}', '{projectId}', '{occupierMapId}', 'auxiliary', NULL, 'occupied', 1, 1);
             """);
