@@ -24,4 +24,8 @@
       Link="Registry\p2-09-39-cave-system-typed-aggregate-schema-v0.5.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MackySoft.Json.Canonicalization" Version="0.1.0" />
+  </ItemGroup>
+
 </Project>
