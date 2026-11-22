@@ -3,7 +3,7 @@
 - Version: 0.3
 - Date: 2026-11-21
 - Status: Recommended V1 byte-level envelope; canonical manifest and baseline golden fixtures supplied; production parser/writer and platform proof remain open
-- Owner: Map Engine field I/O; Core Domain retains Field Revision and Core Asset authority
+- Owner: Map Engine field I/O; Core Domain retains Field Revision and Field Payload authority
 - Depends on: ME-05-01 V0.5; ME-05-05 V0.3; ME-05-07 V0.5; P2-09-11 V0.11; P2-09-12 V0.6; P2-09-32 V0.1; P2-09-34 V0.1; P2-09-35 V0.1; ME-05-09 V0.1; ME-05-10 V0.1; P2-09-36 V0.1
 
 ## 1. Purpose
@@ -59,7 +59,7 @@ Required logical groups:
 - tile-hash algorithm identity/version;
 - canonicalization and byte-order declarations.
 
-Field Dataset ID, Field Revision ID and Field Payload ID remain authoritative in Core Domain metadata. They are not package-owned identities and are not required in the interchange manifest. The package hash is stored in Core Asset metadata and must not be embedded in the manifest because that would be self-referential.
+Field Dataset ID, Field Revision ID and Field Payload ID remain authoritative in Core Domain metadata. They are not package-owned identities and are not required in the interchange manifest. The interchange-package digest is not stored as a runtime Core Asset reference and must not be embedded in the manifest because that would be self-referential.
 
 The manifest does not contain tile byte offsets. Those belong only to the tile directory.
 
@@ -153,7 +153,7 @@ Integer overflow, truncation, invalid ranges, decompression-size excess, unknown
 - A breaking header or directory change increments format_major.
 - A backward-compatible optional manifest extension may increment format_minor only when old readers can safely ignore it.
 - Unknown required flags, unsupported major versions and unknown required codec profiles are rejected.
-- Package format version is independent of Field Descriptor version, Field Revision number, Core Asset hash version and calculation algorithm version.
+- Package format version is independent of Field Descriptor version, Field Revision number, Field Payload hash version and calculation algorithm version.
 - The exact package bytes and envelope format version are included in calculation provenance/fingerprints under ME-02-F. The manifest uses one canonical schema contract for the initial release.
 
 ## 8. Explicitly deferred
