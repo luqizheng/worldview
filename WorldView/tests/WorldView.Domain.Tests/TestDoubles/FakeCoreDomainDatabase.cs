@@ -22,6 +22,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public List<MapRecord> Maps { get; } = new();
 
+    public List<SpatialReferenceDefinitionRecord> SpatialReferenceDefinitions { get; } = new();
+
     public List<HistoryRecord> Histories { get; } = new();
 
     public List<BranchRecord> Branches { get; } = new();
@@ -90,6 +92,34 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public MapRecord? FindMap(Guid projectId, Guid mapId) =>
         Maps.FirstOrDefault(m => m.ProjectId == projectId && m.MapId == mapId);
+
+    public SpatialReferenceDefinitionRecord? FindSpatialReferenceDefinition(Guid projectId, string spatialReferenceId) =>
+        SpatialReferenceDefinitions.FirstOrDefault(x => x.ProjectId == projectId && x.SpatialReferenceId == spatialReferenceId);
+
+    public void InsertSpatialReferenceDefinition(SpatialReferenceDefinitionRecord definition)
+    {
+        if (FindProject(definition.ProjectId) is null)
+            throw new CoreDomainConflictException("Spatial Reference Project 不存在。");
+        if (FindSpatialReferenceDefinition(definition.ProjectId, definition.SpatialReferenceId) is not null)
+            throw new CoreDomainConflictException("Spatial Reference identity 已存在且不可覆盖。");
+        SpatialReferenceDefinitions.Add(SpatialReferenceRules.Validate(definition));
+    }
+
+    public MapRecord BindMapSpatialReference(Guid projectId, Guid mapId, string spatialReferenceId, long nowUtcMs)
+    {
+        var map = FindMap(projectId, mapId) ?? throw new CoreDomainConflictException("Map 不存在或不属于当前 Project。");
+        if (FindSpatialReferenceDefinition(projectId, spatialReferenceId) is null)
+            throw new CoreDomainConflictException("Spatial Reference 不存在或不属于当前 Project。");
+        if (map.SpatialReferenceId is not null)
+        {
+            if (map.SpatialReferenceId == spatialReferenceId) return map;
+            throw new CoreDomainConflictException("Map 的 Spatial Reference 已绑定；更换必须经过坐标转换流程。");
+        }
+        var bound = map with { SpatialReferenceId = spatialReferenceId, UpdatedAtUtcMs = nowUtcMs };
+        Maps.Remove(map);
+        Maps.Add(bound);
+        return bound;
+    }
 
     public IReadOnlyList<MapRecord> ListMaps(Guid projectId) =>
         Maps.Where(m => m.ProjectId == projectId)

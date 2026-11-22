@@ -36,6 +36,15 @@ public interface ICoreDomainDatabase
     /// <summary>查找属于指定 Project 的 Map；不存在或跨 Project 返回 null。</summary>
     MapRecord? FindMap(Guid projectId, Guid mapId);
 
+    /// <summary>查找同一 Project 内不可变的 Spatial Reference 定义。</summary>
+    SpatialReferenceDefinitionRecord? FindSpatialReferenceDefinition(Guid projectId, string spatialReferenceId);
+
+    /// <summary>插入不可变 Spatial Reference 定义；重复身份或跨 Project 引用必须拒绝。</summary>
+    void InsertSpatialReferenceDefinition(SpatialReferenceDefinitionRecord definition);
+
+    /// <summary>为尚未绑定的 Map 建立初始 Spatial Reference；不提供原位替换路径。</summary>
+    MapRecord BindMapSpatialReference(Guid projectId, Guid mapId, string spatialReferenceId, long nowUtcMs);
+
     /// <summary>列出指定 Project 的全部 Map（按创建时间、ID 稳定排序）。</summary>
     IReadOnlyList<MapRecord> ListMaps(Guid projectId);
 

@@ -59,6 +59,8 @@ public static class MapRules
             {
                 MapId = mapId,
                 ProjectId = project.ProjectId,
+                MapSpaceId = $"map-space:{mapId:D}",
+                SpatialReferenceId = null,
                 MapName = name,
                 LifecycleStatus = MapLifecycle.ActiveStatus,
                 CreatedAtUtcMs = nowUtcMs,

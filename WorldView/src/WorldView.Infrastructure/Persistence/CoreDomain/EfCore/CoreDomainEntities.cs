@@ -15,6 +15,8 @@ internal sealed class CoreMapEntity
 {
     public Guid MapId { get; set; }
     public Guid ProjectId { get; set; }
+    public required string MapSpaceId { get; set; }
+    public string? SpatialReferenceId { get; set; }
     public required string MapName { get; set; }
     public required string LifecycleStatus { get; set; }
     public long CreatedAtUtcMs { get; set; }
@@ -64,5 +66,32 @@ internal sealed class CoreMapFieldRevisionEntity
     public required string ContentFingerprint { get; set; }
     public required string ManifestJson { get; set; }
     public required string ProvenanceJson { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+}
+
+/// <summary>EF persistence shape for an immutable project-scoped Spatial Reference definition.</summary>
+internal sealed class CoreSpatialReferenceEntity
+{
+    public Guid ProjectId { get; set; }
+    public required string SpatialReferenceId { get; set; }
+    public int DefinitionVersion { get; set; }
+    public required string ReferenceKind { get; set; }
+    public required string CoordinateUnit { get; set; }
+    public required string AxisOrder { get; set; }
+    public int Dimension { get; set; }
+    public required string ValidDomainJson { get; set; }
+    public required string WrapBehavior { get; set; }
+    public string? VerticalReferenceId { get; set; }
+    public required string PrecisionProfileId { get; set; }
+    public int PrecisionProfileVersion { get; set; }
+    public required string NumericRepresentation { get; set; }
+    public required string MaximumAbsoluteQuantizationError { get; set; }
+    public required string RoundingMode { get; set; }
+    public required string MinimumAuthoringTolerance { get; set; }
+    public required string SmallestMeaningfulFeatureSize { get; set; }
+    public required string DefinitionParametersJson { get; set; }
+    public required string MeasurementCapabilitiesJson { get; set; }
+    public required string ProvenanceJson { get; set; }
+    public required string DefinitionFingerprint { get; set; }
     public long CreatedAtUtcMs { get; set; }
 }

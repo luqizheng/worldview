@@ -179,6 +179,8 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
             {
                 MapId = x.MapId,
                 ProjectId = x.ProjectId,
+                MapSpaceId = x.MapSpaceId,
+                SpatialReferenceId = x.SpatialReferenceId,
                 MapName = x.MapName,
                 LifecycleStatus = x.LifecycleStatus,
                 CreatedAtUtcMs = x.CreatedAtUtcMs,
@@ -200,6 +202,8 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
                 {
                     MapId = plan.Map.MapId,
                     ProjectId = plan.Map.ProjectId,
+                    MapSpaceId = plan.Map.MapSpaceId,
+                    SpatialReferenceId = plan.Map.SpatialReferenceId,
                     MapName = plan.Map.MapName,
                     LifecycleStatus = plan.Map.LifecycleStatus,
                     CreatedAtUtcMs = plan.Map.CreatedAtUtcMs,
@@ -366,6 +370,8 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
     {
         MapId = entity.MapId,
         ProjectId = entity.ProjectId,
+        MapSpaceId = entity.MapSpaceId,
+        SpatialReferenceId = entity.SpatialReferenceId,
         MapName = entity.MapName,
         LifecycleStatus = entity.LifecycleStatus,
         CreatedAtUtcMs = entity.CreatedAtUtcMs,

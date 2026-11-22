@@ -11,6 +11,7 @@ public class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) 
 {
     internal DbSet<CoreProjectEntity> Projects => Set<CoreProjectEntity>();
     internal DbSet<CoreMapEntity> Maps => Set<CoreMapEntity>();
+    internal DbSet<CoreSpatialReferenceEntity> SpatialReferences => Set<CoreSpatialReferenceEntity>();
     internal DbSet<CoreAssetEntity> Assets => Set<CoreAssetEntity>();
     internal DbSet<CoreMapFieldDatasetEntity> FieldDatasets => Set<CoreMapFieldDatasetEntity>();
     internal DbSet<CoreMapFieldRevisionEntity> FieldRevisions => Set<CoreMapFieldRevisionEntity>();

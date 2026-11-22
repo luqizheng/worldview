@@ -34,13 +34,57 @@ internal static class CoreDomainV1ModelConfiguration
                 .HasConversion(CoreDomainValueConverters.GuidToText).ValueGeneratedNever();
             entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT")
                 .HasConversion(CoreDomainValueConverters.GuidToText);
+            entity.Property(x => x.MapSpaceId).HasColumnName("map_space_id").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.SpatialReferenceId).HasColumnName("spatial_reference_id").HasColumnType("TEXT");
             entity.Property(x => x.MapName).HasColumnName("map_name").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.LifecycleStatus).HasColumnName("lifecycle_status").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.Property(x => x.UpdatedAtUtcMs).HasColumnName("updated_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.MapId });
+            entity.HasIndex(x => x.MapSpaceId).IsUnique().HasDatabaseName("ux_core_map_map_space_id");
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction).HasConstraintName("FK_core_map_core_project_project_id");
+            entity.HasOne<CoreSpatialReferenceEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.SpatialReferenceId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.SpatialReferenceId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreSpatialReferenceEntity>(entity =>
+        {
+            entity.ToTable("core_spatial_reference", table =>
+            {
+                table.HasCheckConstraint("CK_core_spatial_reference_definition_version", "definition_version >= 1");
+                table.HasCheckConstraint("CK_core_spatial_reference_kind", "reference_kind IN ('Geographic', 'Projected', 'LocalCartesian')");
+                table.HasCheckConstraint("CK_core_spatial_reference_axis_order", "axis_order IN ('XY', 'YX')");
+                table.HasCheckConstraint("CK_core_spatial_reference_dimension", "dimension IN (2, 3)");
+                table.HasCheckConstraint("CK_core_spatial_reference_wrap", "wrap_behavior IN ('None', 'WrapX', 'WrapY', 'WrapXY')");
+                table.HasCheckConstraint("CK_core_spatial_reference_precision_version", "precision_profile_version >= 1");
+            });
+            entity.HasKey(x => new { x.ProjectId, x.SpatialReferenceId });
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.SpatialReferenceId).HasColumnName("spatial_reference_id").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.DefinitionVersion).HasColumnName("definition_version").HasColumnType("INTEGER");
+            entity.Property(x => x.ReferenceKind).HasColumnName("reference_kind").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CoordinateUnit).HasColumnName("coordinate_unit").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.AxisOrder).HasColumnName("axis_order").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.Dimension).HasColumnName("dimension").HasColumnType("INTEGER");
+            entity.Property(x => x.ValidDomainJson).HasColumnName("valid_domain_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.WrapBehavior).HasColumnName("wrap_behavior").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.VerticalReferenceId).HasColumnName("vertical_reference_id").HasColumnType("TEXT");
+            entity.Property(x => x.PrecisionProfileId).HasColumnName("precision_profile_id").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.PrecisionProfileVersion).HasColumnName("precision_profile_version").HasColumnType("INTEGER");
+            entity.Property(x => x.NumericRepresentation).HasColumnName("numeric_representation").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.MaximumAbsoluteQuantizationError).HasColumnName("maximum_absolute_quantization_error").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.RoundingMode).HasColumnName("rounding_mode").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.MinimumAuthoringTolerance).HasColumnName("minimum_authoring_tolerance").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.SmallestMeaningfulFeatureSize).HasColumnName("smallest_meaningful_feature_size").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.DefinitionParametersJson).HasColumnName("definition_parameters_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.MeasurementCapabilitiesJson).HasColumnName("measurement_capabilities_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ProvenanceJson).HasColumnName("provenance_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.DefinitionFingerprint).HasColumnName("definition_fingerprint").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<CoreAssetEntity>(entity =>
