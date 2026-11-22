@@ -14,8 +14,9 @@ namespace WorldView.Domain.Persistence;
 /// 每连接 PRAGMA foreign_keys=ON；正式身份/历史表不用 ON DELETE CASCADE（默认 NO ACTION）；
 /// 同 Project 归属以 UNIQUE(project_id, entity_id) + 复合外键防跨库误引用。
 /// 仍刻意排除的表（open gate，未授权落地）：core_command 系、core_event 系、
-/// core_asset/core_checkpoint、core_object_definition_asset/core_map_initial_object_asset
-/// （条件性 typed link，启用触发条件见 CD-02-A §17）、field dataset 系、
+/// core_checkpoint、core_map_initial_object_asset
+/// （条件性 typed link，启用触发条件见 CD-02-A §17）。Field Dataset / Revision
+/// 不属于此 legacy SQL migration list，已由 Infrastructure 的 EF Core Migrations 管理；
 /// state change 系、全部 AI Assistant 表、任何 Building/Cave 或 per-child 表。
 /// </summary>
 public static class CoreDomainSchema
@@ -404,7 +405,7 @@ public static class CoreDomainSchema
     /// <summary>
     /// 迁移清单（顺序即依赖序：project → map → history/branch → calendar →
     /// object_type → object 系 → map_object_ref → initial_state 系 → asset →
-    /// definition_asset link）。
+    /// definition_asset link；Field Dataset / Revision 由 EF Core migration 管理）。
     /// </summary>
     public static IReadOnlyList<(string MigrationId, string Sql)> Migrations { get; } =
     [
