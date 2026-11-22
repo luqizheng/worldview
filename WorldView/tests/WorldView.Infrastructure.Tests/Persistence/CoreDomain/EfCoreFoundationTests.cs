@@ -121,6 +121,15 @@ public sealed class EfCoreFoundationTests : IDisposable
             "202611220002_FieldDatasetRevision",
         }, session.Execute(db => db.Database.GetAppliedMigrations().ToArray()));
 
+        var mapProjectIdIsConcurrencyToken = session.Execute(db =>
+            db.Model.FindEntityType(typeof(CoreMapEntity))!
+                .FindProperty(nameof(CoreMapEntity.ProjectId))!.IsConcurrencyToken);
+        var currentRevisionIsConcurrencyToken = session.Execute(db =>
+            db.Model.FindEntityType(typeof(CoreMapFieldDatasetEntity))!
+                .FindProperty(nameof(CoreMapFieldDatasetEntity.CurrentFieldRevisionId))!.IsConcurrencyToken);
+        Assert.False(mapProjectIdIsConcurrencyToken);
+        Assert.True(currentRevisionIsConcurrencyToken);
+
         // Disposing the short-lived DbContext must not close the package-owned connection.
         var foreignKeysEnabled = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
