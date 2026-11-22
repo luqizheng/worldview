@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
+using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 using Xunit;
 
@@ -57,8 +58,8 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     [Fact]
     public void InitialMigration_CreatesCoreDomainSchemaFromEmptyDatabase()
     {
+        var core = new SqliteCoreDomainDatabase(_database);
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
-        session.ApplyMigrations();
 
         var tables = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
