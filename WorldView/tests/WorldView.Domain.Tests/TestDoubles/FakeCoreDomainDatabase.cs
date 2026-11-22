@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -44,6 +45,10 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public List<AssetRecord> Assets { get; } = new();
 
     public List<ObjectDefinitionAssetLinkRecord> DefinitionAssetLinks { get; } = new();
+
+    public List<FieldDatasetRecord> FieldDatasets { get; } = new();
+
+    public List<FieldRevisionRecord> FieldRevisions { get; } = new();
 
     public List<MapInitialStateRecord> InitialStates { get; } = new();
 
@@ -545,9 +550,74 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
     {
-        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId).Select(l => l.AssetId).ToHashSet();
+        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId).Select(l => l.AssetId)
+            .Concat(FieldRevisions.Where(r => r.ProjectId == projectId).Select(r => r.FieldRevisionAssetId))
+            .ToHashSet();
         return Assets.Where(a => a.ProjectId == projectId && !linked.Contains(a.AssetId))
             .Select(a => a.AssetId).OrderBy(g => g).ToArray();
+    }
+
+    public FieldDatasetRecord? FindFieldDataset(Guid projectId, Guid mapId, string fieldKey) =>
+        FieldDatasets.FirstOrDefault(x => x.ProjectId == projectId && x.MapId == mapId && x.FieldKey == fieldKey);
+
+    public FieldRevisionRecord? FindFieldRevision(Guid projectId, Guid fieldDatasetId, Guid fieldRevisionId) =>
+        FieldRevisions.FirstOrDefault(x => x.ProjectId == projectId
+            && x.FieldDatasetId == fieldDatasetId && x.FieldRevisionId == fieldRevisionId);
+
+    public IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId) =>
+        FieldRevisions.Where(x => x.ProjectId == projectId && x.FieldDatasetId == fieldDatasetId)
+            .OrderBy(x => x.RevisionNumber).ToArray();
+
+    public FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan)
+    {
+        var dataset = FindFieldDataset(plan.ProjectId, plan.MapId, plan.FieldKey);
+        if (dataset is null)
+        {
+            if (plan.ExpectedCurrentFieldRevisionId is not null)
+                throw new CoreDomainConflictException("首次 Field Dataset publication 的 expected current revision 必须为 null。");
+            dataset = new FieldDatasetRecord
+            {
+                FieldDatasetId = plan.FieldDatasetId,
+                ProjectId = plan.ProjectId,
+                MapId = plan.MapId,
+                FieldKey = plan.FieldKey,
+                DescriptorSchemaVersion = plan.DescriptorSchemaVersion,
+                SemanticsId = plan.SemanticsId,
+                CurrentFieldRevisionId = null,
+                CreatedAtUtcMs = plan.CreatedAtUtcMs,
+                UpdatedAtUtcMs = plan.CreatedAtUtcMs,
+            };
+            FieldDatasets.Add(dataset);
+        }
+        else
+        {
+            if (dataset.FieldDatasetId != plan.FieldDatasetId
+                || dataset.CurrentFieldRevisionId != plan.ExpectedCurrentFieldRevisionId)
+                throw new CoreDomainConflictException("Field Dataset identity 或 current revision CAS 冲突。");
+        }
+
+        var revision = new FieldRevisionRecord
+        {
+            FieldRevisionId = plan.FieldRevisionId,
+            ProjectId = plan.ProjectId,
+            FieldDatasetId = plan.FieldDatasetId,
+            RevisionNumber = FieldRevisions.Where(x => x.ProjectId == plan.ProjectId && x.FieldDatasetId == plan.FieldDatasetId)
+                .Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1,
+            ParentRevisionId = dataset.CurrentFieldRevisionId,
+            FieldRevisionAssetId = plan.FieldRevisionAssetId,
+            ContentFingerprint = plan.ContentFingerprint,
+            ManifestJson = plan.ManifestJson,
+            ProvenanceJson = plan.ProvenanceJson,
+            CreatedAtUtcMs = plan.CreatedAtUtcMs,
+        };
+        FieldRevisions.Add(revision);
+        FieldDatasets.Remove(dataset);
+        FieldDatasets.Add(dataset with
+        {
+            CurrentFieldRevisionId = revision.FieldRevisionId,
+            UpdatedAtUtcMs = plan.CreatedAtUtcMs,
+        });
+        return revision;
     }
 
     public ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(Guid projectId, Guid objectIdentityId, Guid assetId, string role) =>
