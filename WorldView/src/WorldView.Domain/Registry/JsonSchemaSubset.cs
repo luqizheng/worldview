@@ -111,6 +111,13 @@ public static class JsonSchemaSubset
             {
                 EnsureSupportedKeywords(property.Value, $"{path}/{property.Name}");
             }
+            else if (property.Name == "$defs" && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var definition in property.Value.EnumerateObject())
+                {
+                    EnsureSupportedKeywords(definition.Value, $"{path}/$defs/{definition.Name}");
+                }
+            }
         }
     }
 
