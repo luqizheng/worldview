@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
 using WorldView.Domain.Assets;
@@ -418,4 +419,141 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
 
         Assert.DoesNotContain(asset.AssetId, core.FindOrphanAssetIds(project.ProjectId));
     }
+
+
+    [Theory]
+    [InlineData("MNF-003")]
+    [InlineData("MNF-004")]
+    [InlineData("MNF-005")]
+    [InlineData("MNF-006")]
+    [InlineData("MNF-007")]
+    [InlineData("MNF-008")]
+    [InlineData("MNF-009")]
+    [InlineData("MNF-010")]
+    [InlineData("MNF-011")]
+    [InlineData("MNF-012")]
+    [InlineData("MNF-013")]
+    [InlineData("MNF-014")]
+    [InlineData("MNF-015")]
+    [InlineData("MNF-016")]
+    [InlineData("MNF-017")]
+    [InlineData("MNF-018")]
+    [InlineData("MNF-019")]
+    [InlineData("MNF-020")]
+    public void PublishedValidationVector_RejectsInvalidManifest(string vectorId)
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+
+        switch (vectorId)
+        {
+            case "MNF-003":
+                root["unexpected"] = true;
+                break;
+            case "MNF-004":
+                root["manifest_schema"]!["version"] = 2;
+                break;
+            case "MNF-005":
+                root["format"]!["minor"] = 1;
+                break;
+            case "MNF-006":
+                root["field"]!["field_key"] = "unknown_field";
+                break;
+            case "MNF-007":
+                root["field"]!["semantics_id"] = "world-view.field.elevation.experimental";
+                break;
+            case "MNF-008":
+                root["spatial"]!.AsObject().Remove("map_space_id");
+                break;
+            case "MNF-009":
+                root["grid"]!["width"] = 0;
+                break;
+            case "MNF-010":
+                root["grid"]!["tile_width"] = 65536;
+                break;
+            case "MNF-011":
+                root["grid"]!["spacing_x"] = "1e-3";
+                break;
+            case "MNF-012":
+                root["grid"]!["axis_orientation"] = "x_north_y_east";
+                break;
+            case "MNF-013":
+                root["coverage"]!["mode"] = "sparse";
+                break;
+            case "MNF-014":
+                root["map_edge_semantics"] = "wrap_everything";
+                break;
+            case "MNF-015":
+                root["no_data"]!["policy"] = "zero_is_nodata";
+                break;
+            case "MNF-016":
+                root["value_encoding"]!["planes"]![0]!["bytes_per_cell"] = 2;
+                break;
+            case "MNF-017":
+                root["field"]!["field_key"] = "land_water";
+                root["field"]!["semantics_id"] = "world-view.field.land_water.v1";
+                root["value_encoding"]!["planes"]![0]!["name"] = "categories";
+                root["value_encoding"]!["planes"]![0]!["sample_format"] = "uint8_registered_category";
+                root["value_encoding"]!["planes"]![0]!["bytes_per_cell"] = 1;
+                root["value_encoding"]!["category_codes"] = new JsonObject
+                {
+                    ["land"] = 1, ["water"] = 1, ["unknown"] = 2, ["outside_coverage"] = 3,
+                };
+                break;
+            case "MNF-018":
+                root["value_encoding"]!["category_codes"] = new JsonObject
+                {
+                    ["land"] = 0, ["water"] = 1, ["unknown"] = 2, ["outside_coverage"] = 3,
+                };
+                break;
+            case "MNF-019":
+                root["codec_registry"] = new JsonArray();
+                break;
+            case "MNF-020":
+                root["tile_hash"]!["algorithm"] = "MD5";
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(vectorId), vectorId, "Unknown P2-09-35 vector.");
+        }
+
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = root.ToJsonString(),
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishedValidationVector_Mnf023CanonicalizationIsIdempotent()
+    {
+        var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
+        Assert.Equal(manifest, CanonicalJson.Canonicalize(manifest));
+    }
+
+    [Fact]
+    public void PublishedValidationVector_Mnf024PropertyOrderDoesNotChangeCanonicalBytes()
+    {
+        Assert.Equal(
+            CanonicalJson.Canonicalize("{\\"z\\":1,\\"a\\":2}"),
+            CanonicalJson.Canonicalize("{\\"a\\":2,\\"z\\":1}"));
+    }
+
+    [Fact]
+    public void PublishedValidationVector_Mnf025PreservesDecimalLexicalPrecision()
+    {
+        PublishRevision_PreservesExactDecimalStringPrecision();
+    }
+
+    [Fact]
+    public void PublishedValidationVector_Mnf027AllowsFixtureOnlyProfileWithoutPromotingIt()
+    {
+        var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
+        Assert.Contains("\\"profile_scope\\":\\"golden_fixture_only\\"", manifest);
+    }
+
 }
