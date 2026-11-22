@@ -214,7 +214,7 @@ public interface ICoreDomainDatabase
 
     /// <summary>
     /// 原子发布 Field Revision：验证当前 revision CAS，插入不可变 revision 并推进 Dataset
-    /// current pointer。首次发布在同一事务建立 Dataset；Asset 必须已登记且 Verified。
+    /// current pointer。首次发布在同一事务建立 Dataset；Field Payload 元数据与字节必须在同一事务完成登记。
     /// </summary>
     FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan);
 
