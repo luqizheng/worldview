@@ -628,166 +628,132 @@ public sealed partial class SqliteCoreDomainDatabase
     // ---- Map Initial State（P3 存在层） ----
 
     public MapInitialStateRecord? FindMapInitialState(Guid projectId, Guid mapId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadInitialStateRow(transaction, projectId, mapId);
+            var entity = db.MapInitialStates.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.map_id == mapId);
+            return entity is null ? null : MapInitialState(entity);
         });
 
-    public IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId)
-    {
-        const string sql = """
-            SELECT project_id, map_id, initial_state_id, object_identity_id,
-                   initial_membership_payload_json, initial_placement_payload_json,
-                   initial_placement_schema_version, created_at_utc_ms
-            FROM core_map_initial_object
-            WHERE project_id = $projectId AND map_id = $mapId
-            ORDER BY object_identity_id;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$mapId", Uuid(mapId));
-            using var reader = command.ExecuteReader();
-            var rows = new List<InitialObjectRecord>();
-            while (reader.Read())
-            {
-                rows.Add(MapInitialObject(reader));
-            }
-
-            return (IReadOnlyList<InitialObjectRecord>)rows;
-        });
-    }
+    public IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId) =>
+        _ef.Execute(db => (IReadOnlyList<InitialObjectRecord>)db.MapInitialObjects.AsNoTracking()
+            .Where(x => x.project_id == projectId && x.map_id == mapId)
+            .OrderBy(x => x.object_identity_id)
+            .AsEnumerable()
+            .Select(MapInitialObject)
+            .ToArray());
 
     public void EditMapInitialState(EditInitialStatePlan plan)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                var baseline = TryReadInitialStateRow(transaction, plan.ProjectId, plan.MapId);
+                var baseline = db.MapInitialStates.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.map_id == plan.MapId);
                 if (baseline is not null)
                 {
-                    // CAS：expected fingerprint 必须匹配当前值（事务内比对，无并发窗口）。
                     if (plan.ExpectedFingerprint is null
-                        || !string.Equals(baseline.ContentFingerprint, plan.ExpectedFingerprint, StringComparison.Ordinal))
+                        || !string.Equals(baseline.content_fingerprint, plan.ExpectedFingerprint, StringComparison.Ordinal))
                     {
                         throw new CoreDomainConflictException("Initial State CAS 冲突：expected fingerprint 与当前基线不匹配。");
                     }
 
-                    if (baseline.InitialStateId != plan.InitialStateId)
+                    if (baseline.initial_state_id != plan.InitialStateId)
                     {
                         throw new CoreDomainDataException(
-                            $"编辑计划的基线 {plan.InitialStateId} 与 Map 既有基线 {baseline.InitialStateId} 不一致（fail-closed）。");
+                            $"编辑计划的基线 {plan.InitialStateId} 与 Map 既有基线 {baseline.initial_state_id} 不一致（fail-closed）。");
                     }
-                }
-                else if (plan.ExpectedFingerprint is not null)
-                {
-                    throw new CoreDomainConflictException(
-                        $"Map {plan.MapId} 尚无 Initial State 基线；expected fingerprint 必须为 null（建立语义）。");
                 }
                 else
                 {
-                    using var create = connection.CreateCommand();
-                    create.Transaction = transaction;
-                    create.CommandText = """
-                        INSERT INTO core_map_initial_state
-                            (initial_state_id, project_id, map_id, baseline_schema_version,
-                             content_fingerprint, created_at_utc_ms, updated_at_utc_ms)
-                        VALUES ($stateId, $projectId, $mapId, $schemaVersion, '-', $now, $now);
-                        """;
-                    create.Parameters.AddWithValue("$stateId", Uuid(plan.InitialStateId));
-                    create.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    create.Parameters.AddWithValue("$mapId", Uuid(plan.MapId));
-                    create.Parameters.AddWithValue("$schemaVersion", plan.BaselineSchemaVersion);
-                    create.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                    create.ExecuteNonQuery();
-                }
-
-                // 事务内重读成员前置（active + P3⇒P2），canonical 化 payload。
-                var writes = new List<(Guid IdentityId, string MembershipJson, string? PlacementJson, long? PlacementVersion)>();
-                foreach (var member in plan.Members)
-                {
-                    var identity = ReadObjectRow(transaction, plan.ProjectId, member.ObjectIdentityId);
-                    if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+                    if (plan.ExpectedFingerprint is not null)
                     {
                         throw new CoreDomainConflictException(
-                            $"成员 {member.ObjectIdentityId} 处于 {identity.LifecycleStatus} 状态，不得进入 Initial State（R-成员前置）。");
+                            $"Map {plan.MapId} 尚无 Initial State 基线；expected fingerprint 必须为 null（建立语义）。");
                     }
 
-                    if (TryReadMapObjectRefRow(transaction, plan.ProjectId, plan.MapId, member.ObjectIdentityId) is null)
+                    baseline = new CoreMapInitialStateEntity
+                    {
+                        initial_state_id = plan.InitialStateId,
+                        project_id = plan.ProjectId,
+                        map_id = plan.MapId,
+                        baseline_schema_version = plan.BaselineSchemaVersion,
+                        content_fingerprint = "-",
+                        created_at_utc_ms = plan.NowUtcMs,
+                        updated_at_utc_ms = plan.NowUtcMs,
+                    };
+                    db.MapInitialStates.Add(baseline);
+                }
+
+                var writes = new List<InitialObjectRecord>(plan.Members.Count);
+                var seen = new HashSet<Guid>();
+                foreach (var member in plan.Members)
+                {
+                    if (!seen.Add(member.ObjectIdentityId))
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Initial State 包含重复成员 {member.ObjectIdentityId}。");
+                    }
+
+                    var identity = db.Objects.AsNoTracking().SingleOrDefault(x =>
+                        x.project_id == plan.ProjectId && x.object_identity_id == member.ObjectIdentityId);
+                    if (identity is null || identity.lifecycle_status != "active")
+                    {
+                        throw new CoreDomainConflictException(
+                            $"成员 {member.ObjectIdentityId} 不存在或不是 active 状态，不得进入 Initial State。");
+                    }
+
+                    if (!db.MapObjectRefs.Any(x =>
+                        x.project_id == plan.ProjectId
+                        && x.map_id == plan.MapId
+                        && x.object_identity_id == member.ObjectIdentityId))
                     {
                         throw new CoreDomainConflictException(
                             $"成员 {member.ObjectIdentityId} 缺少 Map {plan.MapId} 注册行（P3⇒P2），拒绝写入。");
                     }
 
-                    writes.Add((
-                        member.ObjectIdentityId,
-                        CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-                        member.PlacementPayloadJson is null ? null : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-                        member.PlacementSchemaVersion));
+                    writes.Add(new InitialObjectRecord
+                    {
+                        ProjectId = plan.ProjectId,
+                        MapId = plan.MapId,
+                        InitialStateId = plan.InitialStateId,
+                        ObjectIdentityId = member.ObjectIdentityId,
+                        MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
+                        PlacementPayloadJson = member.PlacementPayloadJson is null
+                            ? null
+                            : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
+                        PlacementSchemaVersion = member.PlacementSchemaVersion,
+                        CreatedAtUtcMs = plan.NowUtcMs,
+                    });
                 }
 
-                // 全量重写（P2-09-11 §4.1 "baseline/成员行重写"）：delete + insert。
-                using (var clear = connection.CreateCommand())
+                var existingMembers = db.MapInitialObjects
+                    .Where(x => x.project_id == plan.ProjectId && x.map_id == plan.MapId)
+                    .ToArray();
+                db.MapInitialObjects.RemoveRange(existingMembers);
+                foreach (var member in writes)
                 {
-                    clear.Transaction = transaction;
-                    clear.CommandText = """
-                        DELETE FROM core_map_initial_object
-                        WHERE project_id = $projectId AND map_id = $mapId;
-                        """;
-                    clear.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    clear.Parameters.AddWithValue("$mapId", Uuid(plan.MapId));
-                    clear.ExecuteNonQuery();
+                    db.MapInitialObjects.Add(new CoreMapInitialObjectEntity
+                    {
+                        project_id = member.ProjectId,
+                        map_id = member.MapId,
+                        initial_state_id = member.InitialStateId,
+                        object_identity_id = member.ObjectIdentityId,
+                        initial_membership_payload_json = member.MembershipPayloadJson,
+                        initial_placement_payload_json = member.PlacementPayloadJson,
+                        initial_placement_schema_version = member.PlacementSchemaVersion,
+                        created_at_utc_ms = member.CreatedAtUtcMs,
+                    });
                 }
 
-                foreach (var (identityId, membershipJson, placementJson, placementVersion) in writes)
-                {
-                    using var insert = connection.CreateCommand();
-                    insert.Transaction = transaction;
-                    insert.CommandText = """
-                        INSERT INTO core_map_initial_object
-                            (project_id, map_id, initial_state_id, object_identity_id,
-                             initial_membership_payload_json, initial_placement_payload_json,
-                             initial_placement_schema_version, created_at_utc_ms)
-                        VALUES ($projectId, $mapId, $stateId, $identityId,
-                                $membership, $placement, $placementVersion, $now);
-                        """;
-                    insert.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    insert.Parameters.AddWithValue("$mapId", Uuid(plan.MapId));
-                    insert.Parameters.AddWithValue("$stateId", Uuid(plan.InitialStateId));
-                    insert.Parameters.AddWithValue("$identityId", Uuid(identityId));
-                    insert.Parameters.AddWithValue("$membership", membershipJson);
-                    insert.Parameters.AddWithValue("$placement", (object?)placementJson ?? DBNull.Value);
-                    insert.Parameters.AddWithValue("$placementVersion", (object?)placementVersion ?? DBNull.Value);
-                    insert.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                    insert.ExecuteNonQuery();
-                }
+                baseline.baseline_schema_version = plan.BaselineSchemaVersion;
+                baseline.content_fingerprint = InitialStateFingerprint.Compute(
+                    plan.BaselineSchemaVersion, writes);
+                baseline.updated_at_utc_ms = plan.NowUtcMs;
 
-                // 指纹由 Domain 规范化序列化计算（同内容同指纹、顺序无关、不含审计字段）。
-                var members = ListInitialObjectRows(transaction, plan.ProjectId, plan.MapId);
-                var fingerprint = InitialStateFingerprint.Compute(plan.BaselineSchemaVersion, members);
-                using var update = connection.CreateCommand();
-                update.Transaction = transaction;
-                update.CommandText = """
-                    UPDATE core_map_initial_state
-                    SET baseline_schema_version = $schemaVersion,
-                        content_fingerprint = $fingerprint,
-                        updated_at_utc_ms = $now
-                    WHERE project_id = $projectId AND map_id = $mapId;
-                    """;
-                update.Parameters.AddWithValue("$schemaVersion", plan.BaselineSchemaVersion);
-                update.Parameters.AddWithValue("$fingerprint", fingerprint);
-                update.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                update.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                update.Parameters.AddWithValue("$mapId", Uuid(plan.MapId));
-                update.ExecuteNonQuery();
-
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }
             catch
@@ -1346,6 +1312,29 @@ public sealed partial class SqliteCoreDomainDatabase
         MapId = ParseUuid(reader.GetString(2)),
         ObjectIdentityId = ParseUuid(reader.GetString(3)),
         CreatedAtUtcMs = reader.GetInt64(4),
+    };
+
+    private static MapInitialStateRecord MapInitialState(CoreMapInitialStateEntity entity) => new()
+    {
+        InitialStateId = entity.initial_state_id,
+        ProjectId = entity.project_id,
+        MapId = entity.map_id,
+        BaselineSchemaVersion = entity.baseline_schema_version,
+        ContentFingerprint = entity.content_fingerprint,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
+        UpdatedAtUtcMs = entity.updated_at_utc_ms,
+    };
+
+    private static InitialObjectRecord MapInitialObject(CoreMapInitialObjectEntity entity) => new()
+    {
+        ProjectId = entity.project_id,
+        MapId = entity.map_id,
+        InitialStateId = entity.initial_state_id,
+        ObjectIdentityId = entity.object_identity_id,
+        MembershipPayloadJson = entity.initial_membership_payload_json,
+        PlacementPayloadJson = entity.initial_placement_payload_json,
+        PlacementSchemaVersion = entity.initial_placement_schema_version,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
     };
 
     private static MapInitialStateRecord MapInitialState(SqliteDataReader reader) => new()
