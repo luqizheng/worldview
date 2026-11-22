@@ -246,7 +246,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     [Fact]
     public void PublishRevision_PreservesExactDecimalStringPrecision()
     {
-        const string originX = "123.45678901234567890123456789";
+        const string originX = "0.12345678901234567890123456789";
         var (project, mapId) = SeedMap();
         var core = Core();
         var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
