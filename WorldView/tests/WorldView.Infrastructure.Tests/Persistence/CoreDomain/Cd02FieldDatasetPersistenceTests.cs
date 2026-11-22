@@ -560,4 +560,34 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Contains("\"profile_scope\":\"golden_fixture_only\"", manifest);
     }
 
+
+    [Fact]
+    public void PublishRevision_RejectsManifestStringsOutsideSchemaBounds()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+
+        var spatialManifest = JsonNode.Parse(
+            BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        spatialManifest["spatial"]!["spatial_reference_id"] = new string('s', 513);
+        var spatialPlan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = spatialManifest.ToJsonString(),
+        };
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, spatialPlan));
+
+        var planeManifest = JsonNode.Parse(
+            BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        planeManifest["value_encoding"]!["planes"]![0]!["name"] = new string('p', 65);
+        var planePlan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 5) with
+        {
+            ManifestJson = planeManifest.ToJsonString(),
+        };
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, planePlan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
 }
