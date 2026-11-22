@@ -134,6 +134,24 @@ public sealed class Cd02AggregateVectorConformanceTests
     }
 
     [Fact]
+    public void PublicationContext_NormalizesAssetIdCaseAcrossManifestAndLinks()
+    {
+        var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
+        var payload = JsonNode.Parse(payloadJson)!.AsObject();
+        foreach (var component in payload["geometry_components"]!.AsArray().OfType<JsonObject>())
+        {
+            component["asset_id"] = component["asset_id"]!.GetValue<string>().ToUpperInvariant();
+        }
+
+        var issues = BuildingCaveAggregateValidator.Validate(
+            typeKey,
+            payload.ToJsonString(),
+            BuildPublicationContext(vector));
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
     public void PublicationContext_RejectsSameAssetPinnedToDifferentHashes()
     {
         var (typeKey, payloadJson, vector) = BuildPayloadForVector("BLD-029");
