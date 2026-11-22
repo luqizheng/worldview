@@ -96,6 +96,6 @@ public static class ProjectPackageStructure
 
         // Windows root-relative and UNC paths use backslashes, which Unix Path APIs
         // do not consider directory separators.
-        return path[0] == '\\\\' || path[0] == '/';
+        return path[0] == '\\' || path[0] == '/';
     }
 }
