@@ -264,10 +264,10 @@ public static class FieldDatasetService
     }
 
     private static readonly Regex DecimalPattern = new(
-        "^(0|[1-9][0-9]*|-[1-9][0-9]*|-?0\\\\.[0-9]*[1-9]|-[1-9][0-9]*\\\\.[0-9]*[1-9])$",
+        "^(0|[1-9][0-9]*|-[1-9][0-9]*|-?0\\.[0-9]*[1-9]|-[1-9][0-9]*\\.[0-9]*[1-9])$",
         RegexOptions.CultureInvariant);
     private static readonly Regex PositiveDecimalPattern = new(
-        "^(0\\\\.[0-9]*[1-9]|[1-9][0-9]*(\\\\.[0-9]*[1-9])?)$",
+        "^(0\\.[0-9]*[1-9]|[1-9][0-9]*(\\.[0-9]*[1-9])?)$",
         RegexOptions.CultureInvariant);
 
     private static void EnsureNoDuplicateKeys(JsonElement value)
