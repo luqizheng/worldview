@@ -73,6 +73,16 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Contains("core_map_field_dataset", tables);
         Assert.Contains("core_map_field_revision", tables);
 
+        var mappedTables = session.Execute(db => db.Model.GetEntityTypes()
+            .Select(entity => entity.GetTableName())
+            .Where(name => name is not null)
+            .Distinct()
+            .ToArray());
+        foreach (var table in tables.Where(name => name.StartsWith("core_", StringComparison.Ordinal)))
+        {
+            Assert.Contains(table, mappedTables);
+        }
+
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
         Assert.Equal(new[] { "202611220001_CoreDomainInitial" }, migrationIds);
 
