@@ -162,8 +162,8 @@ The next design artifact is [Field Revision Typed Persistence Design V1](field-r
 
 - Immutable revision scalar metadata is stored on the revision row; ordered planes/codecs and category codes use typed child rows.
 - Grid origin/spacing remain canonical decimal TEXT; no conversion to SQLite REAL is permitted.
-- Map Space ID and Spatial Reference ID remain distinct. The current Core Domain model has no authoritative owner records for either, so the first metadata migration must preserve them as opaque validated identifiers and must not invent foreign keys to `core_map` or assume EPSG aliases.
-- A separate owner contract is required before spatial catalog foreign keys are introduced. ME-05-04 describes Spatial Reference as an immutable project-scoped definition; the exact Map Space owner/lifecycle still needs reconciliation.
+- Map Space and Spatial Reference ownership is specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md): one Map-owned Map Space identity is stored on `core_map`; each Map binds to one immutable project-scoped Spatial Reference definition; no standalone Map Space table is introduced in V1.
+- The Spatial Reference definition owns the coordinate precision profile and optional vertical-reference identity. Manifest V2 pins these IDs; Field Revision publication must match the owning Map and immutable definition. The physical EF model and migration remain pending.
 - The current P2-09-34 Manifest V1 omits elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. P2-09-36 defines a compatible Manifest V2 schema; P2-09-37 defines its validation vectors. V1 remains legacy-read-only and must not be used for new elevation publication.
 - The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
 
