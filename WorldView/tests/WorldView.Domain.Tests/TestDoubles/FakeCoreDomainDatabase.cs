@@ -584,9 +584,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
     {
-        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId).Select(l => l.AssetId)
-            .Concat(FieldRevisions.Where(r => r.ProjectId == projectId).Select(r => r.FieldRevisionAssetId))
-            .ToHashSet();
+        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId)
+            .Select(l => l.AssetId).ToHashSet();
         return Assets.Where(a => a.ProjectId == projectId && !linked.Contains(a.AssetId))
             .Select(a => a.AssetId).OrderBy(g => g).ToArray();
     }
@@ -658,7 +657,6 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
             RevisionNumber = FieldRevisions.Where(x => x.ProjectId == plan.ProjectId && x.FieldDatasetId == plan.FieldDatasetId)
                 .Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1,
             ParentRevisionId = dataset.CurrentFieldRevisionId,
-            FieldRevisionAssetId = plan.FieldRevisionAssetId,
             Payload = payload,
             ContentFingerprint = plan.ContentFingerprint,
             ManifestJson = plan.ManifestJson,
