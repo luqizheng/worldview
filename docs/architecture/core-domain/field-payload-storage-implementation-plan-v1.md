@@ -146,13 +146,13 @@ Each schema change must use `dotnet ef migrations add <nameOfMigration>`; the in
 
 The first Domain implementation slice now exists in `FieldRevisionMetadata.cs`:
 
-- The validated manifest is projected into typed descriptor, spatial identity, grid, coverage, edge, no-data, value-plane, codec, and tile-hash metadata.
+- The validated manifest is projected into typed descriptor (including dimensional unit), spatial identity (including vertical reference and coordinate precision profile), grid, coverage, edge, no-data, value-plane, codec, and tile-hash metadata.
 - Grid dimensions remain integer values and coordinate/origin/spacing values remain exact decimal strings; they are not converted to binary floating point.
 - Value planes are represented as typed records, and category codes are exposed as a read-only dictionary.
 - `PublishFieldRevisionPlan` and `FieldRevisionRecord` expose the typed projection. SQLite reads currently reconstruct it from the validated canonical manifest, and publication still writes `manifest_json`.
 - Integration tests verify typed values and the projection after reloading a revision.
 
-This is deliberately a compatibility bridge, **not yet the typed SQLite persistence migration**. No EF entity, generated migration, or model snapshot was changed in this slice. The next persistence slice must add normalized typed storage and payload references using the EF CLI migration workflow, then backfill and verify existing rows before retiring `manifest_json`.
+This is deliberately a compatibility bridge, **not yet the typed SQLite persistence migration**. No EF entity, generated migration, or model snapshot was changed in this slice. The next persistence slice must add normalized typed storage and payload references using the EF CLI migration workflow, then verify typed reads and writes before retiring `manifest_json`; no historical user-data backfill is required.
 
 ## 7.2 Typed persistence design and spatial ownership gate
 
@@ -163,7 +163,7 @@ The next design artifact is [Field Revision Typed Persistence Design V1](field-r
 - Map Space and Spatial Reference ownership is specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md): one Map-owned Map Space identity is stored on `core_map`; each Map binds to one immutable project-scoped Spatial Reference definition; no standalone Map Space table is introduced in V1.
 - The Spatial Reference definition owns the coordinate precision profile and optional vertical-reference identity. canonical manifest pins these IDs; Field Revision publication must match the owning Map and immutable definition. The physical EF model and migration remain pending.
 - The original P2-09-34 schema and validator omitted elevation unit, vertical-reference identity and the Spatial Reference's coordinate precision-profile pin. The single P2-09-34 canonical schema and P2-09-35 validation vectors now include these semantics; new publication is rejected unless they are present.
-- The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
+- The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the initial implementation must not create two competing payload authorities.
 
 The Domain validator and typed projection now cover the completed manifest semantics. No EF schema or generated snapshot was changed for this design slice. The next schema change must use the real EF CLI migration workflow.
 
