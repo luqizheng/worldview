@@ -21,6 +21,7 @@ internal static class CoreDomainV1ModelSnapshotConfiguration
             });
             e.HasKey(x => x.history_id);
             e.HasAlternateKey(x => new { x.project_id, x.history_id });
+            e.HasIndex(x => new { x.project_id, x.owner_map_id }).IsUnique();
             e.Property(x => x.history_id).HasColumnType("TEXT");
             e.Property(x => x.project_id).HasColumnType("TEXT");
             e.Property(x => x.history_kind).HasColumnType("TEXT");
@@ -145,6 +146,7 @@ internal static class CoreDomainV1ModelSnapshotConfiguration
             e.HasAlternateKey(x => new { x.project_id, x.object_type_id, x.allocated_sequence });
             e.HasAlternateKey(x => new { x.project_id, x.object_type_id, x.allocated_id_value });
             e.HasIndex(x => new { x.project_id, x.request_key }).IsUnique();
+            e.HasIndex(x => new { x.project_id, x.object_type_id, x.object_identity_id }).IsUnique();
             e.HasOne<CoreObjectTypeEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.object_type_id })
                 .HasPrincipalKey(x => new { x.project_id, x.object_type_id }).OnDelete(DeleteBehavior.NoAction);
