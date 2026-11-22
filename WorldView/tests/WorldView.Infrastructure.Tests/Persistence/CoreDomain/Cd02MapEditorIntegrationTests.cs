@@ -119,32 +119,43 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
         core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
 
-        // 缺少 manifest 或 manifest hash 不匹配时，正式 typed link 必须拒绝。
+        // Building/Cave 不允许 Definition 与 typed link 分两次提交。
         Assert.Throws<CoreDomainConflictException>(
             () => AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 6));
+
         var definition = core.ReadObjectDefinition(project.ProjectId, buildingId)!;
         var componentId = Guid.NewGuid();
-        var badManifest = ObjectDefinitionService.EditDefinition(
-            core, project.ProjectId, buildingId, definition.DefinitionHash,
-            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, new string('0', 64)), 1, Now + 6);
+
+        // Asset hash 不匹配时原子发布失败，Definition 和 links 都保持原样。
         Assert.Throws<CoreDomainConflictException>(
-            () => AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 7));
+            () => ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+                core, project.ProjectId, buildingId, definition.DefinitionHash,
+                BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, new string('0', 64)),
+                1, Now + 7));
+        Assert.Equal(definition.DefinitionHash, core.ReadObjectDefinition(project.ProjectId, buildingId)!.DefinitionHash);
+        Assert.Empty(core.ListDefinitionAssetLinks(project.ProjectId, buildingId));
 
-        // Manifest 必须先声明精确 Asset/role/hash；typed link 插入时在同一事务内对账。
-        var manifested = ObjectDefinitionService.EditDefinition(
-            core, project.ProjectId, buildingId, badManifest.DefinitionHash,
-            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, asset.ContentHash), 1, Now + 8);
-        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 9);
-        Assert.NotNull(core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "footprint"));
+        // 正式发布：Definition manifest 与 distinct Asset typed links 同一事务提交。
+        var published = ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
+            core, project.ProjectId, buildingId, definition.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, asset.ContentHash),
+            1, Now + 8);
+        var link = core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "geometry_component");
+        Assert.NotNull(link);
+        Assert.Equal("geometry_component", link.Role);
 
-        // Definition CAS 不得移除已链接组件；组件身份也必须保持稳定。
+        // 不允许通过单独 unlink 或普通 Definition CAS 移除/改变正式 geometry 组件。
+        Assert.Throws<CoreDomainConflictException>(
+            () => AssetService.UnlinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "geometry_component"));
         Assert.Throws<CoreDomainConflictException>(
             () => ObjectDefinitionService.EditDefinition(
-                core, project.ProjectId, buildingId, manifested.DefinitionHash,
-                BuildingAggregate("Demo Hall Renamed"), 1, Now + 10));
+                core, project.ProjectId, buildingId, published.DefinitionHash,
+                BuildingAggregate("Demo Hall Renamed"), 1, Now + 9));
+
+        // 非 geometry 字段仍可 CAS 编辑，组件身份与 Asset pin 保持不变。
         var updated = ObjectDefinitionService.EditDefinition(
-            core, project.ProjectId, buildingId, manifested.DefinitionHash,
-            BuildingAggregateWithFootprint("Demo Hall Renamed", componentId, asset.AssetId, asset.ContentHash), 1, Now + 11);
+            core, project.ProjectId, buildingId, published.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall Renamed", componentId, asset.AssetId, asset.ContentHash), 1, Now + 10);
         Assert.Contains("Demo Hall Renamed", updated.DefinitionPayloadJson);
 
         // 7) Initial State CAS 编辑（baseline 建立时成员已由 Insert 建立 → expected=null 非法；用重读凭据）。
