@@ -171,7 +171,8 @@ The following implementation is committed in PR #11:
 - `FindFieldPayload` and `ReadFieldPayloadBlob` expose metadata and exact raw BLOB readback. Readback verifies byte length and SHA-256 before returning a copy.
 - `FieldPayloadReader` is the storage-kind-neutral Application read API. It returns a read-only memory stream for verified BLOB bytes and verifies ManagedFile length/SHA-256 incrementally before reopening the immutable content-addressed file for streaming consumption.
 - `FieldPayloadPublisher` streams ManagedFile bytes to the content-addressed store, then publishes the payload metadata, immutable Revision and Dataset CAS through the authoritative SQLite transaction. A failed DB publication deliberately retains the final file as a recoverable orphan; it never eagerly deletes potentially shared content.
-- Infrastructure tests cover BLOB and ManagedFile readback, managed-file publication orchestration, and same-length hash corruption rejection. Domain test doubles implement the payload port methods.
+- `FieldPayloadIntegrityReconciler` verifies all project payloads, updates `verified` / `missing` / `corrupt` state, reports unreferenced managed files, and offers an explicit collection operation that performs a fresh DB reference scan before deleting only unreferenced content-addressed files. Referenced corrupt/missing files are retained.
+- Infrastructure tests cover BLOB and ManagedFile readback, managed-file publication orchestration, same-length hash corruption, missing files, integrity-state updates and safe orphan collection. Domain test doubles implement the payload reconciliation port methods.
 
 The generic Asset dependency has now been removed from Field Revision records, publication plans, Domain validation, SQLite persistence and the fresh V1 schema. `core_field_payload` is the sole Field byte-storage reference; generic Assets remain available for unrelated project assets and typed consumers.
 
@@ -179,8 +180,7 @@ The generic Asset dependency has now been removed from Field Revision records, p
 
 The repository does not yet provide:
 
-- startup crash recovery, DB/file integrity reconciliation and safe orphan cleanup;
-- a supported integrity-scan update path for `corrupt` / `missing` payload states;
+- startup crash recovery wiring and automatic crash-window repair at application startup;
 - Project / Map settings-document persistence as versioned external files;
 - production package writer integration and regenerated binary golden fixtures from the current canonical Manifest contract.
 
@@ -191,7 +191,7 @@ Generic Assets remain valid for generic project assets and definition links. The
 1. **Completed:** remove the generic Asset reference from Field Revision records, plans, EF schema and orphan-Asset logic. The fresh V1 schema uses `core_field_payload` as the only Field byte-storage reference.
 2. **Completed:** add the storage-kind-neutral Application read API for verified BLOB and ManagedFile content.
 3. **Completed:** integrate ManagedFile staging, streaming hash/length verification, atomic content-addressed publication and the SQLite payload/Revision/Dataset transaction. Cross-resource crash recovery and orphan cleanup remain separate work.
-4. Add integrity scan transitions and startup crash recovery / DB-file reconciliation. Orphan files are candidates only after a fresh authoritative reference scan and package-root confinement check.
+4. **Partially completed:** explicit DB/file integrity reconciliation, integrity-state transitions and safe orphan collection are implemented. Add startup crash recovery wiring so the reconciliation pass is scheduled when a package is opened and crash windows are repaired before normal editing.
 5. Add Project/Map settings-document storage as a separate follow-up slice.
 6. Complete the production package writer and regenerate binary golden fixtures from the current canonical Manifest contract.
 7. Retire transitional Manifest persistence only after every production reader/writer and interchange consumer has moved to its declared authority.
