@@ -14,10 +14,24 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
     internal DbSet<CoreAssetEntity> Assets => Set<CoreAssetEntity>();
     internal DbSet<CoreMapFieldDatasetEntity> FieldDatasets => Set<CoreMapFieldDatasetEntity>();
     internal DbSet<CoreMapFieldRevisionEntity> FieldRevisions => Set<CoreMapFieldRevisionEntity>();
+    internal DbSet<CoreHistoryEntity> Histories => Set<CoreHistoryEntity>();
+    internal DbSet<CoreBranchEntity> Branches => Set<CoreBranchEntity>();
+    internal DbSet<CoreCalendarEntity> Calendars => Set<CoreCalendarEntity>();
+    internal DbSet<CoreCalendarConfigurationEntity> CalendarConfigurations => Set<CoreCalendarConfigurationEntity>();
+    internal DbSet<CoreObjectTypeEntity> ObjectTypes => Set<CoreObjectTypeEntity>();
+    internal DbSet<CoreObjectEntity> Objects => Set<CoreObjectEntity>();
+    internal DbSet<CoreObjectDefinitionEntity> ObjectDefinitions => Set<CoreObjectDefinitionEntity>();
+    internal DbSet<CoreObjectIdAllocatorEntity> ObjectIdAllocators => Set<CoreObjectIdAllocatorEntity>();
+    internal DbSet<CoreObjectIdReservationEntity> ObjectIdReservations => Set<CoreObjectIdReservationEntity>();
+    internal DbSet<CoreMapObjectRefEntity> MapObjectRefs => Set<CoreMapObjectRefEntity>();
+    internal DbSet<CoreMapInitialStateEntity> MapInitialStates => Set<CoreMapInitialStateEntity>();
+    internal DbSet<CoreMapInitialObjectEntity> MapInitialObjects => Set<CoreMapInitialObjectEntity>();
+    internal DbSet<CoreObjectDefinitionAssetEntity> ObjectDefinitionAssets => Set<CoreObjectDefinitionAssetEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        CoreDomainAggregateModel.Configure(modelBuilder);
 
         var guidToText = CoreDomainValueConverters.GuidToText;
 
