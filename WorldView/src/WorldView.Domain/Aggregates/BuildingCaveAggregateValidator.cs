@@ -488,39 +488,91 @@ public static class BuildingCaveAggregateValidator
         {
             var assetId = TryGetString(component, "asset_id");
             var contentHash = TryGetString(component, "content_hash");
-            if (assetId is not null && contentHash is not null)
+            if (assetId is null || contentHash is null)
             {
-                componentAssets[assetId] = contentHash;
+                continue; // Typed schema validation reports missing required fields.
+            }
+
+            if (componentAssets.TryGetValue(assetId, out var existingHash))
+            {
+                if (!string.Equals(existingHash, contentHash, StringComparison.Ordinal))
+                {
+                    yield return new AggregateIssue
+                    {
+                        ErrorCode = `${prefix}_ASSET_COMPONENT_HASH_CONFLICT`,
+                        Message = `同一 asset_id ${assetId} 被组件固定到不同 content_hash。`,
+                    };
+                }
+            }
+            else
+            {
+                componentAssets.Add(assetId, contentHash);
             }
         }
 
-        if (publication.AssetLinks.Count > 0)
+        // publication context means a formal publication attempt. Empty links must not
+        // bypass the set-equality gate when the owner manifest references Assets.
+        var linkAssetIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var link in publication.AssetLinks)
         {
-            var linkAssetIds = publication.AssetLinks.Select(l => l.AssetId).ToHashSet(StringComparer.Ordinal);
-            if (!linkAssetIds.SetEquals(componentAssets.Keys))
+            if (!string.Equals(link.Role, "geometry_component", StringComparison.Ordinal))
             {
                 yield return new AggregateIssue
                 {
-                    ErrorCode = $"{prefix}_ASSET_LINK_MISMATCH",
-                    Message = "typed link 清单与 owner payload 的组件 asset_id 集合不一致。",
+                    ErrorCode = `${prefix}_ASSET_LINK_ROLE_INVALID`,
+                    Message = `geometry Asset typed link role 必须为 geometry_component，实际为 ${link.Role}。`,
+                };
+            }
+
+            if (!linkAssetIds.Add(link.AssetId))
+            {
+                yield return new AggregateIssue
+                {
+                    ErrorCode = `${prefix}_ASSET_LINK_DUPLICATE`,
+                    Message = `Asset ${link.AssetId} 在同一 owner 的 geometry_component typed links 中重复。`,
                 };
             }
         }
 
-        if (publication.AssetCatalog.Count > 0)
+        if (!linkAssetIds.SetEquals(componentAssets.Keys))
         {
-            var catalog = publication.AssetCatalog.ToDictionary(a => a.AssetId, a => a.ContentHash, StringComparer.Ordinal);
-            foreach (var (assetId, expectedHash) in componentAssets)
+            yield return new AggregateIssue
             {
-                if (catalog.TryGetValue(assetId, out var actualHash)
-                    && !string.Equals(actualHash, expectedHash, StringComparison.Ordinal))
+                ErrorCode = `${prefix}_ASSET_LINK_MISMATCH`,
+                Message = "typed link 清单与 owner payload 的组件 asset_id 集合不一致。",
+            };
+        }
+
+        var catalog = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var asset in publication.AssetCatalog)
+        {
+            if (!catalog.TryAdd(asset.AssetId, asset.ContentHash))
+            {
+                yield return new AggregateIssue
                 {
-                    yield return new AggregateIssue
-                    {
-                        ErrorCode = $"{prefix}_ASSET_HASH_MISMATCH",
-                        Message = $"core_asset content_hash 与组件 pinned hash 不一致（asset {assetId}）。",
-                    };
-                }
+                    ErrorCode = `${prefix}_ASSET_CATALOG_DUPLICATE`,
+                    Message = `core_asset 目录中 Asset ${asset.AssetId} 重复。`,
+                };
+            }
+        }
+
+        foreach (var (assetId, expectedHash) in componentAssets)
+        {
+            if (!catalog.TryGetValue(assetId, out var actualHash))
+            {
+                yield return new AggregateIssue
+                {
+                    ErrorCode = `${prefix}_ASSET_MISSING`,
+                    Message = `core_asset 目录缺少 manifest 引用的 Asset ${assetId}。`,
+                };
+            }
+            else if (!string.Equals(actualHash, expectedHash, StringComparison.Ordinal))
+            {
+                yield return new AggregateIssue
+                {
+                    ErrorCode = `${prefix}_ASSET_HASH_MISMATCH`,
+                    Message = `core_asset content_hash 与组件 pinned hash 不一致（asset ${assetId}）。`,
+                };
             }
         }
     }
