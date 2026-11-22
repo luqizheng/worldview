@@ -79,6 +79,7 @@ public class RealPackageFlowTests : IDisposable
 
         // 包布局（AF-01 §3.1）。
         Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.ManifestFileName)));
+        Assert.True(Directory.Exists(Path.Combine(packageRoot, "data")));
         Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseFileName)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, ProjectPackageFormat.AssetsDirectoryName, ProjectPackageFormat.AssetHashDirectoryName)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, ProjectPackageFormat.StagingDirectoryName)));
