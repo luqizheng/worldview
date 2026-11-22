@@ -16,7 +16,7 @@ public sealed record FieldDatasetRecord
     public required long UpdatedAtUtcMs { get; init; }
 }
 
-/// <summary>Immutable published Field Revision metadata and typed Asset ownership.</summary>
+/// <summary>Immutable published Field Revision metadata and its dedicated payload.</summary>
 public sealed record FieldRevisionRecord
 {
     public required Guid FieldRevisionId { get; init; }
@@ -24,7 +24,6 @@ public sealed record FieldRevisionRecord
     public required Guid FieldDatasetId { get; init; }
     public required long RevisionNumber { get; init; }
     public Guid? ParentRevisionId { get; init; }
-    public required Guid FieldRevisionAssetId { get; init; }
     public required FieldPayloadRecord Payload { get; init; }
     public required string ContentFingerprint { get; init; }
     public required string ManifestJson { get; init; }
