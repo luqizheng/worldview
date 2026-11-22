@@ -103,16 +103,19 @@ Every child row has a restrictive foreign key to its owning revision. Ordinals a
 
 ## 5. Important contract gap: manifest V1 is not the complete Field semantic contract
 
-The current P2-09-34 manifest schema includes descriptor, spatial IDs, grid, coverage, edge semantics, no-data, value encoding, codec registry and tile hash. It does **not** currently define several semantic fields required by the adopted ME-05-01 Field Dataset contract, including:
+The current P2-09-34 manifest schema and `FieldDatasetService.ValidateManifestIdentity` do **not** enforce the full existing P2-09-30 Field Descriptor Registry / P2-09-31 validation contract:
 
-- dimensional unit for elevation;
-- vertical-reference identity where applicable;
-- a versioned precision profile;
-- an explicit resolution profile beyond the grid dimensions/spacing.
+- P2-09-30 marks elevation `unit` as required (allowed values currently `m` and `ft`) and requires a stable `vertical_reference_id`.
+- P2-09-31 FDV-004 and FDV-005 explicitly expect rejection when either is missing.
+- The manifest schema currently has no property capable of carrying either value, and the production validator consequently cannot enforce those vectors.
+- P2-09-30 also requires `resolution_profile` and `grid_alignment`. The current manifest carries grid dimensions, spacing, origin, axis orientation and cell registration, but the contract has not formally stated whether those fields fully constitute the resolution/alignment records or whether additional identifiers/metadata are required.
+- ME-05-04 says precision profiles are per Spatial Reference. That definition is not currently represented by a Core Domain owner entity, so precision-profile resolution and immutable definition availability cannot yet be verified.
+
+This is not only a typed-persistence gap; it is an existing descriptor/manifest/validator conformance gap. The current implementation must not claim FDV-004/005 or full P2-09-30 conformance.
 
 The Domain projection cannot persist or backfill values that the source schema never represented. Do not synthesize defaults, infer a vertical datum, or treat a sample encoding profile as a physical unit.
 
-Before declaring Field Revision typed persistence semantically complete, reconcile ME-05-01 with P2-09-34 by specifying a compatible manifest schema revision and validation vectors. The change must state which fields are required for each descriptor (for example, elevation) and which are optional for non-dimensional categorical fields. Existing V1 rows that lack these values must remain explicitly legacy/incomplete; a migration must not fabricate them.
+Before declaring Field Revision typed persistence semantically complete, reconcile P2-09-30/31 and ME-05-01 with P2-09-34 by specifying a versioned manifest revision and executable validation vectors. The reconciliation must decide whether unit and vertical-reference IDs live directly in the manifest or are resolved from immutable descriptor/spatial-reference definitions, and must define how old V1 manifests are treated. Existing V1 rows that lack these values must remain explicitly legacy/incomplete; a migration must not fabricate them.
 
 The package/interchange manifest version and the internal relational schema version are separate version axes. Changing one does not silently change the other.
 
