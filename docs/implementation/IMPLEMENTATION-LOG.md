@@ -228,3 +228,14 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **CD-02-B implementation contract:** 8 new append-only-namespace tables (`core_object_type`, `core_object`, `core_object_definition`, `core_object_id_allocator`, `core_object_id_reservation`, `core_map_object_ref`, `core_map_initial_state`, `core_map_initial_object`) in migrations appended after 004; no asset/command/event/checkpoint/AI tables; first UPDATE paths in the codebase (reservation transitions, identity lifecycle, definition/baseline CAS edits) formally answer CD-01-F1 §15 condition 1 — all composite writes must live inside single coordinator critical sections with in-transaction state-machine precheck and negative tests.
 - **Open decisions recorded (OD-1..5):** Initial State / Definition typed payload validation gated on Registry V2 descriptor schema artifacts (must not be invented in CD-02-B); minimal decimal ID display grammar as versioned placeholder; built-in type seeding at project creation (recommended); `core_map.lifecycle_status` vocabulary remains CD-01 open gate.
 - **Verification:** all referenced paths checked; registry/schema JSONs parsed and ten-type pins script-verified; Mermaid diagrams structure-checked; cross-references and conflicts against ADR-001~005/ADR-0003/P2-09 series/ME-05-02/CD-01 series checked; CD-01-F1 transaction inheritance encoded into the CD-02-B contract; no code tests were fabricated — no production code changed.
+
+
+## 2026-11-22 CD-02-G1 Asset / Geometry integrity hardening
+
+- **Scope:** formal Asset links now require Verified integrity; SQLite link insertion re-reads Object lifecycle, Asset state and registry role inside the same coordinated transaction; Building/Cave links require one matching owner geometry manifest entry (Asset ID + role + authoritative hash); Definition CAS cannot orphan or mutate an existing linked manifest.
+- **Registry:** JsonSchemaSubset now recursively checks $defs for unsupported keywords; a referenced-definition negative test was added.
+- **Tests:** added real-SQLite direct-adapter/service state tests and strengthened ME-04 manifest/link/CAS integration tests. GitHub Actions Debug + Release build/test workflow added; results pending.
+- **Schema correction:** 10 migrations create 16 tables, not 14 (CD-01 six + CD-02-B eight + CD-02-D two).
+- **Limitations:** Verified is still set through a persistence port; end-to-end IAssetStore byte verification must be wired before treating it as a trusted publication pipeline. Typed manifest/link transaction enforcement currently covers Building/Cave aggregate descriptors; simple types need a separately decided typed geometry payload contract.
+- **Report:** [CD-02-G1 Asset / Geometry Integrity Hardening Report V0.1](../core-domain/CD-02-G1_ASSET_GEOMETRY_INTEGRITY_HARDENING_REPORT_v0.1.md). Acceptance awaits CI.
+
