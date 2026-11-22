@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- 核心领域层：不依赖 UI、桌面平台 API 或任何第三方框架包。 -->
+  <!-- 核心领域层：不依赖 UI、桌面平台 API 或持久化框架；Field Package 使用独立 RFC 8785 规范化库。 -->
 
   <!--
     Registry descriptor 目录（CD-02-C）：以仓库内正式文档 P2-09-26 V0.2 为唯一数据源
