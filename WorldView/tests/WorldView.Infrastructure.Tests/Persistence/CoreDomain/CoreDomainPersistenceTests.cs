@@ -25,7 +25,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
 {
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public CoreDomainPersistenceTests()
@@ -35,6 +35,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         _database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "project.sqlite"));
         _database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(_database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(_database);
     }
 
     public void Dispose()
@@ -76,7 +77,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
     [Fact]
     public void FreshBootstrap_AppliesCoreDomainMigrations()
     {
-        Assert.Equal(10, CountRows("schema_migration"));
+        Assert.Equal(1, CountRows("__EFMigrationsHistory"));
         foreach (var table in new[]
                  {
                      "core_project", "core_map", "core_history", "core_branch",
@@ -84,7 +85,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
                      "core_object_type", "core_object", "core_object_definition",
                      "core_object_id_allocator", "core_object_id_reservation",
                      "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
-                     "core_asset", "core_object_definition_asset",
+                     "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision",
                  })
         {
             Assert.Equal(0, CountRows(table));
@@ -101,37 +102,6 @@ public sealed class CoreDomainPersistenceTests : IDisposable
             var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
             Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
             Assert.Empty(result.AppliedMigrations); // 无待执行迁移
-        }
-    }
-
-    [Fact]
-    public async Task TamperedLedgerChecksum_FailsClosed()
-    {
-        ExecuteRaw("UPDATE schema_migration SET checksum = 'deadbeef' WHERE module_id = 'core-domain' AND migration_id = '003_core_history_branch';");
-        var second = (SqlitePackageDatabase)_factory.CreateForFile(_database.DatabasePath);
-        await using (second.ConfigureAwait(false))
-        {
-            await second.OpenAsync();
-            var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
-            Assert.False(result.Success);
-            Assert.Contains(result.Issues, i => i.Code == PackageIssueCode.LedgerChecksumMismatch);
-        }
-    }
-
-    [Fact]
-    public async Task UnknownLedgerMigration_FailsClosed()
-    {
-        ExecuteRaw("""
-            INSERT INTO schema_migration (module_id, migration_id, checksum, applied_at_utc_ms, min_app_version, max_app_version)
-            VALUES ('core-domain', '099_future', 'x', 1, NULL, NULL);
-            """);
-        var second = (SqlitePackageDatabase)_factory.CreateForFile(_database.DatabasePath);
-        await using (second.ConfigureAwait(false))
-        {
-            await second.OpenAsync();
-            var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
-            Assert.False(result.Success);
-            Assert.Contains(result.Issues, i => i.Code == PackageIssueCode.LedgerUnknownMigration);
         }
     }
 
