@@ -511,9 +511,9 @@ public sealed partial class SqliteCoreDomainDatabase
 
                     var currentLinks = ReadDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId);
                     ValidateGeometryPublicationContext(
-                        transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks);
+                        transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks, requireVerifiedAssets: true);
                     ValidateGeometryPublicationContext(
-                        transaction, plan.ProjectId, typeKey, canonicalPayload, currentLinks);
+                        transaction, plan.ProjectId, typeKey, canonicalPayload, currentLinks, requireVerifiedAssets: true);
                 }
                 else
                 {
@@ -585,14 +585,14 @@ public sealed partial class SqliteCoreDomainDatabase
                 // Refuse to silently repair or reinterpret an existing partial/legacy link set.
                 var currentLinks = ReadDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId);
                 ValidateGeometryPublicationContext(
-                    transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks);
+                    transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks, requireVerifiedAssets: false);
 
                 var desiredAssets = ReadGeometryAssetMap(canonicalPayload);
                 var desiredLinks = desiredAssets.Keys
                     .Select(assetId => (AssetId: assetId.ToString("D"), Role: "geometry_component"))
                     .ToArray();
                 ValidateGeometryPublicationContext(
-                    transaction, plan.ProjectId, typeKey, canonicalPayload, desiredLinks);
+                    transaction, plan.ProjectId, typeKey, canonicalPayload, desiredLinks, requireVerifiedAssets: true);
 
                 // Replace only the adopted geometry link purpose. Other explicitly typed
                 // definition link purposes are preserved for future descriptor extensions.
@@ -751,25 +751,35 @@ public sealed partial class SqliteCoreDomainDatabase
         Guid projectId,
         string typeKey,
         string payloadJson,
-        IReadOnlyList<(string AssetId, string Role)> links)
+        IReadOnlyList<(string AssetId, string Role)> links,
+        bool requireVerifiedAssets)
     {
         var assets = ReadGeometryAssetMap(payloadJson);
         var catalog = new List<(string AssetId, string ContentHash)>();
-        foreach (var assetId in assets.Keys)
+        if (!requireVerifiedAssets)
         {
-            var asset = TryReadAssetRow(transaction, projectId, assetId);
-            if (asset is null)
+            // Validate only the previous owner/link shape. A corrupt/missing old Asset
+            // must not prevent an atomic replacement/removal that repairs the Definition.
+            catalog.AddRange(assets.Select(asset => (asset.Key.ToString("D"), asset.Value)));
+        }
+        else
+        {
+            foreach (var assetId in assets.Keys)
             {
-                continue; // Aggregate validator emits the stable missing-Asset issue.
-            }
+                var asset = TryReadAssetRow(transaction, projectId, assetId);
+                if (asset is null)
+                {
+                    continue; // Aggregate validator emits the stable missing-Asset issue.
+                }
 
-            if (asset.IntegrityState != AssetIntegrityState.Verified)
-            {
-                throw new CoreDomainConflictException(
-                    $"Asset {assetId} integrity_state is {asset.IntegrityState}; only Verified Assets can be published in a formal Geometry Definition.");
-            }
+                if (asset.IntegrityState != AssetIntegrityState.Verified)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} integrity_state is {asset.IntegrityState}; only Verified Assets can be published in a formal Geometry Definition.");
+                }
 
-            catalog.Add((asset.AssetId.ToString("D"), asset.ContentHash));
+                catalog.Add((asset.AssetId.ToString("D"), asset.ContentHash));
+            }
         }
 
         var issues = BuildingCaveAggregateValidator.Validate(
