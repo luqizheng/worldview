@@ -23,7 +23,7 @@ public sealed class CoreDomainModelSnapshotDiagnosticsTests
         var snapshot = Assert.IsType<CoreDomainDbContextModelSnapshot>(migrationsAssembly.ModelSnapshot);
         var snapshotModel = context.GetService<IModelRuntimeInitializer>()
             .Initialize(snapshot.Model, designTime: true);
-        var runtimeModel = context.Model;
+        var runtimeModel = context.GetService<IDesignTimeModel>().Model;
         var differ = context.GetService<IMigrationsModelDiffer>();
 
         var differences = differ.GetDifferences(
