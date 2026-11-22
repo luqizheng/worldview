@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122141903_FieldRevisionTypedMetadata";
+    public override string LastMigrationId => "20261122154650_FieldPayloadStorage";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -264,6 +264,101 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("core_calendar", t =>
                     {
                         t.HasCheckConstraint("CK_core_calendar_role", "calendar_role IN ('default', 'auxiliary')");
+                    });
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreFieldPayloadEntity", b =>
+            {
+                b.Property<string>("FieldPayloadId")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("field_payload_id");
+
+                b.Property<long>("ByteLength")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("byte_length");
+
+                b.Property<string>("ContentHash")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("content_hash");
+
+                b.Property<long>("CreatedAtUtcMs")
+                    .HasColumnType("INTEGER")
+                    .HasColumnName("created_at_utc_ms");
+
+                b.Property<string>("FieldDatasetId")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("field_dataset_id");
+
+                b.Property<string>("FieldRevisionId")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("field_revision_id");
+
+                b.Property<string>("FormatVersion")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("format_version");
+
+                b.Property<string>("HashAlgorithm")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("hash_algorithm");
+
+                b.Property<string>("IntegrityState")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("integrity_state");
+
+                b.Property<byte[]>("PayloadBlob")
+                    .HasColumnType("BLOB")
+                    .HasColumnName("payload_blob");
+
+                b.Property<string>("PayloadFormat")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("payload_format");
+
+                b.Property<string>("ProjectId")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("project_id");
+
+                b.Property<string>("RelativePath")
+                    .HasColumnType("TEXT")
+                    .HasColumnName("relative_path");
+
+                b.Property<string>("StorageKind")
+                    .IsRequired()
+                    .HasColumnType("TEXT")
+                    .HasColumnName("storage_kind");
+
+                b.HasKey("FieldPayloadId");
+
+                b.HasAlternateKey("ProjectId", "FieldPayloadId");
+
+                b.HasIndex("FieldRevisionId")
+                    .IsUnique()
+                    .HasDatabaseName("ux_core_field_payload_revision");
+
+                b.HasIndex("ProjectId", "FieldDatasetId", "FieldRevisionId");
+
+                b.ToTable("core_field_payload", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_field_payload_blob_length", "storage_kind <> 'sqlite_blob' OR length(payload_blob) = byte_length");
+
+                        t.HasCheckConstraint("CK_core_field_payload_byte_length", "byte_length > 0");
+
+                        t.HasCheckConstraint("CK_core_field_payload_hash", "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+
+                        t.HasCheckConstraint("CK_core_field_payload_hash_algorithm", "hash_algorithm = 'sha-256'");
+
+                        t.HasCheckConstraint("CK_core_field_payload_integrity", "integrity_state IN ('verified', 'corrupt', 'missing')");
+
+                        t.HasCheckConstraint("CK_core_field_payload_storage_kind", "storage_kind IN ('sqlite_blob', 'managed_file')");
+
+                        t.HasCheckConstraint("CK_core_field_payload_storage_location", "(storage_kind = 'sqlite_blob' AND payload_blob IS NOT NULL AND relative_path IS NULL) OR (storage_kind = 'managed_file' AND payload_blob IS NULL AND relative_path IS NOT NULL)");
                     });
             });
 
@@ -1340,6 +1435,16 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .WithMany()
                     .HasForeignKey("project_id", "map_id")
                     .HasPrincipalKey("ProjectId", "MapId")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreFieldPayloadEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapFieldRevisionEntity", null)
+                    .WithMany()
+                    .HasForeignKey("ProjectId", "FieldDatasetId", "FieldRevisionId")
+                    .HasPrincipalKey("ProjectId", "FieldDatasetId", "FieldRevisionId")
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
             });
