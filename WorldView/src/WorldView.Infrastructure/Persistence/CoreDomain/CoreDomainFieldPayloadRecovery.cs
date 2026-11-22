@@ -35,7 +35,11 @@ public sealed class CoreDomainFieldPayloadRecovery : IProjectFieldPayloadRecover
         var report = await reconciler.ReconcileAsync(projectId, cancellationToken).ConfigureAwait(false);
         // Reconciliation has established the complete authoritative reference set. The second
         // operation rescans it immediately before deleting only unreferenced content-addressed files.
-        _ = await reconciler.CollectOrphanFilesAsync(projectId, cancellationToken).ConfigureAwait(false);
-        return report with { CleanedStagingFileCount = cleanedStagingFiles };
+        var collectedOrphans = await reconciler.CollectOrphanFilesAsync(projectId, cancellationToken).ConfigureAwait(false);
+        return report with
+        {
+            CleanedStagingFileCount = cleanedStagingFiles,
+            CollectedOrphanContentHashes = collectedOrphans,
+        };
     }
 }
