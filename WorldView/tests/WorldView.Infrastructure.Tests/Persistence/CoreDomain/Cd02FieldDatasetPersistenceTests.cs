@@ -5,11 +5,13 @@ using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
+using WorldView.Application.Fields;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
+using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using Xunit;
@@ -476,6 +478,67 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(expectedBytes.LongLength, payload.ByteLength);
         Assert.Equal(expectedBytes, core.ReadFieldPayloadBlob(project.ProjectId, revision.FieldRevisionId));
         Assert.Equal(payload.FieldPayloadId, revision.Payload.FieldPayloadId);
+    }
+
+    [Fact]
+    public async Task FieldPayloadReader_OpensVerifiedManagedFileThroughUnifiedReadPath()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var bytes = Enumerable.Range(0, 256 * 1024).Select(i => (byte)(i % 251)).ToArray();
+        var stored = await store.PutAsync(new MemoryStream(bytes));
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        plan = plan with
+        {
+            Payload = plan.Payload with
+            {
+                StorageKind = FieldPayloadStorageKind.ManagedFile,
+                ContentHash = stored.ContentHash,
+                ByteLength = stored.ByteLength,
+                RelativePath = stored.RelativePath,
+            },
+            PayloadBytes = null,
+        };
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+        var reader = new FieldPayloadReader(core, store);
+
+        await using var opened = await reader.OpenReadAsync(project.ProjectId, revision.FieldRevisionId);
+        Assert.NotNull(opened);
+        using var copy = new MemoryStream();
+        await opened!.CopyToAsync(copy);
+        Assert.Equal(bytes, copy.ToArray());
+    }
+
+    [Fact]
+    public async Task FieldPayloadReader_RejectsManagedFileWithSameLengthWrongHash()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var bytes = new byte[] { 0x57, 0x56, 0x46, 0x50 };
+        var stored = await store.PutAsync(new MemoryStream(bytes));
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        plan = plan with
+        {
+            Payload = plan.Payload with
+            {
+                StorageKind = FieldPayloadStorageKind.ManagedFile,
+                ContentHash = stored.ContentHash,
+                ByteLength = stored.ByteLength,
+                RelativePath = stored.RelativePath,
+            },
+            PayloadBytes = null,
+        };
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+        await File.WriteAllBytesAsync(Path.Combine(store.RootPath, stored.ContentHash),
+            new byte[] { 0x00, 0x00, 0x00, 0x00 });
+        var reader = new FieldPayloadReader(core, store);
+
+        await Assert.ThrowsAsync<CoreDomainDataException>(async () =>
+            await reader.OpenReadAsync(project.ProjectId, revision.FieldRevisionId));
     }
 
     [Fact]
