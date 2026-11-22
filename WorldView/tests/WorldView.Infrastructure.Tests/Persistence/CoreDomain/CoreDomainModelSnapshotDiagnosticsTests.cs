@@ -6,11 +6,10 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace WorldView.Infrastructure.Tests.Persistence.CoreDomain;
 
-public sealed class CoreDomainModelSnapshotDiagnosticsTests(ITestOutputHelper output)
+public sealed class CoreDomainModelSnapshotDiagnosticsTests
 {
     [Fact]
     public void RuntimeModel_MatchesLastMigrationSnapshot()
@@ -30,11 +29,8 @@ public sealed class CoreDomainModelSnapshotDiagnosticsTests(ITestOutputHelper ou
             snapshotModel.GetRelationalModel(),
             runtimeModel.GetRelationalModel());
 
-        foreach (var difference in differences)
-            output.WriteLine(difference.ToString());
-
         Assert.True(
             differences.Count == 0,
-            $"EF Core found {differences.Count} pending relational model operation(s). See test output for exact differences.");
+            $"EF Core found {differences.Count} pending relational model operation(s): {string.Join(Environment.NewLine, differences.Select(d => d.ToString()))}");
     }
 }
