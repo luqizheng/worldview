@@ -15,6 +15,22 @@ public sealed class FieldManifestCanonicalizerTests
             FieldManifestCanonicalizer.Canonicalize("""{"n":333333333.33333329}"""));
     }
 
+    [Theory]
+    [InlineData("1e+30", "1e+30")]
+    [InlineData("1e+21", "1e+21")]
+    [InlineData("1e-6", "0.000001")]
+    [InlineData("1e-7", "1e-7")]
+    [InlineData("9007199254740993", "9007199254740992")]
+    [InlineData("4.50", "4.5")]
+    [InlineData("2e-3", "0.002")]
+    public void Canonicalize_UsesEcmaScriptNumberThresholds(string inputNumber, string expectedNumber)
+    {
+        var input = "{\\"n\\":" + inputNumber + "}";
+        var expected = "{\\"n\\":" + expectedNumber + "}";
+
+        Assert.Equal(expected, FieldManifestCanonicalizer.Canonicalize(input));
+    }
+
     [Fact]
     public void Canonicalize_SortsPropertyNamesByUtf16CodeUnits()
     {
@@ -82,6 +98,7 @@ public sealed class FieldManifestCanonicalizerTests
     [Theory]
     [InlineData(" {\\"a\\":1}")]
     [InlineData("{\\"a\\":1}\\n")]
+    [InlineData("{\\"n\\":1.0}")]
     public void RequireCanonicalUtf8_RejectsNonCanonicalWhitespace(string json)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
