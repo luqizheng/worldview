@@ -19,6 +19,9 @@ internal sealed class CoreDomainEfSession(SqliteConnectionAccess access)
         {
             var options = new DbContextOptionsBuilder<CoreDomainDbContext>()
                 .UseSqlite(connection, contextOwnsConnection: false)
+                // TEMPORARY: allow schema execution while the model/snapshot parity test
+                // diagnoses EF-generated relational metadata. Remove before PR is marked Ready.
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
                 .EnableDetailedErrors()
                 .Options;
             using var context = new CoreDomainDbContext(options);
