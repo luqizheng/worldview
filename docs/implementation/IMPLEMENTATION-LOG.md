@@ -1,7 +1,7 @@
 # World View — 实施与工程状态记录
 
-- **更新**：2026-11-21
-- **状态**：新架构工程骨架已提交；ME-01 / ME-02 设计包已建立；正式领域实现与若干关键技术契约仍待实施
+- **更新**：2026-11-22
+- **状态**：CD-02-B 至 CD-02-G 已提交；Object/Initial State/Registry/Asset/Geometry/Building-Cave 领域基础已实现；CD-02-G1 正在补强 Asset/Geometry 一致性并建立可重复的 GitHub CI 验证
 - **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.4.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
@@ -54,8 +54,8 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 | 层次 | 状态 | 说明 |
 |---|---|---|
 | 工程骨架 | 已提交 | Solution、项目分层、DI/MVVM 示例与测试项目 |
-| 正式 Core Domain 实现 | CD-02-B 已实现（Object 持久化/Reservation/Initial State） | 见 2026-11-22 CD-02-B 条目；`WorldView/src/WorldView.Domain` |
-| 持久化实现 | 已实现（SQLite 迁移 001–008 + 统一连接协调器） | CD-01/CD-01-F1/CD-02-B；示例内存 Repository 仅为工程分层验证 |
+| 正式 Core Domain 实现 | CD-02-B 至 CD-02-G 已实现（Object/Initial State/Registry/Asset/Geometry/Building-Cave + ME 领域 API 证明） | CD-02 Final Report；当前补强见 CD-02-G1 条目 |
+| 持久化实现 | 已实现（SQLite 迁移 001–010，共 16 张表 + 统一连接协调器） | CD-01/CD-01-F1/CD-02-B/CD-02-D；示例内存 Repository 仅为工程分层验证 |
 | 地图编辑器 UI | 尚未在当前工程骨架中体现 | Avalonia 主窗口为工程启动示例，不是 ME-01/ME-02 产品界面 |
 | 地图渲染与空间计算 | 尚未在当前工程骨架中体现 | 技术评估与服务契约仍待完成 |
 | AI Assistant / Generation | 尚未在当前工程骨架中体现 | 需遵循 Proposal / Candidate / Change Set 权限边界 |
