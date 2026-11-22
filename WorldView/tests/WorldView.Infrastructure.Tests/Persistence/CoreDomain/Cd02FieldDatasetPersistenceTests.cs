@@ -543,8 +543,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void PublishedValidationVector_Mnf024PropertyOrderDoesNotChangeCanonicalBytes()
     {
         Assert.Equal(
-            CanonicalJson.Canonicalize("{\\"z\\":1,\\"a\\":2}"),
-            CanonicalJson.Canonicalize("{\\"a\\":2,\\"z\\":1}"));
+            CanonicalJson.Canonicalize("{\"z\":1,\"a\":2}"),
+            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
     }
 
     [Fact]
@@ -557,7 +557,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void PublishedValidationVector_Mnf027AllowsFixtureOnlyProfileWithoutPromotingIt()
     {
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
-        Assert.Contains("\\"profile_scope\\":\\"golden_fixture_only\\"", manifest);
+        Assert.Contains("\"profile_scope\":\"golden_fixture_only\"", manifest);
     }
 
 }
