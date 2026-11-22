@@ -2,7 +2,7 @@
 
 - **Baseline:** CD-02 final implementation 7e176dd
 - **Branch:** fix/cd-02-g1-asset-geometry-integrity
-- **Status:** implementation committed; GitHub Actions verification pending
+- **Status:** implementation committed; Windows/macOS Debug and Release CI verified on head `1b0e8c09db650c5a822231e80582d2affb70e374`
 - **Scope:** close concrete Asset / Geometry integrity gaps found during independent CD-02 acceptance review
 
 ## 1. Changes delivered
@@ -42,7 +42,13 @@ This does not add a component table or change Object identity semantics.
 - ME-04 end-to-end test for missing manifest, wrong hash, matching manifest, stable component identity and Definition CAS protection.
 - JSON Schema $defs unsupported-keyword fail-closed test.
 
-**No test result is claimed in this report yet.** The new GitHub Actions workflow runs full Debug and Release build/test on Windows and macOS with .NET 11. CI must complete successfully before this stage is accepted.
+**Verification: PASS on the current PR head.** GitHub Actions completed the full Debug and Release build/test matrix with .NET 11 on both Windows and macOS. Both independent workflow runs succeeded:
+
+- Run `44971620581` — Windows and macOS jobs succeeded; Debug Build, Debug Test, Release Build and Release Test all succeeded on both platforms.
+- Run `44971617115` — Windows and macOS jobs succeeded; Debug Build, Debug Test, Release Build and Release Test all succeeded on both platforms.
+- Verified commit: `1b0e8c09db650c5a822231e80582d2affb70e374`.
+
+The earlier failures and their fixes are retained below as audit history. This CI result verifies the repository's configured build/test matrix; it does not close the separately listed product and transaction-proof limitations.
 
 ## 2.1 First CI run findings and remediation
 
@@ -56,7 +62,7 @@ Remediation commits:
 - 443b4d3 — mark the OrphanScan referenced Asset fixture Verified.
 - 5b76a36 — preserve Unix root in the in-memory filesystem test double.
 
-A new CI run for the updated PR head is required before acceptance. No passing result is claimed yet.
+The failures above were subsequently resolved. The verified current-head runs are recorded in §2 above.
 
 ## 3. Explicit remaining limitations
 
@@ -68,4 +74,5 @@ A new CI run for the updated PR head is required before acceptance. No passing r
 
 - This branch is based on the accepted CD-02 final report commit and does not modify master directly.
 - The branch is intended for review through a pull request.
-- Final acceptance depends on the attached GitHub Actions Debug and Release results.
+- Current-head CI: PASS — runs `44971620581` and `44971617115`, commit `1b0e8c09db650c5a822231e80582d2affb70e374`; Windows/macOS Debug + Release build/test all succeeded.
+- This report records implementation and CI verification, not closure of the remaining limitations in §3.
