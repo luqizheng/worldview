@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -19,11 +18,8 @@ public sealed class ApplicationBootstrapper
 
     private readonly IAppLog? _log;
 
-    // The optional source parameter is temporarily retained for source compatibility inside
-    // unreleased tests; it is intentionally ignored and no SQL migration source is executed.
-    public ApplicationBootstrapper(IEnumerable<IMigrationSource>? migrationSources = null, IAppLog? log = null)
+    public ApplicationBootstrapper(IAppLog? log = null)
     {
-        _ = migrationSources;
         _log = log;
     }
 
@@ -55,7 +51,7 @@ public sealed class ApplicationBootstrapper
             });
         }
 
-        return BootstrapResult.Ok(Array.Empty<ModuleMigration>());
+        return BootstrapResult.Ok();
     }
 
     public async Task<BootstrapResult> ValidateExistingDatabaseAsync(
