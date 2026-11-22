@@ -18,6 +18,7 @@ public sealed class CoreDomainFieldPayloadRecovery : IProjectFieldPayloadRecover
     {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
+        cancellationToken.ThrowIfCancellationRequested();
         var core = new SqliteCoreDomainDatabase(database);
         var fileStore = new FieldPayloadFileStore(packageRoot);
         var cleanedStagingFiles = fileStore.CleanupStagingFiles();
