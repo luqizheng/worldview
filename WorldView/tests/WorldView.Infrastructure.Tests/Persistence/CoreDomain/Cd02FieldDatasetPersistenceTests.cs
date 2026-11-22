@@ -529,7 +529,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         };
 
         Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
-        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+        Assert.Null(core.FindFieldDataset(
+            project.ProjectId, mapId, vectorId == "MNF-017" ? "land_water" : "elevation"));
     }
 
     [Fact]
