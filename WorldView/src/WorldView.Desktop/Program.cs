@@ -70,12 +70,9 @@ internal static class Program
         services.AddSingleton<IPackageDatabaseFactory, SqlitePackageDatabaseFactory>();
         services.AddSingleton<IAssetStoreFactory, FileAssetStoreFactory>();
 
-        // Core Domain 迁移来源（core-domain 模块 4 条迁移，CD-01）
-        services.AddSingleton<CoreDomainMigrationSource>();
-
-        // Application Bootstrap（core-domain 模块迁移经 IMigrationSource 登记）
-        services.AddSingleton<ApplicationBootstrapper>(sp => new ApplicationBootstrapper(
-            new IMigrationSource[] { sp.GetRequiredService<CoreDomainMigrationSource>() }, log: null));
+        // Application Bootstrap 仅负责包级元数据；Core Domain Schema 由 EF Core Migrations 创建。
+        services.AddSingleton<ApplicationBootstrapper>(_ =>
+            new ApplicationBootstrapper(Array.Empty<IMigrationSource>(), log: null));
 
         // 会话注册表（实例由组合根创建，供停机关闭使用）
         services.AddSingleton<ProjectSessionRegistry>();
