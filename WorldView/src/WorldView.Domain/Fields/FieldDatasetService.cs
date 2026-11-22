@@ -161,20 +161,50 @@ public static class FieldDatasetService
         var planes = RequiredArray(encoding, "planes");
         if (planes.GetArrayLength() is < 1 or > 8)
             throw new CoreDomainConflictException("Field manifest value_encoding.planes count is outside V1 bounds.");
+        var planeFormats = new Dictionary<string, (string Format, int Bytes)>(StringComparer.Ordinal);
         foreach (var plane in planes.EnumerateArray())
         {
             RequireObject(plane, "value_encoding plane");
             RequireProperties(plane, "name", "sample_format", "bytes_per_cell");
-            _ = RequiredString(plane, "name");
-            RequireOneOf(RequiredString(plane, "sample_format"),
+            var name = RequiredString(plane, "name");
+            var sampleFormat = RequiredString(plane, "sample_format");
+            RequireOneOf(sampleFormat,
                 "uint8", "uint8_registered_category", "int16_le", "uint16_le",
                 "int32_le", "uint32_le", "float32_ieee754_le", "float64_ieee754_le");
-            if (RequiredInt32(plane, "bytes_per_cell") is < 1 or > 16)
-                throw new CoreDomainConflictException("Field manifest plane bytes_per_cell must be in [1,16].");
+            var bytesPerCell = RequiredInt32(plane, "bytes_per_cell");
+            var expectedBytes = sampleFormat switch
+            {
+                "uint8" or "uint8_registered_category" => 1,
+                "int16_le" or "uint16_le" => 2,
+                "int32_le" or "uint32_le" or "float32_ieee754_le" => 4,
+                "float64_ieee754_le" => 8,
+                _ => throw new CoreDomainConflictException($"Unsupported sample format {sampleFormat}."),
+            };
+            if (bytesPerCell != expectedBytes)
+                throw new CoreDomainConflictException($"Field manifest plane {name} bytes_per_cell does not match {sampleFormat}.");
+            if (!planeFormats.TryAdd(name, (sampleFormat, bytesPerCell)))
+                throw new CoreDomainConflictException($"Field manifest contains duplicate value plane {name}.");
+        }
+
+        if (!planeFormats.TryGetValue("validity_mask", out var validityMask)
+            || validityMask != ("uint8", 1))
+            throw new CoreDomainConflictException("Field manifest requires a uint8 validity_mask plane.");
+        if (coverageMode == "explicit_mask"
+            && !planeFormats.ContainsKey(RequiredString(coverage, "mask_plane_name")))
+            throw new CoreDomainConflictException("Field manifest coverage mask plane is not declared in value_encoding.planes.");
+
+        if (plan.FieldKey == "elevation")
+        {
+            if (!planeFormats.TryGetValue("samples", out var samples)
+                || samples.Format is "uint8" or "uint8_registered_category")
+                throw new CoreDomainConflictException("elevation requires a numeric samples plane.");
         }
 
         if (plan.FieldKey == "land_water")
         {
+            if (!planeFormats.TryGetValue("categories", out var categoryPlane)
+                || categoryPlane != ("uint8_registered_category", 1))
+                throw new CoreDomainConflictException("land_water requires a uint8_registered_category categories plane.");
             var categories = RequiredObject(encoding, "category_codes");
             RequireProperties(categories, "land", "water", "unknown", "outside_coverage");
             var codes = new[]
