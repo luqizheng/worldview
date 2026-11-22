@@ -2,7 +2,7 @@
 
 - Version: 0.1
 - Date: 2026-11-22
-- Status: Adopted implementation contract for the G3 hardening slice; no runtime implementation claim
+- Status: Adopted implementation contract; draft runtime implementation is tracked in PR #7 and remains unmerged
 - Applies to: Building/Cave typed aggregate Definition publication in V1
 - Depends on: P2-09-19 V0.2; P2-09-26 V0.2; P2-09-41 V0.4; P2-09-42 V0.9 proposal; P2-09-13 V0.7; ME-05-02 V0.1; ME-05-05 V0.3
 
@@ -82,7 +82,7 @@ Within one SqliteConnectionAccess critical section and one SQLite transaction:
 5. Build a map of distinct asset_id to content_hash. If one Asset ID appears more than once with different hashes, reject.
 6. Re-read every referenced core_asset row in the same transaction. Require same Project, integrity_state='verified', and exact content hash.
 7. Build the expected typed-link set as one row per distinct Asset ID with role='geometry_component'.
-8. Read the existing owner link set. Reject unknown/non-geometry link kinds if the profile does not own them; preserve other explicitly declared link purposes if future schemas add them.
+8. Read the existing owner link set. The current Building/Cave profile owns only geometry_component links; reject any legacy descriptor-role or unknown-purpose row. A future typed Asset purpose requires an explicit schema/validator extension and is not silently preserved.
 9. Replace/reconcile the geometry-component link set and update the Definition payload/hash/version in the same transaction.
 10. Commit once. Any validation, FK, uniqueness, CAS or storage failure rolls back both Definition and link changes.
 
