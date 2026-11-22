@@ -9,7 +9,7 @@
 
 Define the next safe persistence step after the typed Field Revision projection. The design must remove the transitional JSON manifest from the long-term internal authority path without inventing spatial ownership relationships, losing exact numeric meaning, or bypassing the accepted EF Core migration workflow.
 
-This document is a design contract. It does not claim that typed SQLite persistence, payload BLOB/file storage, or the required migration has been implemented.
+This document records the accepted typed-persistence contract and the implementation state. Typed SQLite metadata persistence and its EF migration are implemented; payload BLOB/file storage remains pending.
 
 ## 2. Verified current implementation
 
@@ -55,7 +55,7 @@ For typed Field Revision persistence, preserve both IDs exactly on the immutable
 The ownership boundary is now specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md):
 
 - One Map owns exactly one stable Map Space ID in V1. It is a typed property on `core_map`, not a separate Map Space aggregate/table.
-- Each Map has one active Spatial Reference binding. Spatial Reference definitions are immutable and project-scoped; multiple Maps in the same Project may reuse one definition.
+- A Map may remain unconfigured during initial setup; before Field publication it must have one active Spatial Reference binding. Definitions are project-scoped and the Domain persistence port exposes insert/read only; multiple Maps in one Project may reuse a definition.
 - The Spatial Reference definition owns the selected coordinate precision profile and optional vertical-reference identity. The canonical manifest snapshots those IDs and owner-context validation must match them.
 - Elevation's `unit` is a sample-value unit, distinct from both coordinate units and vertical-reference identity.
 - Map Space and Spatial Reference IDs remain separate identities; neither is inferred from the other or from EPSG aliases.
@@ -118,7 +118,7 @@ The single contract requires:
 
 The WVFLDPK binary envelope remains format 1.0. The manifest schema identity/version remains the initial contract identity; there is no second manifest format or compatibility dispatcher.
 
-The Domain publication validator now enforces the new required properties and the typed projection carries unit, vertical-reference ID and coordinate-precision-profile ID. Spatial owner lookup and comparison against immutable Map/Spatial Reference definitions remain a separate implementation gate; non-empty IDs alone do not prove that the referenced definitions exist.
+The Domain publication validator enforces the required properties, and both Domain and the SQLite publication transaction verify that Map Space, Spatial Reference, coordinate precision profile and vertical-reference identities match the owning Map and its immutable definition.
 
 ## 6. Typed projection and persistence transition
 
@@ -145,11 +145,7 @@ There is no historical user data to backfill. New Field Revisions should move di
 
 ## 8. EF Core migration requirements
 
-The Map Space / Spatial Reference ownership schema change has already been generated using the real EF Core CLI as migration `20261122140144_MapSpatialReferenceOwnership`. The next typed Field Revision metadata schema change must also be generated using the real EF Core CLI workflow:
-
-```bash
-dotnet ef migrations add FieldRevisionTypedMetadata   --project src/WorldView.Infrastructure   --startup-project src/WorldView.Infrastructure   --context CoreDomainDbContext
-```
+The Map Space / Spatial Reference ownership schema change was generated using the real EF Core CLI as migration `20261122140144_MapSpatialReferenceOwnership`. The typed Field Revision metadata schema change was generated using the same CLI workflow as migration `20261122141903_FieldRevisionTypedMetadata`.
 
 The command used from the `WorldView` solution directory was `dotnet ef migrations add FieldRevisionTypedMetadata --project src/WorldView.Infrastructure --startup-project src/WorldView.Infrastructure --context CoreDomainDbContext`.
 
