@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
-using WorldView.Domain.Assets;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
