@@ -21,9 +21,11 @@ public static class FieldPayloadRules
         var hash = AssetRules.NormalizeContentHash(plan.ContentHash);
         if (!string.Equals(plan.HashAlgorithm, "sha-256", StringComparison.Ordinal))
             throw new CoreDomainDataException("Field Payload hash_algorithm must be sha-256.");
-        if (string.IsNullOrWhiteSpace(plan.PayloadFormat) || plan.PayloadFormat.Length > 160)
+        if (string.IsNullOrWhiteSpace(plan.PayloadFormat) || plan.PayloadFormat.Length > 160
+            || !string.Equals(plan.PayloadFormat, plan.PayloadFormat.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Field Payload format must contain 1-160 characters.", nameof(plan));
-        if (string.IsNullOrWhiteSpace(plan.FormatVersion) || plan.FormatVersion.Length > 64)
+        if (string.IsNullOrWhiteSpace(plan.FormatVersion) || plan.FormatVersion.Length > 64
+            || !string.Equals(plan.FormatVersion, plan.FormatVersion.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("Field Payload format version must contain 1-64 characters.", nameof(plan));
         string? relativePath;
         switch (plan.StorageKind)
@@ -72,9 +74,8 @@ public static class FieldPayloadRules
         if (string.IsNullOrWhiteSpace(relativePath))
             throw new ArgumentException("Managed File Field Payload 必须提供相对路径。", nameof(relativePath));
 
-        var path = relativePath.Trim();
         var expected = ManagedPayloadPrefix + hash;
-        if (!string.Equals(path, expected, StringComparison.Ordinal))
+        if (!string.Equals(relativePath, expected, StringComparison.Ordinal))
             throw new CoreDomainDataException($"Managed Field Payload path 必须为 {expected}。");
         return path;
     }
