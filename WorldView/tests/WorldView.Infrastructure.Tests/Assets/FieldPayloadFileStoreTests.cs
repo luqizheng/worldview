@@ -36,6 +36,22 @@ public sealed class FieldPayloadFileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task CleanupStagingFiles_RemovesInterruptedWritesButKeepsPublishedPayloads()
+    {
+        Directory.CreateDirectory(_root);
+        var store = new FieldPayloadFileStore(_root);
+        var published = await store.PutAsync(new MemoryStream(Encoding.UTF8.GetBytes("published")));
+        var stalePath = Path.Combine(store.RootPath, ".staging-crash.tmp");
+        await File.WriteAllTextAsync(stalePath, "partial");
+
+        var removed = store.CleanupStagingFiles();
+
+        Assert.Equal(1, removed);
+        Assert.False(File.Exists(stalePath));
+        Assert.True(store.Exists(published.ContentHash));
+    }
+
+    [Fact]
     public async Task PutAsync_IsIdempotentForIdenticalBytes()
     {
         Directory.CreateDirectory(_root);
