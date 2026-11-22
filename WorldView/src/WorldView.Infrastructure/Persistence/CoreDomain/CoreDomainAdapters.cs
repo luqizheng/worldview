@@ -90,7 +90,7 @@ public sealed class CoreDomainProjectIdentityReader : IProjectIdentityReader
         {
             rows = core.ReadProjectIdentityRows();
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or InvalidOperationException)
         {
             return Task.FromResult(ProjectIdentityReadResult.Failed(
                 ProjectIdentityFailure.Invalid,
