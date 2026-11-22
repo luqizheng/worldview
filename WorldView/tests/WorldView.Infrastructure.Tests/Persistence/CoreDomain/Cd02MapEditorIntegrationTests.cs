@@ -110,7 +110,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
             new InitialObjectMembership { MembershipPayloadJson = """{"placement":{"x":10,"y":20}}""" },
             Now + 3);
 
-        // 5) 几何 Asset：字节发布 → 权威登记 → typed link（footprint role 经 registry 校验）。
+        // 5) 几何 Asset：字节发布 → 权威登记 → Definition + generic geometry_component link 原子发布。
         var envelope = """
             {"format_id":"worldview.geometry-json","format_version":1,"spatial_reference_id":"sr-local-1","axis_order":"x_y","unit":"m","coordinate_precision_profile_id":"p1","dimension":2,"geometry_family":"polygon","body":[[[0,0],[8,0],[8,6],[0,6],[0,0]]]}
             """;
@@ -179,7 +179,6 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         // 10) 全链可解析：building 对象 active、注册行存在、Baseline 成员存在。
         Assert.Equal(ObjectLifecycleStatus.Active, core.FindObject(project.ProjectId, buildingId)!.LifecycleStatus);
         Assert.NotNull(core.FindMapObjectRef(project.ProjectId, mapId, buildingId));
-        _ = link;
     }
 
     [Fact]
