@@ -27,9 +27,14 @@ public sealed class InMemoryFileSystem : IFileSystem
 
     private static string Normalize(string path)
     {
-        var full = System.IO.Path.GetFullPath(path);
-        return full.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
-            .TrimEnd(System.IO.Path.DirectorySeparatorChar);
+        var full = System.IO.Path.GetFullPath(path)
+            .Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+        var root = System.IO.Path.GetPathRoot(full) ?? string.Empty;
+
+        // Do not trim the filesystem root itself ("/" or "C:\\").
+        return full.Length > root.Length
+            ? full.TrimEnd(System.IO.Path.DirectorySeparatorChar)
+            : full;
     }
 
     public bool DirectoryExists(string path)
@@ -53,11 +58,28 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalized = Normalize(path);
         lock (_gate)
         {
-            var segments = normalized.Split(System.IO.Path.DirectorySeparatorChar);
-            var current = string.Empty;
+            // Preserve the leading root separator. Splitting an absolute Unix path
+            // and rebuilding from an empty string silently turns "/tmp/x" into "tmp/x".
+            var current = System.IO.Path.GetPathRoot(normalized) ?? string.Empty;
+            if (current.Length > 0)
+            {
+                if (!_nodes.TryGetValue(current, out var rootNode))
+                {
+                    _nodes[current] = new Node(IsDirectory: true);
+                }
+                else if (!rootNode.IsDirectory)
+                {
+                    throw new IOException($"路径已是文件：{current}");
+                }
+            }
+
+            var relative = normalized[current.Length..];
+            var segments = relative.Split(
+                System.IO.Path.DirectorySeparatorChar,
+                StringSplitOptions.RemoveEmptyEntries);
             foreach (var segment in segments)
             {
-                current = current.Length == 0 ? segment : current + System.IO.Path.DirectorySeparatorChar + segment;
+                current = System.IO.Path.Combine(current, segment);
                 if (!_nodes.TryGetValue(current, out var node))
                 {
                     _nodes[current] = new Node(IsDirectory: true);
