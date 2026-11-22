@@ -101,23 +101,54 @@ Every child row has a restrictive foreign key to its owning revision. Ordinals a
 - Payload bytes and payload storage location belong to the dedicated Field Payload model in the parent implementation plan, not to these metadata child tables.
 - Renderer indexes, decoded tiles and other disposable caches do not belong in Core Domain tables.
 
-## 5. Important contract gap: manifest V1 is not the complete Field semantic contract
+## 5. Manifest V1/V2 semantic reconciliation
 
-The current P2-09-34 manifest schema and `FieldDatasetService.ValidateManifestIdentity` do **not** enforce the full existing P2-09-30 Field Descriptor Registry / P2-09-31 validation contract:
+The audit confirmed an existing conformance gap, not merely a future persistence concern:
 
-- P2-09-30 marks elevation `unit` as required (allowed values currently `m` and `ft`) and requires a stable `vertical_reference_id`.
-- P2-09-31 FDV-004 and FDV-005 explicitly expect rejection when either is missing.
-- The manifest schema currently has no property capable of carrying either value, and the production validator consequently cannot enforce those vectors.
-- P2-09-30 also requires `resolution_profile` and `grid_alignment`. The current manifest carries grid dimensions, spacing, origin, axis orientation and cell registration, but the contract has not formally stated whether those fields fully constitute the resolution/alignment records or whether additional identifiers/metadata are required.
-- ME-05-04 says precision profiles are per Spatial Reference. That definition is not currently represented by a Core Domain owner entity, so precision-profile resolution and immutable definition availability cannot yet be verified.
+- P2-09-30 requires elevation unit (`m` or `ft`) and stable `vertical_reference_id`.
+- P2-09-31 FDV-004 and FDV-005 expect rejection when either is missing.
+- P2-09-34 Manifest V1 has no fields for either value, and the current publication validator therefore cannot enforce those vectors.
+- ME-05-04 defines a versioned precision profile per Spatial Reference. The Field manifest must pin the selected coordinate precision profile so a revision remains interpretable against the immutable definition.
+- P2-09-30 requires resolution and grid alignment semantics. The current grid properties already carry these semantics, but the registry/vector wording had not mapped the concepts to concrete fields.
 
-This is not only a typed-persistence gap; it is an existing descriptor/manifest/validator conformance gap. The current implementation must not claim FDV-004/005 or full P2-09-30 conformance.
+### 5.1 V2 manifest contract authored
 
-The Domain projection cannot persist or backfill values that the source schema never represented. Do not synthesize defaults, infer a vertical datum, or treat a sample encoding profile as a physical unit.
+Two new artifacts define the proposed compatible V2 shape and validation cases:
 
-Before declaring Field Revision typed persistence semantically complete, reconcile P2-09-30/31 and ME-05-01 with P2-09-34 by specifying a versioned manifest revision and executable validation vectors. The reconciliation must decide whether unit and vertical-reference IDs live directly in the manifest or are resolved from immutable descriptor/spatial-reference definitions, and must define how old V1 manifests are treated. Existing V1 rows that lack these values must remain explicitly legacy/incomplete; a migration must not fabricate them.
+- [P2-09-36 Field Package Canonical Manifest Schema V0.2](p2-09-36-field-package-canonical-manifest-schema-v0.2.json)
+- [P2-09-37 Field Package Canonical Manifest V2 Validation Vectors V0.2](p2-09-37-field-package-canonical-manifest-v2-validation-vectors-v0.2.json)
 
-The package/interchange manifest version and the internal relational schema version are separate version axes. Changing one does not silently change the other.
+V2 adds these explicit semantics:
+
+- `field.unit`: required for elevation (`m` or `ft`); omitted for categorical `land_water`.
+- `spatial.vertical_reference_id`: required for elevation; a distinct stable identity, never inferred from horizontal CRS, unit or source file.
+- `spatial.coordinate_precision_profile_id`: required for all fields; pins the coordinate quantization profile selected by the immutable Spatial Reference definition.
+- `value_encoding.profile_id` remains the sample representation/encoding profile. It is not the coordinate precision profile.
+- Resolution is represented by `grid.spacing_x`, `grid.spacing_y`, `grid.width` and `grid.height`. Tile dimensions describe package tiling, not semantic resolution.
+- Grid alignment is represented by `grid.origin_x`, `grid.origin_y`, `grid.axis_orientation` and `grid.cell_registration`. These exact fields are not duplicated into a second redundant alignment object.
+
+The WVFLDPK binary envelope remains format 1.0. Its version is independent from `manifest_schema.version`; V2 does not change the binary header, tile layout or existing golden package bytes.
+
+### 5.2 Compatibility and publication policy
+
+- Existing Manifest V1 revisions remain readable as legacy records.
+- V1 is not accepted for new formal elevation publication after the V2 validator is implemented.
+- New formal publication uses Manifest V2.
+- V1 backfill must not fabricate unit, vertical reference or coordinate precision profile. Such revisions remain explicitly marked as legacy/incomplete for those semantics.
+- V2 IDs are only syntactically validated until authoritative Spatial Reference / Vertical Reference records and lookup services exist. Production publication must eventually resolve them to immutable locally available definitions; a non-empty string alone is not proof of a valid definition.
+- The current golden fixtures remain V1 byte-exact references. New V2 package fixtures must be added separately after the package writer is implemented; existing fixture hashes must not be silently rewritten.
+
+### 5.3 Remaining implementation gate
+
+The schema and vectors are design artifacts, not executable validation. The next code slice must:
+
+1. Add an explicit manifest-version dispatch: V1 legacy read path versus V2 new-publication path.
+2. Enforce V2 unit, vertical-reference and coordinate-precision-profile requirements in Domain validation.
+3. Preserve these fields in the typed projection and later relational persistence.
+4. Define immutable Spatial Reference and Vertical Reference owner records and local resolution before enabling production publication.
+5. Execute V2 validation vectors in tests and keep V1 golden fixtures byte-identical.
+
+No missing value is synthesized, and no spatial foreign key is introduced before the owner contract exists.
 
 ## 6. Backfill and dual-read rules
 
