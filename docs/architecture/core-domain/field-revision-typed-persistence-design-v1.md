@@ -183,6 +183,6 @@ The exact command path must be checked against the repository's solution working
 3. Add typed revision scalar/child persistence and generate the EF migration with the real CLI.
 4. Since there is no historical user data, create the initial typed schema directly and prove typed reads do not depend on `manifest_json`.
 5. Implement the dedicated BLOB / managed-file Field Payload adapter and publication/recovery protocol.
-6. Migrate all production consumers, then retire the legacy manifest/JCS internal path where no interchange contract requires it.
+6. Migrate all production consumers, then retire internal manifest persistence where no interchange contract requires it; retain JCS where the package interchange contract requires canonical bytes.
 
 No historical user-data backfill or dual-read compatibility layer is required for the initial release. No universal BLOB/file threshold is introduced here. The application remains a single-user desktop application on Windows and macOS; no distributed storage or multi-node coordination is implied.
