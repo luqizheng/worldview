@@ -619,11 +619,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasDefaultValue("")
                     .HasColumnName("field_key");
 
-                b.Property<string>("FieldRevisionAssetId")
-                    .IsRequired()
-                    .HasColumnType("TEXT")
-                    .HasColumnName("field_revision_asset_id");
-
                 b.Property<string>("GridAxisOrientation")
                     .IsRequired()
                     .ValueGeneratedOnAdd()
@@ -805,9 +800,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("FieldRevisionId");
 
                 b.HasAlternateKey("ProjectId", "FieldDatasetId", "RevisionNumber");
-
-                b.HasIndex("ProjectId", "FieldRevisionAssetId")
-                    .HasDatabaseName("ix_core_map_field_revision_asset");
 
                 b.HasIndex("ProjectId", "FieldDatasetId", "ParentRevisionId");
 
@@ -1519,13 +1511,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .WithMany()
                     .HasForeignKey("ProjectId", "FieldDatasetId")
                     .HasPrincipalKey("ProjectId", "FieldDatasetId")
-                    .OnDelete(DeleteBehavior.NoAction)
-                    .IsRequired();
-
-                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreAssetEntity", null)
-                    .WithMany()
-                    .HasForeignKey("ProjectId", "FieldRevisionAssetId")
-                    .HasPrincipalKey("ProjectId", "AssetId")
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
 
