@@ -219,5 +219,6 @@ public sealed class CoreDomainInitial : Migration
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
                 .OnDelete(DeleteBehavior.NoAction);
         });
+        CoreDomainV1ModelSnapshotConfiguration.Configure(modelBuilder);
     }
 }
