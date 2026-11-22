@@ -47,7 +47,8 @@ Implement the AF-01 V1 directory package shape:
 ```text
 <MyWorld>.wvproject/
   manifest.json
-  project.sqlite
+  data/
+    project.sqlite
   Assets/
     sha256/
   Staging/
