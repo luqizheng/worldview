@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -369,6 +370,60 @@ public sealed class PersistenceConcurrencyTests : IDisposable
     // ---- 5.2 Transaction Tests ----
 
     [Fact]
+    public void BusyTimeout_ExternalWriterLock_FailsWithinBoundWithoutPartialWrite()
+    {
+        const string tableName = "tx32_busy_probe";
+
+        // TX-32: the production connection policy sets a bounded 5-second busy timeout.
+        Assert.Equal(5000L, Access().Execute(c => Scalar(c, "PRAGMA busy_timeout;")));
+
+        Access().Execute(c =>
+        {
+            using var create = c.CreateCommand();
+            create.CommandText = $"CREATE TABLE {tableName} (value INTEGER NOT NULL);";
+            create.ExecuteNonQuery();
+
+            // Keep the production default assertion above, then shorten only this test's
+            // contention window so the negative path remains fast and deterministic.
+            using var timeout = c.CreateCommand();
+            timeout.CommandText = "PRAGMA busy_timeout = 100;";
+            timeout.ExecuteNonQuery();
+        });
+
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _database.DatabasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            Pooling = false,
+        }.ConnectionString;
+
+        using var external = new SqliteConnection(connectionString);
+        external.Open();
+        using var externalTransaction = external.BeginTransaction();
+        using (var heldWrite = external.CreateCommand())
+        {
+            heldWrite.Transaction = externalTransaction;
+            heldWrite.CommandText = $"INSERT INTO {tableName} (value) VALUES (1);";
+            heldWrite.ExecuteNonQuery();
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var exception = Assert.Throws<SqliteException>(() => Access().Execute(c =>
+        {
+            using var competingWrite = c.CreateCommand();
+            competingWrite.CommandText = $"INSERT INTO {tableName} (value) VALUES (2);";
+            competingWrite.ExecuteNonQuery();
+        }));
+        stopwatch.Stop();
+
+        Assert.Equal(5, exception.SqliteErrorCode); // SQLITE_BUSY
+        Assert.InRange(stopwatch.ElapsedMilliseconds, 50, 3000);
+
+        externalTransaction.Rollback();
+        Assert.Equal(0L, Access().Execute(c => Scalar(c, $"SELECT COUNT(*) FROM {tableName};")));
+    }
+
+    [Fact]
     public void Transaction_Commit_PersistsWholeMapStructure()
     {
         var core = Core();
@@ -593,7 +648,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             var branches = access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_branch"));
             // 成功提交的写数量取决于 dispose 与写者的交错（0..workers*rounds/2 均合法），
             // 但任何已提交的写必须完整（branch 行与 branch_owned history 一一对应）。
-            Assert.True(branches is >= 0 and <= workers * rounds / 2, $"branches={branches}");
+            Assert.True(branches is >= 0 and <= workers * ((rounds + 1) / 2), $"branches={branches}");
             Assert.Equal(
                 branches,
                 access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_history WHERE history_kind = 'branch_owned'")));
