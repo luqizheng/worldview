@@ -1,6 +1,6 @@
 # Map Space and Spatial Reference Ownership Contract V1
 
-- Status: Recommended V1 Core Domain ownership contract; physical schema and migration pending
+- Status: Implemented in PR #11: Domain records/rules, SQLite adapter, EF mapping and generated migration; precision-profile fixture acceptance remains an implementation gate
 - Date: 2026-11-22
 - Scope: Map Space identity, Map-to-Spatial-Reference binding, immutable project-scoped Spatial Reference definitions, and Field Revision validation
 - Depends on: ME-01-04 V0.1; ME-05-01 V0.5; ME-05-04 V0.1; P2-09-30; P2-09-34
@@ -40,7 +40,7 @@ ME-05-04 defines a Spatial Reference as an immutable, project-scoped definition 
 2. Each definition has a stable `spatial_reference_id`, owning `project_id`, immutable definition version, reference kind (`Geographic`, `Projected`, or `LocalCartesian`), coordinate unit, axis order, valid domain, wrap/discontinuity behavior, dimensionality, optional vertical-reference identity, coordinate precision-profile identity, definition parameters, provenance and canonical content fingerprint.
 3. The typed fields above are queryable and constrained. Projection/datum-specific parameters may use a bounded, versioned JSON extension until their typed vocabulary is justified; the extension must not replace the typed identity, units, axis, domain, version or hash.
 4. A project may have multiple Spatial Reference definitions; multiple Maps may reuse the same immutable definition.
-5. A Map has exactly one active Spatial Reference binding in V1. The binding is stored on `core_map` as `spatial_reference_id`, with a restrictive same-Project foreign key to `core_spatial_reference`.
+5. A Map may exist during initial setup without a Spatial Reference binding. Before any Field Revision can be published, it must have exactly one active binding. The binding is stored on `core_map` as `spatial_reference_id`, with a same-Project restrictive foreign key to `core_spatial_reference`. The column is nullable only for this explicit unconfigured state.
 6. Changing a Map's active Spatial Reference is a formal conversion/migration operation, not an in-place edit to the referenced definition. Existing immutable Assets and Field Revisions retain their original reference identity.
 7. Deleting a Spatial Reference that is referenced by a Map or immutable Asset/Revision is prohibited. Definitions are retired, not mutated or hard-deleted.
 
@@ -54,7 +54,7 @@ ME-05-04 describes an optional vertical reference as part of the Spatial Referen
 
 V1 therefore stores the optional vertical-reference identity in the immutable Spatial Reference definition rather than creating an independent global vertical-reference catalog prematurely.
 
-- The identity must resolve within the referenced Spatial Reference definition.
+- The identity is stored in the immutable Spatial Reference definition and is validated against the elevation manifest at publication.
 - The canonical Field manifest must include `spatial.vertical_reference_id` and it must exactly match the Spatial Reference definition.
 - Elevation without a vertical reference is invalid for new formal publication.
 - `unit` (m or ft) is the numeric elevation sample unit. It is not a vertical datum/reference and does not replace `vertical_reference_id`.
@@ -87,21 +87,21 @@ For every new formal Field Revision publication, Core Domain must verify in one 
 9. Grid coordinates, resolution and alignment are validated against the Spatial Reference's coordinate unit, axis order, domain and precision profile. The validation must not silently transform or round coordinates.
 10. Existing published revisions are immutable and retain their original snapshot IDs.
 
-The initial release has no historical user data. Every newly published Field Revision must satisfy the complete canonical manifest and owner-context contract.
+The initial release has no historical user data. Every newly published Field Revision must satisfy the complete canonical manifest and owner-context contract. The Domain service and SQLite transaction both validate the Map Space, active Spatial Reference, precision-profile identity and vertical-reference identity.
 
 ## 6. Proposed relational shape
 
 The first EF schema iteration should add:
 
 - `core_map.map_space_id`: required unique stable identity.
-- `core_map.spatial_reference_id`: required active project-scoped reference binding, with same-Project FK enforcement.
-- `core_spatial_reference`: immutable project-scoped reference definition records, unique by (project_id, spatial_reference_id) and definition version/fingerprint.
+- `core_map.spatial_reference_id`: nullable only until the initial binding is established; same-Project FK enforcement applies whenever it is non-null.
+- `core_spatial_reference`: immutable project-scoped reference definition records, keyed by (project_id, spatial_reference_id), with typed reference/profile fields and a canonical content fingerprint.
 - Restrictive FKs from Field Dataset/Revision owner context to Map/Spatial Reference where the exact existing schema permits; keep revision snapshot IDs for immutable interpretation.
 - No standalone `core_map_space` table in V1.
 - No independent vertical-reference table in V1; its immutable definition is carried by the Spatial Reference record.
 - No hard-delete cascade for spatial reference definitions.
 
-Exact column types and parameter JSON bounds must be finalized against the existing EF entity/configuration model before generating the migration. The migration must be generated with the real EF CLI and generated snapshot.
+Implemented EF migration: `20261122140144_MapSpatialReferenceOwnership`. It was generated by `dotnet ef migrations add MapSpatialReferenceOwnership`; the generated Designer and `CoreDomainDbContextModelSnapshot` were committed by the CLI workflow. Decimal precision-profile values are persisted as invariant text to avoid SQLite binary-float conversion.
 
 ## 7. Initial database and Map creation
 
