@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using WorldView.Application.Bootstrap;
+using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
 using WorldView.Domain.Maps;
