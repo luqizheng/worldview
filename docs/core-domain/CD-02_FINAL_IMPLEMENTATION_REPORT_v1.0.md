@@ -28,6 +28,8 @@ CD-02 的目标（委托 §四）：建立可供地图编辑器正式使用的 C
 
 10 条 core-domain 迁移（追加式，编号 001–010；从未 ALTER 既有表）：
 
+**表数量更正：** 上表共创建 **16 张表**（CD-01 六张 + CD-02-B 八张 + CD-02-D 两张）；10 是迁移条目数量，不是表数量。
+
 | # | 表 | 阶段 |
 |---|---|---|
 | 001–004 | core_project / core_map / core_history / core_branch / core_calendar / core_calendar_configuration | CD-01 |
