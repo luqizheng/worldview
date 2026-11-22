@@ -541,6 +541,11 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             project.ProjectId, secondPlan.FieldDatasetId, secondPlan.FieldRevisionId));
         Assert.Equal(firstRevision.FieldRevisionId,
             core.FindFieldDataset(project.ProjectId, mapId, "elevation")!.CurrentFieldRevisionId);
+
+        var recovery = new CoreDomainFieldPayloadRecovery();
+        var report = await recovery.ReconcileAsync(_database, _root, project.ProjectId);
+        Assert.Contains(expectedHash, report.CollectedOrphanContentHashes);
+        Assert.False(store.Exists(expectedHash));
     }
 
     [Fact]
