@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using WorldView.Domain.Assets;
@@ -45,6 +46,31 @@ public sealed partial class SqliteCoreDomainDatabase
             .Select(entity => MapFieldRevision(db, entity))
             .ToArray());
 
+    public FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId) =>
+        _ef.Execute(db =>
+        {
+            var entity = db.FieldPayloads.AsNoTracking().SingleOrDefault(x =>
+                x.ProjectId == projectId && x.FieldRevisionId == fieldRevisionId);
+            return entity is null ? null : MapFieldPayload(entity);
+        });
+
+    public byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId) =>
+        _ef.Execute(db =>
+        {
+            var entity = db.FieldPayloads.AsNoTracking().SingleOrDefault(x =>
+                x.ProjectId == projectId && x.FieldRevisionId == fieldRevisionId);
+            if (entity is null)
+                return null;
+            if (entity.StorageKind != "sqlite_blob")
+                throw new InvalidOperationException("Field Payload is stored as ManagedFile, not SQLite BLOB.");
+            if (entity.PayloadBlob is null || entity.PayloadBlob.LongLength != entity.ByteLength)
+                throw new CoreDomainDataException("SQLite BLOB Field Payload is missing or has an invalid byte length.");
+            var hash = Convert.ToHexString(SHA256.HashData(entity.PayloadBlob)).ToLowerInvariant();
+            if (!string.Equals(hash, entity.ContentHash, StringComparison.Ordinal))
+                throw new CoreDomainDataException("SQLite BLOB Field Payload SHA-256 verification failed.");
+            return entity.PayloadBlob.ToArray();
+        });
+
     public FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan) =>
         _ef.Execute(db =>
         {
@@ -78,6 +104,23 @@ public sealed partial class SqliteCoreDomainDatabase
                 if (asset.IntegrityState != "verified")
                     throw new CoreDomainConflictException(
                         $"Field Revision Asset 必须为 verified，当前状态为 {asset.IntegrityState}。");
+                var payloadRecord = FieldPayloadRules.Create(plan.Payload);
+                if (payloadRecord.ProjectId != plan.ProjectId
+                    || payloadRecord.FieldDatasetId != plan.FieldDatasetId
+                    || payloadRecord.FieldRevisionId != plan.FieldRevisionId)
+                    throw new CoreDomainConflictException("Field Payload owner IDs must match the Field Revision publication.");
+                if (payloadRecord.StorageKind == FieldPayloadStorageKind.SqliteBlob)
+                {
+                    if (plan.PayloadBytes is null || plan.PayloadBytes.LongLength != payloadRecord.ByteLength)
+                        throw new CoreDomainConflictException("SQLite BLOB payload bytes must be present and match the registered byte length.");
+                    var actualHash = Convert.ToHexString(SHA256.HashData(plan.PayloadBytes)).ToLowerInvariant();
+                    if (!string.Equals(actualHash, payloadRecord.ContentHash, StringComparison.Ordinal))
+                        throw new CoreDomainConflictException("SQLite BLOB payload bytes do not match the registered SHA-256.");
+                }
+                else if (plan.PayloadBytes is not null)
+                {
+                    throw new CoreDomainConflictException("ManagedFile payload registration must not also carry inline BLOB bytes.");
+                }
 
                 var dataset = db.FieldDatasets.SingleOrDefault(x =>
                     x.ProjectId == plan.ProjectId
@@ -189,8 +232,25 @@ public sealed partial class SqliteCoreDomainDatabase
                         Version = codec.Version,
                         ParametersJson = codec.ParametersJson,
                     }));
-                SaveChangesOrThrowSqlite(db);
 
+                db.FieldPayloads.Add(new CoreFieldPayloadEntity
+                {
+                    FieldPayloadId = payloadRecord.FieldPayloadId,
+                    ProjectId = payloadRecord.ProjectId,
+                    FieldDatasetId = payloadRecord.FieldDatasetId,
+                    FieldRevisionId = payloadRecord.FieldRevisionId,
+                    StorageKind = payloadRecord.StorageKind == FieldPayloadStorageKind.SqliteBlob ? "sqlite_blob" : "managed_file",
+                    PayloadFormat = payloadRecord.PayloadFormat,
+                    FormatVersion = payloadRecord.FormatVersion,
+                    HashAlgorithm = payloadRecord.HashAlgorithm,
+                    ContentHash = payloadRecord.ContentHash,
+                    ByteLength = payloadRecord.ByteLength,
+                    PayloadBlob = plan.PayloadBytes?.ToArray(),
+                    RelativePath = payloadRecord.RelativePath,
+                    IntegrityState = "verified",
+                    CreatedAtUtcMs = payloadRecord.CreatedAtUtcMs,
+                });
+                SaveChangesOrThrowSqlite(db);
                 // CurrentFieldRevisionId is an EF concurrency token. The generated UPDATE
                 // includes the original pointer (including IS NULL on first publication).
                 dataset.CurrentFieldRevisionId = revision.FieldRevisionId;
@@ -333,6 +393,11 @@ public sealed partial class SqliteCoreDomainDatabase
             TileHashVersion = entity.TileHashVersion,
         };
 
+        var payloadEntity = db.FieldPayloads.AsNoTracking().SingleOrDefault(x =>
+            x.ProjectId == entity.ProjectId && x.FieldRevisionId == entity.FieldRevisionId)
+            ?? throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has no registered Field Payload.");
+        var payloadRecord = MapFieldPayload(payloadEntity);
+
         return new FieldRevisionRecord
         {
             FieldRevisionId = entity.FieldRevisionId,
@@ -341,12 +406,46 @@ public sealed partial class SqliteCoreDomainDatabase
             RevisionNumber = entity.RevisionNumber,
             ParentRevisionId = entity.ParentRevisionId,
             FieldRevisionAssetId = entity.FieldRevisionAssetId,
+            Payload = payloadRecord,
             ContentFingerprint = entity.ContentFingerprint,
             ManifestJson = entity.ManifestJson,
             Metadata = metadata,
             ProvenanceJson = provenance,
             CreatedAtUtcMs = entity.CreatedAtUtcMs,
         };
+    }
+
+    private static FieldPayloadRecord MapFieldPayload(CoreFieldPayloadEntity entity)
+    {
+        var storageKind = entity.StorageKind switch
+        {
+            "sqlite_blob" => FieldPayloadStorageKind.SqliteBlob,
+            "managed_file" => FieldPayloadStorageKind.ManagedFile,
+            _ => throw new CoreDomainDataException($"Unknown Field Payload storage kind '{entity.StorageKind}'."),
+        };
+        var integrity = entity.IntegrityState switch
+        {
+            "verified" => FieldPayloadIntegrityState.Verified,
+            "corrupt" => FieldPayloadIntegrityState.Corrupt,
+            "missing" => FieldPayloadIntegrityState.Missing,
+            _ => throw new CoreDomainDataException($"Unknown Field Payload integrity state '{entity.IntegrityState}'."),
+        };
+        var plan = new RegisterFieldPayloadPlan
+        {
+            FieldPayloadId = entity.FieldPayloadId,
+            ProjectId = entity.ProjectId,
+            FieldDatasetId = entity.FieldDatasetId,
+            FieldRevisionId = entity.FieldRevisionId,
+            StorageKind = storageKind,
+            PayloadFormat = entity.PayloadFormat,
+            FormatVersion = entity.FormatVersion,
+            HashAlgorithm = entity.HashAlgorithm,
+            ByteLength = entity.ByteLength,
+            ContentHash = entity.ContentHash,
+            RelativePath = entity.RelativePath,
+            CreatedAtUtcMs = entity.CreatedAtUtcMs,
+        };
+        return FieldPayloadRules.Create(plan) with { IntegrityState = integrity };
     }
 
     private static bool MetadataEquals(FieldRevisionMetadata left, FieldRevisionMetadata right) =>
