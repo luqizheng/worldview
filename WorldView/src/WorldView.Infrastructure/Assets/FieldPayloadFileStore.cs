@@ -19,8 +19,12 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRootPath);
         var packageRoot = Path.GetFullPath(packageRootPath);
-        RootPath = Path.GetFullPath(Path.Combine(packageRoot, "FieldPayloads", "sha256"));
+        var payloadDirectory = Path.Combine(packageRoot, "FieldPayloads");
+        RootPath = Path.Combine(payloadDirectory, "sha256");
+        Directory.CreateDirectory(payloadDirectory);
+        EnsureNotReparsePoint(payloadDirectory);
         Directory.CreateDirectory(RootPath);
+        EnsureNotReparsePoint(RootPath);
     }
 
     public string RootPath { get; }
@@ -107,12 +111,21 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
         if (!File.Exists(path))
             return Task.FromResult<Stream?>(null);
 
+        EnsureNotReparsePoint(path);
         Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult<Stream?>(stream);
     }
 
-    public bool Exists(string contentHash) =>
-        IsSafeHash(contentHash) && File.Exists(Path.Combine(RootPath, contentHash));
+    public bool Exists(string contentHash)
+    {
+        if (!IsSafeHash(contentHash))
+            return false;
+        var path = Path.Combine(RootPath, contentHash);
+        if (!File.Exists(path))
+            return false;
+        EnsureNotReparsePoint(path);
+        return true;
+    }
 
     private static async Task VerifyExistingAsync(
         string path,
@@ -120,6 +133,7 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
         long expectedLength,
         CancellationToken cancellationToken)
     {
+        EnsureNotReparsePoint(path);
         var info = new FileInfo(path);
         if (info.Length != expectedLength)
             throw new InvalidDataException("Existing Field Payload file has a conflicting byte length.");
@@ -138,6 +152,15 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
         var actual = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
         if (!string.Equals(actual, expectedHash, StringComparison.Ordinal))
             throw new InvalidDataException("Existing Field Payload file does not match its content-addressed SHA-256.");
+    }
+
+
+    private static void EnsureNotReparsePoint(string path)
+    {
+        if (!File.Exists(path) && !Directory.Exists(path))
+            return;
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException("Field Payload managed storage must not traverse symbolic links or reparse points.");
     }
 
     private static bool IsSafeHash(string? value)
