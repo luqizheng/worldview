@@ -49,8 +49,9 @@ public static class ProjectPackageStructure
         PathComparison == StringComparison.OrdinalIgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     /// <summary>
-    /// 判断 <paramref name="candidateRelativePath"/> 是否为安全的包内相对路径：
-    /// 非空、非绝对、无 ".." 跨越、规范化后仍位于包根之内（拒绝符号化/遍历逃逸）。
+    /// 判断 <paramref name="candidateRelativePath"/> 是否为安全的包内相对路径。
+    /// 同时识别当前 OS 与 Windows 的 rooted/drive/UNC 语法，避免跨平台导入时
+    /// 把 Windows 绝对路径当成普通文件名。
     /// </summary>
     public static bool IsRelativePathConfinedToPackage(string packageRoot, string candidateRelativePath)
     {
@@ -60,12 +61,12 @@ public static class ProjectPackageStructure
         }
 
         string candidate = candidateRelativePath.Trim();
-        if (Path.IsPathRooted(candidate))
+        if (Path.IsPathRooted(candidate) || IsWindowsRootedPath(candidate))
         {
             return false;
         }
 
-        // 显式拒绝任何 ".." 段与盘符/UNC 形式，再由规范化兜底。
+        // 显式拒绝任何 ".." 段，再由规范化兜底。
         if (candidate.Contains("..", StringComparison.Ordinal))
         {
             return false;
@@ -82,5 +83,19 @@ public static class ProjectPackageStructure
         {
             return false;
         }
+    }
+
+    private static bool IsWindowsRootedPath(string path)
+    {
+        // Drive-qualified paths (both C:\\foo and drive-relative C:foo) are never
+        // valid package-relative paths, regardless of the host operating system.
+        if (path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':')
+        {
+            return true;
+        }
+
+        // Windows root-relative and UNC paths use backslashes, which Unix Path APIs
+        // do not consider directory separators.
+        return path[0] == '\\\\' || path[0] == '/';
     }
 }
