@@ -46,8 +46,8 @@ public static class FieldDatasetService
         {
             throw new CoreDomainDataException($"Field Revision manifest JSON is invalid: {ex.Message}", ex);
         }
-        if (!string.Equals(plan.ManifestJson, manifest, StringComparison.Ordinal))
-            throw new CoreDomainConflictException("Field Revision manifest bytes must already be RFC 8785 canonical JSON (no BOM, whitespace or trailing newline).");
+        // This Domain boundary persists canonical JSON and rejects duplicate keys. Raw UTF-8/BOM/JCS byte
+        // conformance belongs to the Field Package reader/writer before this plan is constructed.
 
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
         ValidateManifestIdentity(manifest, plan);
