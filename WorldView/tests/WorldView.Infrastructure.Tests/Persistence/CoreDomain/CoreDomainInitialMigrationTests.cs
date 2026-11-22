@@ -84,6 +84,18 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     }
 
     [Fact]
+    public void CoreDomainMigrations_RunOnlyOncePerPhysicalConnection()
+    {
+        var access = ((ISqliteConnectionProvider)_database).GetAccess();
+        var invocationCount = 0;
+
+        access.ApplyCoreDomainMigrationsOnce(() => invocationCount++);
+        access.ApplyCoreDomainMigrationsOnce(() => invocationCount++);
+
+        Assert.Equal(1, invocationCount);
+    }
+
+    [Fact]
     public void InitialMigration_CreatesCoreDomainSchemaFromEmptyDatabase()
     {
         _ = new SqliteCoreDomainDatabase(_database);
