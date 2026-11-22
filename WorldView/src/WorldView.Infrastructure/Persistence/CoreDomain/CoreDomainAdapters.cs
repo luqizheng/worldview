@@ -8,7 +8,6 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Packaging;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
-using WorldView.Domain.Projects;
 using WorldView.Domain.Workspace;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
