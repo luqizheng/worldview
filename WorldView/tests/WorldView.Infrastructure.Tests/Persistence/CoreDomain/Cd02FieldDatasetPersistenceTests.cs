@@ -6,6 +6,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Infrastructure.Persistence;
