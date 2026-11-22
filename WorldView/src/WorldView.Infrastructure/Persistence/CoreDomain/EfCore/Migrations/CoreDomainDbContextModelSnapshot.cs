@@ -70,7 +70,7 @@ internal sealed class CoreDomainDbContextModelSnapshot : ModelSnapshot
             entity.Property(x => x.IntegrityState).HasColumnName("integrity_state").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.AssetId });
-            entity.HasIndex(x => new { x.ProjectId, x.HashAlgorithm, x.ContentHash }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.HashAlgorithm, x.ContentHash });
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction).HasConstraintName("FK_core_asset_core_project_project_id");
         });
@@ -93,7 +93,7 @@ internal sealed class CoreDomainDbContextModelSnapshot : ModelSnapshot
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.Property(x => x.UpdatedAtUtcMs).HasColumnName("updated_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId });
-            entity.HasIndex(x => new { x.ProjectId, x.MapId, x.FieldKey }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.MapId, x.FieldKey });
             entity.HasOne<CoreMapEntity>().WithMany().HasForeignKey(x => new { x.ProjectId, x.MapId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId }).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<CoreMapFieldRevisionEntity>().WithMany()
@@ -122,7 +122,7 @@ internal sealed class CoreDomainDbContextModelSnapshot : ModelSnapshot
             entity.Property(x => x.ProvenanceJson).HasColumnName("provenance_json").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId });
-            entity.HasIndex(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber });
             entity.HasIndex(x => new { x.ProjectId, x.FieldRevisionAssetId }).HasDatabaseName("ix_core_map_field_revision_asset");
             entity.HasOne<CoreMapFieldDatasetEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId })
