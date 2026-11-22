@@ -37,7 +37,7 @@ public static class FieldDatasetService
         var fingerprint = AssetRules.NormalizeContentHash(plan.ContentFingerprint);
         var manifest = CanonicalJson.Canonicalize(plan.ManifestJson);
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
-        ValidateManifestIdentity(manifest, plan, fingerprint);
+        ValidateManifestIdentity(manifest, plan);
 
         if (database.FindMap(plan.ProjectId, plan.MapId) is null)
             throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
@@ -74,8 +74,7 @@ public static class FieldDatasetService
 
     private static void ValidateManifestIdentity(
         string canonicalManifest,
-        PublishFieldRevisionPlan plan,
-        string expectedFingerprint)
+        PublishFieldRevisionPlan plan)
     {
         using var document = JsonDocument.Parse(canonicalManifest);
         var root = document.RootElement;
@@ -219,7 +218,6 @@ public static class FieldDatasetService
         RequireEqual(RequiredString(tileHash, "algorithm"), "SHA-256", "tile_hash.algorithm");
         RequireEqual(RequiredInt32(tileHash, "version"), 1, "tile_hash.version");
 
-        _ = expectedFingerprint; // Content fingerprint is Core Domain revision metadata, not a package-manifest property.
     }
 
     private static readonly Regex DecimalPattern = new(
