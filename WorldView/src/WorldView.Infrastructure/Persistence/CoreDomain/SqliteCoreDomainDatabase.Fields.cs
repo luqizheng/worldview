@@ -197,6 +197,7 @@ public sealed partial class SqliteCoreDomainDatabase
             FieldRevisionAssetId = entity.FieldRevisionAssetId,
             ContentFingerprint = entity.ContentFingerprint,
             ManifestJson = manifest,
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
             ProvenanceJson = provenance,
             CreatedAtUtcMs = entity.CreatedAtUtcMs,
         };
