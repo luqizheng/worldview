@@ -145,7 +145,7 @@ During transition, the current Asset reference remains intact until the new payl
 
 ## 8. EF Core migration requirements
 
-The next schema change must be generated using the real EF Core CLI workflow:
+The initial typed persistence schema change must be generated using the real EF Core CLI workflow:
 
 ```bash
 dotnet ef migrations add FieldRevisionTypedMetadata   --project src/WorldView.Infrastructure   --startup-project src/WorldView.Infrastructure   --context CoreDomainDbContext
@@ -171,7 +171,7 @@ The exact command path must be checked against the repository's solution working
 - Map Space and Spatial Reference IDs are preserved exactly and are not accidentally joined to Map ID or EPSG aliases.
 - Cross-Project or wrong-Map Dataset ownership is rejected.
 - Initial schema creation and typed persistence require no historical-data backfill.
-- Malformed or semantically inconsistent legacy rows fail with an actionable diagnostic and do not partially publish.
+- Malformed or semantically inconsistent manifest input fails with an actionable diagnostic and does not partially publish.
 - New Field Revisions cannot be published unless all descriptor-required unit/vertical/precision values are present.
 - Revision metadata and its payload reference publish atomically with the Dataset current-revision compare-and-swap.
 - Windows and macOS produce equivalent typed values and hashes for the same canonical source.
@@ -181,8 +181,8 @@ The exact command path must be checked against the repository's solution working
 1. Complete owner-context validation against Map Space and immutable Spatial Reference definitions.
 2. Define the Map Space and Spatial Reference owner records and their project/map scope; only then add relational foreign keys.
 3. Add typed revision scalar/child persistence and generate the EF migration with the real CLI.
-4. Backfill existing rows and prove typed reads no longer depend on `manifest_json`.
+4. Since there is no historical user data, create the initial typed schema directly and prove typed reads do not depend on `manifest_json`.
 5. Implement the dedicated BLOB / managed-file Field Payload adapter and publication/recovery protocol.
 6. Migrate all production consumers, then retire the legacy manifest/JCS internal path where no interchange contract requires it.
 
-No universal BLOB/file threshold is introduced here. The application remains a single-user desktop application on Windows and macOS; no distributed storage or multi-node coordination is implied.
+No historical user-data backfill or dual-read compatibility layer is required for the initial release. No universal BLOB/file threshold is introduced here. The application remains a single-user desktop application on Windows and macOS; no distributed storage or multi-node coordination is implied.
