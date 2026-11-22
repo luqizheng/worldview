@@ -192,7 +192,7 @@ public interface ICoreDomainDatabase
     /// <summary>列出 Object 的全部 definition Asset links（按 asset_id/role 稳定排序）。</summary>
     IReadOnlyList<ObjectDefinitionAssetLinkRecord> ListDefinitionAssetLinks(Guid projectId, Guid objectIdentityId);
 
-    /// <summary>事务：建立 definition Asset link（owner 存在、Asset 同 Project 且完整性可用、role 为已声明 geometry role）。</summary>
+    /// <summary>事务：建立 legacy compact Definition Asset link。Building/Cave typed aggregate 必须使用 PublishObjectDefinitionWithGeometryAssets。</summary>
     void LinkDefinitionAsset(LinkDefinitionAssetPlan plan);
 
     /// <summary>事务：移除 definition Asset link（不存在则冲突）。</summary>

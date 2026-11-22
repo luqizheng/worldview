@@ -76,7 +76,7 @@ public sealed record ObjectDefinitionAssetLinkRecord
 
     public required Guid AssetId { get; init; }
 
-    /// <summary>geometry role（与 owner payload manifest 的 geometry_role 一致性由 Domain 验证）。</summary>
+    /// <summary>typed-link purpose。Building/Cave typed aggregate V1 使用 geometry_component；legacy compact descriptors 保留其声明的 role。</summary>
     public required string Role { get; init; }
 
     public required long CreatedAtUtcMs { get; init; }

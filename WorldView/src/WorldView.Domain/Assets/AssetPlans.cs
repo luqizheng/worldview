@@ -32,7 +32,7 @@ public sealed record LinkDefinitionAssetPlan
 
     public required Guid AssetId { get; init; }
 
-    /// <summary>已声明的 geometry role（registry 校验）。</summary>
+    /// <summary>typed-link purpose。Legacy compact descriptors 使用声明的 geometry role；Building/Cave 使用 geometry_component 原子发布。</summary>
     public required string Role { get; init; }
 
     public required long CreatedAtUtcMs { get; init; }

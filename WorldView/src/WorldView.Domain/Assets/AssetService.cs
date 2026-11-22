@@ -73,6 +73,12 @@ public static class AssetService
 
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"身份 {objectIdentityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
+        if (ObjectTypeRegistry.Require(type.TypeKey).HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave geometry Asset links must be published with the complete Definition through PublishDefinitionWithGeometryAssets.");
+        }
+
         try
         {
             ObjectTypeRegistry.ValidateGeometryRole(type.TypeKey, role);
@@ -125,6 +131,16 @@ public static class AssetService
         Guid assetId,
         string role)
     {
+        var identity = database.FindObject(projectId, objectIdentityId)
+            ?? throw new CoreDomainConflictException($"Object {objectIdentityId} 不存在或不属于项目 {projectId}。");
+        var type = database.FindObjectType(projectId, identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException($"Object {objectIdentityId} 的 Object Type 不存在（数据损坏）。");
+        if (ObjectTypeRegistry.Require(type.TypeKey).HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave geometry Asset links must be removed through atomic Definition publication.");
+        }
+
         if (database.FindDefinitionAssetLink(projectId, objectIdentityId, assetId, role) is null)
         {
             throw new CoreDomainConflictException(

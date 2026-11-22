@@ -287,6 +287,13 @@ public sealed partial class SqliteCoreDomainDatabase
                             $"Asset {plan.AssetId} integrity_state is {integrityState}; only verified Assets may be linked.");
                     }
 
+                    var descriptor = ObjectTypeRegistry.Require(typeKey);
+                    if (descriptor.HasTypedAggregateSchema)
+                    {
+                        throw new CoreDomainConflictException(
+                            "Building/Cave geometry Asset links must be published together with the complete Definition through PublishObjectDefinitionWithGeometryAssets.");
+                    }
+
                     try
                     {
                         ObjectTypeRegistry.ValidateGeometryRole(typeKey, plan.Role);
@@ -294,49 +301,6 @@ public sealed partial class SqliteCoreDomainDatabase
                     catch (RegistryException ex)
                     {
                         throw new CoreDomainConflictException(ex.Message, ex);
-                    }
-
-                    // Building/Cave geometry is published only when the current owner manifest
-                    // names the exact Asset, role and authoritative content hash. Keep this
-                    // check in the same transaction as the typed-link insert.
-                    var descriptor = ObjectTypeRegistry.Require(typeKey);
-                    if (descriptor.HasTypedAggregateSchema)
-                    {
-                        using var definition = JsonDocument.Parse(definitionPayload);
-                        if (!definition.RootElement.TryGetProperty("geometry_components", out var components)
-                            || components.ValueKind != JsonValueKind.Array)
-                        {
-                            throw new CoreDomainConflictException(
-                                $"Object {plan.ObjectIdentityId} has no geometry_components manifest; cannot publish a formal Asset link.");
-                        }
-
-                        var matches = 0;
-                        foreach (var component in components.EnumerateArray())
-                        {
-                            if (component.ValueKind != JsonValueKind.Object
-                                || !component.TryGetProperty("asset_id", out var assetIdElement)
-                                || assetIdElement.ValueKind != JsonValueKind.String
-                                || !component.TryGetProperty("geometry_role", out var roleElement)
-                                || roleElement.ValueKind != JsonValueKind.String
-                                || !component.TryGetProperty("content_hash", out var hashElement)
-                                || hashElement.ValueKind != JsonValueKind.String)
-                            {
-                                continue;
-                            }
-
-                            if (string.Equals(assetIdElement.GetString(), plan.AssetId.ToString("D"), StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(roleElement.GetString(), plan.Role, StringComparison.Ordinal)
-                                && string.Equals(hashElement.GetString(), assetHash, StringComparison.Ordinal))
-                            {
-                                matches++;
-                            }
-                        }
-
-                        if (matches != 1)
-                        {
-                            throw new CoreDomainConflictException(
-                                $"Object {plan.ObjectIdentityId} geometry manifest must contain exactly one component matching Asset {plan.AssetId}, role {plan.Role}, and core_asset hash.");
-                        }
                     }
                 }
 
@@ -371,6 +335,13 @@ public sealed partial class SqliteCoreDomainDatabase
             using var transaction = connection.BeginTransaction();
             try
             {
+                var typeKey = ReadObjectTypeKey(transaction, projectId, objectIdentityId);
+                if (ObjectTypeRegistry.Require(typeKey).HasTypedAggregateSchema)
+                {
+                    throw new CoreDomainConflictException(
+                        "Building/Cave geometry Asset links must be removed through atomic Definition publication.");
+                }
+
                 using var delete = connection.CreateCommand();
                 delete.Transaction = transaction;
                 delete.CommandText = """
