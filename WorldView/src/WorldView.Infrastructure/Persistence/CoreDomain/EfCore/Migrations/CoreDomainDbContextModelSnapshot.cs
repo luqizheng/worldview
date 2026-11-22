@@ -9,7 +9,7 @@ namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 /// reviewed EF Core migrations; never share a mutable model-building helper with DbContext.
 /// </summary>
 [DbContext(typeof(CoreDomainDbContext))]
-internal sealed class CoreDomainDbContextModelSnapshot : ModelSnapshot
+public sealed class CoreDomainDbContextModelSnapshot : ModelSnapshot
 {
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
