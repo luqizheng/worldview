@@ -55,9 +55,9 @@ public static class AssetService
     }
 
     /// <summary>
-    /// 建立 definition geometry typed link。校验：Object 存在且 active（draft/abandoned
-    /// 不得建立正式引用）、Object Type 的 role 已在 descriptor 声明（registry）、Asset
-    /// 存在于同 Project 且完整性状态可用（corrupt/missing 拒绝）、重复 link 冲突。
+    /// 建立 legacy compact Object Type 的 definition geometry link。校验：Object active、role
+    /// 已在 descriptor 声明、Asset 同 Project 且完整性可用。Building/Cave typed aggregate
+    /// 禁止单独 link，必须通过 ObjectDefinitionService.PublishDefinitionWithGeometryAssets 原子发布。
     /// </summary>
     public static ObjectDefinitionAssetLinkRecord LinkDefinitionAsset(
         ICoreDomainDatabase database,
