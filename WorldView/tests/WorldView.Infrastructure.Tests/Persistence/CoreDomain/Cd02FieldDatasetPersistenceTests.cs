@@ -527,6 +527,59 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task FieldPayloadIntegrityReconciler_MarksCorruptionAndCollectsOnlyUnreferencedFiles()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var bytes = new byte[] { 0x57, 0x56, 0x46, 0x50 };
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        var publisher = new FieldPayloadPublisher(core, store);
+        var revision = await publisher.PublishManagedFileRevisionAsync(plan, new MemoryStream(bytes));
+        var payload = core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId)!;
+        var corruptedPath = Path.Combine(store.RootPath, payload.ContentHash);
+        await File.WriteAllBytesAsync(corruptedPath, new byte[] { 0x00, 0x00, 0x00, 0x00 });
+        var orphan = await store.PutAsync(new MemoryStream(new byte[] { 0x99, 0x88, 0x77 }));
+        var reconciler = new FieldPayloadIntegrityReconciler(core, store);
+
+        var report = await reconciler.ReconcileAsync(project.ProjectId);
+
+        Assert.Contains(payload.FieldPayloadId, report.CorruptPayloadIds);
+        Assert.Contains(orphan.ContentHash, report.OrphanContentHashes);
+        Assert.Equal(FieldPayloadIntegrityState.Corrupt,
+            core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId)!.IntegrityState);
+
+        var deleted = await reconciler.CollectOrphanFilesAsync(project.ProjectId);
+
+        Assert.Contains(orphan.ContentHash, deleted);
+        Assert.False(store.Exists(orphan.ContentHash));
+        Assert.True(store.Exists(payload.ContentHash));
+    }
+
+    [Fact]
+    public async Task FieldPayloadIntegrityReconciler_MarksMissingManagedFile()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var store = new FieldPayloadFileStore(_root);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        var publisher = new FieldPayloadPublisher(core, store);
+        var revision = await publisher.PublishManagedFileRevisionAsync(
+            plan, new MemoryStream(new byte[] { 1, 2, 3, 4 }));
+        var payload = core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId)!;
+        Assert.True(store.Delete(payload.ContentHash));
+        var reconciler = new FieldPayloadIntegrityReconciler(core, store);
+
+        var report = await reconciler.ReconcileAsync(project.ProjectId);
+
+        Assert.Contains(payload.FieldPayloadId, report.MissingPayloadIds);
+        Assert.Equal(FieldPayloadIntegrityState.Missing,
+            core.FindFieldPayload(project.ProjectId, revision.FieldRevisionId)!.IntegrityState);
+    }
+
+    [Fact]
     public async Task FieldPayloadReader_RejectsManagedFileWithSameLengthWrongHash()
     {
         var (project, mapId) = SeedMap();
