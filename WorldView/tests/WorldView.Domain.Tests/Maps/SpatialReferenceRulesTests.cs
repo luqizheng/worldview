@@ -22,6 +22,8 @@ public sealed class SpatialReferenceRulesTests
         {
             ProfileId = "local-world-precision-v1",
             Version = 1,
+            CoordinateUnit = "m",
+            AxisOrder = SpatialAxisOrder.XY,
             NumericRepresentation = "decimal",
             MaximumAbsoluteQuantizationError = 0.000001m,
             RoundingMode = MidpointRounding.ToEven,

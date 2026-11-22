@@ -45,8 +45,14 @@ public static class FieldDatasetService
         ValidateManifestIdentity(manifest, plan);
         var metadata = FieldRevisionMetadata.FromValidatedManifest(manifest);
 
-        if (database.FindMap(plan.ProjectId, plan.MapId) is null)
-            throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
+        var map = database.FindMap(plan.ProjectId, plan.MapId)
+            ?? throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
+        if (string.IsNullOrWhiteSpace(map.SpatialReferenceId))
+            throw new CoreDomainConflictException("Map 尚未绑定 Spatial Reference，不能发布 Field Revision。");
+        var spatialReference = SpatialReferenceService.FindDefinition(
+            database, plan.ProjectId, map.SpatialReferenceId)
+            ?? throw new CoreDomainConflictException("Map 的 Spatial Reference 定义不存在或不属于当前 Project。");
+        SpatialReferenceRules.ValidateFieldOwnerContext(map, spatialReference, metadata);
 
         var asset = database.FindAsset(plan.ProjectId, plan.FieldRevisionAssetId)
             ?? throw new CoreDomainConflictException(

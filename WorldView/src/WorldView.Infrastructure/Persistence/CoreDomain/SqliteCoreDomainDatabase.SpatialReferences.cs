@@ -47,6 +47,8 @@ public sealed partial class SqliteCoreDomainDatabase
                     VerticalReferenceId = validated.VerticalReferenceId,
                     PrecisionProfileId = validated.PrecisionProfile.ProfileId,
                     PrecisionProfileVersion = validated.PrecisionProfile.Version,
+                    PrecisionCoordinateUnit = validated.PrecisionProfile.CoordinateUnit,
+                    PrecisionAxisOrder = validated.PrecisionProfile.AxisOrder.ToString(),
                     NumericRepresentation = validated.PrecisionProfile.NumericRepresentation,
                     MaximumAbsoluteQuantizationError = FormatDecimal(validated.PrecisionProfile.MaximumAbsoluteQuantizationError),
                     RoundingMode = validated.PrecisionProfile.RoundingMode.ToString(),
@@ -122,6 +124,8 @@ public sealed partial class SqliteCoreDomainDatabase
             || !Enum.IsDefined(axisOrder)
             || !Enum.TryParse<SpatialWrapBehavior>(entity.WrapBehavior, ignoreCase: false, out var wrapBehavior)
             || !Enum.IsDefined(wrapBehavior)
+            || !Enum.TryParse<SpatialAxisOrder>(entity.PrecisionAxisOrder, ignoreCase: false, out var precisionAxisOrder)
+            || !Enum.IsDefined(precisionAxisOrder)
             || !Enum.TryParse<MidpointRounding>(entity.RoundingMode, ignoreCase: false, out var roundingMode)
             || !Enum.IsDefined(roundingMode)
             || !decimal.TryParse(entity.MaximumAbsoluteQuantizationError, NumberStyles.Number, CultureInfo.InvariantCulture, out var maxError)
@@ -146,6 +150,8 @@ public sealed partial class SqliteCoreDomainDatabase
             {
                 ProfileId = entity.PrecisionProfileId,
                 Version = entity.PrecisionProfileVersion,
+                CoordinateUnit = entity.PrecisionCoordinateUnit,
+                AxisOrder = precisionAxisOrder,
                 NumericRepresentation = entity.NumericRepresentation,
                 MaximumAbsoluteQuantizationError = maxError,
                 RoundingMode = roundingMode,

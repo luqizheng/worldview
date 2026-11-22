@@ -84,6 +84,8 @@ internal sealed class CoreSpatialReferenceEntity
     public string? VerticalReferenceId { get; set; }
     public required string PrecisionProfileId { get; set; }
     public int PrecisionProfileVersion { get; set; }
+    public required string PrecisionCoordinateUnit { get; set; }
+    public required string PrecisionAxisOrder { get; set; }
     public required string NumericRepresentation { get; set; }
     public required string MaximumAbsoluteQuantizationError { get; set; }
     public required string RoundingMode { get; set; }

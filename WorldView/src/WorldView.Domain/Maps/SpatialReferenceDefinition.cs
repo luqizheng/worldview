@@ -59,6 +59,8 @@ public sealed record CoordinatePrecisionProfileRecord
 {
     public required string ProfileId { get; init; }
     public required int Version { get; init; }
+    public required string CoordinateUnit { get; init; }
+    public required SpatialAxisOrder AxisOrder { get; init; }
     public required string NumericRepresentation { get; init; }
     public required decimal MaximumAbsoluteQuantizationError { get; init; }
     public required MidpointRounding RoundingMode { get; init; }
@@ -74,6 +76,38 @@ public static class SpatialReferenceRules
         ArgumentNullException.ThrowIfNull(candidate);
         var normalized = NormalizeAndValidate(candidate);
         return normalized with { DefinitionFingerprint = ComputeFingerprint(normalized) };
+    }
+
+    public static void ValidateFieldOwnerContext(
+        MapRecord map,
+        SpatialReferenceDefinitionRecord spatialReference,
+        FieldRevisionMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(spatialReference);
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (map.ProjectId != spatialReference.ProjectId)
+            throw new CoreDomainConflictException("Spatial Reference belongs to a different Project than the owning Map.");
+        if (string.IsNullOrWhiteSpace(map.MapSpaceId)
+            || !string.Equals(metadata.MapSpaceId, map.MapSpaceId, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision Map Space ID does not match its owning Map.");
+        if (string.IsNullOrWhiteSpace(map.SpatialReferenceId)
+            || !string.Equals(metadata.SpatialReferenceId, map.SpatialReferenceId, StringComparison.Ordinal)
+            || !string.Equals(spatialReference.SpatialReferenceId, map.SpatialReferenceId, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision Spatial Reference ID does not match the Map's active definition.");
+        if (!string.Equals(metadata.CoordinatePrecisionProfileId,
+                spatialReference.PrecisionProfile.ProfileId, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision coordinate precision profile does not match its Spatial Reference.");
+        if (metadata.FieldKey == "elevation")
+        {
+            if (spatialReference.VerticalReferenceId is null
+                || !string.Equals(metadata.VerticalReferenceId, spatialReference.VerticalReferenceId, StringComparison.Ordinal))
+                throw new CoreDomainConflictException("Elevation Field Revision vertical reference does not match its Spatial Reference.");
+        }
+        else if (metadata.VerticalReferenceId is not null)
+        {
+            throw new CoreDomainConflictException("Categorical Field Revision cannot carry a vertical reference.");
+        }
     }
 
     public static SpatialReferenceDefinitionRecord Validate(SpatialReferenceDefinitionRecord definition)
@@ -107,6 +141,10 @@ public static class SpatialReferenceRules
         RequireIdentifier(profile.ProfileId, 160, "coordinate_precision_profile_id");
         if (profile.Version < 1)
             throw new ArgumentOutOfRangeException(nameof(value), "Coordinate precision profile version must be >= 1.");
+        RequireIdentifier(profile.CoordinateUnit, 64, "precision_coordinate_unit");
+        if (profile.AxisOrder != value.AxisOrder
+            || !string.Equals(profile.CoordinateUnit, value.CoordinateUnit, StringComparison.Ordinal))
+            throw new ArgumentException("Coordinate precision profile unit/axis must match its Spatial Reference.", nameof(value));
         RequireIdentifier(profile.NumericRepresentation, 64, "numeric_representation");
         if (!Enum.IsDefined(profile.RoundingMode))
             throw new ArgumentException("Coordinate precision rounding mode is unsupported.", nameof(value));
@@ -161,6 +199,8 @@ public static class SpatialReferenceRules
             {
                 profile_id = profile.ProfileId,
                 version = profile.Version,
+                coordinate_unit = profile.CoordinateUnit,
+                axis_order = profile.AxisOrder.ToString(),
                 numeric_representation = profile.NumericRepresentation,
                 maximum_absolute_quantization_error = profile.MaximumAbsoluteQuantizationError,
                 rounding_mode = profile.RoundingMode.ToString(),

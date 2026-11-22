@@ -28,7 +28,8 @@ internal static class CoreDomainV1ModelConfiguration
 
         modelBuilder.Entity<CoreMapEntity>(entity =>
         {
-            entity.ToTable("core_map");
+            entity.ToTable("core_map", table =>
+                table.HasCheckConstraint("CK_core_map_map_space_id", "length(map_space_id) BETWEEN 1 AND 128"));
             entity.HasKey(x => x.MapId);
             entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT")
                 .HasConversion(CoreDomainValueConverters.GuidToText).ValueGeneratedNever();
@@ -74,6 +75,8 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.VerticalReferenceId).HasColumnName("vertical_reference_id").HasColumnType("TEXT");
             entity.Property(x => x.PrecisionProfileId).HasColumnName("precision_profile_id").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.PrecisionProfileVersion).HasColumnName("precision_profile_version").HasColumnType("INTEGER");
+            entity.Property(x => x.PrecisionCoordinateUnit).HasColumnName("precision_coordinate_unit").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.PrecisionAxisOrder).HasColumnName("precision_axis_order").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.NumericRepresentation).HasColumnName("numeric_representation").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.MaximumAbsoluteQuantizationError).HasColumnName("maximum_absolute_quantization_error").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.RoundingMode).HasColumnName("rounding_mode").HasColumnType("TEXT").IsRequired();
