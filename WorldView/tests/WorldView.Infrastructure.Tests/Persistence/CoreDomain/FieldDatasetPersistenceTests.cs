@@ -88,6 +88,7 @@ public sealed class FieldDatasetPersistenceTests : IDisposable
         Assert.Null(revision.ParentRevisionId);
         Assert.Equal(revision, core.FindCurrentFieldRevision(projectId, mapId, "elevation"));
         Assert.Single(core.ListFieldRevisions(projectId, dataset.FieldDatasetId));
+        Assert.DoesNotContain(assetId, core.FindOrphanAssetIds(projectId));
     }
 
     [Fact]
