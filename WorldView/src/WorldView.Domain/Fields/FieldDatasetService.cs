@@ -20,15 +20,10 @@ public static class FieldDatasetService
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(plan);
 
-        if (plan.FieldKey is not ("elevation" or "land_water"))
-            throw new CoreDomainConflictException($"Field key \"{plan.FieldKey}\" is not registered in the V1 Field Descriptor Registry.");
-        var expectedSemanticsId = plan.FieldKey switch
-        {
-            "elevation" when plan.DescriptorSchemaVersion == 1 => "world-view.field.elevation.v1",
-            "land_water" when plan.DescriptorSchemaVersion == 1 => "world-view.field.land_water.v1",
-            _ => throw new CoreDomainConflictException(
-                $"Field descriptor {plan.FieldKey}@{plan.DescriptorSchemaVersion} is not registered in the V1 registry."),
-        };
+        if (!FieldDescriptorRegistry.TryGetSemanticsId(
+                plan.FieldKey, plan.DescriptorSchemaVersion, out var expectedSemanticsId))
+            throw new CoreDomainConflictException(
+                $"Field descriptor {plan.FieldKey}@{plan.DescriptorSchemaVersion} is not registered in the V1 registry.");
         if (!string.Equals(plan.SemanticsId, expectedSemanticsId, StringComparison.Ordinal))
             throw new CoreDomainConflictException(
                 $"Field descriptor semantics_id must be {expectedSemanticsId} for {plan.FieldKey}@{plan.DescriptorSchemaVersion}.");
