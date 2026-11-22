@@ -110,10 +110,10 @@ public static class ObjectDefinitionService
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"Object {objectIdentityId} 的 Object Type 不存在（数据损坏）。");
         var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
-        if (!descriptor.HasTypedAggregateSchema)
+        if (!descriptor.HasTypedAggregateSchema || type.TypeKey is not ("building" or "cave_system"))
         {
             throw new CoreDomainConflictException(
-                $"Object Type {type.TypeKey} 尚无 typed Geometry Component owner schema，不能使用正式 Geometry Asset 发布路径。");
+                $"Object Type {type.TypeKey} 尚无已采纳的 Building/Cave typed Geometry publication adapter。");
         }
 
         var (canonicalPayload, hash) = CanonicalJson.CanonicalizeAndHash(definitionPayloadJson);
