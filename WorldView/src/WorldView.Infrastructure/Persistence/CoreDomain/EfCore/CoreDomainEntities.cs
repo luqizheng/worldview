@@ -36,3 +36,33 @@ internal sealed class CoreAssetEntity
     public required string IntegrityState { get; set; }
     public long CreatedAtUtcMs { get; set; }
 }
+
+
+/// <summary>EF persistence shape for a Map-owned Field Dataset.</summary>
+internal sealed class CoreMapFieldDatasetEntity
+{
+    public Guid FieldDatasetId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid MapId { get; set; }
+    public required string FieldKey { get; set; }
+    public int DescriptorSchemaVersion { get; set; }
+    public required string SemanticsId { get; set; }
+    public Guid? CurrentFieldRevisionId { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+    public long UpdatedAtUtcMs { get; set; }
+}
+
+/// <summary>EF persistence shape for an immutable published Field Revision.</summary>
+internal sealed class CoreMapFieldRevisionEntity
+{
+    public Guid FieldRevisionId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid FieldDatasetId { get; set; }
+    public long RevisionNumber { get; set; }
+    public Guid? ParentRevisionId { get; set; }
+    public Guid FieldRevisionAssetId { get; set; }
+    public required string ContentFingerprint { get; set; }
+    public required string ManifestJson { get; set; }
+    public required string ProvenanceJson { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+}
