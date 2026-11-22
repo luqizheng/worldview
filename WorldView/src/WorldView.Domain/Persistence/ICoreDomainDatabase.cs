@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Projects;
@@ -190,6 +191,23 @@ public interface ICoreDomainDatabase
 
     /// <summary>事务：移除 definition Asset link（不存在则冲突）。</summary>
     void UnlinkDefinitionAsset(Guid projectId, Guid objectIdentityId, Guid assetId, string role);
+
+    // ---- Map Source Field Dataset / immutable Field Revision (ME-05-01) ----
+
+    /// <summary>按 Map + stable field key 查找唯一 Map-owned Field Dataset。</summary>
+    FieldDatasetRecord? FindFieldDataset(Guid projectId, Guid mapId, string fieldKey);
+
+    /// <summary>按 Dataset / Revision ID 查找不可变已发布 revision。</summary>
+    FieldRevisionRecord? FindFieldRevision(Guid projectId, Guid fieldDatasetId, Guid fieldRevisionId);
+
+    /// <summary>列出 Dataset 的全部已发布 revisions（revision_number 升序）。</summary>
+    IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId);
+
+    /// <summary>
+    /// 原子发布 Field Revision：验证当前 revision CAS，插入不可变 revision 并推进 Dataset
+    /// current pointer。首次发布在同一事务建立 Dataset；Asset 必须已登记且 Verified。
+    /// </summary>
+    FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan);
 }
 
 /// <summary>Core Domain 数据损坏（行不可解析、不变量破坏、结构缺失）：fail-closed，不静默修补。</summary>
