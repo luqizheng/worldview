@@ -95,6 +95,6 @@ public sealed class ApplicationBootstrapper
             });
         }
 
-        return BootstrapResult.Ok(Array.Empty<ModuleMigration>());
+        return BootstrapResult.Ok();
     }
 }
