@@ -12,6 +12,8 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
     internal DbSet<CoreProjectEntity> Projects => Set<CoreProjectEntity>();
     internal DbSet<CoreMapEntity> Maps => Set<CoreMapEntity>();
     internal DbSet<CoreAssetEntity> Assets => Set<CoreAssetEntity>();
+    internal DbSet<CoreMapFieldDatasetEntity> FieldDatasets => Set<CoreMapFieldDatasetEntity>();
+    internal DbSet<CoreMapFieldRevisionEntity> FieldRevisions => Set<CoreMapFieldRevisionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,7 +45,7 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
             entity.Property(x => x.LifecycleStatus).HasColumnName("lifecycle_status").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.Property(x => x.UpdatedAtUtcMs).HasColumnName("updated_at_utc_ms").HasColumnType("INTEGER");
-            entity.HasIndex(x => new { x.ProjectId, x.MapId }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.MapId });
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction).HasConstraintName("FK_core_map_core_project_project_id");
         });
@@ -71,10 +73,79 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
             entity.Property(x => x.PublicationState).HasColumnName("publication_state").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.IntegrityState).HasColumnName("integrity_state").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
-            entity.HasIndex(x => new { x.ProjectId, x.AssetId }).IsUnique();
+            entity.HasAlternateKey(x => new { x.ProjectId, x.AssetId });
             entity.HasIndex(x => new { x.ProjectId, x.HashAlgorithm, x.ContentHash }).IsUnique();
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction).HasConstraintName("FK_core_asset_core_project_project_id");
+        });
+
+        modelBuilder.Entity<CoreMapFieldDatasetEntity>(entity =>
+        {
+            entity.ToTable("core_map_field_dataset", table =>
+            {
+                table.HasCheckConstraint("CK_core_map_field_dataset_field_key", "field_key IN ('elevation', 'land_water')");
+                table.HasCheckConstraint("CK_core_map_field_dataset_schema_version", "descriptor_schema_version >= 1");
+            });
+            entity.HasKey(x => x.FieldDatasetId);
+            entity.Property(x => x.FieldDatasetId).HasColumnName("field_dataset_id").HasColumnType("TEXT")
+                .HasConversion(guidToText).ValueGeneratedNever();
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.FieldKey).HasColumnName("field_key").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.DescriptorSchemaVersion).HasColumnName("descriptor_schema_version").HasColumnType("INTEGER");
+            entity.Property(x => x.SemanticsId).HasColumnName("semantics_id").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CurrentFieldRevisionId).HasColumnName("current_field_revision_id").HasColumnType("TEXT")
+                .HasConversion(guidToText);
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.Property(x => x.UpdatedAtUtcMs).HasColumnName("updated_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId });
+            entity.HasIndex(x => new { x.ProjectId, x.MapId, x.FieldKey }).IsUnique();
+            entity.HasOne<CoreMapEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.MapId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.MapId })
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId, x.CurrentFieldRevisionId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapFieldRevisionEntity>(entity =>
+        {
+            entity.ToTable("core_map_field_revision", table =>
+            {
+                table.HasCheckConstraint("CK_core_map_field_revision_number", "revision_number >= 1");
+                table.HasCheckConstraint("CK_core_map_field_revision_fingerprint",
+                    "length(content_fingerprint) = 64 AND content_fingerprint NOT GLOB '*[^0-9a-f]*'");
+            });
+            entity.HasKey(x => x.FieldRevisionId);
+            entity.Property(x => x.FieldRevisionId).HasColumnName("field_revision_id").HasColumnType("TEXT")
+                .HasConversion(guidToText).ValueGeneratedNever();
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.FieldDatasetId).HasColumnName("field_dataset_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.RevisionNumber).HasColumnName("revision_number").HasColumnType("INTEGER");
+            entity.Property(x => x.ParentRevisionId).HasColumnName("parent_revision_id").HasColumnType("TEXT")
+                .HasConversion(guidToText);
+            entity.Property(x => x.FieldRevisionAssetId).HasColumnName("field_revision_asset_id").HasColumnType("TEXT")
+                .HasConversion(guidToText);
+            entity.Property(x => x.ContentFingerprint).HasColumnName("content_fingerprint").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ManifestJson).HasColumnName("manifest_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ProvenanceJson).HasColumnName("provenance_json").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId });
+            entity.HasIndex(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber }).IsUnique();
+            entity.HasOne<CoreMapFieldDatasetEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId })
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreAssetEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.FieldRevisionAssetId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.AssetId })
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId, x.ParentRevisionId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 
