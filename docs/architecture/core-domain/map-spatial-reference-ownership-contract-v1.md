@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-Resolve the ownership boundary needed by Field Revision V2 without inventing a separate GIS hierarchy or confusing Map identity, Map Space, and Spatial Reference.
+Resolve the ownership boundary needed by Field Revision publication without inventing a separate GIS hierarchy or confusing Map identity, Map Space, and Spatial Reference.
 
 The governing distinctions are:
 
@@ -55,7 +55,7 @@ ME-05-04 describes an optional vertical reference as part of the Spatial Referen
 V1 therefore stores the optional vertical-reference identity in the immutable Spatial Reference definition rather than creating an independent global vertical-reference catalog prematurely.
 
 - The identity must resolve within the referenced Spatial Reference definition.
-- Elevation The canonical Field manifest must include `spatial.vertical_reference_id` and it must exactly match the Spatial Reference definition.
+- The canonical Field manifest must include `spatial.vertical_reference_id` and it must exactly match the Spatial Reference definition.
 - Elevation without a vertical reference is invalid for new formal publication.
 - `unit` (m or ft) is the numeric elevation sample unit. It is not a vertical datum/reference and does not replace `vertical_reference_id`.
 - Land/water categorical fields omit both elevation unit and vertical reference.
@@ -103,7 +103,7 @@ The first EF schema iteration should add:
 
 Exact column types and parameter JSON bounds must be finalized against the existing EF entity/configuration model before generating the migration. The migration must be generated with the real EF CLI and generated snapshot.
 
-## 7. Migration and legacy data
+## 7. Initial database and Map creation
 
 - New Map creation generates one Map Space ID and binds an existing or newly created Spatial Reference definition before the Map becomes ready for Field publication.
 - Initial Map creation must generate a stable Map Space identity and bind a valid immutable Spatial Reference definition before Field publication is enabled.
@@ -124,14 +124,14 @@ Exact column types and parameter JSON bounds must be finalized against the exist
 - Coordinate precision profile identity must match the Spatial Reference and profile values satisfy the declared tolerance contract.
 - A Spatial Reference definition cannot be edited or deleted after being referenced.
 - Changing the Map's active Spatial Reference requires a conversion workflow and does not reinterpret old revisions.
-- Legacy revisions remain readable without fabricated missing values.
+- No legacy-data compatibility path or historical-data backfill is required for the initial release.
 
 ## 9. Implementation order
 
 1. Implement typed Spatial Reference definition and Map owner bindings in Domain contracts.
 2. Define the profile parameter schema and representative precision fixtures; do not choose numeric thresholds without evidence.
 3. Add EF entities/configuration and generate a migration using the approved EF CLI workflow.
-4. Backfill Map Space IDs only; reconcile existing Spatial Reference definitions explicitly.
+4. Generate Map Space IDs and establish Spatial Reference bindings as part of initial Map creation; do not synthesize unknown reference definitions.
 5. Add owner-context validation to Field Revision publication.
-6. Add V2 manifest fields to the typed projection and SQLite typed metadata schema.
+6. Persist the canonical manifest's typed semantic fields in the SQLite typed metadata schema.
 7. Only then enable new V2 Field Revision publication and BLOB/file payload publication.
