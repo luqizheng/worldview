@@ -98,7 +98,7 @@ The current JSON canonical manifest schema and RFC 8785 JCS implementation must 
 - FieldRevisionRecord.ManifestJson and PublishFieldRevisionPlan.ManifestJson.
 - FieldDatasetService manifest parsing, canonicalization, and identity validation.
 - Existing manifest schema/vector documents and tests.
-- Asset ownership and integrity checks used by Field Revision publication.
+- Dedicated Field Payload ownership, storage-kind and byte-integrity checks used by Field Revision publication.
 
 Migrate these responsibilities into typed domain metadata and/or the explicit interchange reader/writer contract. Preserve any validation that protects field semantics, spatial ownership, dimensions, encoding, and payload integrity. Do not delete validation merely because JSON/JCS is no longer the internal representation.
 
