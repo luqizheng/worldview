@@ -15,7 +15,6 @@ public sealed record PublishFieldRevisionPlan
     public required int DescriptorSchemaVersion { get; init; }
     public required string SemanticsId { get; init; }
     public required Guid FieldRevisionId { get; init; }
-    public required Guid FieldRevisionAssetId { get; init; }
     /// <summary>Physical Field Payload metadata committed with this revision.</summary>
     public required RegisterFieldPayloadPlan Payload { get; init; }
     /// <summary>Raw bytes for SQLite BLOB storage; null for ManagedFile storage.</summary>
