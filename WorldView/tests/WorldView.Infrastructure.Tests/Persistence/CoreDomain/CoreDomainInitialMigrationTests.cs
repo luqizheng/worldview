@@ -135,7 +135,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(new[] { "202611220001_CoreDomainInitial" }, migrationIds);
+        Assert.Equal(new[] { "20261122090235_CoreDomainInitial" }, migrationIds);
 
         var triggerCount = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
