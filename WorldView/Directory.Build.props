@@ -6,7 +6,7 @@
   -->
 
   <PropertyGroup>
-    <!-- 统一目标框架：.NET 11 LTS（SDK 11.0.100+，支持至 2028-11） -->
+    <!-- 统一目标框架：.NET 11 STS（SDK 11.0.100+；Microsoft 支持至 2028-11-14，需持续安装月度补丁） -->
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
