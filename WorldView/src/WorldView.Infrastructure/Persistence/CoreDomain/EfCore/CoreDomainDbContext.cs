@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 /// <summary>
-/// The single EF Core relational model for Core Domain. Infrastructure-only; Domain and
-/// Application continue to depend on ICoreDomainDatabase, never on DbContext.
+/// The single EF Core relational model for mapped Core Domain tables. Coverage expands by reviewed
+/// aggregate migrations; Domain and Application continue to depend on ICoreDomainDatabase, never DbContext.
 /// </summary>
 public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) : DbContext(options)
 {
