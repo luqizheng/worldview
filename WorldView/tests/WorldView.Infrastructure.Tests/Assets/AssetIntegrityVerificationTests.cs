@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.UseCases;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Persistence;
