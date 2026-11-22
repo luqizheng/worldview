@@ -307,9 +307,9 @@ public class OpenProjectUseCaseTests : IDisposable
         Assert.Equal(OpenProjectOutcome.Cancelled, result.Outcome);
         Assert.Empty(_registry.Sessions);
         // 打开阶段建立的数据库实例（按已发布包的数据库文件路径缓存）已释放。
-        var database = Assert.Single(_databaseFactory.Instances
-            .Where(db => db.DatabasePath.Equals(
-                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseRelativePath), StringComparison.OrdinalIgnoreCase)));
+        // 以身份读取器实际接收到的数据库实例为准；取消发生在读取器内部，
+        // 此实例必须由 PackageValidator 的 await-using 释放。
+        var database = Assert.IsType<FakePackageDatabase>(Assert.Single(reader.ReceivedDatabases));
         Assert.Contains("Database:Dispose", database.CallLog);
     }
 
