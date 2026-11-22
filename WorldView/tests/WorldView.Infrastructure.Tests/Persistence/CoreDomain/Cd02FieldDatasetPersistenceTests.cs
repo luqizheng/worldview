@@ -98,7 +98,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 planes,
             };
 
-            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+        return CanonicalJson.Canonicalize(System.Text.Json.JsonSerializer.Serialize(new
         {
             byte_order = "little_endian",
             canonicalization = "RFC8785-JCS-UTF8",
