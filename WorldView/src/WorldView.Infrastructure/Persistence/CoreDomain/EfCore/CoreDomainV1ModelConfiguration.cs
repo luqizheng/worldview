@@ -160,7 +160,6 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.FieldDatasetId).HasColumnName("field_dataset_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.RevisionNumber).HasColumnName("revision_number").HasColumnType("INTEGER");
             entity.Property(x => x.ParentRevisionId).HasColumnName("parent_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
-            entity.Property(x => x.FieldRevisionAssetId).HasColumnName("field_revision_asset_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.ContentFingerprint).HasColumnName("content_fingerprint").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.ManifestJson).HasColumnName("manifest_json").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.ProvenanceJson).HasColumnName("provenance_json").HasColumnType("TEXT").IsRequired();
@@ -196,13 +195,9 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.TileHashVersion).HasColumnName("tile_hash_version").HasColumnType("INTEGER").HasDefaultValue(0);
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId });
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber });
-            entity.HasIndex(x => new { x.ProjectId, x.FieldRevisionAssetId }).HasDatabaseName("ix_core_map_field_revision_asset");
             entity.HasOne<CoreMapFieldDatasetEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId }).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<CoreAssetEntity>().WithMany()
-                .HasForeignKey(x => new { x.ProjectId, x.FieldRevisionAssetId })
-                .HasPrincipalKey(x => new { x.ProjectId, x.AssetId }).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<CoreMapFieldRevisionEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId, x.ParentRevisionId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
