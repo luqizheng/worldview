@@ -508,22 +508,39 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task FieldPayloadPublisher_RetainsPublishedFileWhenDatabasePublicationFails()
+    public async Task FieldPayloadPublisher_RetainsFileWhenSqlitePublicationTransactionRollsBack()
     {
         var (project, mapId) = SeedMap();
         var core = Core();
+        var firstPlan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        var firstRevision = FieldDatasetService.PublishRevision(core, firstPlan);
+
         var store = new FieldPayloadFileStore(_root);
+        var secondPlan = Plan(project.ProjectId, mapId, firstPlan.FieldDatasetId, Guid.NewGuid(),
+            firstRevision.FieldRevisionId, Fingerprint2, Now + 5);
+        // Force the payload primary-key constraint to fail after the external file has
+        // been atomically published and the SQLite publication transaction has begun.
+        secondPlan = secondPlan with
+        {
+            Payload = secondPlan.Payload with
+            {
+                FieldPayloadId = firstRevision.Payload.FieldPayloadId,
+            },
+        };
         var bytes = new byte[] { 0x10, 0x20, 0x30, 0x40, 0x50 };
         var expectedHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            null, Fingerprint1, Now + 4) with { MapId = Guid.NewGuid() };
         var publisher = new FieldPayloadPublisher(core, store);
 
-        await Assert.ThrowsAsync<CoreDomainConflictException>(() =>
-            publisher.PublishManagedFileRevisionAsync(plan, new MemoryStream(bytes)));
+        await Assert.ThrowsAsync<SqliteException>(() =>
+            publisher.PublishManagedFileRevisionAsync(secondPlan, new MemoryStream(bytes)));
 
         Assert.True(store.Exists(expectedHash));
-        Assert.Null(core.FindFieldPayload(project.ProjectId, plan.FieldRevisionId));
+        Assert.Null(core.FindFieldPayload(project.ProjectId, secondPlan.FieldRevisionId));
+        Assert.Null(core.FindFieldRevision(
+            project.ProjectId, secondPlan.FieldDatasetId, secondPlan.FieldRevisionId));
+        Assert.Equal(firstRevision.FieldRevisionId,
+            core.FindFieldDataset(project.ProjectId, mapId, "elevation")!.CurrentFieldRevisionId);
     }
 
     [Fact]
