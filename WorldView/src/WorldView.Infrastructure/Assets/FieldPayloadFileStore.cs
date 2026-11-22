@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -124,6 +126,34 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
         if (!File.Exists(path))
             return false;
         EnsureNotReparsePoint(path);
+        return true;
+    }
+
+    public IReadOnlyList<string> ListContentHashes()
+    {
+        return Directory.EnumerateFiles(RootPath, "*", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .Where(name => IsSafeHash(name))
+            .Select(name =>
+            {
+                var path = Path.Combine(RootPath, name!);
+                EnsureNotReparsePoint(path);
+                return name!;
+            })
+            .OrderBy(hash => hash, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public bool Delete(string contentHash)
+    {
+        if (!IsSafeHash(contentHash))
+            throw new ArgumentException("Field Payload SHA-256 must be 64 lowercase hexadecimal characters.", nameof(contentHash));
+
+        var path = Path.Combine(RootPath, contentHash);
+        if (!File.Exists(path))
+            return false;
+        EnsureNotReparsePoint(path);
+        File.Delete(path);
         return true;
     }
 
