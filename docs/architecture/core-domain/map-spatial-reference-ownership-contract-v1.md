@@ -105,12 +105,13 @@ Implemented EF migration: `20261122140144_MapSpatialReferenceOwnership`. It was 
 
 ## 7. Initial database and Map creation
 
-- New Map creation generates one Map Space ID and binds an existing or newly created Spatial Reference definition before the Map becomes ready for Field publication.
-- Initial Map creation must generate a stable Map Space identity and bind a valid immutable Spatial Reference definition before Field publication is enabled.
+- New Map creation generates one independent stable Map Space ID.
+- The Map is initially spatially unconfigured (`spatial_reference_id = NULL`) until an explicit existing/new project-scoped definition is selected and bound through `MapSpatialReferenceService.BindInitial`.
+- The initial binding is one-time. Replacing an existing binding is rejected; a future change requires a coordinate-conversion workflow.
 - Field Revision metadata must reference the Map's established Map Space and Spatial Reference definitions at publication.
 - Do not infer an EPSG code, Earth datum, unit, vertical datum or precision profile from a Map name, fixture string or filename.
 - A Map without a resolvable Spatial Reference definition cannot publish a Field Revision.
-- No schema migration, generated EF migration or snapshot change is included in this design commit.
+- The initial release has no historical user data; no backfill or compatibility dual-read is implemented.
 
 ## 8. Acceptance tests
 
@@ -121,17 +122,17 @@ Implemented EF migration: `20261122140144_MapSpatialReferenceOwnership`. It was 
 - A Map cannot publish a Field Revision whose Map Space or Spatial Reference differs from its owner context.
 - Elevation requires a vertical reference that matches the immutable Spatial Reference definition.
 - Land/water does not acquire elevation unit/vertical-reference semantics.
-- Coordinate precision profile identity must match the Spatial Reference and profile values satisfy the declared tolerance contract.
-- A Spatial Reference definition cannot be edited or deleted after being referenced.
+- Coordinate precision profile identity must match the Spatial Reference; profile values are typed and positive, while adequacy remains gated on representative fixtures rather than guessed thresholds.
+- The Domain persistence port exposes Spatial Reference definition insert/read only; there is no edit/delete operation. Direct-SQL immutability triggers remain a separate hardening item.
 - Changing the Map's active Spatial Reference requires a conversion workflow and does not reinterpret old revisions.
 - No legacy-data compatibility path or historical-data backfill is required for the initial release.
 
 ## 9. Implementation order
 
-1. Implement typed Spatial Reference definition and Map owner bindings in Domain contracts.
-2. Define the profile parameter schema and representative precision fixtures; do not choose numeric thresholds without evidence.
-3. Add EF entities/configuration and generate a migration using the approved EF CLI workflow.
-4. Generate Map Space IDs and establish Spatial Reference bindings as part of initial Map creation; do not synthesize unknown reference definitions.
-5. Add owner-context validation to Field Revision publication.
-6. Persist the canonical manifest's typed semantic fields in the SQLite typed metadata schema.
-7. Only then enable Field Revision publication and BLOB/file payload publication.
+1. **Completed:** typed immutable Spatial Reference and Coordinate Precision Profile Domain records, validation and fingerprint rules.
+2. **Completed:** Map Space identity generation, initial Map binding service and no-rebind rule.
+3. **Completed:** SQLite adapter and EF mapping for `core_spatial_reference`, Map Space identity and same-Project Spatial Reference FK.
+4. **Completed:** generated migration `20261122140144_MapSpatialReferenceOwnership` and model snapshot.
+5. **Completed:** Field Revision owner-context validation in Domain and transaction-level persistence revalidation.
+6. **In progress:** representative precision fixtures, geographic ground-error policy and remaining precision-profile validation details; no numeric thresholds are guessed.
+7. **Next:** typed Field Revision scalar/child metadata persistence, followed by Field Payload BLOB/managed-file storage and package writer fixtures.
