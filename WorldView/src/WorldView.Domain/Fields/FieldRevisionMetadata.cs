@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 
@@ -96,9 +97,9 @@ public sealed record FieldRevisionMetadata
                 mask.GetProperty("invalid_value").GetInt32()),
             ValueProfileId = encoding.GetProperty("profile_id").GetString()!,
             ValueProfileScope = encoding.GetProperty("profile_scope").GetString()!,
-            Planes = planes,
-            CategoryCodes = categoryCodes,
-            Codecs = codecs,
+            Planes = Array.AsReadOnly(planes),
+            CategoryCodes = new ReadOnlyDictionary<string, int>(categoryCodes),
+            Codecs = Array.AsReadOnly(codecs),
             TileHashAlgorithm = tileHash.GetProperty("algorithm").GetString()!,
             TileHashVersion = tileHash.GetProperty("version").GetInt32(),
         };
