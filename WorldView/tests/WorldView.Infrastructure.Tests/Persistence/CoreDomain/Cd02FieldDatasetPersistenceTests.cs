@@ -185,6 +185,43 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void PublishRevision_AcceptsRegisteredLandWaterManifest()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            FieldKey = "land_water",
+            SemanticsId = "world-view.field.land_water.v1",
+            ManifestJson = BuildManifest("land_water", "world-view.field.land_water.v1"),
+        };
+
+        var revision = FieldDatasetService.PublishRevision(core, plan);
+
+        Assert.Equal(1, revision.RevisionNumber);
+        Assert.Equal("land_water",
+            core.FindFieldDataset(project.ProjectId, mapId, "land_water")!.FieldKey);
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsManifestMissingRequiredSchema()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = "{}",
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
     public void PublishRevision_RejectsUnregisteredDescriptorSemantics()
     {
         var (project, mapId) = SeedMap();
