@@ -44,6 +44,20 @@ This does not add a component table or change Object identity semantics.
 
 **No test result is claimed in this report yet.** The new GitHub Actions workflow runs full Debug and Release build/test on Windows and macOS with .NET 11. CI must complete successfully before this stage is accepted.
 
+## 2.1 First CI run findings and remediation
+
+GitHub Actions run 16 completed on both Windows and macOS. Both Debug builds succeeded, but the Debug test step failed:
+
+- Windows: 382/383 passed. The existing OrphanScan test fixture attempted to create a formal link while its Asset was still Unverified. The new Verified-only rule correctly rejected it. The fixture now explicitly transitions the referenced Asset to Verified.
+- macOS: 360/383 passed. In addition to the same OrphanScan fixture, 22 Application tests failed because the in-memory test filesystem discarded the leading Unix root separator while constructing directory nodes. The path tree therefore stored absolute paths as relative paths. CreateDirectory now preserves Path.GetPathRoot and builds descendants from that root.
+- Both runners compiled successfully. Release steps were skipped because Debug tests failed.
+
+Remediation commits:
+- 443b4d3 — mark the OrphanScan referenced Asset fixture Verified.
+- 5b76a36 — preserve Unix root in the in-memory filesystem test double.
+
+A new CI run for the updated PR head is required before acceptance. No passing result is claimed yet.
+
 ## 3. Explicit remaining limitations
 
 1. UpdateAssetIntegrityState remains a persistence port operation. This hardening requires Verified for formal links but does not yet provide a complete user-facing IAssetStore byte-verification workflow; that integration must calculate the hash from actual immutable bytes before setting Verified.
