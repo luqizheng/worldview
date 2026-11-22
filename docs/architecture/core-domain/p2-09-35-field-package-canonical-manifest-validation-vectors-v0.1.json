@@ -2,7 +2,7 @@
   "suite": "World View V1 Field Package Canonical Manifest Validation Vectors",
   "version": "0.1",
   "schema": "P2-09-34 V1 Field Package Canonical Manifest Schema V0.1",
-  "status": "partially executed; Core Domain vector coverage and deferred byte/JCS/owner-context gates are recorded in PR #11",
+  "status": "partially executed; Core Domain validation plus RFC 8785 JCS canonicalization and strict UTF-8 byte-validator helper are implemented; Package Reader integration and owner-context validation remain open in PR #11",
   "cases": [
     {
       "id": "MNF-001",
