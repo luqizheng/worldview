@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\minimal-elevation-2x2.manifest.json" Link="Fixtures\minimal-elevation-2x2.manifest.json" />
+    <EmbeddedResource Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\land-water-4x2-two-tiles.manifest.json" Link="Fixtures\land-water-4x2-two-tiles.manifest.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

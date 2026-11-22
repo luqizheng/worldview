@@ -103,4 +103,70 @@ public sealed class JsonSchemaSubsetTests
         using var instanceDocument = JsonDocument.Parse(instance);
         return JsonSchemaSubset.Validate(schemaDocument.RootElement, instanceDocument.RootElement);
     }
+
+    [Fact]
+    public void P2_09_34_GoldenManifests_SatisfyCanonicalSchema()
+    {
+        using var schema = LoadResource(
+            typeof(JsonSchemaSubset).Assembly,
+            "WorldView.Domain.Registry.p2-09-34-field-package-canonical-manifest-schema-v0.1.json");
+        foreach (var fixtureName in new[]
+        {
+            "WorldView.Domain.Tests.Fixtures.minimal-elevation-2x2.manifest.json",
+            "WorldView.Domain.Tests.Fixtures.land-water-4x2-two-tiles.manifest.json",
+        })
+        {
+            using var fixture = LoadResource(typeof(JsonSchemaSubsetTests).Assembly, fixtureName);
+            Assert.Empty(JsonSchemaSubset.Validate(schema.RootElement, fixture.RootElement));
+        }
+    }
+
+    [Fact]
+    public void P2_09_34_LandWaterWithoutCategoryCodes_IsRejectedByConditionalRule()
+    {
+        using var schema = LoadResource(
+            typeof(JsonSchemaSubset).Assembly,
+            "WorldView.Domain.Registry.p2-09-34-field-package-canonical-manifest-schema-v0.1.json");
+        using var fixture = LoadResource(
+            typeof(JsonSchemaSubsetTests).Assembly,
+            "WorldView.Domain.Tests.Fixtures.land-water-4x2-two-tiles.manifest.json");
+        var mutable = System.Text.Json.Nodes.JsonNode.Parse(fixture.RootElement.GetRawText())!.AsObject();
+        mutable["value_encoding"]!.AsObject().Remove("category_codes");
+        using var invalid = JsonDocument.Parse(mutable.ToJsonString());
+
+        var violations = JsonSchemaSubset.Validate(schema.RootElement, invalid.RootElement);
+
+        Assert.Contains(violations, v => v.Keyword == "required" && v.PropertyName == "category_codes");
+    }
+
+    [Fact]
+    public void P2_09_34_ElevationWithCategoryCodes_IsRejectedByConditionalRule()
+    {
+        using var schema = LoadResource(
+            typeof(JsonSchemaSubset).Assembly,
+            "WorldView.Domain.Registry.p2-09-34-field-package-canonical-manifest-schema-v0.1.json");
+        using var fixture = LoadResource(
+            typeof(JsonSchemaSubsetTests).Assembly,
+            "WorldView.Domain.Tests.Fixtures.minimal-elevation-2x2.manifest.json");
+        var mutable = System.Text.Json.Nodes.JsonNode.Parse(fixture.RootElement.GetRawText())!.AsObject();
+        mutable["value_encoding"]!.AsObject()["category_codes"] = new System.Text.Json.Nodes.JsonObject
+        {
+            ["land"] = 0,
+            ["water"] = 1,
+            ["unknown"] = 2,
+            ["outside_coverage"] = 3,
+        };
+        using var invalid = JsonDocument.Parse(mutable.ToJsonString());
+
+        var violations = JsonSchemaSubset.Validate(schema.RootElement, invalid.RootElement);
+
+        Assert.Contains(violations, v => v.Keyword == "not");
+    }
+
+    private static JsonDocument LoadResource(System.Reflection.Assembly assembly, string resourceName)
+    {
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Missing embedded resource: {resourceName}");
+        return JsonDocument.Parse(stream);
+    }
 }

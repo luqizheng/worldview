@@ -22,6 +22,9 @@
     <EmbeddedResource
       Include="..\..\..\docs\architecture\core-domain\p2-09-39-cave-system-typed-aggregate-schema-v0.5.json"
       Link="Registry\p2-09-39-cave-system-typed-aggregate-schema-v0.5.json" />
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\p2-09-34-field-package-canonical-manifest-schema-v0.1.json"
+      Link="Registry\p2-09-34-field-package-canonical-manifest-schema-v0.1.json" />
   </ItemGroup>
 
 </Project>
