@@ -18,7 +18,7 @@ Core Domain 集成显式报告为门槛"的路线实施。
 ## 决策
 
 1. **Project Package V1（目录式）**：`<名称>.wvproject/` 内含 `manifest.json`、
-   `project.sqlite`、`Assets/sha256/`、`Staging/`、`Backups/`。manifest v1 仅含
+   `data/project.sqlite`、`Assets/sha256/`、`Staging/`、`Backups/`。manifest v1 仅含
    `packageFormatVersion`（=1）、`database.relativePath`、`createdAtUtc`；不承载任何
    领域身份（身份权威在数据库内 Bootstrap 元数据与 Core Domain）。
 2. **引入 Microsoft.Data.Sqlite 11.0.0**（Infrastructure 层）：P2-09-12 V0.6 指定的
