@@ -1,4 +1,4 @@
-name: .NET CI
+name: .NET CI # temporary real-CLI migration generation
 
 on:
   push:
