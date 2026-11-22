@@ -208,4 +208,4 @@ This table is a planning classification, not a test result.
 
 ## 8. Status
 
-This assessment remains a documentation-only artifact. The common C# manifest record and collection validator exist; PR #7 adds a draft Building/Cave atomic Definition + Asset-link publication path. PR #7's macOS Debug/Release has passed 396/396 on an earlier head; its latest follow-up and Windows matrix are still running. PR #4's TX-03/TX-32 provider tests are independently tracked. Neither PR claims P2-09-12 full completion or cross-module AI/Core atomicity.
+This assessment remains a documentation-only artifact. The common C# manifest record and collection validator exist; PR #7 adds a draft Building/Cave atomic Definition + Asset-link publication path. PR #7 head dcf0b482 passed macOS Debug/Release at 397/397; the latest persistence-CAS follow-up head a8d31f9a and Windows matrix are still running. PR #4's TX-03/TX-32 provider tests are independently tracked. Neither PR claims P2-09-12 full completion or cross-module AI/Core atomicity.
