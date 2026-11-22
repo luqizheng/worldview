@@ -26,7 +26,7 @@ public static class FieldDatasetService
         if (!FieldDescriptorRegistry.TryGetSemanticsId(
                 plan.FieldKey, plan.DescriptorSchemaVersion, out var expectedSemanticsId))
             throw new CoreDomainConflictException(
-                $"Field descriptor {plan.FieldKey}@{plan.DescriptorSchemaVersion} is not registered in the V1 registry.");
+                $"Field descriptor {plan.FieldKey}@{plan.DescriptorSchemaVersion} is not registered in the Field Descriptor registry.");
         if (!string.Equals(plan.SemanticsId, expectedSemanticsId, StringComparison.Ordinal))
             throw new CoreDomainConflictException(
                 $"Field descriptor semantics_id must be {expectedSemanticsId} for {plan.FieldKey}@{plan.DescriptorSchemaVersion}.");
@@ -105,17 +105,30 @@ public static class FieldDatasetService
         RequireEqual(RequiredInt32(format, "minor"), 0, "format.minor");
 
         var field = RequiredObject(root, "field");
-        RequireProperties(field, "field_key", "schema_version", "semantics_id");
+        var fieldProperties = plan.FieldKey == "elevation"
+            ? new[] { "field_key", "schema_version", "semantics_id", "unit" }
+            : new[] { "field_key", "schema_version", "semantics_id" };
+        RequireProperties(field, fieldProperties);
         RequireEqual(RequiredString(field, "field_key"), plan.FieldKey, "field.field_key");
         RequireEqual(RequiredInt32(field, "schema_version"), plan.DescriptorSchemaVersion, "field.schema_version");
         var manifestSemanticsId = RequiredString(field, "semantics_id");
         RequireLength(manifestSemanticsId, 1, 160, "field.semantics_id");
         RequireEqual(manifestSemanticsId, plan.SemanticsId, "field.semantics_id");
+        if (plan.FieldKey == "elevation")
+            RequireOneOf(RequiredString(field, "unit"), "m", "ft");
 
         var spatial = RequiredObject(root, "spatial");
-        RequireProperties(spatial, "map_space_id", "spatial_reference_id");
+        var spatialProperties = plan.FieldKey == "elevation"
+            ? new[] { "map_space_id", "spatial_reference_id", "coordinate_precision_profile_id", "vertical_reference_id" }
+            : new[] { "map_space_id", "spatial_reference_id", "coordinate_precision_profile_id" };
+        RequireProperties(spatial, spatialProperties);
         RequireLength(RequiredString(spatial, "map_space_id"), 1, 256, "spatial.map_space_id");
         RequireLength(RequiredString(spatial, "spatial_reference_id"), 1, 512, "spatial.spatial_reference_id");
+        RequireLength(RequiredString(spatial, "coordinate_precision_profile_id"), 1, 160,
+            "spatial.coordinate_precision_profile_id");
+        if (plan.FieldKey == "elevation")
+            RequireLength(RequiredString(spatial, "vertical_reference_id"), 1, 512,
+                "spatial.vertical_reference_id");
 
         var grid = RequiredObject(root, "grid");
         RequireProperties(grid,
@@ -169,7 +182,7 @@ public static class FieldDatasetService
         RequireOneOf(RequiredString(encoding, "profile_scope"), "golden_fixture_only", "production");
         var planes = RequiredArray(encoding, "planes");
         if (planes.GetArrayLength() is < 1 or > 8)
-            throw new CoreDomainConflictException("Field manifest value_encoding.planes count is outside V1 bounds.");
+            throw new CoreDomainConflictException("Field manifest value_encoding.planes count is outside registered bounds.");
         var planeFormats = new Dictionary<string, (string Format, int Bytes)>(StringComparer.Ordinal);
         foreach (var plane in planes.EnumerateArray())
         {
@@ -360,6 +373,6 @@ public static class FieldDatasetService
     private static void RequireOneOf(string actual, params string[] allowed)
     {
         if (!allowed.Contains(actual, StringComparer.Ordinal))
-            throw new CoreDomainConflictException($"Field manifest value {actual} is not in the registered V1 vocabulary.");
+            throw new CoreDomainConflictException($"Field manifest value {actual} is not in the registered vocabulary.");
     }
 }
