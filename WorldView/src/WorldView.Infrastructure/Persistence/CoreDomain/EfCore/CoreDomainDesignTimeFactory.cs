@@ -12,7 +12,7 @@ public sealed class CoreDomainDesignTimeFactory : IDesignTimeDbContextFactory<Co
     public CoreDomainDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<CoreDomainDbContext>()
-            .UseSqlite("Data Source=worldview-efcore-design-time.db")
+            .UseSqlite("Data Source=:memory:")
             .Options;
         return new CoreDomainDbContext(options);
     }
