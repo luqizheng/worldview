@@ -11,7 +11,7 @@ namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 /// </summary>
 [DbContext(typeof(CoreDomainDbContext))]
 [Migration("202611220001_CoreDomainEfCoreBaseline")]
-internal sealed class CoreDomainEfCoreBaseline : Migration
+public sealed class CoreDomainEfCoreBaseline : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
