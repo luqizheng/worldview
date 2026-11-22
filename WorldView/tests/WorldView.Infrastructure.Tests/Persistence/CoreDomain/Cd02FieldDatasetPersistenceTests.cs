@@ -487,21 +487,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var core = Core();
         var store = new FieldPayloadFileStore(_root);
         var bytes = Enumerable.Range(0, 256 * 1024).Select(i => (byte)(i % 251)).ToArray();
-        var stored = await store.PutAsync(new MemoryStream(bytes));
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             null, Fingerprint1, Now + 4);
-        plan = plan with
-        {
-            Payload = plan.Payload with
-            {
-                StorageKind = FieldPayloadStorageKind.ManagedFile,
-                ContentHash = stored.ContentHash,
-                ByteLength = stored.ByteLength,
-                RelativePath = stored.RelativePath,
-            },
-            PayloadBytes = null,
-        };
-        var revision = FieldDatasetService.PublishRevision(core, plan);
+        var publisher = new FieldPayloadPublisher(core, store);
+        var revision = await publisher.PublishManagedFileRevisionAsync(plan, new MemoryStream(bytes));
         var reader = new FieldPayloadReader(core, store);
 
         await using var opened = await reader.OpenReadAsync(project.ProjectId, revision.FieldRevisionId);
