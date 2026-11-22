@@ -137,9 +137,7 @@ public sealed partial class SqliteCoreDomainDatabase
             .Where(asset => asset.ProjectId == projectId
                 && !db.ObjectDefinitionAssets.Any(link =>
                     link.project_id == asset.ProjectId && link.asset_id == asset.AssetId)
-                && !db.FieldRevisions.Any(revision =>
-                    revision.ProjectId == asset.ProjectId
-                    && revision.FieldRevisionAssetId == asset.AssetId))
+)
             .OrderBy(asset => asset.AssetId)
             .Select(asset => asset.AssetId)
             .ToArray());
