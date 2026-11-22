@@ -53,8 +53,17 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
             var differ = db.GetService<IMigrationsModelDiffer>();
             var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
             var snapshotModel = snapshotContext.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+            static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
+            {
+                var details = operation.GetType().GetProperties()
+                    .Select(property => (property.Name, Value: property.GetValue(operation)))
+                    .Where(item => item.Value is string or bool or int or long or string[])
+                    .Select(item => $"{item.Name}={item.Value is string[] values ? string.Join("|", values) : item.Value}");
+                return $"{operation.GetType().Name}({string.Join(", ", details)})";
+            }
+
             return differ.GetDifferences(snapshotModel, runtimeModel)
-                .Select(operation => operation.GetType().Name)
+                .Select(Describe)
                 .ToArray();
         });
 
