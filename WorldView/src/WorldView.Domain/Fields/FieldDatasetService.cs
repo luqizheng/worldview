@@ -35,19 +35,11 @@ public static class FieldDatasetService
             throw new ArgumentException("Field Dataset、Revision、Asset、Project 和 Map ID 均必须为非空 UUID。", nameof(plan));
 
         var fingerprint = AssetRules.NormalizeContentHash(plan.ContentFingerprint);
-        string manifest;
-        try
-        {
-            using var sourceManifest = JsonDocument.Parse(plan.ManifestJson);
-            EnsureNoDuplicateKeys(sourceManifest.RootElement);
-            manifest = CanonicalJson.Canonicalize(plan.ManifestJson);
-        }
-        catch (JsonException ex)
-        {
-            throw new CoreDomainDataException($"Field Revision manifest JSON is invalid: {ex.Message}", ex);
-        }
-        // This Domain boundary persists canonical JSON and rejects duplicate keys. Raw UTF-8/BOM/JCS byte
-        // conformance belongs to the Field Package reader/writer before this plan is constructed.
+        // The Field Package manifest has an explicit RFC 8785 contract. Do not reuse
+        // CanonicalJson here: that legacy canonicalizer has a different numeric contract
+        // and remains authoritative for existing Core Domain fingerprints.
+        var manifest = FieldManifestCanonicalizer.Canonicalize(plan.ManifestJson);
+        // Raw package-byte equality (BOM/whitespace/trailing newline) remains the reader's responsibility.
 
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
         ValidateManifestIdentity(manifest, plan);
