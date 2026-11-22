@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 /// <summary>
-/// WorldView 1.0 runtime relational model configuration.
-/// This is deliberately separate from the mutable runtime model configuration.
+/// Authoritative WorldView 1.0 runtime relational model configuration.
+/// EF Core's generated ModelSnapshot records the design-time representation of this model.
 /// </summary>
 internal static class CoreDomainV1ModelConfiguration
 {
