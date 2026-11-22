@@ -31,7 +31,6 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        CoreDomainAggregateModel.Configure(modelBuilder);
 
         var guidToText = CoreDomainValueConverters.GuidToText;
 
@@ -162,6 +161,7 @@ public sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> op
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
                 .OnDelete(DeleteBehavior.NoAction);
         });
+        CoreDomainAggregateModel.Configure(modelBuilder);
     }
 
 }
