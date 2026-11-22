@@ -93,7 +93,7 @@ public sealed class JsonSchemaSubsetTests
         var error = Assert.Throws<RegistryException>(
             () => JsonSchemaSubset.Validate(schemaDocument.RootElement, instanceDocument.RootElement));
 
-        Assert.Equal("schema_invalid", error.Code);
+        Assert.Equal("schema_invalid", error.ErrorCode);
         Assert.Contains("contains", error.Message);
     }
 
