@@ -18,6 +18,7 @@ public sealed record FieldPayloadIntegrityReport
     public required IReadOnlyList<Guid> CorruptPayloadIds { get; init; }
     public required IReadOnlyList<string> OrphanContentHashes { get; init; }
     public required int VerifiedPayloadCount { get; init; }
+    public int CleanedStagingFileCount { get; init; }
 }
 
 /// <summary>
