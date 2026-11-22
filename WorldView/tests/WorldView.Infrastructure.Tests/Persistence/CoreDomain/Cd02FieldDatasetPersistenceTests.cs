@@ -521,6 +521,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with
         {
+            FieldKey = vectorId == "MNF-017" ? "land_water" : "elevation",
+            SemanticsId = vectorId == "MNF-017"
+                ? "world-view.field.land_water.v1"
+                : "world-view.field.elevation.v1",
             ManifestJson = root.ToJsonString(),
         };
 
