@@ -2,6 +2,9 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.IO;
+using System.Linq;
+using WorldView.Domain.Registry;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Persistence;
 
@@ -13,6 +16,23 @@ namespace WorldView.Domain.Fields;
 /// </summary>
 public static class FieldDatasetService
 {
+    private static readonly Lazy<JsonDocument> ManifestSchema = new(LoadManifestSchema);
+
+    private static JsonDocument LoadManifestSchema()
+    {
+        var assembly = typeof(FieldDatasetService).Assembly;
+        var resourceName = assembly.GetManifestResourceNames()
+            .SingleOrDefault(name => name.EndsWith(
+                "p2-09-34-field-package-canonical-manifest-schema-v0.1.json",
+                StringComparison.Ordinal));
+        if (resourceName is null)
+            throw new RegistryException("field_manifest_schema_missing", "P2-09-34 canonical manifest schema resource is missing.");
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new RegistryException("field_manifest_schema_missing", "P2-09-34 canonical manifest schema resource cannot be opened.");
+        using var reader = new StreamReader(stream);
+        return JsonDocument.Parse(reader.ReadToEnd());
+    }
+
     public static FieldRevisionRecord PublishRevision(
         ICoreDomainDatabase database,
         Guid projectId,
@@ -98,33 +118,46 @@ public static class FieldDatasetService
     private static void ValidateManifest(string manifestJson, FieldDescriptor descriptor)
     {
         if (string.IsNullOrWhiteSpace(manifestJson))
-        {
             throw new ArgumentException("manifest_json 不能为空白。", nameof(manifestJson));
-        }
+        if (manifestJson[0] == '\uFEFF' || manifestJson.EndsWith("\n", StringComparison.Ordinal)
+            || manifestJson.EndsWith("\r", StringComparison.Ordinal))
+            throw new ArgumentException("Canonical Field Manifest 不允许 BOM 或尾随换行。", nameof(manifestJson));
 
         using var document = JsonDocument.Parse(manifestJson);
-        var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object
-            || !root.TryGetProperty("canonicalization", out var canonicalization)
-            || canonicalization.GetString() != "RFC8785-JCS-UTF8"
-            || !root.TryGetProperty("field", out var field)
-            || field.ValueKind != JsonValueKind.Object
-            || !field.TryGetProperty("field_key", out var key)
-            || key.GetString() != descriptor.FieldKey
-            || !field.TryGetProperty("schema_version", out var version)
-            || version.GetInt32() != descriptor.SchemaVersion
-            || !field.TryGetProperty("semantics_id", out var semantics)
-            || semantics.GetString() != descriptor.SemanticsId
-            || !root.TryGetProperty("spatial", out var spatial)
-            || spatial.ValueKind != JsonValueKind.Object
-            || !spatial.TryGetProperty("map_space_id", out var mapSpace)
-            || string.IsNullOrWhiteSpace(mapSpace.GetString())
-            || !spatial.TryGetProperty("spatial_reference_id", out var spatialReference)
-            || string.IsNullOrWhiteSpace(spatialReference.GetString()))
+        RejectDuplicateProperties(document.RootElement, string.Empty);
+        var violations = JsonSchemaSubset.Validate(ManifestSchema.Value.RootElement, document.RootElement);
+        if (violations.Count != 0)
         {
+            var first = violations[0];
             throw new ArgumentException(
-                "Field manifest 必须是已校验的 JCS V1 manifest，并匹配 Field Descriptor、Map Space 和 Spatial Reference。",
+                $"Field manifest 不符合 P2-09-34：{first.Keyword} at {first.InstancePath}: {first.Message}",
                 nameof(manifestJson));
+        }
+
+        var field = document.RootElement.GetProperty("field");
+        if (!string.Equals(field.GetProperty("field_key").GetString(), descriptor.FieldKey, StringComparison.Ordinal)
+            || field.GetProperty("schema_version").GetInt32() != descriptor.SchemaVersion
+            || !string.Equals(field.GetProperty("semantics_id").GetString(), descriptor.SemanticsId, StringComparison.Ordinal))
+            throw new ArgumentException("Field manifest 与 Core Field Descriptor pin 不匹配。", nameof(manifestJson));
+    }
+
+    private static void RejectDuplicateProperties(JsonElement element, string path)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                    throw new ArgumentException($"Field manifest 存在重复 JSON 属性：{path}/{property.Name}");
+                RejectDuplicateProperties(property.Value, $"{path}/{property.Name}");
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            var index = 0;
+            foreach (var item in element.EnumerateArray())
+                RejectDuplicateProperties(item, $"{path}/{index++}");
         }
     }
 
