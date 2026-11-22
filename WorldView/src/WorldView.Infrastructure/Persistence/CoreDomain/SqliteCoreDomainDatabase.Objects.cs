@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
@@ -332,13 +333,22 @@ public sealed partial class SqliteCoreDomainDatabase
 
     public void InsertObject(ObjectInsertPlan plan)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
+            var sqliteTransaction = (SqliteTransaction)transaction.GetDbTransaction();
             try
             {
                 // 事务内重读前置状态（TX-55：正式创建与 Bound→Inserted 原子）。
-                var reservation = ReadReservationRow(transaction, plan.ProjectId, plan.ReservationId);
+                var reservationEntity = db.ObjectIdReservations.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.reservation_id == plan.ReservationId);
+                if (reservationEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Reservation {plan.ReservationId} 不存在或不属于项目 {plan.ProjectId}。");
+                }
+
+                var reservation = MapReservation(reservationEntity);
                 if (reservation.State != ReservationState.Bound || reservation.ObjectIdentityId is null)
                 {
                     throw new CoreDomainConflictException(
@@ -351,7 +361,21 @@ public sealed partial class SqliteCoreDomainDatabase
                         $"Insert 计划的身份 {plan.ObjectIdentityId} 与 reservation 溯源 {reservation.ObjectIdentityId.Value} 不一致（fail-closed）。");
                 }
 
-                var identity = ReadObjectRow(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                var identityEntity = db.Objects.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId);
+                if (identityEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object {plan.ObjectIdentityId} 不存在或不属于项目 {plan.ProjectId}。");
+                }
+
+                var typeKey = db.ObjectTypes
+                    .Where(x => x.project_id == plan.ProjectId && x.object_type_id == identityEntity.object_type_id)
+                    .Select(x => x.type_key)
+                    .SingleOrDefault()
+                    ?? throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 引用的 Object Type 不存在（数据损坏）。");
+                var identity = MapObject(identityEntity, typeKey);
                 if (identity.LifecycleStatus != ObjectLifecycleStatus.Draft)
                 {
                     throw new CoreDomainConflictException(
@@ -363,40 +387,42 @@ public sealed partial class SqliteCoreDomainDatabase
                 var mapId = plan.Registration?.MapId;
                 if (plan.Registration is not null)
                 {
-                    RegisterInTransaction(transaction, plan.ProjectId, plan.Registration, identity);
+                    RegisterInTransaction(
+                        sqliteTransaction,
+                        plan.ProjectId,
+                        plan.Registration,
+                        identity);
                 }
 
                 // definition 首行（canonical payload + hash；每 identity 至多一行由 PK 保证）。
-                var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.Definition.DefinitionPayloadJson);
-                using (var insertDefinition = connection.CreateCommand())
+                var (canonicalPayload, definitionHash) =
+                    CanonicalJson.CanonicalizeAndHash(plan.Definition.DefinitionPayloadJson);
+                db.ObjectDefinitions.Add(new CoreObjectDefinitionEntity
                 {
-                    insertDefinition.Transaction = transaction;
-                    insertDefinition.CommandText = """
-                        INSERT INTO core_object_definition
-                            (project_id, object_identity_id, definition_schema_version,
-                             definition_payload_json, definition_hash, updated_at_utc_ms)
-                        VALUES ($projectId, $identityId, $schemaVersion, $payload, $hash, $now);
-                        """;
-                    insertDefinition.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    insertDefinition.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
-                    insertDefinition.Parameters.AddWithValue("$schemaVersion", plan.Definition.DefinitionSchemaVersion);
-                    insertDefinition.Parameters.AddWithValue("$payload", canonicalPayload);
-                    insertDefinition.Parameters.AddWithValue("$hash", definitionHash);
-                    insertDefinition.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                    insertDefinition.ExecuteNonQuery();
-                }
+                    project_id = plan.ProjectId,
+                    object_identity_id = plan.ObjectIdentityId,
+                    definition_schema_version = plan.Definition.DefinitionSchemaVersion,
+                    definition_payload_json = canonicalPayload,
+                    definition_hash = definitionHash,
+                    updated_at_utc_ms = plan.NowUtcMs,
+                });
 
                 if (plan.InitialMembership is not null)
                 {
                     // P3⇒P2：成员行必须有对应注册行（本事务刚写入）。
                     if (mapId is null
-                        || TryReadMapObjectRefRow(transaction, plan.ProjectId, mapId.Value, plan.ObjectIdentityId) is null)
+                        || TryReadMapObjectRefRow(
+                            sqliteTransaction,
+                            plan.ProjectId,
+                            mapId.Value,
+                            plan.ObjectIdentityId) is null)
                     {
-                        throw new CoreDomainConflictException("Initial State 成员缺少同 Map 注册行（P3⇒P2），拒绝插入。");
+                        throw new CoreDomainConflictException(
+                            "Initial State 成员缺少同 Map 注册行（P3⇒P2），拒绝插入。");
                     }
 
                     AppendInitialMemberInTransaction(
-                        transaction,
+                        sqliteTransaction,
                         plan.ProjectId,
                         mapId.Value,
                         plan.ObjectIdentityId,
@@ -411,42 +437,12 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 // 状态转换（同事务原子）：identity draft→active + reservation Bound→Inserted。
-                using (var activate = connection.CreateCommand())
-                {
-                    activate.Transaction = transaction;
-                    activate.CommandText = """
-                        UPDATE core_object
-                        SET lifecycle_status = 'active', updated_at_utc_ms = $now
-                        WHERE project_id = $projectId AND object_identity_id = $identityId
-                          AND lifecycle_status = 'draft';
-                        """;
-                    activate.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                    activate.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    activate.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
-                    if (activate.ExecuteNonQuery() != 1)
-                    {
-                        throw new CoreDomainConflictException("身份激活失败（draft 前置不满足），事务回滚。");
-                    }
-                }
+                identityEntity.lifecycle_status = "active";
+                identityEntity.updated_at_utc_ms = plan.NowUtcMs;
+                reservationEntity.reservation_state = "Inserted";
+                reservationEntity.updated_at_utc_ms = plan.NowUtcMs;
 
-                using (var insertTransition = connection.CreateCommand())
-                {
-                    insertTransition.Transaction = transaction;
-                    insertTransition.CommandText = """
-                        UPDATE core_object_id_reservation
-                        SET reservation_state = 'Inserted', updated_at_utc_ms = $now
-                        WHERE project_id = $projectId AND reservation_id = $reservationId
-                          AND reservation_state = 'Bound';
-                        """;
-                    insertTransition.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                    insertTransition.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    insertTransition.Parameters.AddWithValue("$reservationId", Uuid(plan.ReservationId));
-                    if (insertTransition.ExecuteNonQuery() != 1)
-                    {
-                        throw new CoreDomainConflictException("Reservation→Inserted 转换失败（Bound 前置不满足），事务回滚。");
-                    }
-                }
-
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }
             catch
@@ -459,12 +455,26 @@ public sealed partial class SqliteCoreDomainDatabase
 
     public void EditObjectDefinition(ObjectDefinitionEditPlan plan)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                var identity = ReadObjectRow(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                var identityEntity = db.Objects.AsNoTracking().SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId);
+                if (identityEntity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object {plan.ObjectIdentityId} 不存在或不属于项目 {plan.ProjectId}。");
+                }
+
+                var typeKey = db.ObjectTypes.AsNoTracking()
+                    .Where(x => x.project_id == plan.ProjectId && x.object_type_id == identityEntity.object_type_id)
+                    .Select(x => x.type_key)
+                    .SingleOrDefault()
+                    ?? throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 引用的 Object Type 不存在（数据损坏）。");
+                var identity = MapObject(identityEntity, typeKey);
                 if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
                 {
                     throw new CoreDomainConflictException(
@@ -474,33 +484,30 @@ public sealed partial class SqliteCoreDomainDatabase
                 ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
 
                 // CAS 在事务内比对（先读后写在同一临界区，无并发窗口）。
-                var current = TryReadDefinitionRow(transaction, plan.ProjectId, plan.ObjectIdentityId)
+                var current = db.ObjectDefinitions.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId)
                     ?? throw new CoreDomainDataException(
                         $"active Object {plan.ObjectIdentityId} 缺少定义行（数据损坏，R-定义单行）。");
-                if (!string.Equals(current.DefinitionHash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
+                var currentHash = CanonicalJson.Sha256Hex(current.definition_payload_json);
+                if (!string.Equals(currentHash, current.definition_hash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 的 definition_hash 与 payload 不一致（数据损坏）。");
+                }
+
+                if (!string.Equals(current.definition_hash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
                 {
                     throw new CoreDomainConflictException("定义 CAS 冲突：expected hash 与当前定义不匹配。");
                 }
 
-                var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
-                using var update = connection.CreateCommand();
-                update.Transaction = transaction;
-                update.CommandText = """
-                    UPDATE core_object_definition
-                    SET definition_schema_version = $schemaVersion,
-                        definition_payload_json = $payload,
-                        definition_hash = $hash,
-                        updated_at_utc_ms = $now
-                    WHERE project_id = $projectId AND object_identity_id = $identityId;
-                    """;
-                update.Parameters.AddWithValue("$schemaVersion", plan.DefinitionSchemaVersion);
-                update.Parameters.AddWithValue("$payload", canonicalPayload);
-                update.Parameters.AddWithValue("$hash", definitionHash);
-                update.Parameters.AddWithValue("$now", plan.NowUtcMs);
-                update.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                update.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
-                update.ExecuteNonQuery();
+                var (canonicalPayload, definitionHash) =
+                    CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+                current.definition_schema_version = plan.DefinitionSchemaVersion;
+                current.definition_payload_json = canonicalPayload;
+                current.definition_hash = definitionHash;
+                current.updated_at_utc_ms = plan.NowUtcMs;
 
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }
             catch
