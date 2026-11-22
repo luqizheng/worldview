@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
@@ -40,10 +42,44 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     public void EfModel_HasNoPendingMigrationChanges()
     {
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
-        var hasPendingChanges = session.Execute(db => db.Database.HasPendingModelChanges());
+        var result = session.Execute(db =>
+        {
+            var connection = db.Database.GetDbConnection();
+            var snapshotOptions = new DbContextOptionsBuilder<CoreDomainDbContext>()
+                .UseSqlite(connection, contextOwnsConnection: false)
+                .Options;
+            using var snapshotContext = new SnapshotModelContext(snapshotOptions);
+            var differ = db.GetService<IMigrationsModelDiffer>();
+            var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+            var snapshotModel = snapshotContext.GetService<IDesignTimeModel>().Model.GetRelationalModel();
 
-        Assert.False(hasPendingChanges,
+            static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
+            {
+                var details = operation.GetType().GetProperties()
+                    .Where(property => property.GetIndexParameters().Length == 0)
+                    .Select(property => (property.Name, Value: property.GetValue(operation)))
+                    .Where(item => item.Value is string or bool or int or long or string[])
+                    .Select(item => $"{item.Name}={(item.Value is string[] values ? string.Join("|", values) : item.Value)}");
+                return $"{operation.GetType().Name}({string.Join(", ", details)})";
+            }
+
+            return (
+                Differences: differ.GetDifferences(snapshotModel, runtimeModel).Select(Describe).ToArray(),
+                HasPendingModelChanges: db.Database.HasPendingModelChanges());
+        });
+
+        Assert.Empty(result.Differences);
+        Assert.False(result.HasPendingModelChanges,
             "The CoreDomainDbContext model must match the discovered EF migration snapshot.");
+    }
+
+    private sealed class SnapshotModelContext(DbContextOptions<CoreDomainDbContext> options)
+        : CoreDomainDbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
+        }
     }
 
     [Fact]
