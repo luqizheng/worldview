@@ -79,7 +79,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
+            CoreDomainV1ModelConfiguration.Configure(modelBuilder);
         }
     }
 
