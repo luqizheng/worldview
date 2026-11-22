@@ -1,7 +1,7 @@
 # World View — 实施与工程状态记录
 
 - **更新**：2026-11-22
-- **状态**：CD-02-B 至 CD-02-G 已提交；Object/Initial State/Registry/Asset/Geometry/Building-Cave 领域基础已实现；CD-02-G1 正在补强 Asset/Geometry 一致性并建立可重复的 GitHub CI 验证
+- **状态**：CD-02-B 至 CD-02-G 已提交；CD-02-G1 Asset/Geometry integrity hardening 已实现，当前 PR head 的 Windows/macOS Debug/Release CI 全部通过；PR #1 待审查
 - **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.4.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
@@ -234,8 +234,8 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 
 - **Scope:** formal Asset links now require Verified integrity; SQLite link insertion re-reads Object lifecycle, Asset state and registry role inside the same coordinated transaction; Building/Cave links require one matching owner geometry manifest entry (Asset ID + role + authoritative hash); Definition CAS cannot orphan or mutate an existing linked manifest.
 - **Registry:** JsonSchemaSubset now recursively checks $defs for unsupported keywords; a referenced-definition negative test was added.
-- **Tests:** added real-SQLite direct-adapter/service state tests and strengthened ME-04 manifest/link/CAS integration tests. GitHub Actions Windows + macOS Debug/Release build/test matrix added; results pending.
+- **Tests / CI:** added real-SQLite direct-adapter/service state tests and strengthened ME-04 manifest/link/CAS integration tests. GitHub Actions .NET 11 Windows + macOS matrix passed on commit `1b0e8c09db650c5a822231e80582d2affb70e374`; both runs `44971620581` and `44971617115` completed successfully, including Debug Build/Test and Release Build/Test on both OSes.
 - **Schema correction:** 10 migrations create 16 tables, not 14 (CD-01 six + CD-02-B eight + CD-02-D two).
 - **Limitations:** Verified is still set through a persistence port; end-to-end IAssetStore byte verification must be wired before treating it as a trusted publication pipeline. Typed manifest/link transaction enforcement currently covers Building/Cave aggregate descriptors; simple types need a separately decided typed geometry payload contract.
-- **Report:** [CD-02-G1 Asset / Geometry Integrity Hardening Report V0.1](../core-domain/CD-02-G1_ASSET_GEOMETRY_INTEGRITY_HARDENING_REPORT_v0.1.md). Acceptance awaits CI.
+- **Report:** [CD-02-G1 Asset / Geometry Integrity Hardening Report V0.1](../core-domain/CD-02-G1_ASSET_GEOMETRY_INTEGRITY_HARDENING_REPORT_v0.1.md). Implementation and configured Windows/macOS CI verification passed; PR #1 remains open for review. Remaining limitations above are not represented as closed.
 
