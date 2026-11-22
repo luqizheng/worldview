@@ -40,6 +40,7 @@ public sealed class FieldPayloadPublisher
         cancellationToken.ThrowIfCancellationRequested();
 
         var stored = await _fileStore.PutAsync(payloadContent, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var payload = plan.Payload with
         {
             StorageKind = FieldPayloadStorageKind.ManagedFile,
