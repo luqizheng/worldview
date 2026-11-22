@@ -84,10 +84,10 @@ public static class AssetService
 
         var asset = database.FindAsset(projectId, assetId)
             ?? throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，拒绝建立 Asset link。");
-        if (asset.IntegrityState is AssetIntegrityState.Corrupt or AssetIntegrityState.Missing)
+        if (asset.IntegrityState != AssetIntegrityState.Verified)
         {
             throw new CoreDomainConflictException(
-                $"Asset {assetId} 完整性状态为 {asset.IntegrityState}，不得建立正式引用。");
+                $"Asset {assetId} 完整性状态为 {asset.IntegrityState}；只有已完成字节完整性验证的 Verified Asset 才能建立正式引用。");
         }
 
         if (database.FindDefinitionAssetLink(projectId, objectIdentityId, assetId, role) is not null)
