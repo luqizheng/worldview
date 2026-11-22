@@ -246,6 +246,12 @@ public static class FieldDatasetService
         }
     }
 
+    private static void RequireObject(JsonElement value, string name)
+    {
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new CoreDomainConflictException($"Field manifest {name} must be a JSON object.");
+    }
+
     private static JsonElement RequiredObject(JsonElement parent, string name)
     {
         if (!parent.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Object)
