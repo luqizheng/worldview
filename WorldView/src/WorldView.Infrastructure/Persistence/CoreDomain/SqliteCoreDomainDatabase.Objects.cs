@@ -600,8 +600,8 @@ public sealed partial class SqliteCoreDomainDatabase
                 ValidateGeometryPublicationContext(
                     transaction, plan.ProjectId, typeKey, canonicalPayload, desiredLinks, requireVerifiedAssets: true);
 
-                // Replace only the adopted geometry link purpose. Other explicitly typed
-                // definition link purposes are preserved for future descriptor extensions.
+                // The current Building/Cave typed schema owns only geometry_component links.
+                // Unknown/legacy roles have already failed validation above; do not reinterpret them.
                 using (var delete = connection.CreateCommand())
                 {
                     delete.Transaction = transaction;
