@@ -162,6 +162,9 @@ public sealed partial class SqliteCoreDomainDatabase
               AND NOT EXISTS (
                   SELECT 1 FROM core_object_definition_asset l
                   WHERE l.project_id = a.project_id AND l.asset_id = a.asset_id)
+              AND NOT EXISTS (
+                  SELECT 1 FROM core_map_field_revision fr
+                  WHERE fr.project_id = a.project_id AND fr.field_revision_asset_id = a.asset_id)
             ORDER BY a.asset_id;
             """;
         return _access.Execute(connection =>
