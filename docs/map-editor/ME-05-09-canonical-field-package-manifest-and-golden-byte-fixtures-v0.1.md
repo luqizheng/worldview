@@ -14,11 +14,11 @@ This package closes the design-level definition of the canonical manifest and su
 |---|---|
 | P2-09-34 JSON Schema V0.1 | Strict machine-readable manifest shape |
 | P2-09-35 Validation Vectors V0.1 | Positive/negative manifest and canonicalization cases |
-| `fixtures/field-package-v1/*.manifest.json` | Exact canonical manifest bytes embedded in each package |
+| `fixtures/field-package-v1/*.manifest.json` | Canonical manifest sidecars; directory name denotes WVFLDPK envelope major version 1, not a dual manifest schema |
 | `fixtures/field-package-v1/*.wvfld` | Raw binary golden packages |
 | `fixtures/field-package-v1/golden-fixtures.json` | Lengths, SHA-256 hashes, tile hashes and fixture inventory |
 
-The schema validates structure and basic value domains. The Field Descriptor Registry and Core Domain publication service remain responsible for descriptor compatibility, Map ownership, category semantics, coverage correctness and cross-record checks.
+The `field-package-v1` fixture directory name refers only to the WVFLDPK binary envelope major version 1.0; it does not indicate a second manifest compatibility track. The schema validates structure and basic value domains. The Field Descriptor Registry and Core Domain publication service remain responsible for descriptor compatibility, Map ownership, category semantics, coverage correctness and cross-record checks.
 
 ## 2. Canonicalization and manifest bytes
 
