@@ -224,14 +224,14 @@ public sealed class OpenProjectUseCase
                     database, canonical, identity.Identity.ProjectId, cancellationToken).ConfigureAwait(false);
                 if (payloadReport.MissingPayloadIds.Count > 0
                     || payloadReport.CorruptPayloadIds.Count > 0
-                    || payloadReport.OrphanContentHashes.Count > 0
+                    || payloadReport.CollectedOrphanContentHashes.Count > 0
                     || payloadReport.CleanedStagingFileCount > 0)
                 {
                     _log?.Warn(
                         "OpenProject",
                         $"Field Payload reconciliation: missing={payloadReport.MissingPayloadIds.Count}, "
                         + $"corrupt={payloadReport.CorruptPayloadIds.Count}, "
-                        + $"orphan-files-collected={payloadReport.OrphanContentHashes.Count}, "
+                        + $"orphan-files-collected={payloadReport.CollectedOrphanContentHashes.Count}, "
                         + $"staging-files-cleaned={payloadReport.CleanedStagingFileCount}.");
                 }
             }
