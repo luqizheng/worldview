@@ -165,6 +165,35 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.ManifestJson).HasColumnName("manifest_json").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.ProvenanceJson).HasColumnName("provenance_json").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.Property(x => x.FieldKey).HasColumnName("field_key").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.DescriptorSchemaVersion).HasColumnName("descriptor_schema_version").HasColumnType("INTEGER").HasDefaultValue(0);
+            entity.Property(x => x.SemanticsId).HasColumnName("semantics_id").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.Unit).HasColumnName("unit").HasColumnType("TEXT");
+            entity.Property(x => x.MapSpaceId).HasColumnName("map_space_id").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.SpatialReferenceId).HasColumnName("spatial_reference_id").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.CoordinatePrecisionProfileId).HasColumnName("coordinate_precision_profile_id").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.VerticalReferenceId).HasColumnName("vertical_reference_id").HasColumnType("TEXT");
+            entity.Property(x => x.GridWidth).HasColumnName("grid_width").HasColumnType("INTEGER").HasDefaultValue(0L);
+            entity.Property(x => x.GridHeight).HasColumnName("grid_height").HasColumnType("INTEGER").HasDefaultValue(0L);
+            entity.Property(x => x.GridTileWidth).HasColumnName("grid_tile_width").HasColumnType("INTEGER").HasDefaultValue(0);
+            entity.Property(x => x.GridTileHeight).HasColumnName("grid_tile_height").HasColumnType("INTEGER").HasDefaultValue(0);
+            entity.Property(x => x.GridOriginX).HasColumnName("grid_origin_x").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.GridOriginY).HasColumnName("grid_origin_y").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.GridSpacingX).HasColumnName("grid_spacing_x").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.GridSpacingY).HasColumnName("grid_spacing_y").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.GridAxisOrientation).HasColumnName("grid_axis_orientation").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.GridCellRegistration).HasColumnName("grid_cell_registration").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.CoverageMode).HasColumnName("coverage_mode").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.CoverageMaskPlaneName).HasColumnName("coverage_mask_plane_name").HasColumnType("TEXT");
+            entity.Property(x => x.MapEdgeSemantics).HasColumnName("map_edge_semantics").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.NoDataPolicy).HasColumnName("no_data_policy").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.NoDataMaskPlaneName).HasColumnName("no_data_mask_plane_name").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.NoDataValidValue).HasColumnName("no_data_valid_value").HasColumnType("INTEGER").HasDefaultValue(0);
+            entity.Property(x => x.NoDataInvalidValue).HasColumnName("no_data_invalid_value").HasColumnType("INTEGER").HasDefaultValue(0);
+            entity.Property(x => x.ValueProfileId).HasColumnName("value_profile_id").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.ValueProfileScope).HasColumnName("value_profile_scope").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.TileHashAlgorithm).HasColumnName("tile_hash_algorithm").HasColumnType("TEXT").IsRequired().HasDefaultValue("");
+            entity.Property(x => x.TileHashVersion).HasColumnName("tile_hash_version").HasColumnType("INTEGER").HasDefaultValue(0);
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId });
             entity.HasAlternateKey(x => new { x.ProjectId, x.FieldDatasetId, x.RevisionNumber });
             entity.HasIndex(x => new { x.ProjectId, x.FieldRevisionAssetId }).HasDatabaseName("ix_core_map_field_revision_asset");
@@ -178,6 +207,52 @@ internal static class CoreDomainV1ModelConfiguration
                 .HasForeignKey(x => new { x.ProjectId, x.FieldDatasetId, x.ParentRevisionId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.FieldDatasetId, x.FieldRevisionId })
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapFieldRevisionPlaneEntity>(entity =>
+        {
+            entity.ToTable("core_map_field_revision_plane", table =>
+            {
+                table.HasCheckConstraint("CK_core_map_field_revision_plane_ordinal", "ordinal >= 0");
+                table.HasCheckConstraint("CK_core_map_field_revision_plane_bytes", "bytes_per_cell > 0");
+            });
+            entity.HasKey(x => new { x.FieldRevisionId, x.Ordinal });
+            entity.Property(x => x.FieldRevisionId).HasColumnName("field_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.Ordinal).HasColumnName("ordinal").HasColumnType("INTEGER");
+            entity.Property(x => x.Name).HasColumnName("name").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.SampleFormat).HasColumnName("sample_format").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.BytesPerCell).HasColumnName("bytes_per_cell").HasColumnType("INTEGER");
+            entity.HasIndex(x => new { x.FieldRevisionId, x.Name }).IsUnique().HasDatabaseName("ux_core_map_field_revision_plane_name");
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany().HasForeignKey(x => x.FieldRevisionId)
+                .HasPrincipalKey(x => x.FieldRevisionId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapFieldRevisionCategoryCodeEntity>(entity =>
+        {
+            entity.ToTable("core_map_field_revision_category_code");
+            entity.HasKey(x => new { x.FieldRevisionId, x.CategoryKey });
+            entity.Property(x => x.FieldRevisionId).HasColumnName("field_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.CategoryKey).HasColumnName("category_key").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.CategoryCode).HasColumnName("category_code").HasColumnType("INTEGER");
+            entity.HasIndex(x => new { x.FieldRevisionId, x.CategoryCode }).IsUnique().HasDatabaseName("ux_core_map_field_revision_category_code_value");
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany().HasForeignKey(x => x.FieldRevisionId)
+                .HasPrincipalKey(x => x.FieldRevisionId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapFieldRevisionCodecEntity>(entity =>
+        {
+            entity.ToTable("core_map_field_revision_codec", table =>
+                table.HasCheckConstraint("CK_core_map_field_revision_codec_ordinal", "ordinal >= 0"));
+            entity.HasKey(x => new { x.FieldRevisionId, x.Ordinal });
+            entity.Property(x => x.FieldRevisionId).HasColumnName("field_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.Ordinal).HasColumnName("ordinal").HasColumnType("INTEGER");
+            entity.Property(x => x.CodecId).HasColumnName("codec_id").HasColumnType("INTEGER");
+            entity.Property(x => x.CodecName).HasColumnName("codec_name").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.Version).HasColumnName("version").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ParametersJson).HasColumnName("parameters_json").HasColumnType("TEXT").IsRequired();
+            entity.HasIndex(x => new { x.FieldRevisionId, x.CodecId }).IsUnique().HasDatabaseName("ux_core_map_field_revision_codec_id");
+            entity.HasOne<CoreMapFieldRevisionEntity>().WithMany().HasForeignKey(x => x.FieldRevisionId)
+                .HasPrincipalKey(x => x.FieldRevisionId).OnDelete(DeleteBehavior.NoAction);
         });
         CoreDomainV1AggregateModelConfiguration.Configure(modelBuilder);
     }

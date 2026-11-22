@@ -67,6 +67,64 @@ internal sealed class CoreMapFieldRevisionEntity
     public required string ManifestJson { get; set; }
     public required string ProvenanceJson { get; set; }
     public long CreatedAtUtcMs { get; set; }
+
+    // Typed immutable semantic snapshot. ManifestJson remains an interchange/diagnostic copy,
+    // not the source used to reconstruct Domain metadata.
+    public required string FieldKey { get; set; }
+    public int DescriptorSchemaVersion { get; set; }
+    public required string SemanticsId { get; set; }
+    public string? Unit { get; set; }
+    public required string MapSpaceId { get; set; }
+    public required string SpatialReferenceId { get; set; }
+    public required string CoordinatePrecisionProfileId { get; set; }
+    public string? VerticalReferenceId { get; set; }
+    public long GridWidth { get; set; }
+    public long GridHeight { get; set; }
+    public int GridTileWidth { get; set; }
+    public int GridTileHeight { get; set; }
+    public required string GridOriginX { get; set; }
+    public required string GridOriginY { get; set; }
+    public required string GridSpacingX { get; set; }
+    public required string GridSpacingY { get; set; }
+    public required string GridAxisOrientation { get; set; }
+    public required string GridCellRegistration { get; set; }
+    public required string CoverageMode { get; set; }
+    public string? CoverageMaskPlaneName { get; set; }
+    public required string MapEdgeSemantics { get; set; }
+    public required string NoDataPolicy { get; set; }
+    public required string NoDataMaskPlaneName { get; set; }
+    public int NoDataValidValue { get; set; }
+    public int NoDataInvalidValue { get; set; }
+    public required string ValueProfileId { get; set; }
+    public required string ValueProfileScope { get; set; }
+    public required string TileHashAlgorithm { get; set; }
+    public int TileHashVersion { get; set; }
+}
+
+internal sealed class CoreMapFieldRevisionPlaneEntity
+{
+    public Guid FieldRevisionId { get; set; }
+    public int Ordinal { get; set; }
+    public required string Name { get; set; }
+    public required string SampleFormat { get; set; }
+    public int BytesPerCell { get; set; }
+}
+
+internal sealed class CoreMapFieldRevisionCategoryCodeEntity
+{
+    public Guid FieldRevisionId { get; set; }
+    public required string CategoryKey { get; set; }
+    public int CategoryCode { get; set; }
+}
+
+internal sealed class CoreMapFieldRevisionCodecEntity
+{
+    public Guid FieldRevisionId { get; set; }
+    public int Ordinal { get; set; }
+    public int CodecId { get; set; }
+    public required string CodecName { get; set; }
+    public required string Version { get; set; }
+    public required string ParametersJson { get; set; }
 }
 
 /// <summary>EF persistence shape for an immutable project-scoped Spatial Reference definition.</summary>

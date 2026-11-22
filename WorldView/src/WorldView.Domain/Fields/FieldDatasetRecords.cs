@@ -27,7 +27,7 @@ public sealed record FieldRevisionRecord
     public required Guid FieldRevisionAssetId { get; init; }
     public required string ContentFingerprint { get; init; }
     public required string ManifestJson { get; init; }
-    /// <summary>Typed semantic projection; ManifestJson is transitional legacy storage.</summary>
+    /// <summary>Authoritative typed semantic projection; ManifestJson is retained for interchange/diagnostics.</summary>
     public FieldRevisionMetadata? Metadata { get; init; }
     public required string ProvenanceJson { get; init; }
     public required long CreatedAtUtcMs { get; init; }

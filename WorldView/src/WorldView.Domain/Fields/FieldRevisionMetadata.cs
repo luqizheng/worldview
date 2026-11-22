@@ -7,9 +7,9 @@ using System.Text.Json;
 namespace WorldView.Domain.Fields;
 
 /// <summary>
-/// Typed semantic projection of a validated Field Package manifest.
-/// This is the domain contract; JSON remains a transitional persistence/interchange input
-/// until the corresponding EF migration and backfill are generated and verified.
+/// Typed immutable Field Revision semantic metadata.
+/// It is built from a validated manifest on publication and persisted as relational scalar/child rows;
+/// ManifestJson remains an interchange/diagnostic copy, not the source for typed reads.
 /// </summary>
 public sealed record FieldRevisionMetadata
 {
