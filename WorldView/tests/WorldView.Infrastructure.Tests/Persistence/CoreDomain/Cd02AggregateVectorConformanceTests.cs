@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using WorldView.Domain.Aggregates;
+using WorldView.Domain.Registry;
 using Xunit;
 
 namespace WorldView.Infrastructure.Tests.Persistence.CoreDomain;
@@ -109,6 +110,30 @@ public sealed class Cd02AggregateVectorConformanceTests
             Assert.False((bool)v["expected_connectivity"]!);
         });
     }
+
+    [Fact]
+    public void UnsupportedKeywordInsideReferencedDefinition_FailsClosed()
+    {
+        using var schema = JsonDocument.Parse("""
+            {
+              "$defs": {
+                "node": {
+                  "type": "string",
+                  "unevaluatedProperties": false
+                }
+              },
+              "type": "object",
+              "properties": {
+                "value": { "$ref": "#/$defs/node" }
+              }
+            }
+            """);
+        using var instance = JsonDocument.Parse("""{"value":"ok"}""");
+
+        Assert.Throws<RegistryException>(
+            () => JsonSchemaSubset.Validate(schema.RootElement, instance.RootElement));
+    }
+
 
     // ---- RFC 6902 子集（add / remove / replace） ----
 
