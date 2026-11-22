@@ -17,9 +17,7 @@ internal sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> 
     {
         base.OnModelCreating(modelBuilder);
 
-        var guidToText = new ValueConverter<Guid, string>(
-            value => value.ToString("D"),
-            value => ParseCanonicalGuid(value));
+        var guidToText = CoreDomainValueConverters.GuidToText;
 
         modelBuilder.Entity<CoreProjectEntity>(entity =>
         {
@@ -74,7 +72,15 @@ internal sealed class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> 
         });
     }
 
-    private static Guid ParseCanonicalGuid(string value) =>
+}
+
+internal static class CoreDomainValueConverters
+{
+    internal static readonly ValueConverter<Guid, string> GuidToText = new(
+        value => value.ToString("D"),
+        value => ParseCanonicalGuid(value));
+
+    internal static Guid ParseCanonicalGuid(string value) =>
         Guid.TryParseExact(value, "D", out var parsed)
         && string.Equals(value, parsed.ToString("D"), StringComparison.Ordinal)
             ? parsed
