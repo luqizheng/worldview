@@ -234,7 +234,7 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 
 - **Scope:** formal Asset links now require Verified integrity; SQLite link insertion re-reads Object lifecycle, Asset state and registry role inside the same coordinated transaction; Building/Cave links require one matching owner geometry manifest entry (Asset ID + role + authoritative hash); Definition CAS cannot orphan or mutate an existing linked manifest.
 - **Registry:** JsonSchemaSubset now recursively checks $defs for unsupported keywords; a referenced-definition negative test was added.
-- **Tests:** added real-SQLite direct-adapter/service state tests and strengthened ME-04 manifest/link/CAS integration tests. GitHub Actions Debug + Release build/test workflow added; results pending.
+- **Tests:** added real-SQLite direct-adapter/service state tests and strengthened ME-04 manifest/link/CAS integration tests. GitHub Actions Windows + macOS Debug/Release build/test matrix added; results pending.
 - **Schema correction:** 10 migrations create 16 tables, not 14 (CD-01 six + CD-02-B eight + CD-02-D two).
 - **Limitations:** Verified is still set through a persistence port; end-to-end IAssetStore byte verification must be wired before treating it as a trusted publication pipeline. Typed manifest/link transaction enforcement currently covers Building/Cave aggregate descriptors; simple types need a separately decided typed geometry payload contract.
 - **Report:** [CD-02-G1 Asset / Geometry Integrity Hardening Report V0.1](../core-domain/CD-02-G1_ASSET_GEOMETRY_INTEGRITY_HARDENING_REPORT_v0.1.md). Acceptance awaits CI.
