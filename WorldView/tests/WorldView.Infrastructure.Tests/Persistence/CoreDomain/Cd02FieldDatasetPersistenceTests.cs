@@ -99,7 +99,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 planes,
             };
 
-        return CanonicalJson.Canonicalize(System.Text.Json.JsonSerializer.Serialize(new
+        return FieldManifestCanonicalizer.Canonicalize(System.Text.Json.JsonSerializer.Serialize(new
         {
             byte_order = "little_endian",
             canonicalization = "RFC8785-JCS-UTF8",
@@ -240,8 +240,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
         Assert.Equal(canonical, CanonicalJson.Canonicalize(canonical));
         Assert.Equal(
-            CanonicalJson.Canonicalize("{\"z\":1,\"a\":2}"),
-            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+            FieldManifestCanonicalizer.Canonicalize("{\"z\":1,\"a\":2}"),
+            FieldManifestCanonicalizer.Canonicalize("{\"a\":2,\"z\":1}"));
     }
 
     [Fact]
@@ -537,7 +537,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void PublishedValidationVector_Mnf023CanonicalizationIsIdempotent()
     {
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
-        Assert.Equal(manifest, CanonicalJson.Canonicalize(manifest));
+        Assert.Equal(manifest, FieldManifestCanonicalizer.Canonicalize(manifest));
     }
 
     [Fact]
