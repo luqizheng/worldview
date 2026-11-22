@@ -134,6 +134,46 @@ public sealed class FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
+    public void PublishRevision_StaleExpectedCurrentRejectedAcrossIndependentConnections()
+    {
+        var (projectId, mapId, _) = SeedProjectAndMaps();
+        var asset1 = RegisterVerifiedAsset(projectId, "shared file v1");
+        var asset2 = RegisterVerifiedAsset(projectId, "shared file v2");
+        var firstCore = Core();
+        var first = FieldDatasetService.PublishRevision(
+            firstCore, projectId, mapId, "elevation", asset1,
+            Manifest("elevation", "world-view.field.elevation.v1"), Provenance("imported"), null, Now + 5);
+
+        var secondDatabase = (SqlitePackageDatabase)new SqlitePackageDatabaseFactory()
+            .CreateForFile(Path.Combine(_root, "project.sqlite"));
+        secondDatabase.OpenAsync().GetAwaiter().GetResult();
+        try
+        {
+            var bootstrap = _bootstrapper.ValidateExistingDatabaseAsync(secondDatabase).GetAwaiter().GetResult();
+            Assert.True(bootstrap.Success);
+            var secondCore = new SqliteCoreDomainDatabase(secondDatabase);
+
+            var winner = FieldDatasetService.PublishRevision(
+                firstCore, projectId, mapId, "elevation", asset2,
+                Manifest("elevation", "world-view.field.elevation.v1"), Provenance("authored"),
+                first.FieldRevisionId, Now + 6);
+
+            Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(
+                secondCore, projectId, mapId, "elevation", asset1,
+                Manifest("elevation", "world-view.field.elevation.v1"), Provenance("authored"),
+                first.FieldRevisionId, Now + 7));
+
+            Assert.Equal(winner.FieldRevisionId,
+                secondCore.FindCurrentFieldRevision(projectId, mapId, "elevation")!.FieldRevisionId);
+            Assert.Equal(2, secondCore.ListFieldRevisions(projectId, first.FieldDatasetId).Count);
+        }
+        finally
+        {
+            secondDatabase.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    [Fact]
     public void SameAssetAcrossMaps_CreatesIndependentDatasetAuthorities()
     {
         var (projectId, mapA, mapB) = SeedProjectAndMaps();
