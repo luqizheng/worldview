@@ -225,6 +225,32 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             core.BindMapSpatialReference(project.ProjectId, mapId, "another:reference", Now + 3));
     }
 
+    [Theory]
+    [InlineData("map-space")]
+    [InlineData("spatial-reference")]
+    [InlineData("precision-profile")]
+    [InlineData("vertical-reference")]
+    public void PublishRevision_RejectsSpatialIdentityThatDoesNotMatchMapOwner(string mismatch)
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var manifest = BuildManifest("elevation", "world-view.field.elevation.v1");
+        manifest = mismatch switch
+        {
+            "map-space" => manifest.Replace("fixture-map-space-001", "another-map-space"),
+            "spatial-reference" => manifest.Replace("fixture:local-cartesian-v1", "another:spatial-reference"),
+            "precision-profile" => manifest.Replace("fixture:coordinate-precision-v1", "another:precision-profile"),
+            "vertical-reference" => manifest.Replace("fixture:vertical-reference-local-v1", "another:vertical-reference"),
+            _ => throw new ArgumentOutOfRangeException(nameof(mismatch)),
+        };
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
     [Fact]
     public void PublishRevision_CreatesDatasetThenAppendsImmutableLineage()
     {
