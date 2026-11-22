@@ -7,7 +7,7 @@ using WorldView.Application.Bootstrap;
 
 namespace WorldView.Application.Tests;
 
-/// <summary>包数据库测试替身：内存元数据/ledger，可注入失败与销毁顺序记录。</summary>
+/// <summary>包数据库测试替身：内存 Bootstrap 元数据，可注入失败与销毁顺序记录。</summary>
 public sealed class FakePackageDatabase : IPackageDatabase
 {
     private readonly object _gate = new();
