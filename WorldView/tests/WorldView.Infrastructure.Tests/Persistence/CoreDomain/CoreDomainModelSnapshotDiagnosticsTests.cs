@@ -21,8 +21,9 @@ public sealed class CoreDomainModelSnapshotDiagnosticsTests
         using var context = new CoreDomainDbContext(options);
         var migrationsAssembly = context.GetService<IMigrationsAssembly>();
         var snapshot = Assert.IsType<CoreDomainDbContextModelSnapshot>(migrationsAssembly.ModelSnapshot);
-        var snapshotModel = snapshot.Model;
-        var runtimeModel = context.GetService<IDesignTimeModel>().Model;
+        var snapshotModel = context.GetService<IModelRuntimeInitializer>()
+            .Initialize(snapshot.Model, designTime: true);
+        var runtimeModel = context.Model;
         var differ = context.GetService<IMigrationsModelDiffer>();
 
         var differences = differ.GetDifferences(
