@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Objects;
+using WorldView.Domain.Maps;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
@@ -49,8 +50,17 @@ public sealed partial class SqliteCoreDomainDatabase
             using var transaction = db.Database.BeginTransaction();
             try
             {
-                if (!db.Maps.Any(x => x.ProjectId == plan.ProjectId && x.MapId == plan.MapId))
-                    throw new CoreDomainConflictException("目标 Map 不存在或不属于当前 Project。");
+                var mapEntity = db.Maps.SingleOrDefault(x => x.ProjectId == plan.ProjectId && x.MapId == plan.MapId)
+                    ?? throw new CoreDomainConflictException("目标 Map 不存在或不属于当前 Project。");
+                if (string.IsNullOrWhiteSpace(mapEntity.SpatialReferenceId))
+                    throw new CoreDomainConflictException("Map 尚未绑定 Spatial Reference，不能发布 Field Revision。");
+                var spatialReferenceEntity = db.SpatialReferences.SingleOrDefault(x =>
+                    x.ProjectId == plan.ProjectId && x.SpatialReferenceId == mapEntity.SpatialReferenceId)
+                    ?? throw new CoreDomainConflictException("Map 的 Spatial Reference 定义不存在或不属于当前 Project。");
+                if (plan.Metadata is null)
+                    throw new CoreDomainConflictException("Field Revision publication 必须携带经 Domain 验证的 typed metadata。");
+                SpatialReferenceRules.ValidateFieldOwnerContext(
+                    MapMap(mapEntity), MapSpatialReference(spatialReferenceEntity), plan.Metadata);
 
                 var asset = db.Assets.SingleOrDefault(x =>
                     x.ProjectId == plan.ProjectId && x.AssetId == plan.FieldRevisionAssetId);
