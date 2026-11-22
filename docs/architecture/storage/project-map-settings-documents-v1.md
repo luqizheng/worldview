@@ -59,12 +59,14 @@ Rules:
 
 ## 4. Version and ownership model
 
-Use two revision tables and one current-version reference on each owner:
+Use two immutable revision tables and two small current-reference tables:
 
 - core_project_settings_revision: immutable Project Settings versions.
 - core_map_settings_revision: immutable Map Settings versions.
-- core_project.current_settings_revision_id: nullable FK to a revision owned by the same Project.
-- core_map.current_settings_revision_id: nullable FK to a revision owned by the same Map and Project.
+- core_project_settings_current: zero-or-one current revision reference per Project.
+- core_map_settings_current: zero-or-one current revision reference per Map.
+
+The current-reference tables are the authoritative current pointers. Keeping them separate avoids adding settings-specific nullable columns to the Project and Map identity rows while retaining composite owner FKs.
 
 Each revision row contains:
 
@@ -84,9 +86,10 @@ Required relational invariants:
 - Unique (project_id, map_id, version) for Map Settings.
 - Composite foreign keys ensure Map Settings belongs to a Map in the same Project.
 - Composite current-reference foreign keys ensure a Project or Map cannot point at another owner's revision.
-- Current reference is either null or references exactly one revision belonging to that owner.
-- Revision rows are immutable after insert. A new save inserts a new revision and changes only the owner's current reference in one SQLite transaction.
-- No separate is_current flag is stored on revision rows; the owner pointer is the single current-version authority.
+- Each current-reference table has the owner identity as its primary key and a composite FK to a revision belonging to that same owner.
+- A missing current-reference row means the owner has not saved settings yet; a present row references exactly one revision.
+- Revision rows are immutable after insert. A new save inserts a new revision and inserts/updates the owner's current-reference row in one SQLite transaction.
+- No is_current flag is stored on revision rows; the dedicated current-reference row is the single current-version authority.
 
 A project/map may initially have no settings revision. The first save creates version 1.
 
