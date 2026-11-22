@@ -46,7 +46,7 @@ public sealed class FieldPayloadFileStoreTests : IDisposable
         var second = await store.PutAsync(new MemoryStream(bytes));
 
         Assert.Equal(first, second);
-        Assert.Single(Directory.GetFiles(store.RootPath, "*.tmp"));
+        Assert.Empty(Directory.GetFiles(store.RootPath, ".staging-*.tmp"));
     }
 
     [Fact]
