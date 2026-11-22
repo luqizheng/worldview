@@ -1,7 +1,7 @@
 # World View — 实施与工程状态记录
 
 - **更新**：2026-11-22
-- **状态**：CD-02-B 至 CD-02-G 已提交；CD-02-G1 与 CD-02-G2 Asset/Geometry integrity hardening 已实现，G2 head `f0c3ca0` 的 Windows/macOS Debug/Release CI 全部通过（393/393 each）；PR #1 保持 open，G2 PR #2 为 draft，均未合并
+- **状态**：CD-02-B 至 CD-02-G 已提交；CD-02-G1 与 CD-02-G2 Asset/Geometry integrity hardening 已实现；PR #1–#7 均保持 open、未合并。Provider/Geometry follow-up CI：PR #4 386/386、PR #5 389/389、PR #6 402/402、PR #7 397/397，均已通过 Windows/macOS Debug/Release；PR #3 文档修订 CI 正在运行。PR #7 仍需在 G2 Verified-evidence 接口上 rebase 并修正测试 fixture 后才可进入集成验收。
 - **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.4.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
@@ -250,3 +250,13 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Security boundary:** `AssetVerificationEvidence` is a consistency-checked application/persistence DTO, not a cryptographic attestation. Arbitrary malicious in-process code with direct database-port access could fabricate matching values. The API prevents accidental/unqualified Verified writes and stale/mismatched evidence; it does not claim an OS/process security boundary.
 - **Operational boundary:** byte verification is an explicit use case; registering metadata does not silently scan bytes. Asset Store read errors other than a missing-content result propagate and do not falsely mark the Asset.
 - **Status:** G2 implementation and platform CI verified. Draft PR #2 remains open and unmerged pending review.
+
+
+## 2026-11-22 CD-02-G3 / P2-09-12 follow-up
+
+- **PR #3 — Architecture reconciliation:** Geometry Manifest and provider-proof gap assessment; adds the P2-09-12 V0.8 amendment. The amendment aligns TX-04/TX-31 with CD-01-F1's already-selected single-connection-per-ProjectSession model. V1 reads serialize behind writes; coherent multi-query reads use `InSnapshotScope`. A deterministic writer-held/read-blocked test remains required before TX-31 is closed.
+- **PR #4 — Provider proof:** current package connections prove FK enforcement and bounded external-writer-lock failure. Exact head `d603afde`: Windows/macOS Debug/Release 386/386. TX-32 remains partial because automatic retry is intentionally absent until stable operation/idempotency keys exist.
+- **PR #5 — Geometry Manifest identity:** reject empty component/Asset GUIDs; add owner-snapshot cardinality, combined minimum and duplicate component identity validation. Exact head `02299c52`: Windows/macOS Debug/Release 389/389.
+- **PR #6 — JSON Schema conditionals:** implement bounded `if/then/else/not` support and canonical Field Package manifest fixture conformance. Exact head `0b1e42d8`: Windows/macOS Debug/Release 402/402. Does not implement Field Dataset persistence.
+- **PR #7 — Atomic Building/Cave publication:** complete Definition + distinct `geometry_component` typed Asset-link set commits in one coordinated SQLite transaction; includes CAS, failure injection rollback, initial-creation bypass closure and recovery from a previously Corrupt linked Asset. Exact head `a8d31f9a`: Windows/macOS Debug/Release 397/397. This branch is based on PR #5 and pre-G2 interfaces; do not merge before G2 integration. Replace test-only direct Verified mutation with `VerifyAssetIntegrityUseCase`/evidence path during rebase.
+- **Non-claims:** these PRs do not implement AI Assistant persistence/Application Commit Coordinator, shared Core+AI transaction, Command persistence, process-crash reconciliation, WAL backup/restore, Field Dataset/Revision persistence or packaged desktop native SQLite validation. All PRs remain unmerged.
