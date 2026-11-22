@@ -215,7 +215,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
-        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
     }
 
