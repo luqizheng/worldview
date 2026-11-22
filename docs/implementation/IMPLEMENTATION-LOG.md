@@ -1,7 +1,7 @@
 # World View — 实施与工程状态记录
 
 - **更新**：2026-11-22
-- **状态**：CD-02-B 至 CD-02-G 已提交；CD-02-G1 Asset/Geometry integrity hardening 已实现，当前 PR head 的 Windows/macOS Debug/Release CI 全部通过；PR #1 待审查
+- **状态**：CD-02-B 至 CD-02-G 已提交；CD-02-G1 与 CD-02-G2 Asset/Geometry integrity hardening 已实现，G2 head `f0c3ca0` 的 Windows/macOS Debug/Release CI 全部通过（393/393 each）；PR #1 保持 open，G2 PR #2 为 draft，均未合并
 - **当前 Map Editor 工作计划**：ME-01-work-plan-and-document-status-v1.4.md
 - **权威工程目录**：`WorldView/`
 - **权威项目文档目录**：仓库根 `docs/`
@@ -54,7 +54,7 @@ ADR-0001 记录初始化阶段的构建与测试结果。该历史记录不应�
 | 层次 | 状态 | 说明 |
 |---|---|---|
 | 工程骨架 | 已提交 | Solution、项目分层、DI/MVVM 示例与测试项目 |
-| 正式 Core Domain 实现 | CD-02-B 至 CD-02-G 已实现（Object/Initial State/Registry/Asset/Geometry/Building-Cave + ME 领域 API 证明） | CD-02 Final Report；当前补强见 CD-02-G1 条目 |
+| 正式 Core Domain 实现 | CD-02-B 至 CD-02-G 已实现（Object/Initial State/Registry/Asset/Geometry/Building-Cave + ME 领域 API 证明）；G1/G2 integrity hardening 已交付 | CD-02 Final Report、CD-02-G1/G2 reports；G2 CI run 44975176429：Windows/macOS Debug/Release 393/393 each |
 | 持久化实现 | 已实现（SQLite 迁移 001–010，共 16 张表 + 统一连接协调器） | CD-01/CD-01-F1/CD-02-B/CD-02-D；示例内存 Repository 仅为工程分层验证 |
 | 地图编辑器 UI | 尚未在当前工程骨架中体现 | Avalonia 主窗口为工程启动示例，不是 ME-01/ME-02 产品界面 |
 | 地图渲染与空间计算 | 尚未在当前工程骨架中体现 | 技术评估与服务契约仍待完成 |
@@ -239,3 +239,14 @@ H-G01 产品/领域语义门槛已关闭；H-G01-I 仍是正式 field publicatio
 - **Limitations:** Verified is still set through a persistence port; end-to-end IAssetStore byte verification must be wired before treating it as a trusted publication pipeline. Typed manifest/link transaction enforcement currently covers Building/Cave aggregate descriptors; simple types need a separately decided typed geometry payload contract.
 - **Report:** [CD-02-G1 Asset / Geometry Integrity Hardening Report V0.1](../core-domain/CD-02-G1_ASSET_GEOMETRY_INTEGRITY_HARDENING_REPORT_v0.1.md). Implementation and configured Windows/macOS CI verification passed; PR #1 remains open for review. Remaining limitations above are not represented as closed.
 
+
+
+## 2026-11-22 CD-02-G2 Asset byte verification
+
+- **Implementation:** `VerifyAssetIntegrityUseCase` reads the current immutable Asset Store bytes, computes SHA-256 and byte length, and records Verified / Missing / Corrupt outcomes.
+- **Persistence boundary:** the unrestricted `UpdateAssetIntegrityState` operation was removed. `RecordAssetIntegrityFailure` accepts only Corrupt/Missing. `MarkAssetVerified` requires expected/actual hash and byte-length evidence, re-reads the current Asset row and validates the evidence inside the same SQLite write transaction.
+- **Negative coverage:** inconsistent evidence, stale expected metadata, and attempts to set Verified through the failure API are rejected; existing test doubles and Asset integration tests use the constrained contract.
+- **CI evidence:** head `f0c3ca01e3c97427dc6191ac498e51d4620c317e`; run `44975176429`. Windows and macOS each passed Debug build/test and Release build/test. Each test configuration reported 393 passed, 0 failed, 0 skipped.
+- **Security boundary:** `AssetVerificationEvidence` is a consistency-checked application/persistence DTO, not a cryptographic attestation. Arbitrary malicious in-process code with direct database-port access could fabricate matching values. The API prevents accidental/unqualified Verified writes and stale/mismatched evidence; it does not claim an OS/process security boundary.
+- **Operational boundary:** byte verification is an explicit use case; registering metadata does not silently scan bytes. Asset Store read errors other than a missing-content result propagate and do not falsely mark the Asset.
+- **Status:** G2 implementation and platform CI verified. Draft PR #2 remains open and unmerged pending review.
