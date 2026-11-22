@@ -67,11 +67,11 @@ P2-09-31 FDV-004 and FDV-005 explicitly require missing unit and missing vertica
 
 However, P2-09-34 V0.1's strict manifest schema has no `unit` or `vertical_reference_id` property in the `field`, `spatial` or `value_encoding` objects. The two ME-05-09 golden manifests also omit them. The schema's `additionalProperties: false` means these fields cannot simply be added by an implementation without a schema revision.
 
-**Recommendation:** add `unit` and `vertical_reference_id` to the `field` object in a new canonical manifest schema version, with conditional rules:
-- `elevation`: both required; unit is `m` or `ft`; vertical reference is a stable non-empty ID.
+**Recommendation:** resolve this with one explicit authority, not an implicit profile convention. Preferred option is to add `unit` and `vertical_reference_id` to the `field` object in a new canonical manifest schema version, with conditional rules:
+- `elevation`: unit required (`m` or `ft`); vertical reference required as a stable non-empty ID.
 - `land_water`: both prohibited.
 
-Update the golden manifests, canonical bytes, package fixtures and MNF/FDV vectors in the same revision. Do not hide these semantics inside a fixture-only `value_encoding.profile_id`.
+If vertical reference is intended to be owned by Map Space rather than the Field Package, then revise ME-05-01 and P2-09-30 so the descriptor no longer claims a manifest-level vertical-reference field, and make FDV-005 validate the target Map Space's vertical-reference authority instead. In either case, update the golden manifests, canonical bytes, package fixtures and MNF/FDV vectors in the same revision. Do not hide these semantics inside a fixture-only `value_encoding.profile_id`.
 
 ### 3.2 Provenance ownership is ambiguous
 
