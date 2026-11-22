@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using WorldView.Domain.Aggregates;
+using WorldView.Domain.Assets;
 using Microsoft.Data.Sqlite;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
@@ -491,7 +495,31 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
-                ValidateExistingDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId, canonicalPayload);
+                var typeKey = ReadObjectTypeKey(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                var descriptor = ObjectTypeRegistry.Require(typeKey);
+                ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
+                if (descriptor.HasTypedAggregateSchema)
+                {
+                    if (!string.Equals(
+                        ReadGeometryComponents(current.DefinitionPayloadJson),
+                        ReadGeometryComponents(canonicalPayload),
+                        StringComparison.Ordinal))
+                    {
+                        throw new CoreDomainConflictException(
+                            "Building/Cave geometry_components 变更必须通过 PublishObjectDefinitionWithGeometryAssets 原子发布。");
+                    }
+
+                    var currentLinks = ReadDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                    ValidateGeometryPublicationContext(
+                        transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks);
+                    ValidateGeometryPublicationContext(
+                        transaction, plan.ProjectId, typeKey, canonicalPayload, currentLinks);
+                }
+                else
+                {
+                    ValidateExistingDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId, canonicalPayload);
+                }
+
                 using var update = connection.CreateCommand();
                 update.Transaction = transaction;
                 update.CommandText = """
@@ -518,6 +546,246 @@ public sealed partial class SqliteCoreDomainDatabase
                 throw;
             }
         });
+    }
+
+    public void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan)
+    {
+        _access.Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                var identity = ReadObjectRow(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+                {
+                    throw new CoreDomainConflictException(
+                        $"身份 {plan.ObjectIdentityId} 处于 {identity.LifecycleStatus} 状态；仅 active Object 可发布 Geometry Definition。");
+                }
+
+                ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
+                var typeKey = ReadObjectTypeKey(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                var descriptor = ObjectTypeRegistry.Require(typeKey);
+                if (!descriptor.HasTypedAggregateSchema)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object Type {typeKey} 没有 typed Geometry Component owner schema，拒绝原子 Geometry Asset 发布。");
+                }
+
+                var current = TryReadDefinitionRow(transaction, plan.ProjectId, plan.ObjectIdentityId)
+                    ?? throw new CoreDomainDataException(
+                        $"active Object {plan.ObjectIdentityId} 缺少定义行（数据损坏，R-定义单行）。");
+                if (!string.Equals(current.DefinitionHash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainConflictException("定义 CAS 冲突：expected hash 与当前定义不匹配。");
+                }
+
+                var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+                ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
+
+                // Refuse to silently repair or reinterpret an existing partial/legacy link set.
+                var currentLinks = ReadDefinitionAssetLinks(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                ValidateGeometryPublicationContext(
+                    transaction, plan.ProjectId, typeKey, current.DefinitionPayloadJson, currentLinks);
+
+                var desiredAssets = ReadGeometryAssetMap(canonicalPayload);
+                var desiredLinks = desiredAssets.Keys
+                    .Select(assetId => (AssetId: assetId.ToString("D"), Role: "geometry_component"))
+                    .ToArray();
+                ValidateGeometryPublicationContext(
+                    transaction, plan.ProjectId, typeKey, canonicalPayload, desiredLinks);
+
+                // Replace only the adopted geometry link purpose. Other explicitly typed
+                // definition link purposes are preserved for future descriptor extensions.
+                using (var delete = connection.CreateCommand())
+                {
+                    delete.Transaction = transaction;
+                    delete.CommandText = """
+                        DELETE FROM core_object_definition_asset
+                        WHERE project_id = $projectId
+                          AND object_identity_id = $identityId
+                          AND role = 'geometry_component';
+                        """;
+                    delete.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
+                    delete.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
+                    delete.ExecuteNonQuery();
+                }
+
+                foreach (var assetId in desiredAssets.Keys.OrderBy(id => id))
+                {
+                    using var insertLink = connection.CreateCommand();
+                    insertLink.Transaction = transaction;
+                    insertLink.CommandText = """
+                        INSERT INTO core_object_definition_asset
+                            (object_definition_asset_id, project_id, object_identity_id, asset_id, role, created_at_utc_ms)
+                        VALUES ($linkId, $projectId, $identityId, $assetId, 'geometry_component', $createdAt);
+                        """;
+                    insertLink.Parameters.AddWithValue("$linkId", Uuid(Guid.NewGuid()));
+                    insertLink.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
+                    insertLink.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
+                    insertLink.Parameters.AddWithValue("$assetId", Uuid(assetId));
+                    insertLink.Parameters.AddWithValue("$createdAt", plan.NowUtcMs);
+                    insertLink.ExecuteNonQuery();
+                }
+
+                using var update = connection.CreateCommand();
+                update.Transaction = transaction;
+                update.CommandText = """
+                    UPDATE core_object_definition
+                    SET definition_schema_version = $schemaVersion,
+                        definition_payload_json = $payload,
+                        definition_hash = $hash,
+                        updated_at_utc_ms = $now
+                    WHERE project_id = $projectId AND object_identity_id = $identityId;
+                    """;
+                update.Parameters.AddWithValue("$schemaVersion", plan.DefinitionSchemaVersion);
+                update.Parameters.AddWithValue("$payload", canonicalPayload);
+                update.Parameters.AddWithValue("$hash", definitionHash);
+                update.Parameters.AddWithValue("$now", plan.NowUtcMs);
+                update.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
+                update.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
+                if (update.ExecuteNonQuery() != 1)
+                {
+                    throw new CoreDomainDataException("Definition 原子发布未能更新唯一 owner 行。");
+                }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
+
+    private static string ReadObjectTypeKey(SqliteTransaction transaction, Guid projectId, Guid objectIdentityId)
+    {
+        using var command = transaction.Connection!.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT t.type_key
+            FROM core_object o
+            JOIN core_object_type t
+              ON t.project_id = o.project_id AND t.object_type_id = o.object_type_id
+            WHERE o.project_id = $projectId AND o.object_identity_id = $identityId;
+            """;
+        command.Parameters.AddWithValue("$projectId", Uuid(projectId));
+        command.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
+        return command.ExecuteScalar() as string
+            ?? throw new CoreDomainDataException($"Object {objectIdentityId} 的 Object Type 缺失（数据损坏）。");
+    }
+
+    private static string ReadGeometryComponents(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        return document.RootElement.TryGetProperty("geometry_components", out var components)
+            ? components.GetRawText()
+            : "null";
+    }
+
+    private static Dictionary<Guid, string> ReadGeometryAssetMap(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        if (!document.RootElement.TryGetProperty("geometry_components", out var components)
+            || components.ValueKind != JsonValueKind.Array)
+        {
+            throw new CoreDomainConflictException("typed Geometry Definition 缺少 geometry_components 数组。");
+        }
+
+        var assets = new Dictionary<Guid, string>();
+        foreach (var component in components.EnumerateArray())
+        {
+            if (!component.TryGetProperty("asset_id", out var assetElement)
+                || assetElement.ValueKind != JsonValueKind.String
+                || !Guid.TryParseExact(assetElement.GetString(), "D", out var assetId)
+                || !component.TryGetProperty("content_hash", out var hashElement)
+                || hashElement.ValueKind != JsonValueKind.String
+                || !AssetRules.IsSha256Hex(hashElement.GetString()!))
+            {
+                throw new CoreDomainConflictException("Geometry Component 的 asset_id/content_hash 格式非法。");
+            }
+
+            var contentHash = hashElement.GetString()!;
+            if (assets.TryGetValue(assetId, out var existingHash))
+            {
+                if (!string.Equals(existingHash, contentHash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} 被同一 owner 的多个 Geometry Component 固定到不同 content_hash。");
+                }
+            }
+            else
+            {
+                assets.Add(assetId, contentHash);
+            }
+        }
+
+        return assets;
+    }
+
+    private static IReadOnlyList<(string AssetId, string Role)> ReadDefinitionAssetLinks(
+        SqliteTransaction transaction, Guid projectId, Guid objectIdentityId)
+    {
+        using var command = transaction.Connection!.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT asset_id, role
+            FROM core_object_definition_asset
+            WHERE project_id = $projectId AND object_identity_id = $identityId
+            ORDER BY asset_id, role;
+            """;
+        command.Parameters.AddWithValue("$projectId", Uuid(projectId));
+        command.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
+        using var reader = command.ExecuteReader();
+        var links = new List<(string AssetId, string Role)>();
+        while (reader.Read())
+        {
+            links.Add((reader.GetString(0), reader.GetString(1)));
+        }
+
+        return links;
+    }
+
+    private void ValidateGeometryPublicationContext(
+        SqliteTransaction transaction,
+        Guid projectId,
+        string typeKey,
+        string payloadJson,
+        IReadOnlyList<(string AssetId, string Role)> links)
+    {
+        var assets = ReadGeometryAssetMap(payloadJson);
+        var catalog = new List<(string AssetId, string ContentHash)>();
+        foreach (var assetId in assets.Keys)
+        {
+            var asset = TryReadAssetRow(transaction, projectId, assetId);
+            if (asset is null)
+            {
+                continue; // Aggregate validator emits the stable missing-Asset issue.
+            }
+
+            if (asset.IntegrityState != AssetIntegrityState.Verified)
+            {
+                throw new CoreDomainConflictException(
+                    $"Asset {assetId} integrity_state is {asset.IntegrityState}; only Verified Assets can be published in a formal Geometry Definition.");
+            }
+
+            catalog.Add((asset.AssetId.ToString("D"), asset.ContentHash));
+        }
+
+        var issues = BuildingCaveAggregateValidator.Validate(
+            typeKey,
+            payloadJson,
+            new AggregatePublicationContext
+            {
+                AssetLinks = links,
+                AssetCatalog = catalog,
+            });
+        if (issues.Count > 0)
+        {
+            throw new CoreDomainConflictException(
+                "Geometry Definition publication validation failed: "
+                + string.Join("; ", issues.Select(issue => $"{issue.ErrorCode}: {issue.Message}")));
+        }
     }
 
     // ---- Map 注册（P2 存在层） ----
