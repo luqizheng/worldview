@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-ME-05-07 establishes one seekable immutable package Asset per Field Revision. This document specifies a small byte-level V1 envelope so a reader can locate and validate one tile without decoding unrelated tiles.
+ME-05-07 establishes the Field Package as a portable import/export interchange artifact, not the runtime persistence authority. SQLite owns Field Dataset/Revision metadata and Field Payload metadata; raw bytes live in SQLite BLOB or package-managed files. This document specifies a small byte-level V1 envelope so an interchange reader can locate and validate one tile without decoding unrelated tiles.
 
 The format is a World View-owned binary container, not a GIS interchange format. It does not select a production compression codec, elevation numeric width, or a raster/GIS library.
 
@@ -40,7 +40,7 @@ All offsets are absolute byte offsets from the beginning of the package. All fix
 | 56 | 8 | payload_offset | 8-byte aligned; after directory |
 | 64 | 8 | package_length | Exact physical file length |
 
-The header has no embedded self-hash. The complete Core Asset content hash covers the header and every subsequent byte. This avoids a self-referential hash field.
+The header has no embedded self-hash. The complete interchange-package digest covers the header and every subsequent byte. This avoids a self-referential hash field; it is not stored as a Core Asset reference.
 
 ### 2.2 Canonical manifest
 
@@ -59,7 +59,7 @@ Required logical groups:
 - tile-hash algorithm identity/version;
 - canonicalization and byte-order declarations.
 
-Field Dataset ID, Field Revision ID and Core Asset ID remain authoritative in Core Domain owner metadata. They may be repeated as diagnostic manifest fields only if the reader verifies equality; they do not become package-owned identities. The package hash is stored in Core Asset metadata and must not be embedded in the manifest because that would be self-referential.
+Field Dataset ID, Field Revision ID and Field Payload ID remain authoritative in Core Domain metadata. They are not package-owned identities and are not required in the interchange manifest. The package hash is stored in Core Asset metadata and must not be embedded in the manifest because that would be self-referential.
 
 The manifest does not contain tile byte offsets. Those belong only to the tile directory.
 
@@ -132,20 +132,20 @@ A reader must validate before exposing tile data:
 7. Validate canonical tile ordering, unique coordinates, expected grid coverage, edge dimensions and codec references.
 8. Validate every payload range, alignment, non-overlap and decoded-length bound before allocating decode buffers.
 9. On tile read, decode only the requested tile and verify tile_hash before returning samples.
-10. At publication/import integrity verification, stream the complete package and compare its exact byte hash with the Core Asset content hash.
+10. At import/export verification, stream the complete package and compare its exact byte hash with the expected interchange digest. On import, unpacked Field Payload bytes are independently verified against the authoritative SQLite hash/length metadata.
 
 Integer overflow, truncation, invalid ranges, decompression-size excess, unknown required flags or incompatible codecs are typed package errors. They must never cause a fallback value to be returned.
 
 ## 6. Writer and immutable publication
 
 - The writer first creates a temporary package and streams the manifest, directory and tile blocks in canonical order.
-- It computes tile hashes over canonical decoded tile bytes and the Core Asset hash over the complete final package bytes.
+- It computes tile hashes over canonical decoded tile bytes and the interchange-package hash over the complete final package bytes.
 - It writes zero alignment padding and finalizes the header only after all offsets and lengths are known.
 - It reopens the temporary package with the production reader and validates every tile before Asset publication.
-- It then publishes the immutable package file using the Core Asset Store protocol.
-- The short SQLite transaction inserts Field Revision metadata and typed Asset ownership and advances the current pointer by compare-and-swap.
-- A failed transaction leaves an unreferenced immutable Asset for safe orphan reconciliation; it does not create a formal Field Revision.
-- A published package is never patched in place. Any correction creates a new package and Field Revision.
+- It exposes the completed package as an export artifact; the package file is not registered as a runtime Core Asset or used as the Field byte-storage authority.
+- On import, the reader validates the package envelope, manifest and requested tile bytes, then publishes the decoded/raw Field Payload through the Field Payload storage adapter and the authoritative SQLite Field Revision transaction.
+- A failed import DB transaction may leave an unreferenced ManagedFile payload; the Field Payload reconciler handles it as an orphan. It does not create a formal Field Revision.
+- An exported package is an immutable interchange artifact for that export operation; correcting source data creates a new Field Revision and a newly generated package.
 
 ## 7. Versioning
 
