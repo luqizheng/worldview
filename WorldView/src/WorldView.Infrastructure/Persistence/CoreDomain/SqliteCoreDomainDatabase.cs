@@ -51,7 +51,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
 
         _access = provider.GetAccess();
         _ef = new CoreDomainEfSession(_access);
-        _ef.ApplyMigrations();
+        _access.ApplyCoreDomainMigrationsOnce(_ef.ApplyMigrations);
     }
 
     /// <summary>
