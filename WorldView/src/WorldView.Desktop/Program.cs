@@ -72,7 +72,7 @@ internal static class Program
 
         // Application Bootstrap 仅负责包级元数据；Core Domain Schema 由 EF Core Migrations 创建。
         services.AddSingleton<ApplicationBootstrapper>(_ =>
-            new ApplicationBootstrapper(Array.Empty<IMigrationSource>(), log: null));
+            new ApplicationBootstrapper(log: null));
 
         // 会话注册表（实例由组合根创建，供停机关闭使用）
         services.AddSingleton<ProjectSessionRegistry>();
