@@ -205,8 +205,9 @@ public sealed partial class SqliteCoreDomainDatabase
                         "Field Revision publication CAS 冲突：current pointer 已被其他写入推进。", ex);
                 }
 
+                var publishedRevision = MapFieldRevision(db, revision);
                 transaction.Commit();
-                return MapFieldRevision(db, revision);
+                return publishedRevision;
             }
             catch (DbUpdateConcurrencyException ex)
             {
