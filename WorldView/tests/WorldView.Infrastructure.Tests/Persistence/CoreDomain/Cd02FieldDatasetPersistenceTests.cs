@@ -3,8 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
+using System.Threading;
 using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
+using WorldView.Application.Abstractions;
 using WorldView.Application.Fields;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
@@ -1077,6 +1079,59 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
 
         Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+
+    [Fact]
+    public async Task FieldPayloadPublisher_CancellationAfterAtomicFilePublicationLeavesRecoverableOrphan()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var innerStore = new FieldPayloadFileStore(_root);
+        using var cancellation = new CancellationTokenSource();
+        var faultingStore = new CancelAfterPutFileStore(innerStore, cancellation);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            null, Fingerprint1, Now + 4);
+        var bytes = new byte[] { 0x31, 0x41, 0x59, 0x26, 0x53, 0x58 };
+        var expectedHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        var publisher = new FieldPayloadPublisher(core, faultingStore);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            publisher.PublishManagedFileRevisionAsync(plan, new MemoryStream(bytes), cancellation.Token));
+
+        Assert.True(innerStore.Exists(expectedHash));
+        Assert.Null(core.FindFieldPayload(project.ProjectId, plan.FieldRevisionId));
+        Assert.Null(core.FindFieldRevision(project.ProjectId, plan.FieldDatasetId, plan.FieldRevisionId));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+
+        var recovery = new CoreDomainFieldPayloadRecovery();
+        var report = await recovery.ReconcileAsync(_database, _root, project.ProjectId);
+
+        Assert.Contains(expectedHash, report.CollectedOrphanContentHashes);
+        Assert.False(innerStore.Exists(expectedHash));
+    }
+
+    private sealed class CancelAfterPutFileStore(
+        IFieldPayloadFileStore inner,
+        CancellationTokenSource cancellation) : IFieldPayloadFileStore
+    {
+        public string RootPath => inner.RootPath;
+
+        public async Task<FieldPayloadFilePutResult> PutAsync(
+            Stream content, CancellationToken cancellationToken = default)
+        {
+            var result = await inner.PutAsync(content, cancellationToken);
+            cancellation.Cancel();
+            return result;
+        }
+
+        public Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken = default) =>
+            inner.OpenReadAsync(contentHash, cancellationToken);
+
+        public bool Exists(string contentHash) => inner.Exists(contentHash);
+        public System.Collections.Generic.IReadOnlyList<string> ListContentHashes() => inner.ListContentHashes();
+        public int CleanupStagingFiles() => inner.CleanupStagingFiles();
+        public bool Delete(string contentHash) => inner.Delete(contentHash);
     }
 
 }
