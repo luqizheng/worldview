@@ -269,6 +269,7 @@ public sealed partial class SqliteCoreDomainDatabase
 
         var categoryRows = db.FieldRevisionCategoryCodes.AsNoTracking()
             .Where(x => x.FieldRevisionId == entity.FieldRevisionId)
+            .ToArray()
             .OrderBy(x => x.CategoryKey, StringComparer.Ordinal)
             .ToArray();
         var categories = new Dictionary<string, int>(StringComparer.Ordinal);
