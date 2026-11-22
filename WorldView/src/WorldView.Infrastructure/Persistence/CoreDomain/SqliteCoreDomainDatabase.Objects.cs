@@ -407,6 +407,10 @@ public sealed partial class SqliteCoreDomainDatabase
                     updated_at_utc_ms = plan.NowUtcMs,
                 });
 
+                // Flush pending EF rows inside the still-open transaction so the
+                // transaction-scoped SQLite Initial State helper can observe a new registration.
+                SaveChangesOrThrowSqlite(db);
+
                 if (plan.InitialMembership is not null)
                 {
                     // P3⇒P2：成员行必须有对应注册行（本事务刚写入）。
