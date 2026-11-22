@@ -30,8 +30,19 @@ public sealed class CoreDomainModelSnapshotDiagnosticsTests
             snapshotModel.GetRelationalModel(),
             designTimeModel.GetRelationalModel());
 
+        static string Describe(MigrationOperation operation)
+        {
+            var details = operation.GetType().GetProperties()
+                .Where(property => property.GetIndexParameters().Length == 0)
+                .Select(property => (property.Name, Value: property.GetValue(operation)))
+                .Where(item => item.Value is string or bool or int or long or string[])
+                .Select(item => $"{item.Name}={(item.Value is string[] values ? string.Join("|", values) : item.Value)}");
+
+            return $"{operation.GetType().Name}({string.Join(", ", details)})";
+        }
+
         Assert.True(
             differences.Count == 0,
-            $"EF Core found {differences.Count} pending relational model operation(s): {string.Join(Environment.NewLine, differences.Select(d => d.ToString()))}");
+            $"EF Core found {differences.Count} pending relational model operation(s):{Environment.NewLine}{string.Join(Environment.NewLine, differences.Select(Describe))}");
     }
 }
