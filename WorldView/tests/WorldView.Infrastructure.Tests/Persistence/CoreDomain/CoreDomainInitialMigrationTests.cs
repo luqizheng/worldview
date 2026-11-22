@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
@@ -43,37 +44,30 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
         var differences = session.Execute(db =>
         {
-            var initializer = db.GetService<IModelRuntimeInitializer>();
-            var runtimeModel = db.GetService<IDesignTimeModel>().Model;
-            var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true);
-            var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true);
+            var connection = db.Database.GetDbConnection();
+            var snapshotOptions = new DbContextOptionsBuilder<SnapshotModelContext>()
+                .UseSqlite(connection, contextOwnsConnection: false)
+                .Options;
+            using var snapshotContext = new SnapshotModelContext(snapshotOptions);
 
-            static string FirstDifference(string label, string left, string right)
-            {
-                var leftLines = left.Split('\n');
-                var rightLines = right.Split('\n');
-                var count = Math.Min(leftLines.Length, rightLines.Length);
-                for (var i = 0; i < count; i++)
-                {
-                    if (!string.Equals(leftLines[i], rightLines[i], StringComparison.Ordinal))
-                        return $"{label} line {i + 1}: snapshot/target=[{leftLines[i]}] runtime=[{rightLines[i]}]";
-                }
-
-                return leftLines.Length == rightLines.Length
-                    ? string.Empty
-                    : $"{label} line count: snapshot/target={leftLines.Length}, runtime={rightLines.Length}";
-            }
-
-            var runtimeText = runtimeModel.ToDebugString();
-            return new[]
-            {
-                FirstDifference("snapshot", snapshotModel.ToDebugString(), runtimeText),
-                FirstDifference("migration", migrationModel.ToDebugString(), runtimeText),
-            }.Where(value => !string.IsNullOrEmpty(value)).ToArray();
+            var differ = db.GetService<IMigrationsModelDiffer>();
+            var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+            var snapshotModel = snapshotContext.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+            return differ.GetDifferences(snapshotModel, runtimeModel)
+                .Select(operation => operation.GetType().Name)
+                .ToArray();
         });
 
         Assert.True(differences.Length == 0,
-            $"EF model differs from the frozen migration snapshot: {string.Join(Environment.NewLine, differences)}");
+            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences)}");
+    }
+
+    private sealed class SnapshotModelContext(DbContextOptions<SnapshotModelContext> options) : DbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            CoreDomainV1FullModelSnapshotConfiguration.Configure(modelBuilder);
+        }
     }
 
     [Fact]
