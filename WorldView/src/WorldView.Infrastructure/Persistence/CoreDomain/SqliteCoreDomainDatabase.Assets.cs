@@ -397,6 +397,104 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
+    /// <summary>
+    /// Existing formal links must remain represented by exactly one current owner manifest entry.
+    /// Called by Definition CAS inside the same SQLite transaction as the payload update.
+    /// </summary>
+    private static void ValidateExistingDefinitionAssetLinks(
+        SqliteTransaction transaction,
+        Guid projectId,
+        Guid objectIdentityId,
+        string definitionPayloadJson)
+    {
+        const string typeSql = """
+            SELECT t.type_key
+            FROM core_object o
+            JOIN core_object_type t
+              ON t.project_id = o.project_id AND t.object_type_id = o.object_type_id
+            WHERE o.project_id = $projectId AND o.object_identity_id = $identityId;
+            """;
+        string typeKey;
+        using (var typeCommand = transaction.Connection!.CreateCommand())
+        {
+            typeCommand.Transaction = transaction;
+            typeCommand.CommandText = typeSql;
+            typeCommand.Parameters.AddWithValue("$projectId", Uuid(projectId));
+            typeCommand.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
+            typeKey = typeCommand.ExecuteScalar() as string
+                ?? throw new CoreDomainDataException($"Object {objectIdentityId} type is missing while validating its Asset links.");
+        }
+
+        if (!ObjectTypeRegistry.Require(typeKey).HasTypedAggregateSchema)
+        {
+            return;
+        }
+
+        using var definition = JsonDocument.Parse(definitionPayloadJson);
+        if (!definition.RootElement.TryGetProperty("geometry_components", out var components)
+            || components.ValueKind != JsonValueKind.Array)
+        {
+            components = default;
+        }
+
+        const string linksSql = """
+            SELECT l.asset_id, l.role, a.content_hash, a.integrity_state
+            FROM core_object_definition_asset l
+            JOIN core_asset a
+              ON a.project_id = l.project_id AND a.asset_id = l.asset_id
+            WHERE l.project_id = $projectId AND l.object_identity_id = $identityId;
+            """;
+        using var linksCommand = transaction.Connection!.CreateCommand();
+        linksCommand.Transaction = transaction;
+        linksCommand.CommandText = linksSql;
+        linksCommand.Parameters.AddWithValue("$projectId", Uuid(projectId));
+        linksCommand.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
+        using var reader = linksCommand.ExecuteReader();
+        while (reader.Read())
+        {
+            var assetId = reader.GetString(0);
+            var role = reader.GetString(1);
+            var contentHash = reader.GetString(2);
+            var integrityState = reader.GetString(3);
+            if (!string.Equals(integrityState, "verified", StringComparison.Ordinal))
+            {
+                throw new CoreDomainConflictException(
+                    $"Existing Asset link {assetId}/{role} is no longer verified; Definition cannot be edited until integrity is restored.");
+            }
+
+            var matches = 0;
+            if (components.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var component in components.EnumerateArray())
+                {
+                    if (component.ValueKind != JsonValueKind.Object
+                        || !component.TryGetProperty("asset_id", out var assetElement)
+                        || assetElement.ValueKind != JsonValueKind.String
+                        || !component.TryGetProperty("geometry_role", out var roleElement)
+                        || roleElement.ValueKind != JsonValueKind.String
+                        || !component.TryGetProperty("content_hash", out var hashElement)
+                        || hashElement.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(assetElement.GetString(), assetId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(roleElement.GetString(), role, StringComparison.Ordinal)
+                        && string.Equals(hashElement.GetString(), contentHash, StringComparison.Ordinal))
+                    {
+                        matches++;
+                    }
+                }
+            }
+
+            if (matches != 1)
+            {
+                throw new CoreDomainConflictException(
+                    $"Definition edit would orphan or duplicate existing Asset link {assetId}/{role}; exactly one matching geometry manifest entry is required.");
+            }
+        }
+    }
+
     // ---- 行读取辅助 ----
 
     private AssetRecord? TryReadAssetRow(SqliteTransaction transaction, Guid projectId, Guid assetId)
