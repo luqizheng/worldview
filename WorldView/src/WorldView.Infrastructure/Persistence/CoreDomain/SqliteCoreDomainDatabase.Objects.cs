@@ -415,18 +415,17 @@ public sealed partial class SqliteCoreDomainDatabase
                 {
                     // P3⇒P2：成员行必须有对应注册行（本事务刚写入）。
                     if (mapId is null
-                        || TryReadMapObjectRefRow(
-                            sqliteTransaction,
-                            plan.ProjectId,
-                            mapId.Value,
-                            plan.ObjectIdentityId) is null)
+                        || !db.MapObjectRefs.Any(x =>
+                            x.project_id == plan.ProjectId
+                            && x.map_id == mapId.Value
+                            && x.object_identity_id == plan.ObjectIdentityId))
                     {
                         throw new CoreDomainConflictException(
                             "Initial State 成员缺少同 Map 注册行（P3⇒P2），拒绝插入。");
                     }
 
-                    AppendInitialMemberInTransaction(
-                        sqliteTransaction,
+                    AppendInitialMemberInDbContext(
+                        db,
                         plan.ProjectId,
                         mapId.Value,
                         plan.ObjectIdentityId,
@@ -811,75 +810,57 @@ public sealed partial class SqliteCoreDomainDatabase
     /// Initial State 成员追加（InsertObject 路径）：基线缺失则同事务建立；成员行插入后
     /// 按全量成员集合重算指纹（Domain 计算并写回基线行）。
     /// </summary>
-    private void AppendInitialMemberInTransaction(
-        SqliteTransaction transaction,
+    private static void AppendInitialMemberInDbContext(
+        CoreDomainDbContext db,
         Guid projectId,
         Guid mapId,
         Guid objectIdentityId,
         InitialObjectWrite member,
         long nowUtcMs)
     {
-        var baseline = TryReadInitialStateRow(transaction, projectId, mapId);
-        var baselineVersion = baseline?.BaselineSchemaVersion ?? MapInitialStateService.StructuralBaselineSchemaVersion;
+        var baseline = db.MapInitialStates.SingleOrDefault(x =>
+            x.project_id == projectId && x.map_id == mapId);
+        var baselineVersion = baseline?.baseline_schema_version ?? MapInitialStateService.StructuralBaselineSchemaVersion;
         if (baseline is null)
         {
-            using var create = transaction.Connection!.CreateCommand();
-            create.Transaction = transaction;
-            create.CommandText = """
-                INSERT INTO core_map_initial_state
-                    (initial_state_id, project_id, map_id, baseline_schema_version,
-                     content_fingerprint, created_at_utc_ms, updated_at_utc_ms)
-                VALUES ($stateId, $projectId, $mapId, $schemaVersion, '-', $now, $now);
-                """;
-            create.Parameters.AddWithValue("$stateId", Guid.NewGuid().ToString("D"));
-            create.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            create.Parameters.AddWithValue("$mapId", Uuid(mapId));
-            create.Parameters.AddWithValue("$schemaVersion", baselineVersion);
-            create.Parameters.AddWithValue("$now", nowUtcMs);
-            create.ExecuteNonQuery();
+            baseline = new CoreMapInitialStateEntity
+            {
+                initial_state_id = Guid.NewGuid(),
+                project_id = projectId,
+                map_id = mapId,
+                baseline_schema_version = baselineVersion,
+                content_fingerprint = "-",
+                created_at_utc_ms = nowUtcMs,
+                updated_at_utc_ms = nowUtcMs,
+            };
+            db.MapInitialStates.Add(baseline);
+            db.SaveChanges();
         }
 
-        using (var insert = transaction.Connection!.CreateCommand())
+        db.MapInitialObjects.Add(new CoreMapInitialObjectEntity
         {
-            insert.Transaction = transaction;
-            insert.CommandText = """
-                INSERT INTO core_map_initial_object
-                    (project_id, map_id, initial_state_id, object_identity_id,
-                     initial_membership_payload_json, initial_placement_payload_json,
-                     initial_placement_schema_version, created_at_utc_ms)
-                VALUES ($projectId, $mapId,
-                        (SELECT initial_state_id FROM core_map_initial_state
-                         WHERE project_id = $projectId AND map_id = $mapId),
-                        $identityId, $membership, $placement, $placementVersion, $now);
-                """;
-            insert.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            insert.Parameters.AddWithValue("$mapId", Uuid(mapId));
-            insert.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
-            insert.Parameters.AddWithValue(
-                "$membership",
-                CanonicalJson.Canonicalize(member.MembershipPayloadJson));
-            insert.Parameters.AddWithValue(
-                "$placement",
-                member.PlacementPayloadJson is null ? DBNull.Value : CanonicalJson.Canonicalize(member.PlacementPayloadJson));
-            insert.Parameters.AddWithValue("$placementVersion", (object?)member.PlacementSchemaVersion ?? DBNull.Value);
-            insert.Parameters.AddWithValue("$now", nowUtcMs);
-            insert.ExecuteNonQuery();
-        }
+            project_id = projectId,
+            map_id = mapId,
+            initial_state_id = baseline.initial_state_id,
+            object_identity_id = objectIdentityId,
+            initial_membership_payload_json = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
+            initial_placement_payload_json = member.PlacementPayloadJson is null
+                ? null
+                : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
+            initial_placement_schema_version = member.PlacementSchemaVersion,
+            created_at_utc_ms = nowUtcMs,
+        });
+        db.SaveChanges();
 
-        var members = ListInitialObjectRows(transaction, projectId, mapId);
-        var fingerprint = InitialStateFingerprint.Compute(baselineVersion, members);
-        using var update = transaction.Connection!.CreateCommand();
-        update.Transaction = transaction;
-        update.CommandText = """
-            UPDATE core_map_initial_state
-            SET content_fingerprint = $fingerprint, updated_at_utc_ms = $now
-            WHERE project_id = $projectId AND map_id = $mapId;
-            """;
-        update.Parameters.AddWithValue("$fingerprint", fingerprint);
-        update.Parameters.AddWithValue("$now", nowUtcMs);
-        update.Parameters.AddWithValue("$projectId", Uuid(projectId));
-        update.Parameters.AddWithValue("$mapId", Uuid(mapId));
-        update.ExecuteNonQuery();
+        var members = db.MapInitialObjects.AsNoTracking()
+            .Where(x => x.project_id == projectId && x.map_id == mapId)
+            .OrderBy(x => x.object_identity_id)
+            .AsEnumerable()
+            .Select(MapInitialObject)
+            .ToArray();
+        baseline.content_fingerprint = InitialStateFingerprint.Compute(baselineVersion, members);
+        baseline.updated_at_utc_ms = nowUtcMs;
+        SaveChangesOrThrowSqlite(db);
     }
 
     // ---- 行读取辅助（事务感知；行映射 + fail-closed 校验） ----
