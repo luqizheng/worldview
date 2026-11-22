@@ -3,7 +3,7 @@
 - Status: Recommended V1 Core Domain ownership contract; physical schema and migration pending
 - Date: 2026-11-22
 - Scope: Map Space identity, Map-to-Spatial-Reference binding, immutable project-scoped Spatial Reference definitions, and Field Revision validation
-- Depends on: ME-01-04 V0.1; ME-05-01 V0.5; ME-05-04 V0.1; P2-09-30; P2-09-36
+- Depends on: ME-01-04 V0.1; ME-05-01 V0.5; ME-05-04 V0.1; P2-09-30; P2-09-34
 
 ## 1. Purpose
 
@@ -55,7 +55,7 @@ ME-05-04 describes an optional vertical reference as part of the Spatial Referen
 V1 therefore stores the optional vertical-reference identity in the immutable Spatial Reference definition rather than creating an independent global vertical-reference catalog prematurely.
 
 - The identity must resolve within the referenced Spatial Reference definition.
-- Elevation Manifest V2 must include `spatial.vertical_reference_id` and it must exactly match the Spatial Reference definition.
+- Elevation The canonical Field manifest must include `spatial.vertical_reference_id` and it must exactly match the Spatial Reference definition.
 - Elevation without a vertical reference is invalid for new formal publication.
 - `unit` (m or ft) is the numeric elevation sample unit. It is not a vertical datum/reference and does not replace `vertical_reference_id`.
 - Land/water categorical fields omit both elevation unit and vertical reference.
@@ -66,7 +66,7 @@ V1 therefore stores the optional vertical-reference identity in the immutable Sp
 ME-05-04 states that precision is selected per Spatial Reference and authoring scale.
 
 - The immutable Spatial Reference definition owns the selected `coordinate_precision_profile_id` and its versioned profile values.
-- Manifest V2 snapshots that ID in `spatial.coordinate_precision_profile_id`.
+- The canonical Field manifest snapshots that ID in `spatial.coordinate_precision_profile_id`.
 - The ID in the manifest must match the profile selected by the referenced Spatial Reference definition.
 - Coordinate precision is not the same as elevation sample precision or `value_encoding.profile_id`.
 - Do not invent numeric precision thresholds. The profile must be selected from representative World/Region/Locality/Site fixtures and validated against the minimum supported authoring tolerance and smallest meaningful feature size.
@@ -87,7 +87,7 @@ For every new formal Field Revision publication, Core Domain must verify in one 
 9. Grid coordinates, resolution and alignment are validated against the Spatial Reference's coordinate unit, axis order, domain and precision profile. The validation must not silently transform or round coordinates.
 10. Existing published revisions are immutable and retain their original snapshot IDs.
 
-V1 legacy manifests may be read for existing revisions, but their missing precision/unit/vertical-reference values remain explicitly unavailable. They are not upgraded by copying current Map metadata into old revisions; doing so would rewrite historical interpretation.
+The initial release has no historical user data. Every newly published Field Revision must satisfy the complete canonical manifest and owner-context contract.
 
 ## 6. Proposed relational shape
 
@@ -106,10 +106,10 @@ Exact column types and parameter JSON bounds must be finalized against the exist
 ## 7. Migration and legacy data
 
 - New Map creation generates one Map Space ID and binds an existing or newly created Spatial Reference definition before the Map becomes ready for Field publication.
-- Existing Maps without these fields need an explicit migration/backfill policy. The migration may generate a stable Map Space identity because it is a new identity record, but must not invent a Spatial Reference definition or coordinate/vertical precision profile.
-- Existing Field Revisions retain their original opaque manifest IDs and are marked legacy until their Spatial Reference definition is explicitly reconciled.
+- Initial Map creation must generate a stable Map Space identity and bind a valid immutable Spatial Reference definition before Field publication is enabled.
+- Field Revision metadata must reference the Map's established Map Space and Spatial Reference definitions at publication.
 - Do not infer an EPSG code, Earth datum, unit, vertical datum or precision profile from a Map name, fixture string or filename.
-- If a legacy Map has no resolvable Spatial Reference definition, it remains readable but cannot publish a new V2 Field Revision until the owner binding is explicitly established.
+- A Map without a resolvable Spatial Reference definition cannot publish a Field Revision.
 - No schema migration, generated EF migration or snapshot change is included in this design commit.
 
 ## 8. Acceptance tests
@@ -132,6 +132,6 @@ Exact column types and parameter JSON bounds must be finalized against the exist
 2. Define the profile parameter schema and representative precision fixtures; do not choose numeric thresholds without evidence.
 3. Add EF entities/configuration and generate a migration using the approved EF CLI workflow.
 4. Backfill Map Space IDs only; reconcile existing Spatial Reference definitions explicitly.
-5. Add owner-context validation to Field Revision V2 publication.
+5. Add owner-context validation to Field Revision publication.
 6. Add V2 manifest fields to the typed projection and SQLite typed metadata schema.
 7. Only then enable new V2 Field Revision publication and BLOB/file payload publication.
