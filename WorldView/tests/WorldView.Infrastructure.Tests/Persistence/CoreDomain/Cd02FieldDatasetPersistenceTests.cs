@@ -654,9 +654,10 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 root["field"]!["field_key"] = fieldKey;
                 root["field"]!["semantics_id"] = semanticsId;
                 root["field"]!.AsObject().Remove("unit");
-                root["spatial"]!["vertical_reference_id"] = "fixture:vertical-reference-local-v1";
                 if (scenario == "categorical-unit")
                     root["field"]!["unit"] = "m";
+                else
+                    root["spatial"]!["vertical_reference_id"] = "fixture:vertical-reference-local-v1";
                 break;
         }
 
