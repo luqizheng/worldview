@@ -113,13 +113,13 @@ FDV-008 requires rejecting a spatial reference incompatible with the target Map 
 
 Do not claim FDV-008 passes by merely checking that the two strings are non-empty.
 
-### 3.6 Existing JSON validation/canonicalization primitives are not yet compatible
+### 3.6 JSON Schema conditional support is implemented; JCS canonicalization remains open
 
-The current Domain `JsonSchemaSubset` supports `allOf`, `oneOf`, `$defs` and `$ref`, but its supported-keyword set does not include `if`, `then` or `not`. P2-09-34 V0.1 uses those keywords for field-specific conditional rules (including the land/water category-code requirement and the elevation prohibition). Passing the current schema directly to `JsonSchemaSubset` therefore fails closed before manifest validation can run.
+The G2 baseline `JsonSchemaSubset` did not support `if`, `then` or `not`, which P2-09-34 V0.1 uses for field-specific conditional rules. PR #6 now adds Draft 2020-12 `if`/`then`/`else`/`not` handling, keeps unsupported keywords fail-closed inside conditional branches, embeds the P2-09-34 schema and both ME-05-09 golden manifests, and validates the golden fixtures. Exact head `ac6b0c2` passed Windows/macOS Debug/Release at 402/402 tests per configuration. This closes the schema-keyword execution gap, but PR #6 remains open and unmerged.
 
 The existing `CanonicalJson` utility is a deterministic Core Domain serializer, but it has not been proven RFC 8785 JCS-compatible. P2-09-34 and ME-05-09 explicitly require `RFC8785-JCS-UTF8`; property sorting alone is not sufficient. Exact string escaping, IEEE-754 number formatting, duplicate-key rejection, UTF-8/BOM handling and no-trailing-newline behavior must match the golden fixtures.
 
-**Recommendation:** either extend `JsonSchemaSubset` with standards-correct `if/then/else/not` semantics and add isolated tests, or introduce a dedicated Field Package Manifest validator. Implement a JCS canonicalizer and prove byte-for-byte equality against the ME-05-09 golden manifests before using it for Field Revision persistence.
+**Remaining recommendation:** implement a JCS canonicalizer and prove byte-for-byte equality against the ME-05-09 golden manifests before using it for Field Revision persistence.
 
 ### 3.7 Package integrity is not package conformance
 
