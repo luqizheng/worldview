@@ -62,7 +62,6 @@ internal sealed class CoreMapFieldRevisionEntity
     public Guid FieldDatasetId { get; set; }
     public long RevisionNumber { get; set; }
     public Guid? ParentRevisionId { get; set; }
-    public Guid FieldRevisionAssetId { get; set; }
     public required string ContentFingerprint { get; set; }
     public required string ManifestJson { get; set; }
     public required string ProvenanceJson { get; set; }
