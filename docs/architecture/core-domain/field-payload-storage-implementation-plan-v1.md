@@ -9,7 +9,7 @@
 
 Translate the accepted SQLite + filesystem hybrid storage decision into an incremental implementation that does not break the current EF Core migration baseline, Field Dataset identity, immutable revision lineage, Asset integrity checks, or compare-and-swap publication semantics.
 
-This is an implementation plan, not a claim that the payload storage abstraction is already implemented.
+This document records the accepted storage contract and the implementation boundary. Completed items are listed explicitly; remaining work is not implied to be complete.
 
 ## 2. Storage contract
 
@@ -45,11 +45,11 @@ Proposed columns:
 
 | Column | Type | Meaning |
 |---|---|---|
-| `payload_id` | TEXT UUID | Stable payload identity |
+| `field_payload_id` | TEXT UUID | Stable payload identity |
 | `project_id` | TEXT UUID | Owning Project |
 | `field_dataset_id` | TEXT UUID | Owning Dataset |
 | `field_revision_id` | TEXT UUID | Owning immutable Revision |
-| `storage_kind` | TEXT | `sqlite_blob` or `external_file` |
+| `storage_kind` | TEXT | `sqlite_blob` or `managed_file` |
 | `payload_format` | TEXT | Stable format identifier |
 | `format_version` | TEXT | Format version |
 | `byte_length` | INTEGER | Exact stored payload byte length |
@@ -57,20 +57,20 @@ Proposed columns:
 | `content_hash` | TEXT | Lowercase SHA-256 hex |
 | `payload_blob` | BLOB NULL | Present only for `sqlite_blob` |
 | `relative_path` | TEXT NULL | Present only for `external_file` |
-| `integrity_state` | TEXT | `verified`, `unverified`, `corrupt`, `missing` |
+| `integrity_state` | TEXT | `verified`, `corrupt`, `missing` |
 | `created_at_utc_ms` | INTEGER | Creation time |
 
 Required database invariants:
 
 1. Exactly one of `payload_blob` and `relative_path` is populated, consistent with `storage_kind`.
-2. `byte_length >= 0`; for BLOB rows it equals SQLite's BLOB byte length.
+2. `byte_length > 0`; for BLOB rows it equals SQLite's BLOB byte length.
 3. Hash algorithm and hash syntax are constrained; the hash is computed over the exact payload bytes.
 4. The owner tuple is unique for the intended one-payload-per-revision V1 contract. If multi-part payloads become necessary, introduce an explicit part ordinal/key rather than silently weakening uniqueness.
 5. Project / Dataset / Revision ownership is enforced by foreign keys and checked again at the Domain boundary.
 6. External paths are normalized relative paths under the managed package root; absolute paths, drive-qualified paths, UNC paths, and traversal segments are rejected.
 7. Published payload bytes and their identity metadata are immutable. Integrity state may change through explicit integrity scans.
 
-The exact table and FK shape must be reconciled with the current generated EF Core model before implementation. Do not hand-edit the model snapshot or create a second migration ledger.
+Implemented table name is `core_field_payload`. The generated EF Core migration and snapshot are committed; do not hand-edit the snapshot or create a second migration ledger.
 
 ## 4. Revision metadata replaces the internal JSON Manifest
 
@@ -134,11 +134,12 @@ Crash recovery must explicitly cover termination after staging, after final rena
 
 ## 7. Migration sequence
 
-1. **Model first:** add typed Field layout metadata and payload-reference records without hand-editing the generated EF model snapshot.
-2. **Storage adapter:** implement and test SQLite BLOB round trips and managed external-file round trips behind one storage interface.
-3. **Publication:** publish revisions using payload references and typed metadata under the existing SQLite transaction/CAS rules.
-4. **Settings files:** store Project/Map settings as versioned external documents with staged writes and path/hash references.
-5. **Retire transitional manifest persistence:** after all readers/writers and package interchange consumers use the typed model, remove internal ManifestJson authority where the interchange contract does not require it.
+1. **Model:** add typed Field layout metadata and payload-reference records using EF-owned generated migrations/snapshots.
+2. **Storage adapters:** implement SQLite BLOB and managed external-file storage behind the Field Payload metadata contract.
+3. **Publication:** insert BLOB payload metadata/bytes, immutable revision and Dataset CAS in one SQLite transaction; external files use staged publication followed by the SQLite reference transaction.
+4. **Unified reads and recovery:** route reads by storage kind, verify hash/length, then add crash recovery and orphan reconciliation.
+5. **Settings files:** store Project/Map settings as versioned external documents with staged writes and path/hash references.
+6. **Retire transitional generic Asset and Manifest references:** after all readers/writers and package interchange consumers use the typed payload model, remove internal generic Asset payload coupling and ManifestJson authority where the interchange contract does not require it.
 
 Each schema change must use `dotnet ef migrations add <nameOfMigration>`; the initial migration remains unchanged and generated snapshots remain EF-owned.
 
@@ -156,41 +157,46 @@ The following work is implemented in PR #11:
 - `manifest_json` remains a canonical interchange/diagnostic copy while remaining package consumers are migrated; it is not the typed metadata read authority.
 - EF migrations `20261122140144_MapSpatialReferenceOwnership` and `20261122141903_FieldRevisionTypedMetadata` were generated by the real EF CLI. Their Designer files and the generated model snapshot are committed.
 
-## 7.2 Implemented first storage slice
+## 7.2 Implemented Field Payload persistence slice
 
-The following foundational code is now present in PR #11:
+The following implementation is committed in PR #11:
 
-- Domain records and registration plans model one immutable payload per Field Revision, including Project / Dataset / Revision ownership, storage kind, payload format/version, byte length, SHA-256 and integrity state.
-- Domain rules reject empty identities, empty payloads, unsupported hash algorithms, invalid storage kinds, BLOB rows with external paths, and managed-file paths that are not exactly `FieldPayloads/sha256/<lowercase-sha256>`.
-- `IFieldPayloadFileStore` defines the managed-file byte port without giving it authority to mutate Core Domain rows.
-- `FieldPayloadFileStore` accepts non-seekable streams, hashes exact raw bytes while streaming, flushes the staging file to disk, re-reads and verifies staged length/hash, then publishes with a same-directory rename to a content-addressed final path.
-- Existing content-addressed files are verified before reuse. The adapter never deletes published files; cleanup requires a later authoritative DB reference reconciliation.
+- `CoreFieldPayloadEntity` and the `core_field_payload` EF mapping now represent one physical payload per immutable Field Revision.
+- The table stores payload identity, Project / Dataset / Revision ownership, storage kind, format/version, SHA-256, byte length, integrity state, and either a raw SQLite BLOB or a managed relative path.
+- CHECK constraints enforce supported storage kinds, the BLOB/path exclusivity rule, BLOB byte length, positive payload length, SHA-256 syntax/algorithm, and integrity-state values.
+- A unique index enforces one payload per Field Revision. A composite FK binds the payload to the same Project, Dataset and Revision.
+- Migration `20261122154650_FieldPayloadStorage`, its Designer file and the updated `CoreDomainDbContextModelSnapshot` were generated by the real `dotnet ef migrations add FieldPayloadStorage` command in GitHub Actions. The one-time generator workflow was removed after generation; no migration or snapshot was hand-authored.
+- `PublishFieldRevisionPlan` now carries a Field Payload registration plan and optional raw bytes. SQLite BLOB registrations are rechecked for owner IDs, byte length and SHA-256 inside the publication transaction.
+- BLOB bytes and Field Payload metadata are inserted in the same SQLite transaction as the immutable Field Revision and Dataset current-pointer CAS. A failed publication rolls back the BLOB row with the Revision.
+- `FindFieldPayload` and `ReadFieldPayloadBlob` expose metadata and exact raw BLOB readback. Readback verifies byte length and SHA-256 before returning a copy.
+- Infrastructure tests cover a byte-for-byte BLOB publication/read round trip. Domain test doubles implement the new payload port methods.
+- The managed-file adapter remains content-addressed and streaming; its metadata registration shape is compatible with `managed_file`, but it is not yet integrated into the same Field Revision publication workflow.
 
-This is deliberately a storage foundation, not a complete Field Payload persistence cutover. Existing Field Revisions still use the generic `core_asset` reference until the EF schema and publication transaction are changed together.
+This is not yet a complete storage-neutral cutover. `FieldRevisionRecord` still retains the old generic `core_asset` reference and publication still requires a verified Asset. That transitional dependency must be removed in a subsequent schema/API change; the dedicated payload row is the new Field byte-storage authority, but generic Asset coupling has not yet been retired.
 
 ## 7.3 Remaining implementation boundary
 
 The repository does not yet provide:
 
-- the `core_field_payload` EF entity/table, storage-kind/BLOB/path CHECK constraints, and one-payload-per-revision ownership;
-- raw SQLite BLOB insertion and readback;
-- a storage-kind-neutral Field Payload read API;
-- atomic insertion of payload metadata + immutable revision + Dataset current-pointer CAS;
-- startup crash recovery, DB/file integrity reconciliation and safe orphan cleanup.
+- a single Application read API that dispatches transparently between SQLite BLOB and ManagedFile storage;
+- full ManagedFile publication integration with staging, atomic rename, DB reference transaction and Dataset CAS;
+- startup crash recovery, DB/file integrity reconciliation and safe orphan cleanup;
+- a supported integrity-scan update path for `corrupt` / `missing` payload states;
+- removal of the legacy `FieldRevisionAssetId` dependency from Field Revision publication and orphan-Asset logic;
+- Project / Map settings-document persistence as versioned external files;
+- production package writer integration and regenerated binary golden fixtures from the current canonical Manifest contract.
 
-Do not treat the existing generic Asset store as proof that Field Payload persistence is complete. Generic Assets remain valid for generic project assets; the new Field-specific table must become the sole payload authority for Field Revisions.
+Do not treat the existing generic Asset store as proof that Field Payload persistence is complete. Generic Assets remain valid for generic project assets; Field payload bytes are now modeled in `core_field_payload`, while the remaining legacy Asset reference is explicitly transitional.
 
 ## 7.4 Next implementation sequence
 
-1. Add the dedicated EF entity and mapping for `core_field_payload`, with strict storage-kind/BLOB/path CHECK constraints, one-payload-per-revision uniqueness, and same-Project Dataset/Revision ownership FKs.
-2. Generate the schema change using `dotnet ef migrations add <nameOfMigration>` in an environment with the pinned .NET SDK and EF CLI. Commit the generated migration, Designer and snapshot unchanged; never hand-author them.
-3. Implement raw SQLite BLOB persistence and readback inside the Core Domain database transaction; exact bytes are stored without Base64 or JSON wrapping.
-4. Add the storage-kind-neutral read API and integrate payload publication with Field Revision insertion and Dataset current-pointer CAS.
-5. Integrate the managed-file adapter with the same publication contract: stage, flush, verify hash/length, same-filesystem atomic rename, then commit the SQLite reference and Dataset CAS.
-6. Add crash-window recovery and integrity reconciliation before enabling automatic orphan deletion. Unreferenced files are candidates only after a fresh database reference scan and package-root confinement check.
-7. Add Project/Map settings-document storage as a separate follow-up slice.
-8. Complete the production package writer and regenerate binary golden fixtures from the current canonical Manifest contract.
-9. Retire transitional Manifest persistence only after every production reader/writer and interchange consumer has moved to its declared authority.
+1. Remove `FieldRevisionAssetId` from Field Revision records/plans and the EF schema; make the dedicated Field Payload the only Field byte-storage reference. Generate the schema change using the real EF CLI and commit generated migration/Designer/snapshot.
+2. Add a storage-kind-neutral Application read service: SQLite BLOB returns a read-only memory stream; ManagedFile delegates to `IFieldPayloadFileStore.OpenReadAsync`; both verify the metadata contract.
+3. Integrate ManagedFile writes with Field Revision publication: stage, flush, verify hash/length, same-filesystem atomic rename, then commit payload metadata + Revision + Dataset CAS in SQLite.
+4. Add integrity scan transitions and startup crash recovery / DB-file reconciliation. Orphan files are candidates only after a fresh authoritative reference scan and package-root confinement check.
+5. Add Project/Map settings-document storage as a separate follow-up slice.
+6. Complete the production package writer and regenerate binary golden fixtures from the current canonical Manifest contract.
+7. Retire transitional Manifest persistence only after every production reader/writer and interchange consumer has moved to its declared authority.
 
 ## 8. Required tests
 
