@@ -537,9 +537,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
 
         var workersTasks = Enumerable.Range(0, workers).Select(w => Task.Run(() =>
         {
-            barrier.SignalAndWait();
+            // 构造适配器会确认/应用 EF Migration；在释放屏障前完成构造，
+            // 让并发窗口只覆盖实际数据库操作与 Dispose。
             var workerCore = new SqliteCoreDomainDatabase(_database);
             var workerQuery = new CoreDomainMapQueryService(_database);
+            barrier.SignalAndWait();
             for (var i = 0; i < rounds; i++)
             {
                 var failure = Capture(() =>
