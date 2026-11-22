@@ -55,10 +55,19 @@ public static class ObjectCreationService
         var canonicalDefinition = CanonicalJson.Canonicalize(definition.DefinitionPayloadJson);
         var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
         Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonicalDefinition);
-        if (descriptor.HasTypedAggregateSchema && HasGeometryComponents(canonicalDefinition))
+        if (descriptor.HasTypedAggregateSchema)
         {
-            throw new CoreDomainConflictException(
-                "Building/Cave Object creation must start with an empty geometry_components array; publish formal Geometry Assets afterward through PublishDefinitionWithGeometryAssets.");
+            if (type.TypeKey is not ("building" or "cave_system"))
+            {
+                throw new CoreDomainConflictException(
+                    $"Object Type {type.TypeKey} has no adopted typed aggregate creation adapter yet.");
+            }
+
+            if (HasGeometryComponents(canonicalDefinition))
+            {
+                throw new CoreDomainConflictException(
+                    "Building/Cave Object creation must start with an empty geometry_components array; publish formal Geometry Assets afterward through PublishDefinitionWithGeometryAssets.");
+            }
         }
 
         ValidatePlacementPairing(initialMembership);

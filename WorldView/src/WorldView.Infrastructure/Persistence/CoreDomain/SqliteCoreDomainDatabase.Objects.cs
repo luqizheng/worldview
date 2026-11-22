@@ -377,6 +377,12 @@ public sealed partial class SqliteCoreDomainDatabase
                     CanonicalJson.CanonicalizeAndHash(plan.Definition.DefinitionPayloadJson);
                 if (descriptor.HasTypedAggregateSchema)
                 {
+                    if (typeKey is not ("building" or "cave_system"))
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Object Type {typeKey} has no adopted typed aggregate creation adapter yet.");
+                    }
+
                     ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
                     if (ReadGeometryAssetMap(canonicalPayload).Count > 0)
                     {
