@@ -14,6 +14,9 @@ public sealed record RegisterFieldPayloadPlan
     public required Guid FieldDatasetId { get; init; }
     public required Guid FieldRevisionId { get; init; }
     public required FieldPayloadStorageKind StorageKind { get; init; }
+    public required string PayloadFormat { get; init; }
+    public required string FormatVersion { get; init; }
+    public required string HashAlgorithm { get; init; }
     public required long ByteLength { get; init; }
     public required string ContentHash { get; init; }
     public string? RelativePath { get; init; }
