@@ -135,6 +135,25 @@ public sealed class EfCoreFoundationTests : IDisposable
     }
 
     [Fact]
+    public void EfCore_RejectsUnknownFutureMigrationHistory()
+    {
+        var session = EfSession();
+        session.ApplyMigrations();
+
+        ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion)
+                VALUES ('299901010000_FutureMigration', '99.0.0');
+                """;
+            command.ExecuteNonQuery();
+        });
+
+        Assert.Throws<CoreDomainDataException>(() => Core());
+    }
+
+    [Fact]
     public void EfCore_GuidMappingRejectsNonCanonicalPersistedUuid()
     {
         var session = EfSession();
