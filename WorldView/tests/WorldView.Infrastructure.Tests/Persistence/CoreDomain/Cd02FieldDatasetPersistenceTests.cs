@@ -591,4 +591,65 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
     }
 
+
+    [Fact]
+    public void PublishRevision_RejectsMissingManifestSchemaIdentity()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var manifest = JsonNode.Parse(
+            BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        manifest["manifest_schema"]!.AsObject().Remove("id");
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest.ToJsonString(),
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsUnknownDescriptorSchemaVersion()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            DescriptorSchemaVersion = 2,
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void PublishRevision_RejectsDuplicateCodecIds()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
+        var manifest = JsonNode.Parse(
+            BuildManifest("elevation", "world-view.field.elevation.v1"))!.AsObject();
+        manifest["codec_registry"]!.AsArray().Add(new JsonObject
+        {
+            ["codec_id"] = 0,
+            ["codec_name"] = "none",
+            ["version"] = "1",
+            ["parameters"] = new JsonObject(),
+        });
+        var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
+            asset.AssetId, null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest.ToJsonString(),
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
+        Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
 }
