@@ -955,54 +955,6 @@ public sealed partial class SqliteCoreDomainDatabase
         };
     }
 
-    private static ObjectRecord MapObject(SqliteDataReader reader)
-    {
-        var identityId = ParseUuid(reader.GetString(0));
-        var schemaVersion = reader.GetInt64(3);
-        var semanticsId = reader.GetString(4);
-        var typeKey = reader.GetString(10);
-
-        // 读侧 fail-closed：未知 pin 拒绝解释（Handoff §5.4；P2-09-18 §10）。
-        ObjectRules.ValidateKnownPin(typeKey, schemaVersion, semanticsId);
-
-        var scopeText = reader.GetString(5);
-        var scope = scopeText switch
-        {
-            "project_shared" => ObjectSharingScope.ProjectShared,
-            "map_local" => ObjectSharingScope.MapLocal,
-            _ => throw new CoreDomainDataException($"sharing_scope \"{scopeText}\" 不可识别。"),
-        };
-        var lifecycleText = reader.GetString(7);
-        var lifecycle = lifecycleText switch
-        {
-            "draft" => ObjectLifecycleStatus.Draft,
-            "active" => ObjectLifecycleStatus.Active,
-            "abandoned" => ObjectLifecycleStatus.Abandoned,
-            "retired" => ObjectLifecycleStatus.Retired,
-            _ => throw new CoreDomainDataException($"lifecycle_status \"{lifecycleText}\" 不可识别。"),
-        };
-        Guid? ownerMapId = reader.IsDBNull(6) ? null : ParseUuid(reader.GetString(6));
-        if ((scope == ObjectSharingScope.ProjectShared && ownerMapId is not null)
-            || (scope == ObjectSharingScope.MapLocal && ownerMapId is null))
-        {
-            throw new CoreDomainDataException($"Object {identityId} 的 scope/owner 组合违反不变量（R-scope）。");
-        }
-
-        return new ObjectRecord
-        {
-            ObjectIdentityId = identityId,
-            ProjectId = ParseUuid(reader.GetString(1)),
-            ObjectTypeId = ParseUuid(reader.GetString(2)),
-            ObjectTypeSchemaVersion = schemaVersion,
-            ObjectTypeSemanticsId = semanticsId,
-            SharingScope = scope,
-            OwnerMapId = ownerMapId,
-            LifecycleStatus = lifecycle,
-            CreatedAtUtcMs = reader.GetInt64(8),
-            UpdatedAtUtcMs = reader.GetInt64(9),
-        };
-    }
-
     private static MapObjectRefRecord MapMapObjectRef(CoreMapObjectRefEntity entity) => new()
     {
         MapObjectRefId = entity.map_object_ref_id,
