@@ -1,10 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
@@ -40,7 +38,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
     }
 
     [Fact]
-    public void EfModel_MatchesFrozenMigrationSnapshot()
+    public void EfModel_MatchesFrozenSnapshotAndInitialMigration()
     {
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
         var differences = session.Execute(db =>
