@@ -111,7 +111,7 @@ Use the AF-01 recommended directory package unless preflight reveals an existing
 ```text
 <MyWorld>.wvproject/
   manifest.json
-  project.sqlite
+  data/project.sqlite
   Assets/
     sha256/
   Staging/
