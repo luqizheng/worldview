@@ -35,7 +35,20 @@ public static class FieldDatasetService
             throw new ArgumentException("Field Dataset、Revision、Asset、Project 和 Map ID 均必须为非空 UUID。", nameof(plan));
 
         var fingerprint = AssetRules.NormalizeContentHash(plan.ContentFingerprint);
-        var manifest = CanonicalJson.Canonicalize(plan.ManifestJson);
+        string manifest;
+        try
+        {
+            using var sourceManifest = JsonDocument.Parse(plan.ManifestJson);
+            EnsureNoDuplicateKeys(sourceManifest.RootElement);
+            manifest = CanonicalJson.Canonicalize(plan.ManifestJson);
+        }
+        catch (JsonException ex)
+        {
+            throw new CoreDomainDataException($"Field Revision manifest JSON is invalid: {ex.Message}", ex);
+        }
+        if (!string.Equals(plan.ManifestJson, manifest, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Field Revision manifest bytes must already be RFC 8785 canonical JSON (no BOM, whitespace or trailing newline).");
+
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
         ValidateManifestIdentity(manifest, plan);
 
