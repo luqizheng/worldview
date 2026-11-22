@@ -51,7 +51,7 @@ This is a **strangler migration**, not a big-bang rewrite.
 
 ### Phase 1 — complete model coverage
 
-Field Dataset/Revision is the first new EF-managed aggregate and is implemented alongside the foundation. Map every remaining existing Core Domain table into the one DbContext, including History, Branch, Calendar, Object identity/type/allocator/reservation, Map registration, Initial State, and Definition typed links. Keep table/column names and storage contracts byte-for-byte compatible.
+Field Dataset/Revision is the first new EF-managed aggregate and the first production vertical slice. Map every remaining existing Core Domain table into the one DbContext, including History, Branch, Calendar, Object identity/type/allocator/reservation, Map registration, Initial State, and Definition typed links. Keep table/column names and storage contracts byte-for-byte compatible.
 
 ### Phase 2 — vertical-slice adapter migration
 
