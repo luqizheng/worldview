@@ -74,7 +74,7 @@ public sealed class EfCoreFoundationTests : IDisposable
         Assert.Equal(asset.AssetId, actualAsset.AssetId);
         Assert.Equal(asset.ContentHash, actualAsset.ContentHash);
         Assert.Equal("published", actualAsset.PublicationState);
-        Assert.Equal(new[] { "202611220001_CoreDomainEfCoreBaseline" },
+        Assert.Equal(new[] { "202611220001_CoreDomainEfCoreBaseline", "202611220002_FieldDatasetRevision" },
             session.Execute(db => db.Database.GetAppliedMigrations().ToArray()));
 
         // Disposing the short-lived DbContext must not close the package-owned connection.
