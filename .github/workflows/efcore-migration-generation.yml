@@ -32,6 +32,10 @@ jobs:
       - name: Install EF Core CLI
         run: dotnet tool install --global dotnet-ef --version 11.0.0
 
+      - name: Restore
+        working-directory: WorldView
+        run: dotnet restore WorldView.sln
+
       - name: Generate migration using EF Core CLI
         working-directory: WorldView
         run: dotnet ef migrations add FieldPayloadStorage --project src/WorldView.Infrastructure/WorldView.Infrastructure.csproj --startup-project src/WorldView.Infrastructure/WorldView.Infrastructure.csproj --context WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreDomainDbContext --output-dir Persistence/CoreDomain/EfCore/Migrations
