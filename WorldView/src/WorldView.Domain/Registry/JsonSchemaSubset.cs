@@ -87,7 +87,7 @@ public static class JsonSchemaSubset
                     $"schema 于 {path} 使用本执行器不支持的关键词 \"{property.Name}\"，fail-closed。");
             }
 
-            if (property.Name is "properties" or "dependentRequired" && property.Value.ValueKind == JsonValueKind.Object)
+            if (property.Name is "properties" or "$defs" or "dependentRequired" && property.Value.ValueKind == JsonValueKind.Object)
             {
                 foreach (var sub in property.Value.EnumerateObject())
                 {
