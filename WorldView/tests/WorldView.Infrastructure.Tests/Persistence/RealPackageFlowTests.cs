@@ -33,7 +33,7 @@ public class RealPackageFlowTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), $"wv-e2e-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_root);
-        _bootstrapper = new ApplicationBootstrapper(Array.Empty<IMigrationSource>());
+        _bootstrapper = new ApplicationBootstrapper();
     }
 
     public void Dispose()
