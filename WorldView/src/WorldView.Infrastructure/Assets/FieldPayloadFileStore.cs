@@ -144,6 +144,18 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
             .ToArray();
     }
 
+    public int CleanupStagingFiles()
+    {
+        var deleted = 0;
+        foreach (var path in Directory.EnumerateFiles(RootPath, ".staging-*.tmp", SearchOption.TopDirectoryOnly))
+        {
+            EnsureNotReparsePoint(path);
+            File.Delete(path);
+            deleted++;
+        }
+        return deleted;
+    }
+
     public bool Delete(string contentHash)
     {
         if (!IsSafeHash(contentHash))
