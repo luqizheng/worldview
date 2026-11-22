@@ -1,0 +1,41 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ matrix.configuration }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        configuration: [Debug, Release]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 11.0.x
+
+      - name: Show SDK
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore WorldView/WorldView.sln
+
+      - name: Build
+        run: dotnet build WorldView/WorldView.sln --configuration ${{ matrix.configuration }} --no-restore
+
+      - name: Test
+        run: dotnet test WorldView/WorldView.sln --configuration ${{ matrix.configuration }} --no-build --no-restore
