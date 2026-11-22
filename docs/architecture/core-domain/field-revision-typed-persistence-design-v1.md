@@ -50,18 +50,18 @@ The current codebase does not contain authoritative Map Space or Spatial Referen
 
 For the first typed-persistence migration, preserve both IDs exactly as validated opaque identifiers on the immutable Field Revision. Validate their presence, length and equality against the submitted typed metadata. Enforce the existing Field Dataset → Map ownership boundary. Do not claim referential integrity to a spatial catalog that does not yet exist.
 
-### 3.3 Follow-up owner contract
+### 3.3 Owner contract
 
-Before introducing relational foreign keys, a separate Core Domain decision must define:
+The ownership boundary is now specified in [Map Space and Spatial Reference Ownership Contract V1](map-spatial-reference-ownership-contract-v1.md):
 
-1. whether Map Space has a persisted owner record, and its exact scope/lifecycle;
-2. how a Map binds to one or more Map Spaces, if multiple are permitted;
-3. how project-scoped immutable Spatial Reference definitions are created, versioned, retained and referenced;
-4. whether the spatial-reference definition is represented by typed columns plus a bounded versioned parameter document, and how its canonical fingerprint is computed;
-5. how a Map Space declares its valid coordinate frame and compatibility with a Spatial Reference;
-6. how migration/backfill handles legacy identifiers whose definitions are not available locally.
+- One Map owns exactly one stable Map Space ID in V1. It is a typed property on `core_map`, not a separate Map Space aggregate/table.
+- Each Map has one active Spatial Reference binding. Spatial Reference definitions are immutable and project-scoped; multiple Maps in the same Project may reuse one definition.
+- The Spatial Reference definition owns the selected coordinate precision profile and optional vertical-reference identity. Manifest V2 snapshots those IDs and owner-context validation must match them.
+- Elevation's `unit` is a sample-value unit, distinct from both coordinate units and vertical-reference identity.
+- Map Space and Spatial Reference IDs remain separate identities; neither is inferred from the other or from EPSG aliases.
+- Existing legacy revisions remain readable. Missing definitions/precision/unit/vertical values are not backfilled from current Map state.
 
-Until then, the Field Revision snapshot is the authority for the IDs it used; it is not the authority for the definitions behind those IDs.
+The exact EF entities/configuration and same-Project FK shape remain pending. The owner contract is a design baseline, not an implemented schema.
 
 ## 4. Typed relational persistence shape
 
