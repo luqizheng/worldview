@@ -97,13 +97,6 @@ public sealed partial class SqliteCoreDomainDatabase
                 SpatialReferenceRules.ValidateFieldOwnerContext(
                     MapMap(mapEntity), MapSpatialReference(spatialReferenceEntity), manifestMetadata);
 
-                var asset = db.Assets.SingleOrDefault(x =>
-                    x.ProjectId == plan.ProjectId && x.AssetId == plan.FieldRevisionAssetId);
-                if (asset is null)
-                    throw new CoreDomainConflictException("Field Revision Asset 不存在或不属于当前 Project。");
-                if (asset.IntegrityState != "verified")
-                    throw new CoreDomainConflictException(
-                        $"Field Revision Asset 必须为 verified，当前状态为 {asset.IntegrityState}。");
                 var payloadRecord = FieldPayloadRules.Create(plan.Payload);
                 if (payloadRecord.ProjectId != plan.ProjectId
                     || payloadRecord.FieldDatasetId != plan.FieldDatasetId
@@ -170,7 +163,6 @@ public sealed partial class SqliteCoreDomainDatabase
                     FieldDatasetId = plan.FieldDatasetId,
                     RevisionNumber = nextRevisionNumber,
                     ParentRevisionId = dataset.CurrentFieldRevisionId,
-                    FieldRevisionAssetId = plan.FieldRevisionAssetId,
                     ContentFingerprint = plan.ContentFingerprint,
                     ManifestJson = plan.ManifestJson,
                     ProvenanceJson = plan.ProvenanceJson,
@@ -405,7 +397,6 @@ public sealed partial class SqliteCoreDomainDatabase
             FieldDatasetId = entity.FieldDatasetId,
             RevisionNumber = entity.RevisionNumber,
             ParentRevisionId = entity.ParentRevisionId,
-            FieldRevisionAssetId = entity.FieldRevisionAssetId,
             Payload = payloadRecord,
             ContentFingerprint = entity.ContentFingerprint,
             ManifestJson = entity.ManifestJson,
