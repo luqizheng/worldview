@@ -53,11 +53,30 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalized = Normalize(path);
         lock (_gate)
         {
-            var segments = normalized.Split(System.IO.Path.DirectorySeparatorChar);
-            var current = string.Empty;
+            // Preserve the filesystem root. Dropping the leading separator turns
+            // /var/... into a relative var/... path on Unix, so every subsequent
+            // absolute-path lookup fails on macOS/Linux while Windows appears fine.
+            var root = System.IO.Path.GetPathRoot(normalized) ?? string.Empty;
+            var current = root;
+            if (!string.IsNullOrEmpty(root))
+            {
+                if (!_nodes.TryGetValue(root, out var rootNode))
+                {
+                    _nodes[root] = new Node(IsDirectory: true);
+                }
+                else if (!rootNode.IsDirectory)
+                {
+                    throw new IOException($"路径已是文件：{root}");
+                }
+            }
+
+            var remainder = normalized[root.Length..];
+            var segments = remainder.Split(
+                System.IO.Path.DirectorySeparatorChar,
+                StringSplitOptions.RemoveEmptyEntries);
             foreach (var segment in segments)
             {
-                current = current.Length == 0 ? segment : current + System.IO.Path.DirectorySeparatorChar + segment;
+                current = System.IO.Path.Combine(current, segment);
                 if (!_nodes.TryGetValue(current, out var node))
                 {
                     _nodes[current] = new Node(IsDirectory: true);
