@@ -101,67 +101,35 @@ Every child row has a restrictive foreign key to its owning revision. Ordinals a
 - Payload bytes and payload storage location belong to the dedicated Field Payload model in the parent implementation plan, not to these metadata child tables.
 - Renderer indexes, decoded tiles and other disposable caches do not belong in Core Domain tables.
 
-## 5. Manifest V1/V2 semantic reconciliation
+## 5. Canonical manifest semantic contract
 
-The audit confirmed an existing conformance gap, not merely a future persistence concern:
+The initial World View release has one canonical Field Package manifest contract. There is no V1/V2 compatibility split and no historical data requiring a legacy-read path.
 
-- P2-09-30 requires elevation unit (`m` or `ft`) and stable `vertical_reference_id`.
-- P2-09-31 FDV-004 and FDV-005 expect rejection when either is missing.
-- P2-09-34 Manifest V1 has no fields for either value, and the current publication validator therefore cannot enforce those vectors.
-- ME-05-04 defines a versioned precision profile per Spatial Reference. The Field manifest must pin the selected coordinate precision profile so a revision remains interpretable against the immutable definition.
-- P2-09-30 requires resolution and grid alignment semantics. The current grid properties already carry these semantics, but the registry/vector wording had not mapped the concepts to concrete fields.
+The current schema is [P2-09-34 Field Package Canonical Manifest Schema](p2-09-34-field-package-canonical-manifest-schema-v0.1.json), with executable Domain validation and validation vectors in [P2-09-35](p2-09-35-field-package-canonical-manifest-validation-vectors-v0.1.json).
 
-### 5.1 V2 manifest contract authored
+The single contract requires:
 
-Two new artifacts define the proposed compatible V2 shape and validation cases:
-
-- [P2-09-36 Field Package Canonical Manifest Schema V0.2](p2-09-36-field-package-canonical-manifest-schema-v0.2.json)
-- [P2-09-37 Field Package Canonical Manifest V2 Validation Vectors V0.2](p2-09-37-field-package-canonical-manifest-v2-validation-vectors-v0.2.json)
-
-V2 adds these explicit semantics:
-
-- `field.unit`: required for elevation (`m` or `ft`); omitted for categorical `land_water`.
-- `spatial.vertical_reference_id`: required for elevation; a distinct stable identity, never inferred from horizontal CRS, unit or source file.
-- `spatial.coordinate_precision_profile_id`: required for all fields; pins the coordinate quantization profile selected by the immutable Spatial Reference definition.
+- `field.unit`: required for elevation (`m` or `ft`); forbidden for categorical `land_water`.
+- `spatial.vertical_reference_id`: required for elevation; forbidden for `land_water`.
+- `spatial.coordinate_precision_profile_id`: required for all fields and selected by the immutable Spatial Reference definition.
 - `value_encoding.profile_id` remains the sample representation/encoding profile. It is not the coordinate precision profile.
 - Resolution is represented by `grid.spacing_x`, `grid.spacing_y`, `grid.width` and `grid.height`. Tile dimensions describe package tiling, not semantic resolution.
-- Grid alignment is represented by `grid.origin_x`, `grid.origin_y`, `grid.axis_orientation` and `grid.cell_registration`. These exact fields are not duplicated into a second redundant alignment object.
+- Grid alignment is represented by `grid.origin_x`, `grid.origin_y`, `grid.axis_orientation` and `grid.cell_registration`; no duplicate alignment object is introduced.
 
-The WVFLDPK binary envelope remains format 1.0. Its version is independent from `manifest_schema.version`; V2 does not change the binary header, tile layout or existing golden package bytes.
+The WVFLDPK binary envelope remains format 1.0. The manifest schema identity/version remains the initial contract identity; there is no second manifest format or compatibility dispatcher.
 
-### 5.2 Compatibility and publication policy
+The Domain publication validator now enforces the new required properties and the typed projection carries unit, vertical-reference ID and coordinate-precision-profile ID. Spatial owner lookup and comparison against immutable Map/Spatial Reference definitions remain a separate implementation gate; non-empty IDs alone do not prove that the referenced definitions exist.
 
-- Existing Manifest V1 revisions remain readable as legacy records.
-- V1 is not accepted for new formal elevation publication after the V2 validator is implemented.
-- New formal publication uses Manifest V2.
-- V1 backfill must not fabricate unit, vertical reference or coordinate precision profile. Such revisions remain explicitly marked as legacy/incomplete for those semantics.
-- V2 IDs are only syntactically validated until authoritative Spatial Reference / Vertical Reference records and lookup services exist. Production publication must eventually resolve them to immutable locally available definitions; a non-empty string alone is not proof of a valid definition.
-- The current golden fixtures remain V1 byte-exact references. New V2 package fixtures must be added separately after the package writer is implemented; existing fixture hashes must not be silently rewritten.
+## 6. Typed projection and persistence transition
 
-### 5.3 Remaining implementation gate
-
-The schema and vectors are design artifacts, not executable validation. The next code slice must:
-
-1. Add an explicit manifest-version dispatch: V1 legacy read path versus V2 new-publication path.
-2. Enforce V2 unit, vertical-reference and coordinate-precision-profile requirements in Domain validation.
-3. Preserve these fields in the typed projection and later relational persistence.
-4. Define immutable Spatial Reference and Vertical Reference owner records and local resolution before enabling production publication.
-5. Execute V2 validation vectors in tests and keep V1 golden fixtures byte-identical.
-
-No missing value is synthesized, and no spatial foreign key is introduced before the owner contract exists.
-
-## 6. Backfill and dual-read rules
-
-1. Read every existing manifest through the existing strict validator before projection.
+1. The application has no historical user data; new records are created under the complete canonical manifest contract.
 2. Verify Dataset descriptor pins match the Revision snapshot.
 3. Project every value without lossy numeric conversion. Decimal grid values remain exact strings.
-4. Insert the revision scalar fields and all child rows in one transaction per revision or one bounded migration transaction appropriate to the package size.
+4. Insert revision scalar fields and all child rows in the same publication transaction.
 5. Reject malformed, inconsistent, duplicate or unsupported values. Do not repair silently.
-6. Preserve the original manifest during the transition for rollback, diagnostics and interchange compatibility.
+6. Preserve the canonical manifest temporarily for diagnostics and package interchange while all consumers migrate.
 7. Verify a typed read produces the same semantic projection as the validated manifest.
-8. Only after all readers/writers and package interchange consumers have migrated may the internal manifest column be retired.
-
-If a manifest is valid under its current schema but lacks a later-required semantic field, preserve that field as explicitly unavailable under the legacy schema version. Do not pretend the row satisfies the newer semantic contract.
+8. Retire internal manifest persistence only after every production reader/writer has moved to the typed model and the interchange contract is independently preserved.
 
 ## 7. Payload relationship
 
@@ -202,15 +170,15 @@ The exact command path must be checked against the repository's solution working
 - Invalid enum, range, required-field and cross-field combinations are rejected.
 - Map Space and Spatial Reference IDs are preserved exactly and are not accidentally joined to Map ID or EPSG aliases.
 - Cross-Project or wrong-Map Dataset ownership is rejected.
-- Legacy manifest backfill is deterministic and idempotent.
+- Initial schema creation and typed persistence require no historical-data backfill.
 - Malformed or semantically inconsistent legacy rows fail with an actionable diagnostic and do not partially publish.
-- Legacy rows lacking unit/vertical/precision fields remain explicitly incomplete; no fabricated values appear.
+- New Field Revisions cannot be published unless all descriptor-required unit/vertical/precision values are present.
 - Revision metadata and its payload reference publish atomically with the Dataset current-revision compare-and-swap.
 - Windows and macOS produce equivalent typed values and hashes for the same canonical source.
 
 ## 10. Next implementation order
 
-1. Reconcile the ME-05-01 / P2-09-34 semantic gap and define the next manifest schema/validation vectors.
+1. Complete owner-context validation against Map Space and immutable Spatial Reference definitions.
 2. Define the Map Space and Spatial Reference owner records and their project/map scope; only then add relational foreign keys.
 3. Add typed revision scalar/child persistence and generate the EF migration with the real CLI.
 4. Backfill existing rows and prove typed reads no longer depend on `manifest_json`.
