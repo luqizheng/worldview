@@ -52,6 +52,10 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public List<FieldRevisionRecord> FieldRevisions { get; } = new();
 
+    public List<FieldPayloadRecord> FieldPayloads { get; } = new();
+
+    public Dictionary<Guid, byte[]> FieldPayloadBlobs { get; } = new();
+
     public List<MapInitialStateRecord> InitialStates { get; } = new();
 
     public List<InitialObjectRecord> InitialObjects { get; } = new();
@@ -598,6 +602,21 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         FieldRevisions.Where(x => x.ProjectId == projectId && x.FieldDatasetId == fieldDatasetId)
             .OrderBy(x => x.RevisionNumber).ToArray();
 
+    public FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId) =>
+        FieldPayloads.FirstOrDefault(x => x.ProjectId == projectId && x.FieldRevisionId == fieldRevisionId);
+
+    public byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId)
+    {
+        var payload = FindFieldPayload(projectId, fieldRevisionId);
+        if (payload is null)
+            return null;
+        if (payload.StorageKind != FieldPayloadStorageKind.SqliteBlob)
+            throw new InvalidOperationException("Field Payload is stored as ManagedFile, not SQLite BLOB.");
+        return FieldPayloadBlobs.TryGetValue(payload.FieldPayloadId, out var bytes)
+            ? bytes.ToArray()
+            : throw new CoreDomainDataException("SQLite BLOB Field Payload is missing from the fake database.");
+    }
+
     public FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan)
     {
         var dataset = FindFieldDataset(plan.ProjectId, plan.MapId, plan.FieldKey);
@@ -626,6 +645,11 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
                 throw new CoreDomainConflictException("Field Dataset identity 或 current revision CAS 冲突。");
         }
 
+        var payload = FieldPayloadRules.Create(plan.Payload);
+        FieldPayloads.Add(payload);
+        if (payload.StorageKind == FieldPayloadStorageKind.SqliteBlob)
+            FieldPayloadBlobs.Add(payload.FieldPayloadId, plan.PayloadBytes!.ToArray());
+
         var revision = new FieldRevisionRecord
         {
             FieldRevisionId = plan.FieldRevisionId,
@@ -635,6 +659,7 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
                 .Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1,
             ParentRevisionId = dataset.CurrentFieldRevisionId,
             FieldRevisionAssetId = plan.FieldRevisionAssetId,
+            Payload = payload,
             ContentFingerprint = plan.ContentFingerprint,
             ManifestJson = plan.ManifestJson,
             Metadata = plan.Metadata,
