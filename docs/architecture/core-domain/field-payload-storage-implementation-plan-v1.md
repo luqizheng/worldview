@@ -156,6 +156,19 @@ The first Domain implementation slice now exists in `FieldRevisionMetadata.cs`:
 
 This is deliberately a compatibility bridge, **not yet the typed SQLite persistence migration**. No EF entity, generated migration, or model snapshot was changed in this slice. The next persistence slice must add normalized typed storage and payload references using the EF CLI migration workflow, then backfill and verify existing rows before retiring `manifest_json`.
 
+## 7.2 Typed persistence design and spatial ownership gate
+
+The next design artifact is [Field Revision Typed Persistence Design V1](field-revision-typed-persistence-design-v1.md). It records the verified current EF/domain boundary and specifies the initial relational shape:
+
+- Immutable revision scalar metadata is stored on the revision row; ordered planes/codecs and category codes use typed child rows.
+- Grid origin/spacing remain canonical decimal TEXT; no conversion to SQLite REAL is permitted.
+- Map Space ID and Spatial Reference ID remain distinct. The current Core Domain model has no authoritative owner records for either, so the first metadata migration must preserve them as opaque validated identifiers and must not invent foreign keys to `core_map` or assume EPSG aliases.
+- A separate owner contract is required before spatial catalog foreign keys are introduced. ME-05-04 describes Spatial Reference as an immutable project-scoped definition; the exact Map Space owner/lifecycle still needs reconciliation.
+- The current P2-09-34 manifest schema omits dimensional unit, vertical-reference identity, precision profile and explicit resolution profile required by ME-05-01. These values cannot be backfilled from current manifests. Reconcile the semantic contract and validation vectors before declaring typed persistence complete.
+- The accepted dedicated Field Payload model supersedes the older assumption that all Field Revision bytes must be represented as generic Core Assets; the transition must not create two competing payload authorities.
+
+No EF schema or generated snapshot was changed for this design slice. The next code/schema change remains gated on resolving the manifest semantic gap and running the real EF CLI migration workflow.
+
 ## 8. Required tests
 
 - BLOB write/read byte-for-byte round trip, empty payload, and large payload boundaries.
