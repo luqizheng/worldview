@@ -68,7 +68,8 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
                 HasPendingModelChanges: db.Database.HasPendingModelChanges());
         });
 
-        Assert.Empty(result.Differences);
+        Assert.True(result.Differences.Length == 0,
+            $"Frozen snapshot differs from runtime EF model: {string.Join(", ", result.Differences)}");
         Assert.False(result.HasPendingModelChanges,
             "The CoreDomainDbContext model must match the discovered EF migration snapshot.");
     }
