@@ -192,6 +192,12 @@ public sealed class CreateProjectUseCase
 
         // ---- 4. 数据库 bootstrap ----
         var dbPath = ProjectPackageStructure.DatabasePath(tempPath, manifest);
+        var databaseDirectory = Path.GetDirectoryName(dbPath);
+        if (!string.IsNullOrEmpty(databaseDirectory))
+        {
+            _fileSystem.CreateDirectory(databaseDirectory);
+        }
+
         await using (var database = _databaseFactory.CreateForFile(dbPath))
         {
             await database.OpenAsync(cancellationToken).ConfigureAwait(false);
