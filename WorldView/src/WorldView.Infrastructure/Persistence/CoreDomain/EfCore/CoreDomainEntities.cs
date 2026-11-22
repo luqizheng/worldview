@@ -176,3 +176,48 @@ internal sealed class CoreFieldPayloadEntity
     public required string IntegrityState { get; set; }
     public long CreatedAtUtcMs { get; set; }
 }
+
+
+/// <summary>Immutable external Project Settings document version metadata.</summary>
+internal sealed class CoreProjectSettingsRevisionEntity
+{
+    public Guid ProjectSettingsRevisionId { get; set; }
+    public Guid ProjectId { get; set; }
+    public long Version { get; set; }
+    public int SchemaVersion { get; set; }
+    public required string RelativePath { get; set; }
+    public required string HashAlgorithm { get; set; }
+    public required string ContentHash { get; set; }
+    public long ByteLength { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+}
+
+/// <summary>Authoritative current Project Settings revision pointer.</summary>
+internal sealed class CoreProjectSettingsCurrentEntity
+{
+    public Guid ProjectId { get; set; }
+    public Guid ProjectSettingsRevisionId { get; set; }
+}
+
+/// <summary>Immutable external Map Settings document version metadata.</summary>
+internal sealed class CoreMapSettingsRevisionEntity
+{
+    public Guid MapSettingsRevisionId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid MapId { get; set; }
+    public long Version { get; set; }
+    public int SchemaVersion { get; set; }
+    public required string RelativePath { get; set; }
+    public required string HashAlgorithm { get; set; }
+    public required string ContentHash { get; set; }
+    public long ByteLength { get; set; }
+    public long CreatedAtUtcMs { get; set; }
+}
+
+/// <summary>Authoritative current Map Settings revision pointer.</summary>
+internal sealed class CoreMapSettingsCurrentEntity
+{
+    public Guid ProjectId { get; set; }
+    public Guid MapId { get; set; }
+    public Guid MapSettingsRevisionId { get; set; }
+}
