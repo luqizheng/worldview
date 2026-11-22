@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
+using WorldView.Domain.Registry;
 
 namespace WorldView.Domain.Tests.TestDoubles;
 
@@ -364,6 +366,88 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         }
 
         var (canonical, hash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+        Definitions.Remove(current);
+        Definitions.Add(current with
+        {
+            DefinitionSchemaVersion = plan.DefinitionSchemaVersion,
+            DefinitionPayloadJson = canonical,
+            DefinitionHash = hash,
+            UpdatedAtUtcMs = plan.NowUtcMs,
+        });
+    }
+
+    public void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan)
+    {
+        var identity = Objects.FirstOrDefault(o =>
+                o.ProjectId == plan.ProjectId && o.ObjectIdentityId == plan.ObjectIdentityId)
+            ?? throw new CoreDomainConflictException("Object 不存在。");
+        if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+        {
+            throw new CoreDomainConflictException("仅 active Object 可发布 Geometry Definition。");
+        }
+
+        ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
+        var type = ObjectTypes.FirstOrDefault(t =>
+                t.ProjectId == plan.ProjectId && t.ObjectTypeId == identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException("Object Type 不存在。");
+        if (!ObjectTypeRegistry.Require(type.TypeKey).HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException("该 Object Type 没有 typed Geometry Component schema。");
+        }
+
+        var current = Definitions.FirstOrDefault(d =>
+                d.ProjectId == plan.ProjectId && d.ObjectIdentityId == plan.ObjectIdentityId)
+            ?? throw new CoreDomainDataException("active Object 缺少定义行。");
+        if (!string.Equals(current.DefinitionHash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
+        {
+            throw new CoreDomainConflictException("定义 CAS 冲突。");
+        }
+
+        var (canonical, hash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+        ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonical);
+        using var document = JsonDocument.Parse(canonical);
+        var desiredAssets = new Dictionary<Guid, string>();
+        foreach (var component in document.RootElement.GetProperty("geometry_components").EnumerateArray())
+        {
+            var assetId = Guid.Parse(component.GetProperty("asset_id").GetString()!);
+            var contentHash = component.GetProperty("content_hash").GetString()!;
+            if (desiredAssets.TryGetValue(assetId, out var existingHash)
+                && !string.Equals(existingHash, contentHash, StringComparison.Ordinal))
+            {
+                throw new CoreDomainConflictException("同一 Asset ID 被多个 Geometry Component 固定到不同 hash。");
+            }
+
+            desiredAssets[assetId] = contentHash;
+        }
+
+        foreach (var (assetId, expectedHash) in desiredAssets)
+        {
+            var asset = Assets.FirstOrDefault(a => a.ProjectId == plan.ProjectId && a.AssetId == assetId)
+                ?? throw new CoreDomainConflictException($"Asset {assetId} 不存在。");
+            if (asset.IntegrityState != AssetIntegrityState.Verified
+                || !string.Equals(asset.ContentHash, expectedHash, StringComparison.Ordinal))
+            {
+                throw new CoreDomainConflictException($"Asset {assetId} 未验证或 hash 不匹配。");
+            }
+        }
+
+        DefinitionAssetLinks.RemoveAll(link =>
+            link.ProjectId == plan.ProjectId
+            && link.ObjectIdentityId == plan.ObjectIdentityId
+            && link.Role == "geometry_component");
+        foreach (var assetId in desiredAssets.Keys)
+        {
+            DefinitionAssetLinks.Add(new ObjectDefinitionAssetLinkRecord
+            {
+                ObjectDefinitionAssetId = Guid.NewGuid(),
+                ProjectId = plan.ProjectId,
+                ObjectIdentityId = plan.ObjectIdentityId,
+                AssetId = assetId,
+                Role = "geometry_component",
+                CreatedAtUtcMs = plan.NowUtcMs,
+            });
+        }
+
         Definitions.Remove(current);
         Definitions.Add(current with
         {
