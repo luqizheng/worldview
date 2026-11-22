@@ -194,9 +194,9 @@ public class OpenProjectUseCaseTests : IDisposable
             // 假数据库在文件系统层以占位文件表示；重命名发布后，数据库文件携带的
             // bootstrap 状态一并“迁移”到最终路径（真实 SQLite 文件天然如此）。
             _fileSystem.WriteAllText(
-                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseFileName), string.Empty);
+                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseRelativePath), string.Empty);
             var database = (FakePackageDatabase)_databaseFactory.CreateForFile(
-                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseFileName));
+                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseRelativePath));
             await database.OpenAsync();
             await database.EnsureLedgerTableAsync();
             await database.WriteMetadataAsync(new BootstrapMetadata
@@ -309,7 +309,7 @@ public class OpenProjectUseCaseTests : IDisposable
         // 打开阶段建立的数据库实例（按已发布包的数据库文件路径缓存）已释放。
         var database = Assert.Single(_databaseFactory.Instances
             .Where(db => db.DatabasePath.Equals(
-                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseFileName), StringComparison.OrdinalIgnoreCase)));
+                Path.Combine(_packageRoot, ProjectPackageFormat.DatabaseRelativePath), StringComparison.OrdinalIgnoreCase)));
         Assert.Contains("Database:Dispose", database.CallLog);
     }
 
