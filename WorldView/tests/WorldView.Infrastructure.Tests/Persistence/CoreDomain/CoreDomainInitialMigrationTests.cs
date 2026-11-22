@@ -47,7 +47,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         {
             var differ = db.GetService<IMigrationsModelDiffer>();
             var initializer = db.GetService<IModelRuntimeInitializer>();
-            var runtimeModel = db.Model.GetRelationalModel();
+            var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
             var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true).GetRelationalModel();
             var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true).GetRelationalModel();
             static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
