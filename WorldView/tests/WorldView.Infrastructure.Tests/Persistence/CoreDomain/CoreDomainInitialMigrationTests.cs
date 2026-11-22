@@ -135,6 +135,9 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Contains("core_object_definition_asset", tables);
         Assert.Contains("core_map_field_dataset", tables);
         Assert.Contains("core_map_field_revision", tables);
+        Assert.Contains("core_map_field_revision_plane", tables);
+        Assert.Contains("core_map_field_revision_category_code", tables);
+        Assert.Contains("core_map_field_revision_codec", tables);
         Assert.Contains("core_spatial_reference", tables);
 
         var mappedTables = session.Execute(db => db.Model.GetEntityTypes()
@@ -148,11 +151,10 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(new[]
-        {
-            "20261122090235_CoreDomainInitial",
-            "20261122140144_MapSpatialReferenceOwnership",
-        }, migrationIds);
+        Assert.Equal(3, migrationIds.Length);
+        Assert.Contains("20261122090235_CoreDomainInitial", migrationIds);
+        Assert.Contains("20261122140144_MapSpatialReferenceOwnership", migrationIds);
+        Assert.Contains(migrationIds, id => id.EndsWith("_FieldRevisionTypedMetadata", StringComparison.Ordinal));
 
         var triggerCount = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
