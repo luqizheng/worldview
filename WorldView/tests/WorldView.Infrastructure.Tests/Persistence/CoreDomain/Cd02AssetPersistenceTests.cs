@@ -205,7 +205,8 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var identityId = CreateActiveRiverObject(project.ProjectId);
         var orphan = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 8, "application/json", "1", Now);
         var referenced = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash[..63] + "0", 8, "application/json", "1", Now);
-        AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, referenced.AssetId, "centerline", Now + 1);
+        core.UpdateAssetIntegrityState(project.ProjectId, referenced.AssetId, AssetIntegrityState.Verified, Now + 1);
+        AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, referenced.AssetId, "centerline", Now + 2);
 
         var orphans = core.FindOrphanAssetIds(project.ProjectId);
         Assert.Single(orphans);
