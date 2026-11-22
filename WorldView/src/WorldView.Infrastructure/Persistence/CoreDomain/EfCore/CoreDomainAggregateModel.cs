@@ -157,6 +157,7 @@ internal static class CoreDomainAggregateModel
             e.HasAlternateKey(x => new { x.project_id, x.object_type_id, x.allocated_id_value });
             e.HasIndex(x => new { x.project_id, x.request_key }).IsUnique();
             e.HasIndex(x => new { x.project_id, x.object_type_id, x.object_identity_id }).IsUnique();
+            e.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.project_id).OnDelete(DeleteBehavior.NoAction);
             e.HasOne<CoreObjectTypeEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.object_type_id })
                 .HasPrincipalKey(x => new { x.project_id, x.object_type_id }).OnDelete(DeleteBehavior.NoAction);
@@ -214,6 +215,7 @@ internal static class CoreDomainAggregateModel
             e.HasKey(x => x.object_definition_asset_id);
             e.HasAlternateKey(x => new { x.project_id, x.object_definition_asset_id });
             e.HasAlternateKey(x => new { x.project_id, x.object_identity_id, x.asset_id, x.role });
+            e.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.project_id).OnDelete(DeleteBehavior.NoAction);
             e.HasOne<CoreObjectEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.object_identity_id })
                 .HasPrincipalKey(x => new { x.project_id, x.object_identity_id }).OnDelete(DeleteBehavior.NoAction);
