@@ -497,9 +497,9 @@ public sealed partial class SqliteCoreDomainDatabase
                 var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
                 var typeKey = ReadObjectTypeKey(transaction, plan.ProjectId, plan.ObjectIdentityId);
                 var descriptor = ObjectTypeRegistry.Require(typeKey);
-                ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
                 if (descriptor.HasTypedAggregateSchema)
                 {
+                    ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
                     if (typeKey is not ("building" or "cave_system"))
                     {
                         throw new CoreDomainConflictException(
