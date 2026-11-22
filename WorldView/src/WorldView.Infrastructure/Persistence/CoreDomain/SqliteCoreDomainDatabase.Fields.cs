@@ -54,6 +54,33 @@ public sealed partial class SqliteCoreDomainDatabase
             return entity is null ? null : MapFieldPayload(entity);
         });
 
+    public IReadOnlyList<FieldPayloadRecord> ListFieldPayloads(Guid projectId) =>
+        _ef.Execute(db => (IReadOnlyList<FieldPayloadRecord>)db.FieldPayloads.AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderBy(x => x.FieldPayloadId)
+            .AsEnumerable()
+            .Select(MapFieldPayload)
+            .ToArray());
+
+    public void SetFieldPayloadIntegrityState(
+        Guid projectId,
+        Guid fieldPayloadId,
+        FieldPayloadIntegrityState state) =>
+        _ef.Execute(db =>
+        {
+            var entity = db.FieldPayloads.SingleOrDefault(x =>
+                x.ProjectId == projectId && x.FieldPayloadId == fieldPayloadId)
+                ?? throw new CoreDomainConflictException("Field Payload 不存在或不属于当前 Project。");
+            entity.IntegrityState = state switch
+            {
+                FieldPayloadIntegrityState.Verified => "verified",
+                FieldPayloadIntegrityState.Corrupt => "corrupt",
+                FieldPayloadIntegrityState.Missing => "missing",
+                _ => throw new ArgumentOutOfRangeException(nameof(state), "Unknown Field Payload integrity state."),
+            };
+            SaveChangesOrThrowSqlite(db);
+        });
+
     public byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId) =>
         _ef.Execute(db =>
         {
