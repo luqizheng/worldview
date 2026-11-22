@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using WorldView.Domain.Assets;
 using WorldView.Domain.Fields;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
@@ -150,30 +152,53 @@ public sealed partial class SqliteCoreDomainDatabase
             }
         });
 
-    private static FieldDatasetRecord MapFieldDataset(CoreMapFieldDatasetEntity entity) => new()
+    private static FieldDatasetRecord MapFieldDataset(CoreMapFieldDatasetEntity entity)
     {
-        FieldDatasetId = entity.FieldDatasetId,
-        ProjectId = entity.ProjectId,
-        MapId = entity.MapId,
-        FieldKey = entity.FieldKey,
-        DescriptorSchemaVersion = entity.DescriptorSchemaVersion,
-        SemanticsId = entity.SemanticsId,
-        CurrentFieldRevisionId = entity.CurrentFieldRevisionId,
-        CreatedAtUtcMs = entity.CreatedAtUtcMs,
-        UpdatedAtUtcMs = entity.UpdatedAtUtcMs,
-    };
+        if (!FieldDescriptorRegistry.TryGetSemanticsId(
+                entity.FieldKey, entity.DescriptorSchemaVersion, out var expectedSemanticsId)
+            || !string.Equals(entity.SemanticsId, expectedSemanticsId, StringComparison.Ordinal))
+            throw new CoreDomainDataException(
+                $"Field Dataset {entity.FieldDatasetId:D} contains an unknown or incompatible descriptor pin.");
 
-    private static FieldRevisionRecord MapFieldRevision(CoreMapFieldRevisionEntity entity) => new()
+        return new FieldDatasetRecord
+        {
+            FieldDatasetId = entity.FieldDatasetId,
+            ProjectId = entity.ProjectId,
+            MapId = entity.MapId,
+            FieldKey = entity.FieldKey,
+            DescriptorSchemaVersion = entity.DescriptorSchemaVersion,
+            SemanticsId = entity.SemanticsId,
+            CurrentFieldRevisionId = entity.CurrentFieldRevisionId,
+            CreatedAtUtcMs = entity.CreatedAtUtcMs,
+            UpdatedAtUtcMs = entity.UpdatedAtUtcMs,
+        };
+    }
+
+    private static FieldRevisionRecord MapFieldRevision(CoreMapFieldRevisionEntity entity)
     {
-        FieldRevisionId = entity.FieldRevisionId,
-        ProjectId = entity.ProjectId,
-        FieldDatasetId = entity.FieldDatasetId,
-        RevisionNumber = entity.RevisionNumber,
-        ParentRevisionId = entity.ParentRevisionId,
-        FieldRevisionAssetId = entity.FieldRevisionAssetId,
-        ContentFingerprint = entity.ContentFingerprint,
-        ManifestJson = entity.ManifestJson,
-        ProvenanceJson = entity.ProvenanceJson,
-        CreatedAtUtcMs = entity.CreatedAtUtcMs,
-    };
+        if (entity.RevisionNumber < 1 || !AssetRules.IsSha256Hex(entity.ContentFingerprint))
+            throw new CoreDomainDataException(
+                $"Field Revision {entity.FieldRevisionId:D} has an invalid revision number or content fingerprint.");
+
+        var manifest = CanonicalJson.Canonicalize(entity.ManifestJson);
+        var provenance = CanonicalJson.Canonicalize(entity.ProvenanceJson);
+        if (!string.Equals(manifest, entity.ManifestJson, StringComparison.Ordinal)
+            || !string.Equals(provenance, entity.ProvenanceJson, StringComparison.Ordinal))
+            throw new CoreDomainDataException(
+                $"Field Revision {entity.FieldRevisionId:D} contains non-canonical manifest or provenance JSON.");
+
+        return new FieldRevisionRecord
+        {
+            FieldRevisionId = entity.FieldRevisionId,
+            ProjectId = entity.ProjectId,
+            FieldDatasetId = entity.FieldDatasetId,
+            RevisionNumber = entity.RevisionNumber,
+            ParentRevisionId = entity.ParentRevisionId,
+            FieldRevisionAssetId = entity.FieldRevisionAssetId,
+            ContentFingerprint = entity.ContentFingerprint,
+            ManifestJson = manifest,
+            ProvenanceJson = provenance,
+            CreatedAtUtcMs = entity.CreatedAtUtcMs,
+        };
+    }
 }
