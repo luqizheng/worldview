@@ -371,6 +371,19 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.Definition.DefinitionSchemaVersion);
+                var typeKey = ReadObjectTypeKey(transaction, plan.ProjectId, plan.ObjectIdentityId);
+                var descriptor = ObjectTypeRegistry.Require(typeKey);
+                var (canonicalPayload, definitionHash) =
+                    CanonicalJson.CanonicalizeAndHash(plan.Definition.DefinitionPayloadJson);
+                if (descriptor.HasTypedAggregateSchema)
+                {
+                    ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
+                    if (ReadGeometryAssetMap(canonicalPayload).Count > 0)
+                    {
+                        throw new CoreDomainConflictException(
+                            "Building/Cave Object creation cannot publish a non-empty geometry_components manifest; use the atomic Geometry Definition publication operation after identity creation.");
+                    }
+                }
 
                 var mapId = plan.Registration?.MapId;
                 if (plan.Registration is not null)
@@ -379,7 +392,6 @@ public sealed partial class SqliteCoreDomainDatabase
                 }
 
                 // definition 首行（canonical payload + hash；每 identity 至多一行由 PK 保证）。
-                var (canonicalPayload, definitionHash) = CanonicalJson.CanonicalizeAndHash(plan.Definition.DefinitionPayloadJson);
                 using (var insertDefinition = connection.CreateCommand())
                 {
                     insertDefinition.Transaction = transaction;

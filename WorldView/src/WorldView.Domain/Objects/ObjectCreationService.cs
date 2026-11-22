@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using WorldView.Domain.Persistence;
 
 namespace WorldView.Domain.Objects;
@@ -51,7 +52,15 @@ public static class ObjectCreationService
         ObjectRules.ValidateDefinitionSchemaVersion(identity, definition.DefinitionSchemaVersion);
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"身份 {identityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
-        Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, CanonicalJson.Canonicalize(definition.DefinitionPayloadJson));
+        var canonicalDefinition = CanonicalJson.Canonicalize(definition.DefinitionPayloadJson);
+        var descriptor = Registry.ObjectTypeRegistry.Require(type.TypeKey);
+        Registry.ObjectTypeRegistry.ValidateDefinition(type.TypeKey, canonicalDefinition);
+        if (descriptor.HasTypedAggregateSchema && HasGeometryComponents(canonicalDefinition))
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave Object creation must start with an empty geometry_components array; publish formal Geometry Assets afterward through PublishDefinitionWithGeometryAssets.");
+        }
+
         ValidatePlacementPairing(initialMembership);
 
         if (initialMembership is not null)
@@ -82,6 +91,14 @@ public static class ObjectCreationService
             InitialMembership = initialMembership,
             NowUtcMs = nowUtcMs,
         });
+    }
+
+    private static bool HasGeometryComponents(string canonicalPayload)
+    {
+        using var document = JsonDocument.Parse(canonicalPayload);
+        return document.RootElement.TryGetProperty("geometry_components", out var components)
+            && components.ValueKind == JsonValueKind.Array
+            && components.GetArrayLength() > 0;
     }
 
     /// <summary>placement payload 与 schema version 必须成对出现（迁移 CHECK 的服务层前置）。</summary>
