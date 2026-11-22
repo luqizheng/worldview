@@ -248,14 +248,12 @@ public sealed partial class SqliteCoreDomainDatabase
                     precondition.Transaction = transaction;
                     precondition.CommandText = """
                         SELECT o.lifecycle_status, a.integrity_state, t.type_key,
-                               a.content_hash, d.definition_payload_json
+                               a.content_hash
                         FROM core_object o
                         JOIN core_object_type t
                           ON t.project_id = o.project_id AND t.object_type_id = o.object_type_id
                         JOIN core_asset a
                           ON a.project_id = o.project_id
-                        JOIN core_object_definition d
-                          ON d.project_id = o.project_id AND d.object_identity_id = o.object_identity_id
                         WHERE o.project_id = $projectId
                           AND o.object_identity_id = $identityId
                           AND a.asset_id = $assetId;
@@ -274,7 +272,6 @@ public sealed partial class SqliteCoreDomainDatabase
                     var integrityState = reader.GetString(1);
                     var typeKey = reader.GetString(2);
                     var assetHash = reader.GetString(3);
-                    var definitionPayload = reader.GetString(4);
                     if (!string.Equals(lifecycleStatus, "active", StringComparison.Ordinal))
                     {
                         throw new CoreDomainConflictException(
