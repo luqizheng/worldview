@@ -15,13 +15,11 @@ namespace WorldView.Infrastructure.Assets;
 public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
 {
     private const string RelativePrefix = "FieldPayloads/sha256/";
-    private readonly string _packageRoot;
-
     public FieldPayloadFileStore(string packageRootPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRootPath);
-        _packageRoot = Path.GetFullPath(packageRootPath);
-        RootPath = Path.GetFullPath(Path.Combine(_packageRoot, "FieldPayloads", "sha256"));
+        var packageRoot = Path.GetFullPath(packageRootPath);
+        RootPath = Path.GetFullPath(Path.Combine(packageRoot, "FieldPayloads", "sha256"));
         Directory.CreateDirectory(RootPath);
     }
 
@@ -63,6 +61,7 @@ public sealed class FieldPayloadFileStore : IFieldPayloadFileStore
                 throw new InvalidDataException("Field Payload cannot be empty.");
 
             contentHash = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+            await VerifyExistingAsync(stagingPath, contentHash, byteLength, cancellationToken).ConfigureAwait(false);
             var fileName = contentHash;
             var finalPath = Path.Combine(RootPath, fileName);
 
