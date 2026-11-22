@@ -40,7 +40,7 @@ public static class JsonSchemaSubset
         "type", "properties", "required", "additionalProperties", "items", "enum", "const",
         "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "minItems",
         "maxItems", "uniqueItems", "pattern", "oneOf", "allOf", "$ref", "$defs",
-        "dependentRequired", "maxProperties",
+        "dependentRequired", "maxProperties", "if", "then", "else", "not",
     };
 
     /// <summary>校验 <paramref name="instance"/> 是否满足 schema；返回全部违规（空 = 通过）。</summary>
@@ -107,6 +107,10 @@ public static class JsonSchemaSubset
                     index++;
                 }
             }
+            else if (property.Name is "if" or "then" or "else" or "not" && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                EnsureSupportedKeywords(property.Value, $"{path}/{property.Name}");
+            }
         }
     }
 
@@ -142,6 +146,37 @@ public static class JsonSchemaSubset
             foreach (var branch in allOf.EnumerateArray())
             {
                 ApplySchema(branch, instance, path, violations, context);
+            }
+        }
+
+        // Conditional schemas are assertions over the same instance. The condition's
+        // own failures select else; they are not themselves reported as violations.
+        if (schema.TryGetProperty("if", out var condition))
+        {
+            var conditionViolations = new List<SchemaViolation>();
+            ApplySchema(condition, instance, path, conditionViolations, context);
+            if (conditionViolations.Count == 0 && schema.TryGetProperty("then", out var thenSchema))
+            {
+                ApplySchema(thenSchema, instance, path, violations, context);
+            }
+            else if (conditionViolations.Count != 0 && schema.TryGetProperty("else", out var elseSchema))
+            {
+                ApplySchema(elseSchema, instance, path, violations, context);
+            }
+        }
+
+        if (schema.TryGetProperty("not", out var notSchema))
+        {
+            var notViolations = new List<SchemaViolation>();
+            ApplySchema(notSchema, instance, path, notViolations, context);
+            if (notViolations.Count == 0)
+            {
+                violations.Add(new SchemaViolation
+                {
+                    Keyword = "not",
+                    InstancePath = path,
+                    Message = "实例匹配了 not 禁止的子 schema。",
+                });
             }
         }
 
