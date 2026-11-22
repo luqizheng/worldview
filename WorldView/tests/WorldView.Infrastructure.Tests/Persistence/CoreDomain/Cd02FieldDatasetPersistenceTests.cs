@@ -207,8 +207,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var core = Core();
         var asset = RegisterVerifiedAsset(project.ProjectId, Fingerprint1, Now + 2);
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
-            .Replace("\"byte_order\":\"little_endian\"", "\"byte_order\":\"little_endian\",\"byte_order\":\"little_endian\"");
-                "\\"byte_order\\":\\"little_endian\\",\\"byte_order\\":\\"little_endian\\"");
+            .Replace("\"byte_order\":\"little_endian\"",
+                "\"byte_order\":\"little_endian\",\"byte_order\":\"little_endian\"");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
 
@@ -235,9 +235,9 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void CanonicalFieldManifest_IsIdempotentAndPropertyOrderIndependent()
     {
         var canonical = BuildManifest("elevation", "world-view.field.elevation.v1");
-            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+        Assert.Equal(canonical, CanonicalJson.Canonicalize(canonical));
         Assert.Equal(
-            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+            CanonicalJson.Canonicalize("{\"z\":1,\"a\":2}"),
             CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
     }
 
