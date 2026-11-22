@@ -45,28 +45,37 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
         var differences = session.Execute(db =>
         {
-            var differ = db.GetService<IMigrationsModelDiffer>();
             var initializer = db.GetService<IModelRuntimeInitializer>();
-            var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
-            var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true).GetRelationalModel();
-            var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true).GetRelationalModel();
-            static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
+            var runtimeModel = db.GetService<IDesignTimeModel>().Model;
+            var snapshotModel = initializer.Initialize(new CoreDomainDbContextModelSnapshot().Model, designTime: true);
+            var migrationModel = initializer.Initialize(new CoreDomainInitial().TargetModel, designTime: true);
+
+            static string FirstDifference(string label, string left, string right)
             {
-                var details = operation.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                    .Where(property => property.PropertyType.IsPrimitive || property.PropertyType == typeof(string))
-                    .Select(property => $"{property.Name}={property.GetValue(operation)}");
-                return $"{operation.GetType().Name}({string.Join(", ", details)})";
+                var leftLines = left.Split('\n');
+                var rightLines = right.Split('\n');
+                var count = Math.Min(leftLines.Length, rightLines.Length);
+                for (var i = 0; i < count; i++)
+                {
+                    if (!string.Equals(leftLines[i], rightLines[i], StringComparison.Ordinal))
+                        return $"{label} line {i + 1}: snapshot/target=[{leftLines[i]}] runtime=[{rightLines[i]}]";
+                }
+
+                return leftLines.Length == rightLines.Length
+                    ? string.Empty
+                    : $"{label} line count: snapshot/target={leftLines.Length}, runtime={rightLines.Length}";
             }
 
-            return differ.GetDifferences(snapshotModel, runtimeModel)
-                .Select(operation => $"snapshot:{Describe(operation)}")
-                .Concat(differ.GetDifferences(migrationModel, runtimeModel)
-                    .Select(operation => $"migration:{Describe(operation)}"))
-                .ToArray();
+            var runtimeText = runtimeModel.ToDebugString();
+            return new[]
+            {
+                FirstDifference("snapshot", snapshotModel.ToDebugString(), runtimeText),
+                FirstDifference("migration", migrationModel.ToDebugString(), runtimeText),
+            }.Where(value => !string.IsNullOrEmpty(value)).ToArray();
         });
 
         Assert.True(differences.Length == 0,
-            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences)}");
+            $"EF model differs from the frozen migration snapshot: {string.Join(Environment.NewLine, differences)}");
     }
 
     [Fact]
