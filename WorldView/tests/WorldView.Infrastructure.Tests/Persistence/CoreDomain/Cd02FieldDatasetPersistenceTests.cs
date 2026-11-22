@@ -544,8 +544,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     public void PublishedValidationVector_Mnf024PropertyOrderDoesNotChangeCanonicalBytes()
     {
         Assert.Equal(
-            CanonicalJson.Canonicalize("{\"z\":1,\"a\":2}"),
-            CanonicalJson.Canonicalize("{\"a\":2,\"z\":1}"));
+            FieldManifestCanonicalizer.Canonicalize("{\"z\":1,\"a\":2}"),
+            FieldManifestCanonicalizer.Canonicalize("{\"a\":2,\"z\":1}"));
     }
 
     [Fact]
