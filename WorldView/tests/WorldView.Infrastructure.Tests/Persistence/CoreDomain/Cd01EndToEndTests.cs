@@ -68,7 +68,7 @@ public sealed class Cd01EndToEndTests : IDisposable
         Assert.True(created.Outcome == CreateProjectOutcome.Succeeded, created.Diagnostic);
         Assert.NotNull(created.Identity);
         var packageRoot = created.PackageRootPath!;
-        Assert.True(File.Exists(Path.Combine(packageRoot, "project.sqlite")));
+        Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath)));
         var projectId = created.Identity!.ProjectId;
 
         // 2. 打开：真实身份读取 → Ready 会话。
