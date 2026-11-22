@@ -300,4 +300,36 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         Assert.Equal(1, CountRows("core_object_definition_asset"));
     }
 
+
+    [Fact]
+    public void SchemaAudit_ForeignKeyCheckAndIntegrityCheck_NoViolationsAfterObjectAssetLink()
+    {
+        var (project, _) = SeedProject();
+        var core = Core();
+        var identityId = CreateActiveRiverObject(project.ProjectId);
+        var asset = AssetService.RegisterAsset(
+            core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
+        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
+
+        var audit = Access().Execute(connection =>
+        {
+            using var foreignKeyCommand = connection.CreateCommand();
+            foreignKeyCommand.CommandText = "PRAGMA foreign_key_check;";
+            using var foreignKeyReader = foreignKeyCommand.ExecuteReader();
+            var foreignKeyViolations = 0;
+            while (foreignKeyReader.Read())
+            {
+                foreignKeyViolations++;
+            }
+
+            using var integrityCommand = connection.CreateCommand();
+            integrityCommand.CommandText = "PRAGMA integrity_check;";
+            var integrityResult = (string)integrityCommand.ExecuteScalar()!;
+            return (ForeignKeyViolations: foreignKeyViolations, IntegrityResult: integrityResult);
+        });
+
+        Assert.Equal(0, audit.ForeignKeyViolations);
+        Assert.Equal("ok", audit.IntegrityResult);
+    }
 }
