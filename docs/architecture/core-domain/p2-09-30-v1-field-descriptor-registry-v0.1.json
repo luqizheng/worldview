@@ -48,8 +48,7 @@
           "resolution_profile",
           "grid_alignment",
           "coordinate_precision_profile_id",
-          "vertical_reference_id",
-          "unit"
+          "vertical_reference_id"
         ],
         "partial_coverage": "allowed only when explicitly declared; uncovered cells must not be fabricated."
       },
@@ -84,7 +83,12 @@
         "climate",
         "ecology"
       ],
-      "status": "enabled V1 source field"
+      "status": "enabled V1 source field",
+      "manifest_v2_required": [
+        "field.unit",
+        "spatial.vertical_reference_id",
+        "spatial.coordinate_precision_profile_id"
+      ]
     },
     "land_water": {
       "field_key": "land_water",
@@ -144,7 +148,10 @@
         "climate",
         "ecology"
       ],
-      "status": "enabled V1 source field"
+      "status": "enabled V1 source field",
+      "manifest_v2_required": [
+        "spatial.coordinate_precision_profile_id"
+      ]
     }
   },
   "deferred_fields": [
