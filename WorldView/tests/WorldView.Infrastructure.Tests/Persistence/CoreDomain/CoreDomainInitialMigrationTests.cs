@@ -53,6 +53,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
             var differ = db.GetService<IMigrationsModelDiffer>();
             var runtimeModel = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
             var snapshotModel = snapshotContext.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+            var migrationModel = new CoreDomainInitial().TargetModel.GetRelationalModel();
             static string Describe(Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation operation)
             {
                 var details = operation.GetType().GetProperties()
@@ -64,7 +65,9 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
             }
 
             return differ.GetDifferences(snapshotModel, runtimeModel)
-                .Select(Describe)
+                .Select(operation => $"snapshot:{Describe(operation)}")
+                .Concat(differ.GetDifferences(migrationModel, runtimeModel)
+                    .Select(operation => $"migration:{Describe(operation)}"))
                 .ToArray();
         });
 
