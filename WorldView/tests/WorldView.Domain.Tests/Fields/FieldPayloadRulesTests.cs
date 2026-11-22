@@ -16,6 +16,9 @@ public sealed class FieldPayloadRulesTests
         FieldDatasetId = Guid.NewGuid(),
         FieldRevisionId = Guid.NewGuid(),
         StorageKind = kind,
+        PayloadFormat = "world-view.field-payload.raw",
+        FormatVersion = "1.0",
+        HashAlgorithm = "sha-256",
         ByteLength = 128,
         ContentHash = Hash,
         RelativePath = kind == FieldPayloadStorageKind.ManagedFile ? $"FieldPayloads/sha256/{Hash}" : null,
@@ -30,6 +33,9 @@ public sealed class FieldPayloadRulesTests
         Assert.Equal(FieldPayloadStorageKind.SqliteBlob, record.StorageKind);
         Assert.Null(record.RelativePath);
         Assert.Equal(Hash, record.ContentHash);
+        Assert.Equal("world-view.field-payload.raw", record.PayloadFormat);
+        Assert.Equal("sha-256", record.HashAlgorithm);
+        Assert.Equal(FieldPayloadIntegrityState.Verified, record.IntegrityState);
         Assert.Equal(128, record.ByteLength);
     }
 
