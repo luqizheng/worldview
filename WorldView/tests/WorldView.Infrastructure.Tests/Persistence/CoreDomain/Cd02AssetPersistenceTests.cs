@@ -208,9 +208,84 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var referenced = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash[..63] + "0", 8, "application/json", "1", Now);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, referenced.AssetId, "centerline", Now + 1);
 
+        // Field Revision 是另一种正式 typed Asset owner；孤儿扫描必须将其计为引用。
+        var fieldAsset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash[..63] + "1", 16, "application/octet-stream", "field-package-v1", Now);
+        core.UpdateAssetIntegrityState(project.ProjectId, fieldAsset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        var mapPlan = MapRules.CreateMap(project, "Field owner map", Now + 2);
+        core.CreateMapStructure(mapPlan);
+        InsertPublishedFieldRevisionReference(project.ProjectId, mapPlan.Map.MapId, fieldAsset.AssetId);
+
         var orphans = core.FindOrphanAssetIds(project.ProjectId);
         Assert.Single(orphans);
         Assert.Equal(orphan.AssetId, orphans[0]);
+    }
+
+    private void InsertPublishedFieldRevisionReference(Guid projectId, Guid mapId, Guid assetId)
+    {
+        var datasetId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        Access().Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using (var dataset = connection.CreateCommand())
+                {
+                    dataset.Transaction = transaction;
+                    dataset.CommandText = """
+                        INSERT INTO core_map_field_dataset
+                            (field_dataset_id, project_id, map_id, field_key, descriptor_schema_version,
+                             semantics_id, current_field_revision_id, created_at_utc_ms, updated_at_utc_ms)
+                        VALUES ($dataset, $project, $map, 'elevation', 1, 'elevation-meters-v1', NULL, $now, $now);
+                        """;
+                    dataset.Parameters.AddWithValue("$dataset", datasetId.ToString("D"));
+                    dataset.Parameters.AddWithValue("$project", projectId.ToString("D"));
+                    dataset.Parameters.AddWithValue("$map", mapId.ToString("D"));
+                    dataset.Parameters.AddWithValue("$now", Now);
+                    dataset.ExecuteNonQuery();
+                }
+
+                using (var revision = connection.CreateCommand())
+                {
+                    revision.Transaction = transaction;
+                    revision.CommandText = """
+                        INSERT INTO core_map_field_revision
+                            (field_revision_id, project_id, field_dataset_id, revision_number, parent_revision_id,
+                             field_revision_asset_id, content_fingerprint, manifest_json, provenance_json, created_at_utc_ms)
+                        VALUES ($revision, $project, $dataset, 1, NULL, $asset, $fingerprint, '{}', '{}', $now);
+                        """;
+                    revision.Parameters.AddWithValue("$revision", revisionId.ToString("D"));
+                    revision.Parameters.AddWithValue("$project", projectId.ToString("D"));
+                    revision.Parameters.AddWithValue("$dataset", datasetId.ToString("D"));
+                    revision.Parameters.AddWithValue("$asset", assetId.ToString("D"));
+                    revision.Parameters.AddWithValue("$fingerprint", ValidHash);
+                    revision.Parameters.AddWithValue("$now", Now);
+                    revision.ExecuteNonQuery();
+                }
+
+                using (var pin = connection.CreateCommand())
+                {
+                    pin.Transaction = transaction;
+                    pin.CommandText = """
+                        UPDATE core_map_field_dataset
+                        SET current_field_revision_id = $revision, updated_at_utc_ms = $now
+                        WHERE project_id = $project AND field_dataset_id = $dataset;
+                        """;
+                    pin.Parameters.AddWithValue("$revision", revisionId.ToString("D"));
+                    pin.Parameters.AddWithValue("$project", projectId.ToString("D"));
+                    pin.Parameters.AddWithValue("$dataset", datasetId.ToString("D"));
+                    pin.Parameters.AddWithValue("$now", Now);
+                    Assert.Equal(1, pin.ExecuteNonQuery());
+                }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
     }
 
     [Fact]
