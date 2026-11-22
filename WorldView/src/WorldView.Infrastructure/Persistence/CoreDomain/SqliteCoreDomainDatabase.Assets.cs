@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Persistence;
+using WorldView.Domain.Registry;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
 
@@ -239,6 +240,57 @@ public sealed partial class SqliteCoreDomainDatabase
             using var transaction = connection.BeginTransaction();
             try
             {
+                // Re-read every mutable precondition inside the same coordinated write transaction.
+                // Service-layer reads are advisory only; this closes the read/write race window.
+                using (var precondition = connection.CreateCommand())
+                {
+                    precondition.Transaction = transaction;
+                    precondition.CommandText = """
+                        SELECT o.lifecycle_status, a.integrity_state, t.type_key
+                        FROM core_object o
+                        JOIN core_object_type t
+                          ON t.project_id = o.project_id AND t.object_type_id = o.object_type_id
+                        JOIN core_asset a
+                          ON a.project_id = o.project_id
+                        WHERE o.project_id = $projectId
+                          AND o.object_identity_id = $identityId
+                          AND a.asset_id = $assetId;
+                        """;
+                    precondition.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
+                    precondition.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
+                    precondition.Parameters.AddWithValue("$assetId", Uuid(plan.AssetId));
+                    using var reader = precondition.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Object {plan.ObjectIdentityId} or Asset {plan.AssetId} does not exist in Project {plan.ProjectId}.");
+                    }
+
+                    var lifecycleStatus = reader.GetString(0);
+                    var integrityState = reader.GetString(1);
+                    var typeKey = reader.GetString(2);
+                    if (!string.Equals(lifecycleStatus, "active", StringComparison.Ordinal))
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Object {plan.ObjectIdentityId} is {lifecycleStatus}; only active Objects may own formal Asset links.");
+                    }
+
+                    if (!string.Equals(integrityState, "verified", StringComparison.Ordinal))
+                    {
+                        throw new CoreDomainConflictException(
+                            $"Asset {plan.AssetId} integrity_state is {integrityState}; only verified Assets may be linked.");
+                    }
+
+                    try
+                    {
+                        ObjectTypeRegistry.ValidateGeometryRole(typeKey, plan.Role);
+                    }
+                    catch (RegistryException ex)
+                    {
+                        throw new CoreDomainConflictException(ex.Message, ex);
+                    }
+                }
+
                 using var insert = connection.CreateCommand();
                 insert.Transaction = transaction;
                 insert.CommandText = """
