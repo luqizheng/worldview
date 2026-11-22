@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Metadata;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
@@ -32,6 +35,23 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         _database.DisposeAsync().AsTask().GetAwaiter().GetResult();
         try { Directory.Delete(_root, recursive: true); }
         catch (IOException) { }
+    }
+
+    [Fact]
+    public void EfModel_MatchesFrozenMigrationSnapshot()
+    {
+        var session = new CoreDomainEfSession(((ISqliteConnectionProvider)_database).GetAccess());
+        var differences = session.Execute(db =>
+        {
+            var snapshotModel = new CoreDomainDbContextModelSnapshot().Model;
+            var differ = db.GetService<IMigrationsModelDiffer>();
+            return differ.GetDifferences(snapshotModel.GetRelationalModel(), db.Model.GetRelationalModel())
+                .Select(operation => operation.GetType().Name)
+                .ToArray();
+        });
+
+        Assert.True(differences.Length == 0,
+            $"EF model differs from the frozen migration snapshot: {string.Join(", ", differences)}");
     }
 
     [Fact]
