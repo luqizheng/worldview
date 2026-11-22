@@ -7,6 +7,7 @@ using WorldView.Application.UseCases;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
+using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
