@@ -280,17 +280,54 @@ public sealed partial class SqliteCoreDomainDatabase
     // ---- Object identity / Definition ----
 
     public ObjectRecord? FindObject(Guid projectId, Guid objectIdentityId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadObjectRow(transaction, projectId, objectIdentityId);
+            var entity = db.Objects.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.object_identity_id == objectIdentityId);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            var typeKey = db.ObjectTypes.AsNoTracking()
+                .Where(x => x.project_id == projectId && x.object_type_id == entity.object_type_id)
+                .Select(x => x.type_key)
+                .SingleOrDefault()
+                ?? throw new CoreDomainDataException(
+                    $"Object {objectIdentityId} 引用的 Object Type 不存在（数据损坏）。");
+
+            return MapObject(entity, typeKey);
         });
 
     public ObjectDefinitionRecord? ReadObjectDefinition(Guid projectId, Guid objectIdentityId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadDefinitionRow(transaction, projectId, objectIdentityId);
+            var entity = db.ObjectDefinitions.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId && x.object_identity_id == objectIdentityId);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            var record = new ObjectDefinitionRecord
+            {
+                ProjectId = entity.project_id,
+                ObjectIdentityId = entity.object_identity_id,
+                DefinitionSchemaVersion = entity.definition_schema_version,
+                DefinitionPayloadJson = entity.definition_payload_json,
+                DefinitionHash = entity.definition_hash,
+                UpdatedAtUtcMs = entity.updated_at_utc_ms,
+            };
+
+            // R-定义：读侧校验 hash 与 payload 一致（fail-closed）。
+            var expectedHash = CanonicalJson.Sha256Hex(record.DefinitionPayloadJson);
+            if (!string.Equals(expectedHash, record.DefinitionHash, StringComparison.Ordinal))
+            {
+                throw new CoreDomainDataException(
+                    $"Object {record.ObjectIdentityId} 的 definition_hash 与 payload 不一致（数据损坏）。");
+            }
+
+            return record;
         });
 
     public void InsertObject(ObjectInsertPlan plan)
@@ -1174,6 +1211,52 @@ public sealed partial class SqliteCoreDomainDatabase
             AbandonReason = reader.IsDBNull(8) ? null : reader.GetString(8),
             CreatedAtUtcMs = reader.GetInt64(9),
             UpdatedAtUtcMs = reader.GetInt64(10),
+        };
+    }
+
+    private static ObjectRecord MapObject(CoreObjectEntity entity, string typeKey)
+    {
+        var schemaVersion = entity.object_type_schema_version;
+        var semanticsId = entity.object_type_semantics_id;
+
+        // 读侧 fail-closed：未知 pin 拒绝解释（Handoff §5.4；P2-09-18 §10）。
+        ObjectRules.ValidateKnownPin(typeKey, schemaVersion, semanticsId);
+
+        var scope = entity.sharing_scope switch
+        {
+            "project_shared" => ObjectSharingScope.ProjectShared,
+            "map_local" => ObjectSharingScope.MapLocal,
+            _ => throw new CoreDomainDataException(
+                $"sharing_scope \"{entity.sharing_scope}\" 不可识别。"),
+        };
+        var lifecycle = entity.lifecycle_status switch
+        {
+            "draft" => ObjectLifecycleStatus.Draft,
+            "active" => ObjectLifecycleStatus.Active,
+            "abandoned" => ObjectLifecycleStatus.Abandoned,
+            "retired" => ObjectLifecycleStatus.Retired,
+            _ => throw new CoreDomainDataException(
+                $"lifecycle_status \"{entity.lifecycle_status}\" 不可识别。"),
+        };
+        if ((scope == ObjectSharingScope.ProjectShared && entity.owner_map_id is not null)
+            || (scope == ObjectSharingScope.MapLocal && entity.owner_map_id is null))
+        {
+            throw new CoreDomainDataException(
+                $"Object {entity.object_identity_id} 的 scope/owner 组合违反不变量（R-scope）。");
+        }
+
+        return new ObjectRecord
+        {
+            ObjectIdentityId = entity.object_identity_id,
+            ProjectId = entity.project_id,
+            ObjectTypeId = entity.object_type_id,
+            ObjectTypeSchemaVersion = schemaVersion,
+            ObjectTypeSemanticsId = semanticsId,
+            SharingScope = scope,
+            OwnerMapId = entity.owner_map_id,
+            LifecycleStatus = lifecycle,
+            CreatedAtUtcMs = entity.created_at_utc_ms,
+            UpdatedAtUtcMs = entity.updated_at_utc_ms,
         };
     }
 
