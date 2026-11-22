@@ -57,7 +57,40 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var project = ProjectRules.CreateProject("Field test", Now);
         core.InsertProject(ProjectCreationPlan.Create(project));
         var mapPlan = MapRules.CreateMap(project, "Map A", Now + 1);
+        mapPlan = mapPlan with { Map = mapPlan.Map with { MapSpaceId = "fixture-map-space-001" } };
         core.CreateMapStructure(mapPlan);
+        _ = SpatialReferenceService.RegisterDefinition(core, new SpatialReferenceDefinitionRecord
+        {
+            ProjectId = project.ProjectId,
+            SpatialReferenceId = "fixture:local-cartesian-v1",
+            DefinitionVersion = 1,
+            Kind = SpatialReferenceKind.LocalCartesian,
+            CoordinateUnit = "m",
+            AxisOrder = SpatialAxisOrder.XY,
+            Dimension = 2,
+            ValidDomainJson = """{"max_x":"1000000","max_y":"1000000","min_x":"-1000000","min_y":"-1000000"}""",
+            WrapBehavior = SpatialWrapBehavior.None,
+            VerticalReferenceId = "fixture:vertical-reference-local-v1",
+            PrecisionProfile = new CoordinatePrecisionProfileRecord
+            {
+                ProfileId = "fixture:coordinate-precision-v1",
+                Version = 1,
+                CoordinateUnit = "m",
+                AxisOrder = SpatialAxisOrder.XY,
+                NumericRepresentation = "decimal",
+                MaximumAbsoluteQuantizationError = 0.000001m,
+                RoundingMode = MidpointRounding.ToEven,
+                MinimumAuthoringTolerance = 0.001m,
+                SmallestMeaningfulFeatureSize = 0.01m,
+            },
+            DefinitionParametersJson = """{"origin_x":"0","origin_y":"0"}""",
+            MeasurementCapabilitiesJson = """{"area":true,"distance":true}""",
+            ProvenanceJson = """{"source":"test-fixture"}""",
+            DefinitionFingerprint = "",
+            CreatedAtUtcMs = Now + 1,
+        });
+        _ = MapSpatialReferenceService.BindInitial(
+            core, project.ProjectId, mapPlan.Map.MapId, "fixture:local-cartesian-v1", Now + 2);
         return (project, mapPlan.Map.MapId);
     }
 
@@ -163,6 +196,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         ExpectedCurrentFieldRevisionId = expectedRevision,
         ContentFingerprint = fingerprint,
         ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1"),
+        Metadata = FieldRevisionMetadata.FromValidatedManifest(
+            BuildManifest("elevation", "world-view.field.elevation.v1")),
         ProvenanceJson = """{"source":"test-fixture"}""",
         CreatedAtUtcMs = now,
     };
