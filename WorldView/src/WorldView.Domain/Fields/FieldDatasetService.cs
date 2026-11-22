@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Objects;
+using WorldView.Domain.Maps;
 using WorldView.Domain.Persistence;
 
 namespace WorldView.Domain.Fields;
