@@ -80,7 +80,7 @@ public class RealPackageFlowTests : IDisposable
         // 包布局（AF-01 §3.1）。
         Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.ManifestFileName)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, "data")));
-        Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseFileName)));
+        Assert.True(File.Exists(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, ProjectPackageFormat.AssetsDirectoryName, ProjectPackageFormat.AssetHashDirectoryName)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, ProjectPackageFormat.StagingDirectoryName)));
         Assert.True(Directory.Exists(Path.Combine(packageRoot, ProjectPackageFormat.BackupsDirectoryName)));
@@ -183,7 +183,7 @@ public class RealPackageFlowTests : IDisposable
 
         // 写入非 SQLite 的垃圾字节。
         await File.WriteAllBytesAsync(
-            Path.Combine(packageRoot, ProjectPackageFormat.DatabaseFileName),
+            Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath),
             await RandomBytesAsync(2048));
 
         var validator = new ProjectPackageValidator(
@@ -193,7 +193,7 @@ public class RealPackageFlowTests : IDisposable
         Assert.True(outcome.Report.HasFailures);
         Assert.Equal(PackageIssueCode.DatabaseCorrupt, outcome.Report.FirstFailureCode);
         // 校验器不改写包内容（损坏文件保持原样）。
-        var bytesAfter = await File.ReadAllBytesAsync(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseFileName));
+        var bytesAfter = await File.ReadAllBytesAsync(Path.Combine(packageRoot, ProjectPackageFormat.DatabaseRelativePath));
         Assert.Equal(2048, bytesAfter.Length);
     }
 
