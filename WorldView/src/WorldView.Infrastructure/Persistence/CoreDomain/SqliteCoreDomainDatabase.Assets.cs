@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Registry;
@@ -246,12 +247,15 @@ public sealed partial class SqliteCoreDomainDatabase
                 {
                     precondition.Transaction = transaction;
                     precondition.CommandText = """
-                        SELECT o.lifecycle_status, a.integrity_state, t.type_key
+                        SELECT o.lifecycle_status, a.integrity_state, t.type_key,
+                               a.content_hash, d.definition_payload_json
                         FROM core_object o
                         JOIN core_object_type t
                           ON t.project_id = o.project_id AND t.object_type_id = o.object_type_id
                         JOIN core_asset a
                           ON a.project_id = o.project_id
+                        JOIN core_object_definition d
+                          ON d.project_id = o.project_id AND d.object_identity_id = o.object_identity_id
                         WHERE o.project_id = $projectId
                           AND o.object_identity_id = $identityId
                           AND a.asset_id = $assetId;
@@ -269,6 +273,8 @@ public sealed partial class SqliteCoreDomainDatabase
                     var lifecycleStatus = reader.GetString(0);
                     var integrityState = reader.GetString(1);
                     var typeKey = reader.GetString(2);
+                    var assetHash = reader.GetString(3);
+                    var definitionPayload = reader.GetString(4);
                     if (!string.Equals(lifecycleStatus, "active", StringComparison.Ordinal))
                     {
                         throw new CoreDomainConflictException(
@@ -288,6 +294,49 @@ public sealed partial class SqliteCoreDomainDatabase
                     catch (RegistryException ex)
                     {
                         throw new CoreDomainConflictException(ex.Message, ex);
+                    }
+
+                    // Building/Cave geometry is published only when the current owner manifest
+                    // names the exact Asset, role and authoritative content hash. Keep this
+                    // check in the same transaction as the typed-link insert.
+                    var descriptor = ObjectTypeRegistry.Require(typeKey);
+                    if (descriptor.HasTypedAggregateSchema)
+                    {
+                        using var definition = JsonDocument.Parse(definitionPayload);
+                        if (!definition.RootElement.TryGetProperty("geometry_components", out var components)
+                            || components.ValueKind != JsonValueKind.Array)
+                        {
+                            throw new CoreDomainConflictException(
+                                $"Object {plan.ObjectIdentityId} has no geometry_components manifest; cannot publish a formal Asset link.");
+                        }
+
+                        var matches = 0;
+                        foreach (var component in components.EnumerateArray())
+                        {
+                            if (component.ValueKind != JsonValueKind.Object
+                                || !component.TryGetProperty("asset_id", out var assetIdElement)
+                                || assetIdElement.ValueKind != JsonValueKind.String
+                                || !component.TryGetProperty("geometry_role", out var roleElement)
+                                || roleElement.ValueKind != JsonValueKind.String
+                                || !component.TryGetProperty("content_hash", out var hashElement)
+                                || hashElement.ValueKind != JsonValueKind.String)
+                            {
+                                continue;
+                            }
+
+                            if (string.Equals(assetIdElement.GetString(), plan.AssetId.ToString("D"), StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(roleElement.GetString(), plan.Role, StringComparison.Ordinal)
+                                && string.Equals(hashElement.GetString(), assetHash, StringComparison.Ordinal))
+                            {
+                                matches++;
+                            }
+                        }
+
+                        if (matches != 1)
+                        {
+                            throw new CoreDomainConflictException(
+                                $"Object {plan.ObjectIdentityId} geometry manifest must contain exactly one component matching Asset {plan.AssetId}, role {plan.Role}, and core_asset hash.");
+                        }
                     }
                 }
 
