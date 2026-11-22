@@ -250,4 +250,53 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         GeometryRules.ValidateManifestConsistency(asset, link, manifest);
         Assert.Equal(bytes.Length, core.FindAsset(project.ProjectId, asset.AssetId)!.ByteLength);
     }
+
+    [Fact]
+    public void LinkDefinitionAsset_RequiresVerifiedAsset_AndRechecksMutableStateInTransaction()
+    {
+        var (project, _) = SeedProject();
+        var core = Core();
+        var identityId = CreateActiveRiverObject(project.ProjectId);
+        var asset = AssetService.RegisterAsset(
+            core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
+
+        // The service and the persistence adapter both reject an unverified asset.
+        Assert.Throws<CoreDomainConflictException>(
+            () => AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 1));
+        Assert.Throws<CoreDomainConflictException>(
+            () => core.LinkDefinitionAsset(new LinkDefinitionAssetPlan
+            {
+                ObjectDefinitionAssetId = Guid.NewGuid(),
+                ProjectId = project.ProjectId,
+                ObjectIdentityId = identityId,
+                AssetId = asset.AssetId,
+                Role = "centerline",
+                CreatedAtUtcMs = Now + 1,
+            }));
+
+        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 2);
+        AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 3);
+        Assert.Equal(1, CountRows("core_object_definition_asset"));
+
+        // A direct adapter caller cannot bypass the active-Object precondition.
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE core_object SET lifecycle_status = 'retired' WHERE object_identity_id = $id;";
+            command.Parameters.AddWithValue("$id", identityId.ToString("D"));
+            Assert.Equal(1, command.ExecuteNonQuery());
+        });
+        Assert.Throws<CoreDomainConflictException>(
+            () => core.LinkDefinitionAsset(new LinkDefinitionAssetPlan
+            {
+                ObjectDefinitionAssetId = Guid.NewGuid(),
+                ProjectId = project.ProjectId,
+                ObjectIdentityId = identityId,
+                AssetId = asset.AssetId,
+                Role = "reach",
+                CreatedAtUtcMs = Now + 4,
+            }));
+        Assert.Equal(1, CountRows("core_object_definition_asset"));
+    }
+
 }
