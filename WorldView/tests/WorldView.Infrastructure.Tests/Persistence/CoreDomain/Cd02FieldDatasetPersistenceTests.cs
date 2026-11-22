@@ -69,6 +69,69 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         return core.FindAsset(projectId, asset.AssetId)!;
     }
 
+    private static string BuildManifest(string fieldKey, string semanticsId)
+    {
+        var isLandWater = fieldKey == "land_water";
+        object[] planes = isLandWater
+            ? new object[]
+            {
+                new { name = "categories", sample_format = "uint8_registered_category", bytes_per_cell = 1 },
+                new { name = "validity_mask", sample_format = "uint8", bytes_per_cell = 1 },
+            }
+            : new object[]
+            {
+                new { name = "samples", sample_format = "float32_ieee754_le", bytes_per_cell = 4 },
+                new { name = "validity_mask", sample_format = "uint8", bytes_per_cell = 1 },
+            };
+        object valueEncoding = isLandWater
+            ? new
+            {
+                profile_id = "fixture-only:land-water-u8-mask-v1",
+                profile_scope = "golden_fixture_only",
+                planes,
+                category_codes = new { land = 0, water = 1, unknown = 2, outside_coverage = 3 },
+            }
+            : new
+            {
+                profile_id = "fixture-only:elevation-f32-mask-v1",
+                profile_scope = "golden_fixture_only",
+                planes,
+            };
+
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            byte_order = "little_endian",
+            canonicalization = "RFC8785-JCS-UTF8",
+            codec_registry = new[] { new { codec_id = 0, codec_name = "none", parameters = new { }, version = "1" } },
+            coverage = new { mode = "full_grid" },
+            field = new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId },
+            format = new { major = 1, minor = 0 },
+            grid = new
+            {
+                axis_orientation = "x_east_y_north",
+                cell_registration = "area",
+                height = 2,
+                origin_x = "0",
+                origin_y = "0",
+                spacing_x = "1",
+                spacing_y = "1",
+                tile_height = 2,
+                tile_width = 2,
+                width = 2,
+            },
+            manifest_schema = new { id = "world-view.field-package-manifest", version = 1 },
+            map_edge_semantics = "bounded_non_wrapping",
+            no_data = new
+            {
+                mask_plane = new { invalid_value = 1, plane_name = "validity_mask", valid_value = 0 },
+                policy = "explicit_validity_mask",
+            },
+            spatial = new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1" },
+            tile_hash = new { algorithm = "SHA-256", version = 1 },
+            value_encoding = valueEncoding,
+        });
+    }
+
     private static PublishFieldRevisionPlan Plan(
         Guid projectId,
         Guid mapId,
@@ -89,7 +152,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         FieldRevisionAssetId = assetId,
         ExpectedCurrentFieldRevisionId = expectedRevision,
         ContentFingerprint = fingerprint,
-        ManifestJson = System.Text.Json.JsonSerializer.Serialize(new { field_key = "elevation", map_id = mapId.ToString("D"), content_fingerprint = fingerprint, unit = "m" }),
+        ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1"),
         ProvenanceJson = """{"source":"test-fixture"}""",
         CreatedAtUtcMs = now,
     };
@@ -107,8 +170,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Assert.Equal(1, first.RevisionNumber);
         Assert.Null(first.ParentRevisionId);
         Assert.Equal(Fingerprint1, first.ContentFingerprint);
-        Assert.Contains(mapId.ToString("D"), first.ManifestJson);
-        Assert.Contains(Fingerprint1, first.ManifestJson);
+        Assert.Contains("world-view.field.elevation.v1", first.ManifestJson);
 
         var asset2 = RegisterVerifiedAsset(project.ProjectId, Fingerprint2, Now + 5);
         var second = FieldDatasetService.PublishRevision(core, Plan(
@@ -139,7 +201,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void PublishRevision_RejectsManifestForDifferentMap()
+    public void PublishRevision_RejectsManifestDescriptorMismatch()
     {
         var (project, mapId) = SeedMap();
         var core = Core();
@@ -147,7 +209,7 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
             asset.AssetId, null, Fingerprint1, Now + 4) with
         {
-            ManifestJson = System.Text.Json.JsonSerializer.Serialize(new { field_key = "elevation", map_id = Guid.NewGuid().ToString("D"), content_fingerprint = Fingerprint1 }),
+            ManifestJson = BuildManifest("elevation", "world-view.field.land_water.v1"),
         };
 
         Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
