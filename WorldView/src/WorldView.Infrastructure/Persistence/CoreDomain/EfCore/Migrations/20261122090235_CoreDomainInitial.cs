@@ -44,7 +44,6 @@ public partial class _20261122090235_CoreDomainInitial : Migration
                 field_dataset_id        TEXT    NOT NULL,
                 revision_number         INTEGER NOT NULL CHECK (revision_number >= 1),
                 parent_revision_id      TEXT    NULL,
-                field_revision_asset_id TEXT    NOT NULL,
                 content_fingerprint     TEXT    NOT NULL CHECK (
                     length(content_fingerprint) = 64
                     AND content_fingerprint NOT GLOB '*[^0-9a-f]*'
@@ -56,14 +55,9 @@ public partial class _20261122090235_CoreDomainInitial : Migration
                 UNIQUE (project_id, field_dataset_id, revision_number),
                 FOREIGN KEY (project_id, field_dataset_id)
                     REFERENCES core_map_field_dataset (project_id, field_dataset_id),
-                FOREIGN KEY (project_id, field_revision_asset_id)
-                    REFERENCES core_asset (project_id, asset_id),
                 FOREIGN KEY (project_id, field_dataset_id, parent_revision_id)
                     REFERENCES core_map_field_revision (project_id, field_dataset_id, field_revision_id)
             );
-
-            CREATE INDEX ix_core_map_field_revision_asset
-                ON core_map_field_revision (project_id, field_revision_asset_id);
 
             CREATE TRIGGER trg_core_map_field_revision_immutable_update
             BEFORE UPDATE ON core_map_field_revision
