@@ -1,0 +1,26 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using WorldView.Application.Abstractions;
+using WorldView.Application.Fields;
+using WorldView.Infrastructure.Assets;
+
+namespace WorldView.Infrastructure.Persistence.CoreDomain;
+
+/// <summary>Creates the package-bound Core Domain and managed-file adapters for startup reconciliation.</summary>
+public sealed class CoreDomainFieldPayloadRecovery : IProjectFieldPayloadRecovery
+{
+    public Task<FieldPayloadIntegrityReport> ReconcileAsync(
+        IPackageDatabase database,
+        string packageRoot,
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
+        var core = new SqliteCoreDomainDatabase(database);
+        var fileStore = new FieldPayloadFileStore(packageRoot);
+        var reconciler = new FieldPayloadIntegrityReconciler(core, fileStore);
+        return reconciler.ReconcileAsync(projectId, cancellationToken);
+    }
+}
