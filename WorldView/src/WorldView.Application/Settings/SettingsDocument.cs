@@ -12,6 +12,7 @@ public static class SettingsDocumentFormat
     public const string Project = "worldview.project-settings";
     public const string Map = "worldview.map-settings";
     public const int InitialSchemaVersion = 1;
+    public const int MaximumDocumentBytes = 16 * 1024 * 1024;
 
     public static readonly JsonSerializerSettings SerializerSettings = new()
     {
