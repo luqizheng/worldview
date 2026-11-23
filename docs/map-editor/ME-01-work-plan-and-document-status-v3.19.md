@@ -1,11 +1,11 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 3.22
+- Version: 3.23
 - Date: 2026-11-23
 - Status: Active design work plan
 - Supersedes: ME-01-work-plan-and-document-status-v3.19.md (retained for history)
 
-This document tracks the Map Editor product/architecture and specialist editor design workstreams. Design completion does not imply implementation completion or frozen APIs/schemas. The GitHub repository `luqizheng/worldview` is the authoritative project documentation location.
+This document tracks the Map Editor product/architecture and specialist editor design workstreams. The whole-product implementation sequence is governed by [Implementation Roadmap V1](implementation-roadmap-v1.md), which separates Desktop Application, Map Management, Map Rendering and Map Authoring. Design completion does not imply implementation completion or frozen APIs/schemas. The GitHub repository `luqizheng/worldview` is the authoritative project documentation location.
 
 ## ME-01 — Shared Editor Product and Architecture
 
@@ -230,3 +230,20 @@ P2-09-45 V0.3, P2-09-46 V0.2 and P2-09-47 V0.2 define the proposed V2 format, st
 ## Persistence inventory correction
 
 P2-09-13 V0.7 reconciles the integrated inventory to P2-09-11 V0.11: 22 Core Domain baseline tables (20 prior tables plus Map-owned `core_map_field_dataset` and `core_map_field_revision`), two required typed links and up to three optional typed links. The previous P2-09-13 V0.6 count of 20 is historical and superseded. Building/Cave require no new domain table; they reuse the existing definition/Command Asset links under the adopted payload contracts.
+
+
+## Whole-product implementation roadmap — V1
+
+[Implementation Roadmap V1](implementation-roadmap-v1.md) is the controlling product-level implementation sequence. It establishes the following separation:
+
+- **Desktop Application:** application shell, navigation, dialogs, settings and lifecycle.
+- **Map Management:** Project/Map lifecycle and Map/Branch workspace context.
+- **Map Rendering:** read-only presentation of one coherent authoritative scene.
+- **Map Authoring:** selection, tools, staging, validation, review and formal application.
+- **Core Infrastructure:** shared Core Domain, persistence, Asset, application and spatial foundations.
+
+The roadmap's first implementation task is **WP-00 Whole-product implementation inventory**, covering the complete source tree, tests, platform evidence and all five areas above. WP-00 is audit-only and must not make business-code changes.
+
+The first user-visible milestone is **M1 Basic Map Application**: create/open a Project, create/list/open a Map, display an empty viewport, pan/zoom, close and restart, then reopen the same Map on both Windows and macOS. Complex terrain, settlement, building, cave, connection, template and AI authoring are explicitly later milestones.
+
+The former ME-08 WP-00 through WP-09 packages remain a specialist Map Authoring route; they are not the whole-product implementation sequence. ME-07/PRA remains the rendering implementation stream. The roadmap changes implementation ordering, not the authority or semantic content of the existing specialist design baselines.
