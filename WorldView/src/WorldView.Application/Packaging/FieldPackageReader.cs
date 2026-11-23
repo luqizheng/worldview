@@ -271,7 +271,7 @@ public sealed class FieldPackageReader : IDisposable
         if (value > long.MaxValue) throw new OverflowException();
         return (long)value;
     }
-    private static ulong Add(long a, long b) => Add(checked((ulong)a), checked((ulong)b));
+    private static long Add(long a, long b) => checked(a + b);
     private static ulong Add(ulong a, ulong b) => checked(a + b);
     private static ulong Multiply(ulong a, ulong b) => checked(a * b);
     private static long Align8(long value) => checked((value + 7) & ~7L);
