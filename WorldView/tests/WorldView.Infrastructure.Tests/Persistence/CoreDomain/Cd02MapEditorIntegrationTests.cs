@@ -279,7 +279,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var asset = AssetService.RegisterAsset(
             core, project.ProjectId, Guid.NewGuid(), AssetRules.Sha256Hex(bytes), bytes.Length,
             "application/json", "1", Now + 4);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
+        core.MarkAssetVerified(project.ProjectId, asset.AssetId, new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength), Now + 5);
 
         var current = core.ReadObjectDefinition(project.ProjectId, objectId)!;
         var componentId = Guid.NewGuid();
@@ -321,7 +321,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
 
         // A previously linked Asset that later becomes Corrupt can still be removed
         // through a complete atomic publication; recovery must not be blocked by old integrity state.
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 8);
+        core.RecordAssetIntegrityFailure(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 8);
         var removed = ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
             core, project.ProjectId, objectId, published.DefinitionHash,
             BuildingAggregate("Atomic Hall without footprint"), 1, Now + 9);
