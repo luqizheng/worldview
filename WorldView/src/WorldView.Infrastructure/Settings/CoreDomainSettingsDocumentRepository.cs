@@ -26,33 +26,43 @@ public sealed class CoreDomainSettingsDocumentRepository : ISettingsDocumentRepo
         _session = new CoreDomainEfSession(provider.GetAccess());
     }
 
-    public SettingsDocumentRevision? FindCurrentProjectSettings(Guid projectId) =>
-        _session.Execute(context =>
+    public SettingsDocumentRevision? FindCurrentProjectSettings(Guid projectId)
+    {
+        var revision = _session.Execute(context =>
             (from current in context.ProjectSettingsCurrent.AsNoTracking()
-             join revision in context.ProjectSettingsRevisions.AsNoTracking()
+             join item in context.ProjectSettingsRevisions.AsNoTracking()
                  on new { current.ProjectId, current.ProjectSettingsRevisionId }
-                 equals new { revision.ProjectId, revision.ProjectSettingsRevisionId }
+                 equals new { item.ProjectId, item.ProjectSettingsRevisionId }
              where current.ProjectId == projectId
-             select ToRecord(revision, null)).SingleOrDefault());
+             select item).SingleOrDefault());
+        return revision is null ? null : ToRecord(revision, null);
+    }
 
-    public SettingsDocumentRevision? FindCurrentMapSettings(Guid projectId, Guid mapId) =>
-        _session.Execute(context =>
+    public SettingsDocumentRevision? FindCurrentMapSettings(Guid projectId, Guid mapId)
+    {
+        var revision = _session.Execute(context =>
             (from current in context.MapSettingsCurrent.AsNoTracking()
-             join revision in context.MapSettingsRevisions.AsNoTracking()
+             join item in context.MapSettingsRevisions.AsNoTracking()
                  on new { current.ProjectId, current.MapId, current.MapSettingsRevisionId }
-                 equals new { revision.ProjectId, revision.MapId, revision.MapSettingsRevisionId }
+                 equals new { item.ProjectId, item.MapId, item.MapSettingsRevisionId }
              where current.ProjectId == projectId && current.MapId == mapId
-             select ToRecord(revision)).SingleOrDefault());
+             select item).SingleOrDefault());
+        return revision is null ? null : ToRecord(revision);
+    }
 
-    public IReadOnlyList<SettingsDocumentRevision> ListProjectSettingsRevisions(Guid projectId) =>
-        _session.Execute(context => (IReadOnlyList<SettingsDocumentRevision>)context.ProjectSettingsRevisions
-            .AsNoTracking().Where(x => x.ProjectId == projectId)
-            .OrderBy(x => x.Version).Select(x => ToRecord(x, null)).ToArray());
+    public IReadOnlyList<SettingsDocumentRevision> ListProjectSettingsRevisions(Guid projectId)
+    {
+        var revisions = _session.Execute(context => context.ProjectSettingsRevisions.AsNoTracking()
+            .Where(x => x.ProjectId == projectId).OrderBy(x => x.Version).ToArray());
+        return revisions.Select(x => ToRecord(x, null)).ToArray();
+    }
 
-    public IReadOnlyList<SettingsDocumentRevision> ListMapSettingsRevisions(Guid projectId) =>
-        _session.Execute(context => (IReadOnlyList<SettingsDocumentRevision>)context.MapSettingsRevisions
-            .AsNoTracking().Where(x => x.ProjectId == projectId)
-            .OrderBy(x => x.MapId).ThenBy(x => x.Version).Select(x => ToRecord(x)).ToArray());
+    public IReadOnlyList<SettingsDocumentRevision> ListMapSettingsRevisions(Guid projectId)
+    {
+        var revisions = _session.Execute(context => context.MapSettingsRevisions.AsNoTracking()
+            .Where(x => x.ProjectId == projectId).OrderBy(x => x.MapId).ThenBy(x => x.Version).ToArray());
+        return revisions.Select(ToRecord).ToArray();
+    }
 
     public SettingsDocumentRevision PublishProjectSettings(Guid projectId,
         SettingsDocumentFilePutResult file, int schemaVersion, long createdAtUtcMs)
