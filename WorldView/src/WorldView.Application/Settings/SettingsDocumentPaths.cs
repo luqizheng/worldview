@@ -62,7 +62,7 @@ public static class SettingsDocumentPaths
             absolutePath = candidate;
             return true;
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
         {
             return false;
         }
