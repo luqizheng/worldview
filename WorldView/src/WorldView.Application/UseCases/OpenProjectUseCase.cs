@@ -5,6 +5,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
+using WorldView.Application.Settings;
 
 namespace WorldView.Application.UseCases;
 
@@ -96,6 +97,7 @@ public sealed class OpenProjectUseCase
     private readonly ProjectSessionRegistry _registry;
     private readonly IAppLog? _log;
     private readonly IProjectFieldPayloadRecovery? _fieldPayloadRecovery;
+    private readonly IProjectSettingsDocumentRecovery? _settingsDocumentRecovery;
 
     public OpenProjectUseCase(
         IFileSystem fileSystem,
@@ -105,7 +107,8 @@ public sealed class OpenProjectUseCase
         ProjectSessionRegistry registry,
         IProjectIdentityReader? identityReader,
         IAppLog? log = null,
-        IProjectFieldPayloadRecovery? fieldPayloadRecovery = null)
+        IProjectFieldPayloadRecovery? fieldPayloadRecovery = null,
+        IProjectSettingsDocumentRecovery? settingsDocumentRecovery = null)
     {
         _fileSystem = fileSystem;
         _databaseFactory = databaseFactory;
@@ -115,6 +118,7 @@ public sealed class OpenProjectUseCase
         _identityReader = identityReader;
         _log = log;
         _fieldPayloadRecovery = fieldPayloadRecovery;
+        _settingsDocumentRecovery = settingsDocumentRecovery;
     }
 
     public async Task<OpenProjectResult> ExecuteAsync(
@@ -236,7 +240,24 @@ public sealed class OpenProjectUseCase
                 }
             }
 
-            // ---- 5. Ready（晚完成保护：被并发取消/关闭时不得暴露 Ready）----
+            // ---- 5. Project / Map Settings startup verification and orphan recovery ----
+            if (_settingsDocumentRecovery is not null)
+            {
+                var settingsReport = await _settingsDocumentRecovery.ReconcileAsync(
+                    database, canonical, identity.Identity.ProjectId, cancellationToken).ConfigureAwait(false);
+                if (settingsReport.VerifiedDocumentCount > 0
+                    || settingsReport.CollectedOrphanContentHashes.Count > 0
+                    || settingsReport.CleanedStagingFileCount > 0)
+                {
+                    _log?.Warn(
+                        "OpenProject",
+                        $"Settings document reconciliation: verified={settingsReport.VerifiedDocumentCount}, "
+                        + $"orphan-files-collected={settingsReport.CollectedOrphanContentHashes.Count}, "
+                        + $"staging-files-cleaned={settingsReport.CleanedStagingFileCount}.");
+                }
+            }
+
+            // ---- 6. Ready（晚完成保护：被并发取消/关闭时不得暴露 Ready）----
             if (!session.TryCompleteOpen())
             {
                 await session.DisposeAsync().ConfigureAwait(false);
