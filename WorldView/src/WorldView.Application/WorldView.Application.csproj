@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">\n\n  <ItemGroup>\n    <PackageReference Include="Corvus.Text.Json" Version="5.8.11" />\n  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WorldView.Domain\WorldView.Domain.csproj" />
@@ -9,4 +9,4 @@
     <InternalsVisibleTo Include="WorldView.Application.Tests" />
   </ItemGroup>
 
-</Project>
+  <ItemGroup>\n    <EmbeddedResource Include="..\\..\\..\\docs\\architecture\\core-domain\\p2-09-34-field-package-canonical-manifest-schema-v0.1.json"\n                      Link="Packaging\\Schemas\\field-package-manifest.schema.json"\n                      LogicalName="WorldView.Application.Packaging.Schemas.field-package-manifest.schema.json" />\n  </ItemGroup>\n\n</Project>
