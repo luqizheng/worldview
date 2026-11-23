@@ -51,6 +51,92 @@ internal static class CoreDomainV1ModelConfiguration
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
+        modelBuilder.Entity<CoreProjectSettingsRevisionEntity>(entity =>
+        {
+            entity.ToTable("core_project_settings_revision", table =>
+            {
+                table.HasCheckConstraint("CK_core_project_settings_revision_version", "version >= 1");
+                table.HasCheckConstraint("CK_core_project_settings_revision_schema", "schema_version >= 1");
+                table.HasCheckConstraint("CK_core_project_settings_revision_hash_algorithm", "hash_algorithm = 'sha-256'");
+                table.HasCheckConstraint("CK_core_project_settings_revision_hash", "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+                table.HasCheckConstraint("CK_core_project_settings_revision_length", "byte_length > 0");
+                table.HasCheckConstraint("CK_core_project_settings_revision_path", "relative_path GLOB 'Settings/sha256/*'");
+            });
+            entity.HasKey(x => x.ProjectSettingsRevisionId);
+            entity.Property(x => x.ProjectSettingsRevisionId).HasColumnName("project_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText).ValueGeneratedNever();
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.Version).HasColumnName("version").HasColumnType("INTEGER");
+            entity.Property(x => x.SchemaVersion).HasColumnName("schema_version").HasColumnType("INTEGER");
+            entity.Property(x => x.RelativePath).HasColumnName("relative_path").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.HashAlgorithm).HasColumnName("hash_algorithm").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ContentHash).HasColumnName("content_hash").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ByteLength).HasColumnName("byte_length").HasColumnType("INTEGER");
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasAlternateKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId });
+            entity.HasIndex(x => new { x.ProjectId, x.Version }).IsUnique();
+            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreProjectSettingsCurrentEntity>(entity =>
+        {
+            entity.ToTable("core_project_settings_current");
+            entity.HasKey(x => x.ProjectId);
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.ProjectSettingsRevisionId).HasColumnName("project_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreProjectSettingsRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapSettingsRevisionEntity>(entity =>
+        {
+            entity.ToTable("core_map_settings_revision", table =>
+            {
+                table.HasCheckConstraint("CK_core_map_settings_revision_version", "version >= 1");
+                table.HasCheckConstraint("CK_core_map_settings_revision_schema", "schema_version >= 1");
+                table.HasCheckConstraint("CK_core_map_settings_revision_hash_algorithm", "hash_algorithm = 'sha-256'");
+                table.HasCheckConstraint("CK_core_map_settings_revision_hash", "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+                table.HasCheckConstraint("CK_core_map_settings_revision_length", "byte_length > 0");
+                table.HasCheckConstraint("CK_core_map_settings_revision_path", "relative_path GLOB 'Settings/sha256/*'");
+            });
+            entity.HasKey(x => x.MapSettingsRevisionId);
+            entity.Property(x => x.MapSettingsRevisionId).HasColumnName("map_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText).ValueGeneratedNever();
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.Version).HasColumnName("version").HasColumnType("INTEGER");
+            entity.Property(x => x.SchemaVersion).HasColumnName("schema_version").HasColumnType("INTEGER");
+            entity.Property(x => x.RelativePath).HasColumnName("relative_path").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.HashAlgorithm).HasColumnName("hash_algorithm").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ContentHash).HasColumnName("content_hash").HasColumnType("TEXT").IsRequired();
+            entity.Property(x => x.ByteLength).HasColumnName("byte_length").HasColumnType("INTEGER");
+            entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
+            entity.HasAlternateKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId });
+            entity.HasIndex(x => new { x.ProjectId, x.MapId, x.Version }).IsUnique();
+            entity.HasOne<CoreMapEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.MapId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.MapId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapSettingsCurrentEntity>(entity =>
+        {
+            entity.ToTable("core_map_settings_current");
+            entity.HasKey(x => new { x.ProjectId, x.MapId });
+            entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.Property(x => x.MapSettingsRevisionId).HasColumnName("map_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
+            entity.HasOne<CoreMapEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.MapId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.MapId })
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreMapSettingsRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId })
+                .HasPrincipalKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
         modelBuilder.Entity<CoreSpatialReferenceEntity>(entity =>
         {
             entity.ToTable("core_spatial_reference", table =>
