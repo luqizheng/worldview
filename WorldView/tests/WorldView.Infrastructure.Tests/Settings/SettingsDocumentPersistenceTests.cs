@@ -93,6 +93,30 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task FailedMetadataPublication_LeavesARecoverableOrphanWithoutChangingCurrentReference()
+    {
+        var project = ProjectRules.CreateProject("Settings Rollback", 2500);
+        _core.InsertProject(ProjectCreationPlan.Create(project));
+        var repository = new CoreDomainSettingsDocumentRepository(_database);
+        var fileStore = new SettingsDocumentFileStore(_root);
+        var service = new SettingsDocumentService(repository, fileStore);
+        var missingMapId = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<CoreDomainDataException>(() =>
+            service.SaveMapAsync(project.ProjectId, missingMapId,
+                JObject.Parse("{\"orphan\":true}")));
+
+        Assert.Empty(repository.ListMapSettingsRevisions(project.ProjectId));
+        var orphanHashes = fileStore.ListPublishedContentHashes();
+        Assert.Single(orphanHashes);
+
+        var report = await new CoreDomainSettingsDocumentRecovery()
+            .ReconcileAsync(_database, _root, project.ProjectId);
+        Assert.Contains(orphanHashes[0], report.CollectedOrphanContentHashes);
+        Assert.Empty(fileStore.ListPublishedContentHashes());
+    }
+
+    [Fact]
     public async Task StartupRecovery_FailsClosedWhenAReferencedRevisionIsMissing()
     {
         var project = ProjectRules.CreateProject("Missing Settings", 3000);
