@@ -18,7 +18,7 @@ public static class SettingsDocumentFormat
     {
         Culture = CultureInfo.InvariantCulture,
         DateFormatHandling = DateFormatHandling.IsoDateFormat,
-        FloatFormatHandling = FloatFormatHandling.Default,
+        FloatFormatHandling = FloatFormatHandling.DefaultValue,
         NullValueHandling = NullValueHandling.Include,
         MissingMemberHandling = MissingMemberHandling.Error,
         TypeNameHandling = TypeNameHandling.None,
