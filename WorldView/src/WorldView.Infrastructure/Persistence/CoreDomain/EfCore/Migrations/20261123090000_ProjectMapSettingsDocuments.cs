@@ -27,7 +27,7 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_core_project_settings_revision", x => x.project_settings_revision_id);
-                table.UniqueConstraint("AK_core_project_settings_revision_project_id_project_settings_revision_id",
+                table.UniqueConstraint("AK_core_project_settings_revision_owner_revision",
                     x => new { x.project_id, x.project_settings_revision_id });
                 table.CheckConstraint("CK_core_project_settings_revision_version", "version >= 1");
                 table.CheckConstraint("CK_core_project_settings_revision_schema", "schema_version >= 1");
@@ -64,7 +64,7 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_core_map_settings_revision", x => x.map_settings_revision_id);
-                table.UniqueConstraint("AK_core_map_settings_revision_project_map_revision",
+                table.UniqueConstraint("AK_core_map_settings_revision_owner_map_revision",
                     x => new { x.project_id, x.map_id, x.map_settings_revision_id });
                 table.CheckConstraint("CK_core_map_settings_revision_version", "version >= 1");
                 table.CheckConstraint("CK_core_map_settings_revision_schema", "schema_version >= 1");
