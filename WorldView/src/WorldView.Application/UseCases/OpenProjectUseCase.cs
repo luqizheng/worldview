@@ -5,6 +5,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
+using WorldView.Application.Settings;
 
 namespace WorldView.Application.UseCases;
 
@@ -95,6 +96,8 @@ public sealed class OpenProjectUseCase
     private readonly IAssetStoreFactory _assetStoreFactory;
     private readonly ProjectSessionRegistry _registry;
     private readonly IAppLog? _log;
+    private readonly IProjectFieldPayloadRecovery? _fieldPayloadRecovery;
+    private readonly IProjectSettingsDocumentRecovery? _settingsDocumentRecovery;
 
     public OpenProjectUseCase(
         IFileSystem fileSystem,
@@ -103,7 +106,9 @@ public sealed class OpenProjectUseCase
         IAssetStoreFactory assetStoreFactory,
         ProjectSessionRegistry registry,
         IProjectIdentityReader? identityReader,
-        IAppLog? log = null)
+        IAppLog? log = null,
+        IProjectFieldPayloadRecovery? fieldPayloadRecovery = null,
+        IProjectSettingsDocumentRecovery? settingsDocumentRecovery = null)
     {
         _fileSystem = fileSystem;
         _databaseFactory = databaseFactory;
@@ -112,6 +117,8 @@ public sealed class OpenProjectUseCase
         _registry = registry;
         _identityReader = identityReader;
         _log = log;
+        _fieldPayloadRecovery = fieldPayloadRecovery;
+        _settingsDocumentRecovery = settingsDocumentRecovery;
     }
 
     public async Task<OpenProjectResult> ExecuteAsync(
@@ -214,7 +221,43 @@ public sealed class OpenProjectUseCase
 
             session.AttachProjectIdentity(identity.Identity);
 
-            // ---- 4. Ready（晚完成保护：被并发取消/关闭时不得暴露 Ready）----
+            // ---- 4. Field Payload startup reconciliation ----
+            if (_fieldPayloadRecovery is not null)
+            {
+                var payloadReport = await _fieldPayloadRecovery.ReconcileAsync(
+                    database, canonical, identity.Identity.ProjectId, cancellationToken).ConfigureAwait(false);
+                if (payloadReport.MissingPayloadIds.Count > 0
+                    || payloadReport.CorruptPayloadIds.Count > 0
+                    || payloadReport.CollectedOrphanContentHashes.Count > 0
+                    || payloadReport.CleanedStagingFileCount > 0)
+                {
+                    _log?.Warn(
+                        "OpenProject",
+                        $"Field Payload reconciliation: missing={payloadReport.MissingPayloadIds.Count}, "
+                        + $"corrupt={payloadReport.CorruptPayloadIds.Count}, "
+                        + $"orphan-files-collected={payloadReport.CollectedOrphanContentHashes.Count}, "
+                        + $"staging-files-cleaned={payloadReport.CleanedStagingFileCount}.");
+                }
+            }
+
+            // ---- 5. Project / Map Settings startup verification and orphan recovery ----
+            if (_settingsDocumentRecovery is not null)
+            {
+                var settingsReport = await _settingsDocumentRecovery.ReconcileAsync(
+                    database, canonical, identity.Identity.ProjectId, cancellationToken).ConfigureAwait(false);
+                if (settingsReport.VerifiedDocumentCount > 0
+                    || settingsReport.CollectedOrphanContentHashes.Count > 0
+                    || settingsReport.CleanedStagingFileCount > 0)
+                {
+                    _log?.Warn(
+                        "OpenProject",
+                        $"Settings document reconciliation: verified={settingsReport.VerifiedDocumentCount}, "
+                        + $"orphan-files-collected={settingsReport.CollectedOrphanContentHashes.Count}, "
+                        + $"staging-files-cleaned={settingsReport.CleanedStagingFileCount}.");
+                }
+            }
+
+            // ---- 6. Ready（晚完成保护：被并发取消/关闭时不得暴露 Ready）----
             if (!session.TryCompleteOpen())
             {
                 await session.DisposeAsync().ConfigureAwait(false);

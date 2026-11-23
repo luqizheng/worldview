@@ -25,7 +25,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 {
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public PersistenceDomainIntegrityTests()
@@ -35,6 +35,7 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
         _database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "project.sqlite"));
         _database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(_database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(_database);
     }
 
     public void Dispose()
@@ -166,8 +167,8 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
         ExecuteRaw($"""
             INSERT INTO core_project (project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms)
             VALUES ('{U(projectB)}', 'B', 1, 1, 1);
-            INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
-            VALUES ('{U(mapB)}', '{U(projectB)}', 'MapB', 'active', 1, 1);
+            INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{U(mapB)}', '{U(projectB)}', '{U(Guid.NewGuid())}', 'MapB', 'active', 1, 1);
             """);
 
         // 声称属于 A 项目、却挂在 B 的 map 上 → 复合 FK (project_id, owner_map_id) 拒绝。
@@ -464,8 +465,8 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 
         // core_map.project_id → core_project：未知项目。
         AssertRawInsertRejected($"""
-            INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
-            VALUES ('{U(Guid.NewGuid())}', '{U(Guid.NewGuid())}', 'X', 'active', 1, 1);
+            INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{U(Guid.NewGuid())}', '{U(Guid.NewGuid())}', '{U(Guid.NewGuid())}', 'X', 'active', 1, 1);
             """);
 
         // core_history.project_id → core_project。
@@ -585,8 +586,8 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 
         // 同项目重复 map_id（主键 + UNIQUE(project_id, map_id) 双保险）。
         AssertRawInsertRejected($"""
-            INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
-            VALUES ('{U(map.Map.MapId)}', '{U(project.ProjectId)}', 'Dup', 'active', 1, 1);
+            INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{U(map.Map.MapId)}', '{U(project.ProjectId)}', '{U(Guid.NewGuid())}', 'Dup', 'active', 1, 1);
             """);
 
         // 同 Map 第二条 map_root 历史（UNIQUE(project_id, owner_map_id)）。

@@ -25,7 +25,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
 {
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public CoreDomainPersistenceTests()
@@ -35,6 +35,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         _database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "project.sqlite"));
         _database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(_database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(_database);
     }
 
     public void Dispose()
@@ -76,7 +77,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
     [Fact]
     public void FreshBootstrap_AppliesCoreDomainMigrations()
     {
-        Assert.Equal(10, CountRows("schema_migration"));
+        Assert.Equal(5, CountRows("__EFMigrationsHistory"));
         foreach (var table in new[]
                  {
                      "core_project", "core_map", "core_history", "core_branch",
@@ -84,7 +85,9 @@ public sealed class CoreDomainPersistenceTests : IDisposable
                      "core_object_type", "core_object", "core_object_definition",
                      "core_object_id_allocator", "core_object_id_reservation",
                      "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
-                     "core_asset", "core_object_definition_asset",
+                     "core_project_settings_revision", "core_project_settings_current",
+                     "core_map_settings_revision", "core_map_settings_current",
+                     "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision", "core_field_payload",
                  })
         {
             Assert.Equal(0, CountRows(table));
@@ -100,38 +103,6 @@ public sealed class CoreDomainPersistenceTests : IDisposable
             await second.OpenAsync();
             var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
             Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
-            Assert.Empty(result.AppliedMigrations); // 无待执行迁移
-        }
-    }
-
-    [Fact]
-    public async Task TamperedLedgerChecksum_FailsClosed()
-    {
-        ExecuteRaw("UPDATE schema_migration SET checksum = 'deadbeef' WHERE module_id = 'core-domain' AND migration_id = '003_core_history_branch';");
-        var second = (SqlitePackageDatabase)_factory.CreateForFile(_database.DatabasePath);
-        await using (second.ConfigureAwait(false))
-        {
-            await second.OpenAsync();
-            var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
-            Assert.False(result.Success);
-            Assert.Contains(result.Issues, i => i.Code == PackageIssueCode.LedgerChecksumMismatch);
-        }
-    }
-
-    [Fact]
-    public async Task UnknownLedgerMigration_FailsClosed()
-    {
-        ExecuteRaw("""
-            INSERT INTO schema_migration (module_id, migration_id, checksum, applied_at_utc_ms, min_app_version, max_app_version)
-            VALUES ('core-domain', '099_future', 'x', 1, NULL, NULL);
-            """);
-        var second = (SqlitePackageDatabase)_factory.CreateForFile(_database.DatabasePath);
-        await using (second.ConfigureAwait(false))
-        {
-            await second.OpenAsync();
-            var result = await _bootstrapper.ValidateExistingDatabaseAsync(second);
-            Assert.False(result.Success);
-            Assert.Contains(result.Issues, i => i.Code == PackageIssueCode.LedgerUnknownMigration);
         }
     }
 
@@ -304,8 +275,8 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         // Calendar 插入在事务中途违反 UNIQUE → 整体回滚。
         var occupierMapId = Guid.NewGuid();
         ExecuteRaw($"""
-            INSERT INTO core_map (map_id, project_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
-            VALUES ('{occupierMapId}', '{projectId}', 'occupier', 'active', 1, 1);
+            INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{occupierMapId}', '{projectId}', '{Guid.NewGuid():D}', 'occupier', 'active', 1, 1);
             INSERT INTO core_calendar (calendar_id, project_id, map_id, calendar_role, calendar_type, calendar_name, created_at_utc_ms, updated_at_utc_ms)
             VALUES ('{plan.DefaultCalendar.CalendarId}', '{projectId}', '{occupierMapId}', 'auxiliary', NULL, 'occupied', 1, 1);
             """);
@@ -436,10 +407,6 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         public Task<bool> IntegrityCheckAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<BootstrapMetadata?> ReadMetadataAsync(CancellationToken cancellationToken = default) => Task.FromResult<BootstrapMetadata?>(null);
         public Task WriteMetadataAsync(BootstrapMetadata metadata, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<System.Collections.Generic.IReadOnlyList<MigrationLedgerEntry>> ReadLedgerAsync(CancellationToken cancellationToken = default) => Task.FromResult<System.Collections.Generic.IReadOnlyList<MigrationLedgerEntry>>(Array.Empty<MigrationLedgerEntry>());
-        public Task<bool> LedgerTableExistsAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task EnsureLedgerTableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task ExecuteMigrationAsync(ModuleMigration migration, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

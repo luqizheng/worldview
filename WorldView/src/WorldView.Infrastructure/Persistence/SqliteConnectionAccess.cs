@@ -27,6 +27,7 @@ internal sealed class SqliteConnectionAccess : IAsyncDisposable
     private readonly string _databasePath;
     private SqliteConnection? _connection;
     private bool _disposed;
+    private bool _coreDomainMigrationsApplied;
 
     public SqliteConnectionAccess(string databasePath)
     {
@@ -78,6 +79,27 @@ internal sealed class SqliteConnectionAccess : IAsyncDisposable
             }
 
             _connection = connection;
+        }
+    }
+
+    /// <summary>
+    /// 对当前物理连接最多执行一次 Core Domain EF migration。调用在连接协调器锁内串行；
+    /// 迁移失败时不设置完成标记，允许启动流程显式重试，成功后后续适配器构造不再调用 Migrate。
+    /// </summary>
+    public void ApplyCoreDomainMigrationsOnce(Action applyMigrations)
+    {
+        ArgumentNullException.ThrowIfNull(applyMigrations);
+        lock (_gate)
+        {
+            if (_disposed)
+                throw Disposed();
+            if (_connection is null)
+                throw new InvalidOperationException("数据库未打开。");
+            if (_coreDomainMigrationsApplied)
+                return;
+
+            applyMigrations();
+            _coreDomainMigrationsApplied = true;
         }
     }
 
