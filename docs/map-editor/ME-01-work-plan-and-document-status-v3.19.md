@@ -1,6 +1,6 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 3.21
+- Version: 3.22
 - Date: 2026-11-23
 - Status: Active design work plan
 - Supersedes: ME-01-work-plan-and-document-status-v3.19.md (retained for history)
@@ -111,6 +111,10 @@ ME-08-06 V0.1 establishes one operation lifecycle across World Map, Building Int
 | ME-08-07 | [Spatial Operation UX & Scenario Matrix](world-view-me-08-07-spatial-operation-ux-and-scenario-matrix-v0.1.md) | 0.1 | Spatial Operation UX Working Baseline | Shared editor surface and operation states; World Map, Building Interior, Cave, Spatial Site, nested Group, typed connection and template/module journeys; diagnostics, cancellation, recovery, accessibility and acceptance matrix |
 
 ME-08-07 V0.1 translates ME-08-06 into eight end-to-end UX scenario families and an acceptance matrix. It defines one shared desktop editor surface with explicit contexts, typed selection, Inspector and operation/review surface; preserves transient/formal/derived-state distinctions; and specifies Windows/macOS accessibility and recovery. It does not authorize missing Core Domain capabilities or claim runtime/platform conformance. The next planned item is ME-08 cross-architecture integration review and implementation handoff.
+
+| ME-08-08 | [Cross-Architecture Integration Review & Implementation Handoff](world-view-me-08-08-cross-architecture-integration-review-and-implementation-handoff-v0.1.md) | 0.1 | Cross-Architecture Review Working Baseline | Reconciles ME-08 with ME-01/03/04/05/06, Core Domain and Map Engine; capability gates, formal write-path/atomicity rules, findings and WP-00–WP-09 implementation handoff |
+
+ME-08-08 V0.1 accepts ME-08-00/06/07 as a coherent design package subject to explicit adoption gates. It confirms that Building/Cave formal authoring, Road connectivity, specialist access connections and durable Site/Group organization cannot be enabled by UX design alone. It preserves Core Domain write authority, ME-06 Change Set atomicity, Map Engine query/freshness ownership and single-user desktop scope. The implementation handoff defines WP-00 through WP-09; the recommended first milestone is WP-00 through WP-03 (capability inventory, context/navigation, shared selection/Inspector, transient sessions/preview). Design completion does not imply implementation or Windows/macOS conformance.
 
 ## Core Domain — Building & Cave Adoption (proposal stage)
 
