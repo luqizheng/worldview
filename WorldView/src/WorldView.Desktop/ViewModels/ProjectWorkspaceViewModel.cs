@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
+using WorldView.Application.UseCases;
 
 namespace WorldView.Desktop.ViewModels;
 
@@ -12,6 +13,7 @@ namespace WorldView.Desktop.ViewModels;
 /// 项目工作区 ViewModel：显示项目身份/地图列表并打开地图工作区会话。
 /// 地图数据只经 Core Domain 查询端口获取；端口未实现时如实显示依赖门槛，
 /// 绝不以占位数据冒充真实地图（AF-02 §4.6）。
+/// 地图创建经会话绑定的 CreateMapUseCase（正式 Core Domain 路径，WP-20a）。
 /// </summary>
 public partial class ProjectWorkspaceViewModel : ObservableObject
 {
@@ -23,11 +25,13 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         ProjectSession session,
         IMapQueryService? mapQuery,
         IWorkspaceContextResolver? contextResolver,
+        CreateMapUseCase createMap,
         IAppLog? log = null)
     {
         Session = session;
         _mapQuery = mapQuery;
         _contextResolver = contextResolver;
+        CreateMap = createMap;
         _log = log;
     }
 
@@ -35,6 +39,9 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     public event Action? ProjectClosed;
 
     public ProjectSession Session { get; }
+
+    /// <summary>地图创建用例（会话绑定；窗口层创建对话框经此走正式创建路径）。</summary>
+    public CreateMapUseCase CreateMap { get; }
 
     /// <summary>项目显示名（Core Domain 身份读取给出）。</summary>
     public string ProjectDisplayName => Session.ProjectDisplayName ?? $"（未命名项目 {Session.ProjectId}）";

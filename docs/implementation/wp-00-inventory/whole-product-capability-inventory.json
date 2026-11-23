@@ -6,8 +6,23 @@
   "head_sha": "30527eb31d73452703b1bd53c22cea5cce112aa9",
   "working_tree_clean": false,
   "working_tree_note": "工作区含本审计新增目录 docs/implementation/wp-00-inventory/ 与上一轮盘点的未跟踪文件 docs/map-editor/implementation/（用户文件，未触碰）；无任何业务代码改动",
+  "revision_history": [
+    {
+      "date": "2026-11-24",
+      "trigger": "WP-20a Map 创建切片完成（PR #26，分支 feat/wp20a-map-creation @ 50e3d3e；CI run 45211773969 四 job 全绿）",
+      "changes": [
+        "PMM-B6 Map 创建：PARTIAL → IMPLEMENTED_VERIFIED（Domain/Application/Infrastructure/Desktop 四层落地）",
+        "TCI-03 UI Tests：MISSING → PARTIAL（新增 WorldView.Desktop.Tests 纯 ViewModel 单测；Avalonia headless 仍缺）",
+        "M1 验收 3：BLOCKED → IMPLEMENTED_VERIFIED；m1_blockers 移除 GAP-P0-2",
+        "GAP-P0-2 从活动 gaps 移入 resolved_gaps",
+        "测试基线 700 → 728（本机 Debug 实测 2026-11-24，逐工程 266/133/318/11）；本机与 CI/平台证据块同步更新",
+        "M1 估计完成度 35%–45% → 40%–50%（同口径重算）；M1 总判定仍 NOT_MET；12 项正式验收编号不变"
+      ],
+      "scope_note": "本修订仅覆盖 WP-20a 相关结论；其余能力状态与证据仍以 2026-11-23 master@30527eb 审计为准"
+    }
+  ],
   "status_vocabulary": ["IMPLEMENTED_VERIFIED", "IMPLEMENTED_UNVERIFIED", "PARTIAL", "DESIGNED_ONLY", "MISSING", "BLOCKED", "NOT_APPLICABLE"],
-  "global_caveat": "全部 Core Domain 正式写路径只到 Domain 服务+SQLite 端口，生产代码几乎无调用方（仅测试可达；例外：ObjectTypeSeedingService 经项目创建生产可达）。IMPLEMENTED_VERIFIED 表示该层能力已正式化且经测试，不表示用户可操作。",
+  "global_caveat": "除 WP-20a Map 创建链路外，其余全部 Core Domain 正式写路径只到 Domain 服务+SQLite 端口，生产代码几乎无调用方（仅测试可达；例外：ObjectTypeSeedingService 经项目创建生产可达）。IMPLEMENTED_VERIFIED 表示该层能力已正式化且经测试；Map 创建已接通 UI 但 GUI 冒烟未做（M1 平台门统一处理），其余条目仍不表示用户可操作。",
   "areas": [
     { "id": "desktop", "name": "Desktop Application", "capability_count": 12 },
     { "id": "map-management", "name": "Project / Map Management", "capability_count": 20 },
@@ -29,7 +44,7 @@
     { "id": "DSK-08", "area": "desktop", "name": "异常处理和日志", "status": "PARTIAL", "source_files": ["src/WorldView.Infrastructure/Logging/FileAppLog.cs", "src/WorldView.Desktop/Program.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["FileAppLog.cs:14 按日滚动+三分支路径", "UseCase 层 try/catch 完整"], "gaps": ["进程级钩子未接 FileAppLog；无 DispatcherUnhandledException；窗口层 async void 无保护"], "confidence": "high" },
     { "id": "DSK-09", "area": "desktop", "name": "DPI/窗口缩放/多显示器", "status": "PARTIAL", "source_files": ["src/WorldView.Desktop/app.manifest", "src/WorldView.Desktop/Views/StartWindow.axaml"], "test_files": [], "evidence": ["app.manifest 仅 supportedOS，无 DPI 节点", "窗口固定尺寸+Min"], "gaps": ["全靠 Avalonia 默认；无渲染表面故 DPI 处理暂无适用对象"], "confidence": "high" },
     { "id": "DSK-10", "area": "desktop", "name": "Windows/macOS 原生差异", "status": "PARTIAL", "source_files": ["src/WorldView.Infrastructure/RecentProjects/JsonRecentProjectsStore.cs", "src/WorldView.Infrastructure/Logging/FileAppLog.cs", "src/WorldView.Application/Settings/SettingsDocumentPaths.cs"], "test_files": [], "evidence": ["路径三分支 JsonRecentProjectsStore.cs:110-126、FileAppLog.cs:22-26", "SettingsDocumentPaths.cs:53-55 Windows 大小写语义"], "gaps": ["Desktop 零平台分支；无 macOS 窗口行为适配"], "confidence": "high" },
-    { "id": "DSK-11", "area": "desktop", "name": "安装包/发布包/运行时依赖", "status": "MISSING", "source_files": ["src/WorldView.Desktop/WorldView.Desktop.csproj", ".github/workflows/dotnet-ci.yml"], "test_files": [], "evidence": ["无 PublishSingleFile/SelfContained/RuntimeIdentifier/pubxml", "CI 无发布 job；无 installer 工程"], "gaps": ["M1 验收需双平台流程，当前无发布产物"], "confidence": "high" },
+    { "id": "DSK-11", "area": "desktop", "name": "安装包/发布包/运行时依赖", "status": "MISSING", "source_files": ["src/WorldView.Desktop/WorldView.Desktop.csproj", ".github/workflows/dotnet-ci.yml"], "test_files": [], "evidence": ["无 PublishSingleFile/SelfContained/RuntimeIdentifier/pubxml", "CI 无发布 job；无 installer 工程"], "gaps": ["归 WP-10 / GAP-P1-15（桌面交付准备，非 M1 独立阻塞项）；M1 平台门是 GUI 流程证据（GAP-P0-4）"], "confidence": "high" },
     { "id": "DSK-12", "area": "desktop", "name": "UI 层级合规（不经 UI 直连数据库）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Desktop/Program.cs", "src/WorldView.Desktop/ViewModels/StartViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs"], "evidence": ["Desktop 全部 Infrastructure using 仅 Program.cs:11-17（组合根）", "ViewModel 仅依赖 Application 抽象"], "gaps": [], "confidence": "high" },
 
     { "id": "PMM-A1", "area": "map-management", "name": "Project 包创建", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/UseCases/CreateProjectUseCase.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/CoreDomainPersistenceTests.cs"], "evidence": ["CreateProjectUseCase.cs:77-266", "CoreDomainAdapters.cs:20-75 正式创建服务已接入组合根"], "gaps": [], "confidence": "high" },
@@ -37,8 +52,8 @@
     { "id": "PMM-A3", "area": "map-management", "name": "Project 关闭", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Sessions/ProjectSession.cs", "src/WorldView.Application/Sessions/ProjectSessionRegistry.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["ProjectSession.cs:208-253 子工作区→AssetStore→DB 逆序幂等", "Registry.cs:71-79 停机编排"], "gaps": [], "confidence": "high" },
     { "id": "PMM-A4", "area": "map-management", "name": "Project Session 生命周期", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Sessions/ProjectSession.cs", "src/WorldView.Application/Sessions/ProjectSessionRegistry.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["ProjectSession.cs:11-21 八态状态机", "晚完成保护 TryCompleteOpen :114-126"], "gaps": [], "confidence": "high" },
     { "id": "PMM-A5", "area": "map-management", "name": "最近打开项目恢复", "status": "IMPLEMENTED_UNVERIFIED", "source_files": ["src/WorldView.Infrastructure/RecentProjects/JsonRecentProjectsStore.cs"], "test_files": [], "evidence": ["实现完整但 tests 全域 grep 零测试"], "gaps": ["读写/截断/降级行为零测试"], "confidence": "high" },
-    { "id": "PMM-B6", "area": "map-management", "name": "Map 创建", "status": "PARTIAL", "source_files": ["src/WorldView.Domain/Maps/MapBranchServices.cs", "src/WorldView.Domain/Maps/MapCreation.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/SqliteCoreDomainDatabase.cs"], "test_files": ["tests/WorldView.Domain.Tests/Maps/MapBranchRulesTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs"], "evidence": ["MapBranchServices.cs:12-28 CreateMap 领域服务", "Application/Desktop 对 MapService 零调用（grep 复核）", "UI 无创建入口"], "gaps": ["用例层+UI 缺失：产品内用户无法创建 Map（M1 关键断点，GAP-P0-2）"], "confidence": "high" },
-    { "id": "PMM-B7", "area": "map-management", "name": "Map 列表读取", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Abstractions/IMapQueryService.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs", "src/WorldView.Desktop/ViewModels/ProjectWorkspaceViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs"], "evidence": ["CoreDomainAdapters.cs:126-152 跨项目隔离", "ProjectWorkspaceViewModel.cs:66-90 真实数据加载"], "gaps": ["VM 层无单测"], "confidence": "high" },
+    { "id": "PMM-B6", "area": "map-management", "name": "Map 创建", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Abstractions/IMapCreationService.cs", "src/WorldView.Application/UseCases/CreateMapUseCase.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs", "src/WorldView.Domain/Maps/MapBranchServices.cs", "src/WorldView.Domain/Maps/MapCreation.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/SqliteCoreDomainDatabase.cs", "src/WorldView.Desktop/Views/CreateMapDialog.axaml.cs", "src/WorldView.Desktop/ViewModels/CreateMapDialogViewModel.cs", "src/WorldView.Desktop/Views/ProjectWindow.axaml.cs"], "test_files": ["tests/WorldView.Domain.Tests/Maps/MapBranchRulesTests.cs", "tests/WorldView.Application.Tests/UseCases/CreateMapUseCaseTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Wp20aMapCreationTests.cs", "tests/WorldView.Desktop.Tests/ViewModels/CreateMapDialogViewModelTests.cs", "tests/WorldView.Desktop.Tests/ViewModels/ProjectWorkspaceViewModelTests.cs"], "evidence": ["WP-20a（PR #26，50e3d3e）四层落地：CreateMapUseCase:16→IMapCreationService:14→CoreDomainMapCreationService（CoreDomainAdapters.cs:161，会话绑定，委托正式 MapService）→SqliteCoreDomainDatabase 单事务", "名称唯一性：MapNameComparer=OrdinalIgnoreCase（MapCreation.cs:32）预检（MapBranchServices.cs:32-34）+ 创建事务内复检（SqliteCoreDomainDatabase.cs:211，连接协调器临界区内，权威）；无 Schema/Migration 变更", "Desktop：ProjectWindow 创建按钮（ProjectWindow.axaml:52）+CreateMapDialog（内联校验/重复名错误/CanExecute 提交闸）；成功仅刷新列表不自动打开；DI 注册 Program.cs:114-115", "测试 +28（700→728 全绿）：含真实 SQLite 端到端（创建/查询/打开工作区不变量、非 UI 重复名拒绝无部分数据、跨包隔离）"], "gaps": ["GUI 冒烟未做（M1 平台门统一处理，同验收 2 口径）"], "confidence": "high" },
+    { "id": "PMM-B7", "area": "map-management", "name": "Map 列表读取", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Abstractions/IMapQueryService.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs", "src/WorldView.Desktop/ViewModels/ProjectWorkspaceViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs"], "evidence": ["CoreDomainAdapters.cs:127-153 跨项目隔离", "ProjectWorkspaceViewModel.cs:73-97 真实数据加载"], "gaps": ["VM 层无单测（ProjectWorkspaceViewModel 已由 WP-20a 在 Desktop.Tests 补 4 个测试方法，其余分支仍无）"], "confidence": "high" },
     { "id": "PMM-B8", "area": "map-management", "name": "Map 打开（工作区）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Sessions/ProjectSession.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["ProjectSession.cs:144-180 晚到达保护"], "gaps": ["UI 恒传 branchId:null, historicalTimeInput:null（GAP-P0-3）"], "confidence": "high" },
     { "id": "PMM-B9", "area": "map-management", "name": "Map 关闭（关工作区）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Sessions/ProjectSession.cs", "src/WorldView.Application/Sessions/MapWorkspaceSession.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["ProjectSession.cs:183-202 兄弟会话不受影响", "MapWorkspaceSession.cs:82-96 幂等"], "gaps": [], "confidence": "high" },
     { "id": "PMM-B10", "area": "map-management", "name": "Map 重命名", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["端口无 RenameMap；MapRecord.MapName init-only", "唯一 grep 命中为 Building payload 测试字符串"], "gaps": ["四层全无；历史不可变语义待正式化"], "confidence": "high" },
@@ -51,14 +66,14 @@
     { "id": "PMM-C17", "area": "map-management", "name": "Historical Time 上下文", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Workspace/WorkspaceContextResolution.cs", "src/WorldView.Domain/Time/HistoricalTime.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs"], "test_files": ["tests/WorldView.Domain.Tests/Workspace/WorkspaceContextRulesTests.cs", "tests/WorldView.Domain.Tests/Time/HistoricalTimeTests.cs"], "evidence": ["TryResolve 四步解析 :36-124", "InSnapshotScope 原子快照 CoreDomainAdapters.cs:160-200"], "gaps": ["UI 无时间输入入口（null→纪元）"], "confidence": "high" },
     { "id": "PMM-C18", "area": "map-management", "name": "最近打开 Map 恢复", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["grep LastMap/ActiveMap/recentmap 零命中；Settings 文档无此字段"], "gaps": ["无任何实现或字段"], "confidence": "high" },
     { "id": "PMM-D19", "area": "map-management", "name": "UI 直接操作数据库检查", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Desktop/WorldView.Desktop.csproj", "src/WorldView.Desktop/Program.cs"], "test_files": [], "evidence": ["依赖方向单向 Desktop→Application→Domain；无 Sqlite 类型 using"], "gaps": [], "confidence": "high" },
-    { "id": "PMM-D20", "area": "map-management", "name": "绕过正式服务检查", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Desktop/ViewModels/ProjectWorkspaceViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs"], "evidence": ["UI 调用清单全部经 Application（UseCase/Session/查询端口）"], "gaps": ["问题不在越界，在 Application 层缺 Map/Branch 用例"], "confidence": "high" },
+    { "id": "PMM-D20", "area": "map-management", "name": "绕过正式服务检查", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Desktop/ViewModels/ProjectWorkspaceViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs"], "evidence": ["UI 调用清单全部经 Application（UseCase/Session/查询端口）"], "gaps": ["问题不在越界，在 Application 层 Branch 用例仍缺（Map 创建用例已由 WP-20a 补齐）"], "confidence": "high" },
 
     { "id": "CID-01", "area": "core-infrastructure", "name": "Object Type Registry（封闭 12 类型）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Registry/ObjectTypeRegistry.cs", "src/WorldView.Domain/Objects/BuiltinObjectTypes.cs", "src/WorldView.Domain/Objects/ObjectTypeSeedingService.cs"], "test_files": ["tests/WorldView.Domain.Tests/Registry/ObjectTypeRegistryTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02ObjectPersistenceTests.cs"], "evidence": ["fail-closed 加载 :279-308", "播种经项目创建生产可达（CoreDomainAdapters.cs:50）"], "gaps": [], "confidence": "high" },
     { "id": "CID-02", "area": "core-infrastructure", "name": "Object Identity/Reservation（三段原子）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Objects/ObjectIdReservationService.cs", "src/WorldView.Domain/Objects/ObjectCreationService.cs"], "test_files": ["tests/WorldView.Domain.Tests/Objects/ObjectDomainServiceTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02ObjectPersistenceTests.cs"], "evidence": ["request_key UNIQUE 幂等+恢复 SqliteCoreDomainDatabase.Objects.cs:67-155"], "gaps": ["无生产调用方（仅测试可达）"], "confidence": "high" },
     { "id": "CID-03", "area": "core-infrastructure", "name": "Shared Definition（CAS+指纹）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Objects/CanonicalJson.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/SqliteCoreDomainDatabase.Objects.cs"], "test_files": ["tests/WorldView.Domain.Tests/Objects/CanonicalJsonTests.cs"], "evidence": ["RFC 8785 规范化；Definition 单行+expected-hash CAS"], "gaps": [], "confidence": "high" },
     { "id": "CID-04", "area": "core-infrastructure", "name": "Descriptor Schemas（有界 Draft 2020-12）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Registry/JsonSchemaSubset.cs"], "test_files": ["tests/WorldView.Domain.Tests/Registry/JsonSchemaSubsetTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02AggregateVectorConformanceTests.cs"], "evidence": ["不支持关键词 fail-closed；55 向量全执行"], "gaps": [], "confidence": "high" },
     { "id": "CID-05", "area": "core-infrastructure", "name": "Building/Cave typed aggregates（四层校验+原子发布）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Aggregates/BuildingCaveAggregateValidator.cs", "src/WorldView.Domain/Objects/MapInitialStateService.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/GeometryAtomicPublicationTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs"], "evidence": ["仅 building/cave_system 可原子发布（MapInitialStateService.cs:114-118）", "发布事务内重读 Verified 门（Objects.cs:675-727）"], "gaps": ["编辑器上游全缺 → UI 判 BLOCKED（AUT-16）"], "confidence": "high" },
-    { "id": "CID-06", "area": "core-infrastructure", "name": "Map/Branch/History 结构层", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Maps/MapBranchServices.cs", "src/WorldView.Domain/Maps/BranchLineage.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/SqliteCoreDomainDatabase.cs"], "test_files": ["tests/WorldView.Domain.Tests/Maps/BranchLineageTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/PersistenceDomainIntegrityTests.cs"], "evidence": ["CreateMap 四件单事务（SqliteCoreDomainDatabase.cs:194-264）", "世系环/悬空/跨 Map/深度拒绝"], "gaps": ["创建后无修改路径（设计内）；运行时 Branch 切换零消费"], "confidence": "high" },
+    { "id": "CID-06", "area": "core-infrastructure", "name": "Map/Branch/History 结构层", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Maps/MapBranchServices.cs", "src/WorldView.Domain/Maps/BranchLineage.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/SqliteCoreDomainDatabase.cs"], "test_files": ["tests/WorldView.Domain.Tests/Maps/BranchLineageTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/PersistenceDomainIntegrityTests.cs"], "evidence": ["CreateMap 四件单事务（SqliteCoreDomainDatabase.cs:195-280，WP-20a 增加事务内名称复检）", "世系环/悬空/跨 Map/深度拒绝"], "gaps": ["创建后无修改路径（设计内）；运行时 Branch 切换零消费"], "confidence": "high" },
     { "id": "CID-07", "area": "core-infrastructure", "name": "Map Initial State（CAS 指纹基线）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Objects/MapInitialStateService.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02ObjectPersistenceTests.cs"], "evidence": ["initial-state-fingerprint-v1 顺序无关", "P3⇒P2 服务检查+复合 FK"], "gaps": ["typed 内容 schema（OD-1）开放"], "confidence": "high" },
     { "id": "CID-08", "area": "core-infrastructure", "name": "Asset 所有权/完整性", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Assets/AssetService.cs", "src/WorldView.Infrastructure/Assets/FileAssetStore.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Assets/AssetIntegrityVerificationTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02AssetPersistenceTests.cs"], "evidence": ["内容寻址幂等；AssetByteDigest 不可伪造凭证（反射探测防伪造 :249）", "Verified-only 正式引用"], "gaps": ["VerifyAssetIntegrityUseCase/FindOrphanAssetIds 生产零调用（GAP-P1-08）"], "confidence": "high" },
     { "id": "CID-09", "area": "core-infrastructure", "name": "Field Dataset/Revision（追加不可变）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/Fields/FieldDatasetService.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/EfCore/CoreDomainV1ModelConfiguration.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02FieldDatasetPersistenceTests.cs"], "evidence": ["PublishRevision ~200 行穷举校验+CAS", "唯一 EF 并发令牌（ModelConfiguration.cs:230）"], "gaps": ["UI 入口缺失（Field 链仅程序化）"], "confidence": "high" },
@@ -113,25 +128,25 @@
     { "id": "AUT-11", "area": "authoring", "name": "Apply / Cancel（编辑器语义）", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["仅会话关闭命令；无修改集提交/回滚"], "gaps": ["GAP-P2-05"], "confidence": "high" },
     { "id": "AUT-12", "area": "authoring", "name": "Undo / Redo", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["穷尽 grep 仅标识符子串误命中；ADR-004 纯设计"], "gaps": ["GAP-P2-05"], "confidence": "high" },
     { "id": "AUT-13", "area": "authoring", "name": "Freshness Check", "status": "PARTIAL", "source_files": ["src/WorldView.Domain/Aggregates/BuildingCaveAggregateValidator.cs", "src/WorldView.Domain/Objects/MapInitialStateService.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02FieldDatasetPersistenceTests.cs"], "evidence": ["领域 CAS 三机制齐备（Definition hash/Initial-state 指纹/Field 并发令牌）", "编辑器侧操作前新鲜度闸不存在"], "gaps": ["GAP-P2-05"], "confidence": "high" },
-    { "id": "AUT-14", "area": "authoring", "name": "Formal Domain Operation Adapter", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["grep OperationAdapter/DomainOperation/AuthoringOperation 零命中", "正式写路径无用例层（全局警示）"], "gaps": ["GAP-P2-05"], "confidence": "high" },
+    { "id": "AUT-14", "area": "authoring", "name": "Formal Domain Operation Adapter", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["grep OperationAdapter/DomainOperation/AuthoringOperation 零命中", "编辑器侧正式操作无用例层（Map 创建用例已由 WP-20a 单独补齐）"], "gaps": ["GAP-P2-05"], "confidence": "high" },
     { "id": "AUT-15", "area": "authoring", "name": "Outcome Reconciliation", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["现有 Reconcile 均为启动恢复，非编辑结果对账"], "gaps": ["GAP-P2-05"], "confidence": "high" },
     { "id": "AUT-16", "area": "authoring", "name": "Building/Cave 编辑 UI", "status": "BLOCKED", "source_files": ["src/WorldView.Domain/Aggregates/BuildingCaveAggregateValidator.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs"], "evidence": ["领域采纳链完备（55 向量+原子发布+ME-04 全链测试）", "UI grep building|cave 零命中"], "gaps": ["阻塞点在编辑链路（AUT-01~15）而非领域"], "confidence": "high" },
     { "id": "AUT-17", "area": "authoring", "name": "Spatial Site / Group", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["零概念命中"], "gaps": ["GAP-P2-06"], "confidence": "high" },
     { "id": "AUT-18", "area": "authoring", "name": "Typed Connections", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["Relationship 层不存在；descriptor 纸面声明 vs 执行器缺位"], "gaps": ["GAP-P2-01"], "confidence": "high" },
     { "id": "AUT-19", "area": "authoring", "name": "Templates / Modules", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["Module/Recipe 零命中；Template 命中均为 Avalonia UI 模板"], "gaps": ["GAP-P2-06"], "confidence": "high" },
 
-    { "id": "TCI-01", "area": "tests-ci", "name": "Unit tests（Domain/Application）", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": ["tests/WorldView.Domain.Tests/", "tests/WorldView.Application.Tests/"], "evidence": ["本机实测 700/700（含 262+125）", "内存替身 FakeCoreDomainDatabase/FakePackageDatabase/InMemoryFileSystem"], "gaps": [], "confidence": "high" },
-    { "id": "TCI-02", "area": "tests-ci", "name": "真实 SQLite 集成/端到端", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/RealPackageFlowTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs"], "evidence": ["Infrastructure.Tests 全部 21 类真实 SQLite", "Cd01EndToEnd 镜像组合根全链"], "gaps": [], "confidence": "high" },
-    { "id": "TCI-03", "area": "tests-ci", "name": "UI Tests", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["3 个测试工程均不引用 WorldView.Desktop；无 Avalonia headless 测试"], "gaps": ["GAP-P1-04"], "confidence": "high" },
+    { "id": "TCI-01", "area": "tests-ci", "name": "Unit tests（Domain/Application）", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": ["tests/WorldView.Domain.Tests/", "tests/WorldView.Application.Tests/"], "evidence": ["本机实测 728/728（WP-20a 分支 50e3d3e，2026-11-24）：Domain 266 + Application 133", "内存替身 FakeCoreDomainDatabase/FakePackageDatabase/InMemoryFileSystem"], "gaps": [], "confidence": "high" },
+    { "id": "TCI-02", "area": "tests-ci", "name": "真实 SQLite 集成/端到端", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/RealPackageFlowTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd02MapEditorIntegrationTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Wp20aMapCreationTests.cs"], "evidence": ["Infrastructure.Tests 全部 22 类真实 SQLite", "Cd01EndToEnd 镜像组合根全链；Wp20aMapCreationTests 覆盖创建/查询/打开工作区不变量与重复名拒绝"], "gaps": [], "confidence": "high" },
+    { "id": "TCI-03", "area": "tests-ci", "name": "UI Tests", "status": "PARTIAL", "source_files": [], "test_files": ["tests/WorldView.Desktop.Tests/ViewModels/CreateMapDialogViewModelTests.cs", "tests/WorldView.Desktop.Tests/ViewModels/ProjectWorkspaceViewModelTests.cs"], "evidence": ["WP-20a 新增第 4 个测试工程 WorldView.Desktop.Tests：纯 ViewModel 单测 11 例（对话框提交闸/内联校验/重复名错误/列表刷新语义）"], "gaps": ["仍无 Avalonia headless UI 测试；应用启停无测试（GAP-P1-04 缺口收窄未关闭）"], "confidence": "high" },
     { "id": "TCI-04", "area": "tests-ci", "name": "应用启动/关闭测试", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["停机逻辑 Program.cs:44-45 无覆盖"], "gaps": ["GAP-P1-04"], "confidence": "high" },
     { "id": "TCI-05", "area": "tests-ci", "name": "Renderer 生命周期测试", "status": "NOT_APPLICABLE", "source_files": [], "test_files": [], "evidence": ["渲染器不存在"], "gaps": [], "confidence": "high" },
-    { "id": "TCI-06", "area": "tests-ci", "name": "Windows Debug/Release 构建测试", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": [], "evidence": ["本机 Debug 实测 700/700 + CI windows-latest Debug/Release 绿"], "gaps": [], "confidence": "high" },
-    { "id": "TCI-07", "area": "tests-ci", "name": "macOS Debug/Release 构建测试", "status": "IMPLEMENTED_UNVERIFIED", "source_files": [], "test_files": [], "evidence": ["仅 CI macos-latest Debug/Release 绿（run 45183823988）", "本机 NOT_RUN（Windows 环境）"], "gaps": ["macOS UI 运行证据为零"], "confidence": "high" },
+    { "id": "TCI-06", "area": "tests-ci", "name": "Windows Debug/Release 构建测试", "status": "IMPLEMENTED_VERIFIED", "source_files": [], "test_files": [], "evidence": ["本机 Debug 实测 728/728（2026-11-24，WP-20a 分支）+ CI windows-latest Debug/Release 绿（master run 45183823988、PR #26 run 45211773969）"], "gaps": [], "confidence": "high" },
+    { "id": "TCI-07", "area": "tests-ci", "name": "macOS Debug/Release 构建测试", "status": "IMPLEMENTED_UNVERIFIED", "source_files": [], "test_files": [], "evidence": ["仅 CI macos-latest Debug/Release 绿（master run 45183823988；PR #26 run 45211773969 四 job 全绿）", "本机 NOT_RUN（Windows 环境）"], "gaps": ["macOS UI 运行证据为零"], "confidence": "high" },
     { "id": "TCI-08", "area": "tests-ci", "name": "GitHub Actions 工作流", "status": "IMPLEMENTED_VERIFIED", "source_files": [".github/workflows/dotnet-ci.yml"], "test_files": [], "evidence": ["矩阵 windows/macos × Debug/Release；working-directory: WorldView；MTP --show-slowest-tests"], "gaps": ["无发布 job、无 Linux、无覆盖率上传"], "confidence": "high" },
     { "id": "TCI-09", "area": "tests-ci", "name": "本地构建脚本", "status": "IMPLEMENTED_VERIFIED", "source_files": ["WorldView/scripts/build.ps1"], "test_files": [], "evidence": ["build/run/test/verify-environment ps1+sh 薄封装"], "gaps": ["MTP/VSTest 双通道冗余配置（GAP-P1-13）"], "confidence": "high" },
 
     { "id": "PLT-01", "area": "platform", "name": "Windows GUI 运行证据", "status": "IMPLEMENTED_UNVERIFIED", "source_files": [], "test_files": [], "evidence": ["组合根完整无启动即失败点（代码角度可启动）", "本审计未执行 GUI 冒烟"], "gaps": ["M1 验收 11 需全流程演练"], "confidence": "medium" },
-    { "id": "PLT-02", "area": "platform", "name": "macOS GUI 运行证据", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["macOS 仅 CI 测试进程证据；无 UI 冒烟/无头 Avalonia 测试/发布产物"], "gaps": ["GAP-P0-4"], "confidence": "high" },
+    { "id": "PLT-02", "area": "platform", "name": "macOS GUI 运行证据", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["macOS 仅 CI 测试进程证据；无 UI 冒烟/无头 Avalonia 测试"], "gaps": ["GAP-P0-4"], "confidence": "high" },
     { "id": "PLT-03", "area": "platform", "name": "平台代码分支支持", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Infrastructure/RecentProjects/JsonRecentProjectsStore.cs"], "test_files": [], "evidence": ["路径/日志/路径比较三分支齐备；app.manifest 仅 Windows 生效"], "gaps": [], "confidence": "high" },
 
     { "id": "SEC-01", "area": "security-integrity", "name": "不可伪造验证凭证（AssetByteDigest）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Assets/AssetByteDigest.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Assets/AssetIntegrityVerificationTests.cs"], "evidence": ["internal MeasureAsync+friend 白名单；反射探测防伪造 :249"], "gaps": [], "confidence": "high" },
@@ -149,25 +164,28 @@
     "local_test_run": {
       "os": "Windows 10.0.26300 x64",
       "command": "cd WorldView && dotnet build WorldView.sln -c Debug && dotnet test WorldView.sln -c Debug",
-      "result": "构建 0 错误；总计 700 / 通过 700 / 失败 0 / 跳过 0（Domain 262 + Application 125 + Infrastructure 313）",
-      "date": "2026-11-23"
+      "baseline": "feat/wp20a-map-creation @ 50e3d3e（2026-11-24 修订实测）；master@30527eb 基线同口径实测 700/700（2026-11-23）",
+      "result": "构建 0 错误；总计 728 / 通过 728 / 失败 0 / 跳过 0（Domain 266 + Application 133 + Infrastructure 318 + Desktop 11）",
+      "date": "2026-11-24"
     },
     "ci_run": {
-      "url": "https://github.com/luqizheng/worldview/actions/runs/45183823988",
-      "head_sha": "30527eb31d73452703b1bd53c22cea5cce112aa9",
-      "jobs": ["windows-latest / Debug: success", "windows-latest / Release: success", "macos-latest / Debug: success", "macos-latest / Release: success"]
+      "url": "https://github.com/luqizheng/worldview/actions/runs/45211773969",
+      "event": "pull_request（PR #26，分支 feat/wp20a-map-creation）",
+      "head_sha": "50e3d3e32f7e76539e2d35ba9a3fc06428609b8d",
+      "jobs": ["windows-latest / Debug: success", "windows-latest / Release: success", "macos-latest / Debug: success", "macos-latest / Release: success"],
+      "note": "master@30527eb 基线运行 run 45183823988 同样四 job 全绿；CI 仅证明编译+测试进程通过，不构成任一平台 GUI 运行证据"
     },
-    "method": "5 路并行源码取证（Desktop/Project-Map管理/Core基础设施补充/Rendering/Authoring+Tests-CI）+ 穷尽性 grep 否定性证明 + 主审交叉复核（含对前序盘点结论的 3 处修正）"
+    "method": "5 路并行源码取证（Desktop/Project-Map管理/Core基础设施补充/Rendering/Authoring+Tests-CI）+ 穷尽性 grep 否定性证明 + 主审交叉复核（含对前序盘点结论的 3 处修正）；2026-11-24 修订：WP-20a 相关条目按 PR #26 实现逐文件行号重取证 + 本地 728 测试实测 + CI run 45211773969 核验"
   },
   "gaps": [
     { "id": "GAP-P0-1", "area": "rendering", "description": "Map Rendering 管线整体缺失：Presentation Context/Scene Snapshot/Builder/Publisher/视口/Skia/坐标变换/Pan-Zoom 等全部零实现（RND-01~19）", "blocks_m1": true, "evidence": ["AXAML 控件树/csproj/solution/PRA-01 官方审计四方交叉证实", "ProjectWindow.axaml:15 注释自证为显式阶段决策"] },
-    { "id": "GAP-P0-2", "area": "map-management", "description": "Map 创建无用户入口：领域/持久化/测试齐备但 Application 用例层与 UI 均为零（PMM-B6）", "blocks_m1": true, "evidence": ["Application/Desktop 对 MapService 零调用（grep 复核）", "ProjectWindow 仅三个命令"] },
-    { "id": "GAP-P0-3", "area": "map-management", "description": "Map 工作区无产品界面：文本窗口、SwitchContextAsync 零调用死代码、ViewState 全占位、UI 恒传 null Branch/时间（PMM-B8/B13/C15/C16/C17）", "blocks_m1": true, "evidence": ["MapWorkspaceSession.cs:49-79,109-125", "ProjectWorkspaceViewModel.cs:105-107"] },
-    { "id": "GAP-P0-4", "area": "platform", "description": "macOS GUI 运行证据为零 + 无打包/发布链（PLT-02/DSK-11）", "blocks_m1": true, "evidence": ["macOS CI job 仅 build+test", "无 pubxml/PublishSingleFile/CI 发布 job/installer"] },
+    { "id": "GAP-P0-3", "area": "map-management", "description": "Map 工作区无产品界面：文本窗口、SwitchContextAsync 零调用死代码、ViewState 全占位、UI 恒传 null Branch/时间（PMM-B8/B13/C15/C16/C17）", "blocks_m1": true, "evidence": ["MapWorkspaceSession.cs:49-79,109-125", "ProjectWorkspaceViewModel.cs:111-114"] },
+    { "id": "GAP-P0-4", "area": "platform", "description": "macOS GUI 实际运行证据缺失：仅 CI build+test，无 GUI 冒烟/headless Avalonia 测试（PLT-02）；CI 不能替代 GUI 运行证据", "blocks_m1": true, "evidence": ["macOS CI job 仅 build+test（run 45183823988）", "roadmap：support is established by evidence on both platforms, not inferred from shared source code"] },
+    { "id": "GAP-P1-15", "area": "desktop", "description": "Windows/macOS 打包发布链缺失：无 pubxml/PublishSingleFile/SelfContained/CI 发布 job/installer（DSK-11）——归 WP-10 桌面交付与发布准备，不构成 M1 独立阻塞项", "blocks_m1": false, "evidence": ["无发布产物（仅 framework-dependent 本地产物）", "CI 无发布 job"] },
     { "id": "GAP-P1-01", "area": "desktop", "description": "进程级异常钩子只写 stderr，WinExe 下不可观测；FileAppLog 未接入", "blocks_m1": false, "evidence": ["Program.cs:29,34"] },
     { "id": "GAP-P1-02", "area": "desktop", "description": "ProjectWindow 点 X 不关会话：句柄占用至停机；重开同包 DuplicateOpen 二开窗口", "blocks_m1": false, "evidence": ["ProjectWindow.axaml.cs 无窗口→VM 关闭链路"] },
     { "id": "GAP-P1-03", "area": "desktop", "description": "Settings 服务已实现但生产未接线；无设置 UI", "blocks_m1": false, "evidence": ["SettingsDocumentService 未注册 DI"] },
-    { "id": "GAP-P1-04", "area": "tests-ci", "description": "Desktop/UI 测试覆盖为零；应用启停无测试", "blocks_m1": false, "evidence": ["测试工程不引用 WorldView.Desktop"] },
+    { "id": "GAP-P1-04", "area": "tests-ci", "description": "Avalonia headless UI 测试与应用启停测试为零（WP-20a 已新增 WorldView.Desktop.Tests 纯 ViewModel 单测 11 例，缺口收窄未关闭）", "blocks_m1": false, "evidence": ["无 headless Avalonia 测试；停机逻辑 Program.cs:44-45 无覆盖"] },
     { "id": "GAP-P1-05", "area": "desktop", "description": "JsonRecentProjectsStore 零测试", "blocks_m1": false, "evidence": ["tests 全域 grep 零命中"] },
     { "id": "GAP-P1-06", "area": "security-integrity", "description": "EF 迁移防降级守卫（未知迁移版本拒绝打开）无专门测试", "blocks_m1": false, "evidence": ["grep 无对应测试名"] },
     { "id": "GAP-P1-07", "area": "core-infrastructure", "description": "几何 envelope 结构校验器建成但未接入生产发布链（GeometryAssetEnvelope.Validate 生产零调用）", "blocks_m1": false, "evidence": ["src 命中仅常量引用 GeometryAssetEnvelope.cs:70,144,146"] },
@@ -186,15 +204,33 @@
     { "id": "GAP-P2-06", "area": "authoring", "description": "Spatial Site/Group 与 Templates/Modules 零概念", "blocks_m1": false, "evidence": ["AUT-17,19"] },
     { "id": "GAP-P2-07", "area": "core-infrastructure", "description": "Calendar 语义占位 + Initial State typed schema（OD-1）开放", "blocks_m1": false, "evidence": ["CalendarRecord.CalendarType=null"] }
   ],
+  "resolved_gaps": [
+    {
+      "id": "GAP-P0-2",
+      "area": "map-management",
+      "description": "Map 创建无用户入口：领域/持久化/测试齐备但 Application 用例层与 UI 均为零（原 P0，阻塞 M1 验收 3）",
+      "status": "RESOLVED",
+      "resolved_by": "WP-20a Map 创建切片（PR #26，分支 feat/wp20a-map-creation，commit 50e3d3e32f7e76539e2d35ba9a3fc06428609b8d）",
+      "resolved_date": "2026-11-24",
+      "resolution_summary": [
+        "Application：IMapCreationService 端口（IMapCreationService.cs:14）+ CreateMapUseCase（:16，失败种类 InvalidName/DuplicateName/CreationFailed，无 Infrastructure/SQLite 引用）",
+        "Infrastructure：CoreDomainMapCreationService 会话绑定适配器（CoreDomainAdapters.cs:161，复用 CoreDomainMapQueryService 模式），委托正式 Domain MapService，异常映射失败种类，单事务无部分 Map",
+        "Domain 最小规则：MapRules.MapNameComparer=OrdinalIgnoreCase（MapCreation.cs:32）；MapService 预检（MapBranchServices.cs:32-34）+ SqliteCoreDomainDatabase 创建事务内复检（:211，权威）；无 Schema/Migration 变更",
+        "Desktop：ProjectWindow 创建按钮（ProjectWindow.axaml:52）+ CreateMapDialog（内联校验/重复名错误/CanExecute 提交闸/取消无持久化变更）；成功仅刷新列表不自动打开；组合根注册（Program.cs:114-115）",
+        "测试 +28（700→728 全绿 Debug）：Domain 比较器语义/重复拒绝/跨项目共存/持久化闸拒绝；Application 用例边界/失败种类；Infrastructure 真实 SQLite 端到端（非 UI 重复名拒绝无部分数据、跨包隔离）；Desktop.Tests 纯 ViewModel 测试"
+      ],
+      "residual_note": "GUI 冒烟未做（M1 平台门统一处理）；Branch/时间上下文显式显示属 WP-20b，仍在 GAP-P0-3 关联范围"
+    }
+  ],
   "platform_evidence": {
     "windows": {
-      "build_and_test": "IMPLEMENTED_VERIFIED：本机 Windows 实测 700/700（Debug/net11.0，2026-11-23）+ CI windows-latest Debug/Release 绿",
+      "build_and_test": "IMPLEMENTED_VERIFIED：本机 Windows 实测 728/728（Debug/net11.0，2026-11-24，WP-20a 分支 50e3d3e；master 基线 700/700，2026-11-23）+ CI windows-latest Debug/Release 绿（runs 45183823988、45211773969）",
       "gui_runtime": "未执行冒烟（IMPLEMENTED_UNVERIFIED）；组合根代码角度可启动",
       "packaging": "无（framework-dependent 本地产物仅）",
       "platform_code": ["JsonRecentProjectsStore.cs:110-126", "FileAppLog.cs:22-26", "SettingsDocumentPaths.cs:53-55", "app.manifest（仅 Windows 生效）"]
     },
     "macos": {
-      "build_and_test": "仅 CI 证据：macos-latest Debug/Release 绿（run 45183823988）；本地 NOT_RUN（Windows 环境）",
+      "build_and_test": "仅 CI 证据：macos-latest Debug/Release 绿（master run 45183823988；PR #26 run 45211773969 四 job 全绿）；本地 NOT_RUN（Windows 环境）",
       "gui_runtime": "零证据：无 macOS UI 冒烟、无头 Avalonia 测试或发布产物",
       "packaging": "无",
       "platform_code": ["JsonRecentProjectsStore.cs:117-122", "FileAppLog.cs:22-26"]
@@ -203,6 +239,8 @@
       "workflow": ".github/workflows/dotnet-ci.yml",
       "matrix": "windows-latest + macos-latest × Debug + Release（4 job）",
       "head_run_all_green": true,
+      "master_head_run": "run 45183823988（master@30527eb）四 job 全绿",
+      "pr_branch_run": "run 45211773969（PR #26，feat/wp20a-map-creation@50e3d3e）四 job 全绿",
       "linux_job": false,
       "packaging_job": false,
       "ui_or_headless_avalonia_tests": false
@@ -211,22 +249,24 @@
   "milestone_assessment": {
     "m1_definition": "创建真实 Project 和 Map，打开地图进入真实工作界面，显示可操作的地图视口，保存并重新打开后数据仍然存在（双平台）",
     "m1_verdict": "NOT_MET",
-    "m1_rough_completion": "35%-45%（以状态矩阵为准，勿引用为精确值）",
+    "m1_acceptance_source": "docs/map-editor/implementation-roadmap-v1.md WP-30 M1 acceptance（唯一依据；本 JSON 编号与其一一对应，不另设正式验收编号）",
+    "m1_rough_completion": "40%-50%（区间估计，非精确完成度指标；WP-20a 完成后同口径重算；验收判定以 m1_items 状态矩阵为准）",
     "m1_items": [
-      { "no": 1, "item": "启动软件", "status": "IMPLEMENTED_UNVERIFIED", "note": "代码角度可启动；GUI 冒烟未做" },
-      { "no": 2, "item": "创建 Project", "status": "IMPLEMENTED_VERIFIED", "note": "UI+用例+端到端测试" },
-      { "no": 3, "item": "创建 Map", "status": "BLOCKED", "note": "领域齐备，无用例层/UI（GAP-P0-2）" },
-      { "no": 4, "item": "查看 Map 列表", "status": "IMPLEMENTED_VERIFIED", "note": "真实数据文本列表" },
-      { "no": 5, "item": "打开 Map", "status": "PARTIAL", "note": "会话打开有测试；UI 恒传 null Branch/时间；文本窗" },
-      { "no": 6, "item": "显示空白 Map Viewport", "status": "MISSING", "note": "视口控件不存在（GAP-P0-1）" },
-      { "no": 7, "item": "Pan / Zoom", "status": "MISSING", "note": "占位属性零消费者（GAP-P0-1）" },
-      { "no": 8, "item": "关闭 Map 和 Project", "status": "IMPLEMENTED_VERIFIED", "note": "有测试；ProjectWindow X 键语义注意（GAP-P1-02）" },
-      { "no": 9, "item": "退出应用", "status": "IMPLEMENTED_VERIFIED", "note": "CloseAllAsync 停机兜底" },
-      { "no": 10, "item": "重启并打开原 Map", "status": "PARTIAL", "note": "Project 重开端到端已验证；Map 需手动从列表重开；无 last-map 恢复；UI 级重启流未演练" },
-      { "no": 11, "item": "Windows 流程通过", "status": "MISSING", "note": "验收 6/7 未满足，全流程未演练" },
-      { "no": 12, "item": "macOS 流程通过", "status": "MISSING", "note": "仅 CI build+test；无 GUI 证据（GAP-P0-4）" }
+      { "no": 1, "item": "Launch World View on Windows", "status": "IMPLEMENTED_UNVERIFIED", "note": "代码角度可启动；GUI 冒烟未做" },
+      { "no": 2, "item": "Create a Project Package", "status": "IMPLEMENTED_VERIFIED", "note": "UI+用例+端到端测试" },
+      { "no": 3, "item": "Create a Map through Core Domain", "status": "IMPLEMENTED_VERIFIED", "note": "WP-20a 已落地（PR #26，50e3d3e）：UI 创建对话框+CreateMapUseCase+IMapCreationService 端口+会话绑定适配器→正式 MapService；名称唯一（预检+事务内复检，无 Schema/Migration 变更）；+28 测试含真实 SQLite 端到端；GUI 冒烟待平台门（同项 2 口径）" },
+      { "no": 4, "item": "See the Map in the Project's Map list", "status": "IMPLEMENTED_VERIFIED", "note": "真实数据文本列表" },
+      { "no": 5, "item": "Open the Map workspace", "status": "PARTIAL", "note": "会话打开有测试；UI 恒传 null Branch/时间；文本窗" },
+      { "no": 6, "item": "See the empty Map viewport (not a placeholder browser page)", "status": "MISSING", "note": "视口控件不存在（GAP-P0-1）" },
+      { "no": 7, "item": "Pan and zoom the viewport; resize the window and maintain correct transforms", "status": "MISSING", "note": "占位属性零消费者（GAP-P0-1）" },
+      { "no": 8, "item": "Close the Map and Project, exit the application, restart and reopen the same Map", "status": "PARTIAL", "note": "会话关闭/停机/重开语义有测试；UI 级全流程未演练（GAP-P1-02/05）" },
+      { "no": 9, "item": "Verify Map identity and persisted data are unchanged", "status": "IMPLEMENTED_VERIFIED", "note": "Cd01EndToEndTests 重开后身份/数据一致断言" },
+      { "no": 10, "item": "Repeat the same user flow on macOS", "status": "MISSING", "note": "仅 CI build+test；无 GUI 证据（GAP-P0-4）" },
+      { "no": 11, "item": "Verify no map data is created or changed by pan/zoom/rendering", "status": "MISSING", "note": "验证对象（pan/zoom/渲染）尚不存在，实现后须证明只读（GAP-P0-1 伴生项）" },
+      { "no": 12, "item": "Run automated tests for snapshot consistency, transform correctness, session lifecycle and platform-specific viewport behavior", "status": "PARTIAL", "note": "session lifecycle 已覆盖；snapshot/transform/viewport 三类零基础（GAP-P0-1/GAP-P1-04）" }
     ],
-    "m1_blockers": ["GAP-P0-1", "GAP-P0-2", "GAP-P0-3", "GAP-P0-4"],
+    "m1_blockers": ["GAP-P0-1", "GAP-P0-3", "GAP-P0-4"],
+    "m1_resolved_blockers": ["GAP-P0-2（WP-20a Map 创建切片，PR #26，50e3d3e）"],
     "m1_out_of_scope_confirmations": "复杂地形/道路/河流/建筑/洞穴/Site/Group/Typed Connections/Templates/AI/3D/GIS 均不在 M1 范围（与 roadmap v1 WP-30 out-of-scope 一致）"
   }
 }

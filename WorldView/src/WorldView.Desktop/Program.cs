@@ -108,13 +108,16 @@ internal static class Program
         services.AddSingleton<StartViewModel>();
         services.AddSingleton<Func<ProjectSession, ProjectWorkspaceViewModel>>(sp => session =>
         {
-            // 会话绑定的 Map 查询 / Workspace 上下文解析：按本会话数据库构造（项目范围隔离）。
+            // 会话绑定的 Map 查询 / 创建 / Workspace 上下文解析：按本会话数据库构造（项目范围隔离）。
             IMapQueryService mapQuery = new CoreDomainMapQueryService(session.Database);
             IWorkspaceContextResolver contextResolver = new CoreDomainWorkspaceContextResolver(session.Database);
+            IMapCreationService mapCreation = new CoreDomainMapCreationService(session.Database);
+            var createMapUseCase = new CreateMapUseCase(session, mapCreation, log: sp.GetRequiredService<IAppLog>());
             return new ProjectWorkspaceViewModel(
                 session,
                 mapQuery,
                 contextResolver,
+                createMapUseCase,
                 log: sp.GetRequiredService<IAppLog>());
         });
 

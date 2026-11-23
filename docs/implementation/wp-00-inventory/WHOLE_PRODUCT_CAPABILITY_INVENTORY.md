@@ -2,10 +2,11 @@
 
 - 仓库：`github.com/luqizheng/worldview`，分支 `master`，HEAD `30527eb31d73452703b1bd53c22cea5cce112aa9`
 - 审计日期：2026-11-23；审计方式：只读取证 + 本机实测 build/test
+- **修订（2026-11-24）**：WP-20a Map 创建切片完成（PR #26，`feat/wp20a-map-creation` @ `50e3d3e`）后，§2 B6、§5、§6、§7 与本机/CI 证据、附录状态总计按该实现修订；其余章节仍为 2026-11-23 master@30527eb 审计原文
 - 状态词汇：`IMPLEMENTED_VERIFIED`（代码+通过测试/运行证据）/ `IMPLEMENTED_UNVERIFIED`（有实现缺验证）/ `PARTIAL` / `DESIGNED_ONLY` / `MISSING` / `BLOCKED` / `NOT_APPLICABLE`
 - 所有路径相对 `WorldView/`（除非另注）。`src/`=`WorldView/src`，`tests/`=`WorldView/tests`
 
-**全局警示（适用于全部 Core Domain `IMPLEMENTED_VERIFIED` 条目）**：本 HEAD 全部正式领域写路径（对象/定义/Initial State/几何原子发布/Map/Branch/字段修订/资产验证）**只到 Domain 服务 + SQLite 端口，生产代码几乎无调用方——仅测试可达**（例外：项目创建播种 `ObjectTypeSeedingService` 经 `CoreDomainAdapters.cs:50` 生产可达）。Application 生产代码实际使用的只有 Project 生命周期与 3 个读投影端口。`IMPLEMENTED_VERIFIED` 表示"该层能力已正式化且经测试"，**不表示"用户可操作"**。
+**全局警示（适用于全部 Core Domain `IMPLEMENTED_VERIFIED` 条目）**：本 HEAD 除 Map 创建（WP-20a 后经 `CreateMapUseCase`/`CoreDomainMapCreationService` 自 UI 生产可达）外，全部正式领域写路径（对象/定义/Initial State/几何原子发布/Branch/字段修订/资产验证）**只到 Domain 服务 + SQLite 端口，生产代码几乎无调用方——仅测试可达**（另一例外：项目创建播种 `ObjectTypeSeedingService` 经 `CoreDomainAdapters.cs:50` 生产可达）。Application 生产代码实际使用的只有 Project 生命周期、Map 创建（WP-20a）与 3 个读投影端口。`IMPLEMENTED_VERIFIED` 表示"该层能力已正式化且经测试"，**不表示"用户可操作"**（Map 创建例外：UI 已接通，GUI 冒烟待 M1 平台门）。
 
 ---
 
@@ -14,12 +15,12 @@
 | 事实 | 证据 |
 |---|---|
 | Solution：`WorldView/WorldView.sln`，7 项目，net11.0（`Directory.Build.props`：Version=0.1.0、IsPackable=false） | sln/csproj |
-| 源码规模：Domain 39 .cs/6871 行；Application 41 .cs/5279 行；Infrastructure 36 .cs/14606 行；**Desktop 仅 6 .cs/580 行 + 3 AXAML**；测试 52 .cs/15720 行 | find 统计（排除 obj/bin） |
+| 源码规模：Domain 39 .cs/6891 行；Application 43 .cs/5434 行；Infrastructure 36 .cs/14687 行；**Desktop 仅 8 .cs/743 行 + 4 AXAML**；测试 57 .cs/16501 行（WP-20a 后口径，2026-11-24） | find 统计（排除 obj/bin） |
 | 依赖方向：Domain ← Application ← Infrastructure（端口适配）← Desktop（组合根）；Infrastructure 不被 Desktop 的 View/VM 引用（唯一 using 在 `Program.cs:11-17`） | csproj + grep |
 | 包：Avalonia 12.1.6、CommunityToolkit.Mvvm 8.4.2、MEDI 11.0.0、EF Core Sqlite 11.0.0、Microsoft.Data.Sqlite 11.0.0、MackySoft.Json.Canonicalization 0.1.0、Corvus.Text.Json 5.8.11、Newtonsoft.Json 13.0.4、xunit.v3 4.0.3 | csproj PackageReference |
 | **否定性事实**：全仓无 SkiaSharp/NetTopologySuite/Mapsui/proj4/BruTile/SpatiaLite 等任何几何、投影、渲染、瓦片库；无 `Math.Sin/Cos/Sqrt` 等空间计算 | csproj + grep |
 | EF Core 迁移 5 个（20261122_090235 初始 → 20261123_090000 Settings）+ 迁移外 `wv_bootstrap_metadata`；27 张 `core_*` 业务表 | `src/WorldView.Infrastructure/Persistence/CoreDomain/EfCore/Migrations/` |
-| 本机验证：Debug 构建 0 错误；**700/700 测试通过**；CI HEAD run 45183823988 四 job 全绿 | `TEST_AND_PLATFORM_EVIDENCE.md` |
+| 本机验证：Debug 构建 0 错误；**728/728 测试通过**（WP-20a 分支 50e3d3e 实测，2026-11-24；master@30527eb 基线为 700/700）；CI master run 45183823988 与 PR #26 run 45211773969 均四 job 全绿 | `TEST_AND_PLATFORM_EVIDENCE.md` |
 
 ---
 
@@ -37,11 +38,11 @@
 | 1.8 | 异常处理和日志 | PARTIAL | `FileAppLog.cs:14`（按日滚动、三分支路径）；UseCase 层 try/catch 完整（`CreateProjectUseCase.cs:168-178` 等）；VM 局部 catch | UseCase 异常路径有测试 | 进程级钩子未接 `FileAppLog`；无 `DispatcherUnhandledException`；窗口层 async void 无保护 |
 | 1.9 | DPI/窗口缩放/多显示器 | PARTIAL | 窗口固定尺寸+Min（`StartWindow.axaml:10-11`、`ProjectWindow.axaml:11`）；`app.manifest` 仅 supportedOS 声明，**无 DPI 节点** | 无 | 全靠 Avalonia 默认行为；因无渲染表面，DPI 处理暂无适用对象 |
 | 1.10 | Windows/macOS 原生差异 | PARTIAL | Desktop 零平台分支；差异沉在 Infrastructure（`JsonRecentProjectsStore.cs:110-126`、`FileAppLog.cs:22-26`、`SettingsDocumentPaths.cs:53-55` Windows 大小写语义） | CI 双 OS 矩阵 | 无 macOS 窗口行为适配代码；GUI 实际运行验证缺失（见 §7） |
-| 1.11 | 安装包/发布包/运行时依赖 | MISSING | csproj 无 PublishSingleFile/SelfContained/RuntimeIdentifier；无 *.pubxml；CI 无发布 job；无 installer 工程 | 无 | M1 验收要求双平台流程通过，当前连"发布产物"都不存在（仅 framework-dependent 本地产物） |
+| 1.11 | 安装包/发布包/运行时依赖 | MISSING | csproj 无 PublishSingleFile/SelfContained/RuntimeIdentifier；无 *.pubxml；CI 无发布 job；无 installer 工程 | 无 | 属桌面交付与发布准备，归 **WP-10 / GAP-P1-15**；不构成 M1 的独立阻塞项（M1 平台门是 GUI 流程证据，见 GAP-P0-4）。当前仅 framework-dependent 本地产物 |
 | 1.12 | UI 层级合规 | IMPLEMENTED_VERIFIED | Desktop 全部 Infrastructure using 仅 `Program.cs:11-17`（组合根）；ViewModel 仅依赖 Application 抽象（`StartViewModel.cs:7-9`） | `Cd01EndToEndTests` 镜像组合根 | 无越层；AGENTS.md 约定一致 |
 | 1.13 | 死代码 | — | `StartViewModel.cs:90-93`（CoreDomainProjectCreationUnavailable）与 `:142-145`（ProjectIdentityUnavailable）两分支**确认不可达**（`Program.cs:83-85` 无条件注册正式实现） | — | 防御性历史遗留，建议随 WP-10 清理 |
 
-**直接回答**：Q1 能启动（代码角度，组合根完整、无启动即失败点；本审计未做 GUI 冒烟）。Q2 主窗口可用（StartWindow：项目创建区/打开区/最近列表+状态条；ProjectWindow：菜单+项目身份+地图列表+会话列表+状态条）。Q3 Project 生命周期完整（创建→打开→关闭→退出→重开全链，`Cd01EndToEndTests.cs:61-115` 端到端覆盖）。Q4 占位物：Settings 服务未接线、WorkspaceViewState 全占位、两个不可达死分支。Q5 Windows 有构建+测试+CI 证据（GUI 冒烟未做）；macOS 仅 CI build+test，GUI 运行证据为零。
+**直接回答**：Q1 能启动（代码角度，组合根完整、无启动即失败点；本审计未做 GUI 冒烟）。Q2 主窗口可用（StartWindow：项目创建区/打开区/最近列表+状态条；ProjectWindow：菜单+项目身份+地图列表+创建地图入口（WP-20a）+会话列表+状态条）。Q3 Project 生命周期完整（创建→打开→关闭→退出→重开全链，`Cd01EndToEndTests.cs:61-115` 端到端覆盖）。Q4 占位物：Settings 服务未接线、WorkspaceViewState 全占位、两个不可达死分支。Q5 Windows 有构建+测试+CI 证据（GUI 冒烟未做）；macOS 仅 CI build+test，GUI 运行证据为零。
 
 ---
 
@@ -51,12 +52,12 @@
 |---|---|---|---|---|---|
 | A1 | Project 包创建 | 已实现且有测试 | `CreateProjectUseCase.cs:77-266`；正式创建服务 `CoreDomainAdapters.cs:20-75`；组合根 `Program.cs:83-84` | `SessionUseCaseTests.cs:17-156`；`CoreDomainPersistenceTests.cs:114-174` | 无 |
 | A2 | Project 打开（五闸） | 已实现且有测试 | `OpenProjectUseCase.cs:124-281`（quick_check `:187`→bootstrap `:193-201`→身份 `:203-222`→Field `:225-241`→Settings `:243-258`；失败逆序释放 `:283-289`） | `SessionUseCaseTests.cs:159-315`；Settings 闸 `SettingsDocumentPersistenceTests.cs:88-225` | Field/Settings 闸为告警不阻断（设计语义） |
-| A3 | Project 关闭 | 已实现且有测试 | `ProjectSession.cs:208-253`；`ProjectSessionRegistry.cs:71-79`；UI `ProjectWorkspaceViewModel.cs:144-149` | `SessionUseCaseTests.cs:327-346,449-464` | 无独立 UseCase 类（注记） |
+| A3 | Project 关闭 | 已实现且有测试 | `ProjectSession.cs:208-253`；`ProjectSessionRegistry.cs:71-79`；UI `ProjectWorkspaceViewModel.cs:151-156` | `SessionUseCaseTests.cs:327-346,449-464` | 无独立 UseCase 类（注记） |
 | A4 | Project Session 生命周期 | 已实现且有测试 | `ProjectSession.cs:31`（八态状态机 `:11-21`）、`ProjectSessionRegistry.cs:16` | 晚完成保护 `:404-424` 等 | 无 |
 | A5 | 最近打开项目恢复 | 已实现但缺测试 | `JsonRecentProjectsStore.cs:34-108` + `StartViewModel.cs:59-67,117-138` | **无** | 零测试 |
-| B6 | **Map 创建** | **部分实现（用户不可达）** | 领域齐备：`MapBranchServices.cs:12-28`、`MapCreation.cs:25-48`、端口 `ICoreDomainDatabase.cs:55`、实现 `SqliteCoreDomainDatabase.cs:194`；**Application/Desktop 对 MapService 零调用**；UI 无入口 | `MapBranchRulesTests.cs`；端到端 `Cd01EndToEndTests.cs:84-93`（测试代码手工调服务） | **用例层+UI 两层缺失——产品内用户无法创建 Map（M1 关键断点）** |
-| B7 | Map 列表读取 | 已实现且有测试 | `IMapQueryService.cs:15-22`；`CoreDomainAdapters.cs:126-152`（跨项目隔离）；UI `ProjectWorkspaceViewModel.cs:66-90` | `Cd01EndToEndTests.cs:90-93,147-152` | VM 层无单测（门槛/异常分支） |
-| B8 | Map 打开（工作区） | 已实现且有测试 | `ProjectSession.cs:144-180`（EnsureReady→GetMap→Resolve→挂载；晚到达保护） | `SessionUseCaseTests.cs:327-346,366-424` | UI 恒传 `branchId:null, historicalTimeInput:null`（`ProjectWorkspaceViewModel.cs:105-107`） |
+| B6 | **Map 创建** | 已实现且有测试（WP-20a，PR #26 @ `50e3d3e`） | 四层全链：UI `ProjectWindow.axaml:52` 创建按钮 + `CreateMapDialog`（内联校验/CanExecute 提交闸）→ `CreateMapUseCase.cs:16` → 端口 `IMapCreationService.cs:14` → 会话绑定适配器 `CoreDomainAdapters.cs:161` → 正式 `MapService`（`MapBranchServices.cs`）→ `SqliteCoreDomainDatabase.cs:211` 创建事务内名称复检；DI 注册 `Program.cs:114-115` | `MapBranchRulesTests`（比较器/重复/跨项目）；`CreateMapUseCaseTests`（边界/失败种类）；`Wp20aMapCreationTests`（真实 SQLite：不变量/重复名无部分数据/跨包隔离）；`WorldView.Desktop.Tests`（ViewModel） | GUI 冒烟未做（M1 平台门统一处理） |
+| B7 | Map 列表读取 | 已实现且有测试 | `IMapQueryService.cs:15-22`；`CoreDomainAdapters.cs:127-153`（跨项目隔离）；UI `ProjectWorkspaceViewModel.cs:73-97` | `Cd01EndToEndTests.cs:90-93,147-152` | VM 层无单测（ProjectWorkspaceViewModel 已由 WP-20a 在 Desktop.Tests 补 4 个测试方法，其余分支仍无） |
+| B8 | Map 打开（工作区） | 已实现且有测试 | `ProjectSession.cs:144-180`（EnsureReady→GetMap→Resolve→挂载；晚到达保护） | `SessionUseCaseTests.cs:327-346,366-424` | UI 恒传 `branchId:null, historicalTimeInput:null`（`ProjectWorkspaceViewModel.cs:111-114`） |
 | B9 | Map 关闭（关工作区） | 已实现且有测试 | `ProjectSession.cs:183-202`；`MapWorkspaceSession.cs:82-96` | `SessionUseCaseTests.cs:366-381` | 无 |
 | B10 | Map 重命名 | 完全缺失 | 端口无 RenameMap；`MapRecord.MapName` init-only（`MapRecords.cs:19-20`）；唯一 grep 命中是 Building payload 测试字符串 | 无 | 四层全无；历史不可变语义待正式化 |
 | B11 | Map 复制 | 完全缺失 | 无 Duplicate/CopyMap API | 无 | 四层全无；涉 ADR-002/005 世系语义未设计 |
@@ -68,7 +69,7 @@
 | C17 | Historical Time 上下文 | 已实现且有测试 | `WorkspaceContextRules.TryResolve`（`WorkspaceContextResolution.cs:36-124`，null→纪元）；`CoreDomainAdapters.cs:160-200`（InSnapshotScope 原子快照） | `WorkspaceContextRulesTests.cs`；端到端 `Cd01EndToEndTests.cs:90-93` | UI 无时间输入入口（恒传 null→纪元） |
 | C18 | 最近打开 Map 恢复 | 完全缺失 | grep LastMap/ActiveMap/recentmap 零命中；Settings 文档无此字段 | 无 | 无任何实现或字段 |
 | D19 | UI 直接操作数据库 | **否（合规）** | csproj 依赖单向；Desktop 唯一 Infrastructure using 在组合根；无任何 Sqlite 类型 using | `Cd01EndToEndTests` 镜像组合根 | 无 |
-| D20 | 绕过正式服务 | **否（合规）** | UI 调用清单：CreateProject/OpenProject/RecentProjectsStore/ProjectSession/IMapQueryService/IWorkspaceContextResolver 全部经 Application | `Cd02MapEditorIntegrationTests` 头注释声明 | 问题不在越界，在 Application 层缺 Map/Branch 用例 |
+| D20 | 绕过正式服务 | **否（合规）** | UI 调用清单：CreateProject/OpenProject/CreateMap（WP-20a）/RecentProjectsStore/ProjectSession/IMapQueryService/IWorkspaceContextResolver 全部经 Application | `Cd02MapEditorIntegrationTests` 头注释声明 | 问题不在越界，在 Application 层 Branch 用例仍缺（Map 创建用例已由 WP-20a 补齐） |
 
 ---
 
@@ -85,7 +86,7 @@
 | 3.3 | Shared Definition（CAS + canonical JSON 指纹） | D+I+DB+T | `CanonicalJson.cs`（RFC 8785）；`MapInitialStateService.cs:18-79`；`SqliteCoreDomainDatabase.Objects.cs:337-634` | `Definition_SingleRow_CasStaleRejected_HashTamperFailClosed` 等 |
 | 3.4 | Descriptor Schemas（有界 Draft 2020-12，fail-closed） | D+I+T | `JsonSchemaSubset.cs`；嵌入资源 p2-09-38/-39 v0.5（building 22 defs/cave 14 defs）；`ObjectTypeRegistry.ValidateDefinition` **已接入** ObjectCreationService/ObjectDefinitionService/adapter | `JsonSchemaSubsetTests.cs`（15）；`Cd02AggregateVectorConformanceTests.cs`（55 向量全执行） |
 | 3.5 | Building/Cave typed aggregates（四层校验+原子发布） | D+I+DB+T | `BuildingCaveAggregateValidator.cs`（~680 行，`STALE_DEFINITION_CAS` `:476-481`）；`PublishDefinitionWithGeometryAssets`（仅 building/cave_system，`MapInitialStateService.cs:114-118`）；发布事务内重读 Verified 门（`SqliteCoreDomainDatabase.Objects.cs:675-727`） | 55 向量；`GeometryAtomicPublicationTests`（8，全无部分写入）；`Cd02MapEditorIntegrationTests`（ME-04 全链） |
-| 3.6 | Map/Branch/History 结构层 | D+I+DB+T | `MapRules.CreateMap`（Map+根 History+Calendar+day-zero 单事务）；`BranchService.CreateBranch`（祖先链预检）；`BranchLineageResolver`（环/悬空/跨 Map/深度 1000 拒绝）；写入点 `SqliteCoreDomainDatabase.cs:194-264,313-356` | `MapBranchRulesTests`；`BranchLineageTests`；`PersistenceDomainIntegrityTests`（Lineage_* 10） |
+| 3.6 | Map/Branch/History 结构层 | D+I+DB+T | `MapRules.CreateMap`（Map+根 History+Calendar+day-zero 单事务）；`BranchService.CreateBranch`（祖先链预检）；`BranchLineageResolver`（环/悬空/跨 Map/深度 1000 拒绝）；写入点 `SqliteCoreDomainDatabase.cs:195-280,329-372`（WP-20a 后行号） | `MapBranchRulesTests`；`BranchLineageTests`；`PersistenceDomainIntegrityTests`（Lineage_* 10） |
 | 3.7 | Map Initial State（CAS 指纹基线） | D+I+DB+T | `MapInitialStateService.cs:222-328`；`InitialStateFingerprint`（`initial-state-fingerprint-v1` 顺序无关）；P3⇒P2 服务检查+复合 FK | `InitialState_*` 5 项 |
 | 3.8 | Asset 所有权/完整性（不可伪造凭证） | D+I+DB+T | `AssetService.cs`（内容寻址幂等 `:39-43`；Verified-only 引用 `:95-99`）；`AssetByteDigest`（internal MeasureAsync+friend 白名单）；`FileAssetStore.cs`（staging→hash→原子发布）；孤儿只读上报 `ICoreDomainDatabase.cs:205-206` | `AssetIntegrityVerificationTests`（11，含反射探测防伪造 `:249`）；`Cd02AssetPersistenceTests` |
 | 3.9 | Field Dataset/Revision（追加不可变） | D+I+DB+T | `FieldDatasetService.cs`（`PublishRevision` ~200 行 manifest 校验+CAS）；`CoreDomainV1ModelConfiguration.cs:230`（唯一 EF 并发令牌）；不可变触发器 | `Cd02FieldDatasetPersistenceTests`（43） |
@@ -148,7 +149,7 @@
 
 ## 5. Map Authoring
 
-**总判定：编辑链路 19 项中 17 项 MISSING；领域侧 CAS 三机制与 Building/Cave 采纳链 IMPLEMENTED_VERIFIED。** UI 唯一能触达的写路径是 Project 创建。任何空间编辑操作（临时或正式）均不存在。
+**总判定：编辑链路 19 项中 17 项 MISSING；领域侧 CAS 三机制与 Building/Cave 采纳链 IMPLEMENTED_VERIFIED。** UI 能触达的正式写路径只有 Project 创建与 Map 创建（WP-20a，PR #26）。其余任何空间编辑操作（临时或正式）均不存在。
 
 | # | 能力 | 状态 | 关键证据 |
 |---|---|---|---|
@@ -165,14 +166,14 @@
 | 5.11 | Apply/Cancel（编辑器语义） | MISSING | 仅有会话关闭命令，无修改集提交/回滚 |
 | 5.12 | Undo/Redo | MISSING | 穷尽 grep 仅标识符子串误命中；ADR-004 纯设计 |
 | 5.13 | Freshness Check | 领域侧 IMPLEMENTED_VERIFIED；编辑器侧 MISSING | 三类 CAS：Definition hash（`BuildingCaveAggregateValidator.cs:29-31,476-481`）、Initial-state 指纹（`MapInitialStateService.cs:229-274`）、`CurrentFieldRevisionId` 并发令牌（`CoreDomainV1ModelConfiguration.cs:230`）；操作前会话新鲜度闸不存在 |
-| 5.14 | Formal Domain Operation Adapter | MISSING | grep `OperationAdapter/DomainOperation/AuthoringOperation` 零命中；正式写路径无用例层（全局警示） |
+| 5.14 | Formal Domain Operation Adapter | MISSING | grep `OperationAdapter/DomainOperation/AuthoringOperation` 零命中；编辑器侧正式操作无用例层（Map 创建用例已由 WP-20a 单独补齐） |
 | 5.15 | Outcome Reconciliation | MISSING | 现有 Reconcile 均为启动恢复（Field/Settings），非编辑结果对账 |
 | 5.16 | Building/Cave 编辑 UI | **BLOCKED**（领域侧完备） | UI grep `building|cave` 零命中；领域采纳链全备（3.5）；阻塞点在编辑链路（5.1-5.15）而非领域 |
 | 5.17 | Spatial Site/Group | MISSING | 零概念命中 |
 | 5.18 | Typed Connections | MISSING | Relationship 层不存在（3.19）；descriptor 纸面声明 vs 执行器缺位 |
 | 5.19 | Templates/Modules | MISSING | `Module/Recipe` 零命中；Template 命中均为 Avalonia UI 模板 |
 
-**重点回答**：Q1 只有设计的：5.1-5.12、5.14-5.19（ME-01-06/ME-02~08 系列工作基线文档 vs 代码零实现）。Q2 已存在的 UI：两个文本窗口。Q3 有真实 Domain 写入路径的"工具"：仅 Project 创建（UI 可达）与 Field Package 链（程序化，无 UI）；其余写服务仅测试可达。Q4 只能临时预览的操作：无（预览本身不存在）。Q5 被 Core Domain 阻塞的：Relationship 执行器、Command/Event 层、Site/Group 持久化、Initial State typed schema（OD-1 开放）。Q6 绕过 Core Domain 的直接写入：**无**（依赖方向单向 + UI 调用清单全经 Application；`Cd02MapEditorIntegrationTests` 头注释声明"无 UI 直写 SQLite"）。
+**重点回答**：Q1 只有设计的：5.1-5.12、5.14-5.19（ME-01-06/ME-02~08 系列工作基线文档 vs 代码零实现）。Q2 已存在的 UI：两个文本窗口 + Map 创建对话框（WP-20a）。Q3 有真实 Domain 写入路径的"工具"：Project 创建、Map 创建（WP-20a 后 UI 可达）与 Field Package 链（程序化，无 UI）；其余写服务仅测试可达。Q4 只能临时预览的操作：无（预览本身不存在）。Q5 被 Core Domain 阻塞的：Relationship 执行器、Command/Event 层、Site/Group 持久化、Initial State typed schema（OD-1 开放）。Q6 绕过 Core Domain 的直接写入：**无**（依赖方向单向 + UI 调用清单全经 Application；`Cd02MapEditorIntegrationTests` 头注释声明"无 UI 直写 SQLite"）。
 
 ---
 
@@ -180,20 +181,20 @@
 
 | 项 | 状态 | 证据 |
 |---|---|---|
-| Unit tests（Domain/Application，内存替身） | IMPLEMENTED_VERIFIED | 700/700（本机实测）；`FakeCoreDomainDatabase`（920 行）、`FakePackageDatabase`、`InMemoryFileSystem` |
-| 真实 SQLite 集成/端到端 | IMPLEMENTED_VERIFIED | Infrastructure.Tests 全部 21 类用真实 SQLite（每类独立临时目录）；主端到端：`Cd01EndToEndTests`（创建→重开→查询→工作区全链，镜像组合根）、`RealPackageFlowTests`、`Cd02MapEditorIntegrationTests` |
-| UI Tests | **MISSING** | 3 个测试工程均不引用 WorldView.Desktop；无 Avalonia headless 测试 |
+| Unit tests（Domain/Application，内存替身） | IMPLEMENTED_VERIFIED | 728/728（本机实测，WP-20a 分支 50e3d3e，2026-11-24：Domain 266 + Application 133）；`FakeCoreDomainDatabase`（920 行）、`FakePackageDatabase`、`InMemoryFileSystem` |
+| 真实 SQLite 集成/端到端 | IMPLEMENTED_VERIFIED | Infrastructure.Tests 全部 22 类用真实 SQLite（每类独立临时目录）；主端到端：`Cd01EndToEndTests`（创建→重开→查询→工作区全链，镜像组合根）、`RealPackageFlowTests`、`Cd02MapEditorIntegrationTests`、`Wp20aMapCreationTests`（创建链，WP-20a） |
+| UI Tests | **PARTIAL**（WP-20a 修订） | 新增 `WorldView.Desktop.Tests`（第 4 个测试工程）引用 WorldView.Desktop：纯 ViewModel 单测 11 例（CreateMapDialogViewModel/ProjectWorkspaceViewModel）；**仍无 Avalonia headless 测试、无应用启停测试** |
 | 应用启动/关闭测试 | MISSING | 停机逻辑 `Program.cs:44-45` 无覆盖 |
 | Renderer 生命周期测试 | NOT_APPLICABLE | 渲染器不存在 |
-| Windows Debug/Release | IMPLEMENTED_VERIFIED | 本机 Debug 实测 + CI 四矩阵 |
-| macOS Debug/Release | IMPLEMENTED_UNVERIFIED（本地 NOT_RUN） | 仅 CI build+test 绿；本机为 Windows |
+| Windows Debug/Release | IMPLEMENTED_VERIFIED | 本机 Debug 实测 728/728（2026-11-24）+ CI 四矩阵（master run 45183823988、PR #26 run 45211773969） |
+| macOS Debug/Release | IMPLEMENTED_UNVERIFIED（本地 NOT_RUN） | 仅 CI build+test 绿（两次运行均四 job 全绿）；本机为 Windows |
 | GitHub Actions | IMPLEMENTED_VERIFIED | `.github/workflows/dotnet-ci.yml`：push(master)+PR+dispatch；矩阵 windows-latest/macos-latest × Debug/Release；`working-directory: WorldView`；MTP `--show-slowest-tests 20`；无发布 job、无 Linux、无覆盖率上传 |
 | 本地构建脚本 | IMPLEMENTED_VERIFIED | `WorldView/scripts/build|run|test|verify-environment.{ps1,sh}`（薄封装） |
 | 打包/安装 | MISSING | 同 1.11 |
 | 测试栈 | — | xunit.v3 4.0.3 + MTP（global.json）+ VSTest 适配器并存（冗余配置，`Microsoft.NET.Test.Sdk` 18.12.0 + `xunit.runner.visualstudio` 4.0.1） |
-| 规模 | — | 49 测试类 / 515 [Fact] / 28 [Theory]（Theory 展开后更高，如 55 条聚合向量 JSON 驱动） |
+| 规模 | — | 4 个测试工程 / 53 测试类 / 541 [Fact] / 29 [Theory]（Theory 展开后更高，如 55 条聚合向量 JSON 驱动；WP-20a 后口径，2026-11-24） |
 
-**已知的覆盖缺口清单**：Desktop 工程 0 覆盖；`JsonRecentProjectsStore` 0 覆盖；`MapWorkspaceSession.SwitchContextAsync` 0 覆盖（死代码）；EF 迁移防降级守卫（`__EFMigrationsHistory` 未知版本拒绝）无专门测试；VM 层（门槛/异常分支）无单测。
+**已知的覆盖缺口清单**：Avalonia headless UI 测试与应用启停零覆盖（WP-20a 已补 Desktop ViewModel 层单测 11 例，缺口收窄）；`JsonRecentProjectsStore` 0 覆盖；`MapWorkspaceSession.SwitchContextAsync` 0 覆盖（死代码）；EF 迁移防降级守卫（`__EFMigrationsHistory` 未知版本拒绝）无专门测试；ViewModel 门槛/异常分支部分覆盖（ProjectWorkspaceViewModel/CreateMapDialogViewModel 已有，其余 VM 无）。
 
 ---
 
@@ -203,12 +204,12 @@
 
 | 项 | Windows | macOS |
 |---|---|---|
-| 构建+测试 | ✅ 本机实测 700/700（Debug）+ CI 4 job 绿 | ✅ 仅 CI（run 45183823988 macos Debug/Release success）；本地 NOT_RUN |
+| 构建+测试 | ✅ 本机实测 728/728（Debug，WP-20a 分支 50e3d3e，2026-11-24）+ CI 4 job 绿（master run 45183823988、PR #26 run 45211773969） | ✅ 仅 CI（两次运行 macos Debug/Release 均 success）；本地 NOT_RUN |
 | GUI 应用实际运行 | ❌ 本审计未执行 UI 冒烟（历史会话亦无正式冒烟记录） | ❌ **零证据**（无 macOS UI 冒烟/无头 Avalonia 测试；macOS job 仅测试进程） |
 | 平台代码分支 | `JsonRecentProjectsStore.cs:110-126`、`FileAppLog.cs:22-26`、`SettingsDocumentPaths.cs:53-55`（Windows 大小写语义）、`app.manifest`（仅 Windows 生效） | 同左三分支的 macOS 路径；无窗口行为适配 |
 | 打包发布 | ❌ 无 | ❌ 无 |
 
-结论：**"CI 在两个平台编译+测试通过"不能等同"两个平台 GUI 流程运行通过"。** M1 验收的平台门（11/12）当前在两个平台都未正式关闭，macOS 侧差距更大。
+结论：**"CI 在两个平台编译+测试通过"不能等同"两个平台 GUI 流程运行通过"。** M1 验收的平台门（GUI 冒烟 + macOS 全流程，正式验收项 10）当前在两个平台都未正式关闭，macOS 侧差距更大（GAP-P0-4）。打包发布链缺失是性质不同的交付准备问题，归 WP-10（GAP-P1-15），不与 GUI 运行证据混为一个问题。
 
 ---
 
@@ -247,4 +248,4 @@
 
 ## 附录：能力状态总计
 
-对 118 项能力（见 JSON，与本章各表一一对应）按状态统计：IMPLEMENTED_VERIFIED 45 / IMPLEMENTED_UNVERIFIED 4 / PARTIAL 13 / DESIGNED_ONLY 5 / MISSING 46 / NOT_APPLICABLE 4 / BLOCKED 1（Building/Cave 编辑 UI）。
+对 118 项能力（见 JSON，与本章各表一一对应）按状态统计（2026-11-24 WP-20a 修订后）：IMPLEMENTED_VERIFIED 46 / IMPLEMENTED_UNVERIFIED 4 / PARTIAL 13 / DESIGNED_ONLY 5 / MISSING 45 / NOT_APPLICABLE 4 / BLOCKED 1（Building/Cave 编辑 UI）。修订 delta：PMM-B6 PARTIAL→IMPLEMENTED_VERIFIED、TCI-03 MISSING→PARTIAL（其余不变）。

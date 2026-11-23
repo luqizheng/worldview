@@ -136,6 +136,14 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public void CreateMapStructure(MapCreationPlan plan)
     {
+        // 模拟真实实现的名称唯一性约束（WP-20a：同 Project 内唯一，MapRules 语义）。
+        if (Maps.Any(m => m.ProjectId == plan.Map.ProjectId
+            && MapRules.MapNameComparer.Equals(m.MapName, plan.Map.MapName)))
+        {
+            throw new CoreDomainConflictException(
+                $"同一项目内已存在同名地图「{plan.Map.MapName}」（名称唯一，不区分大小写）。");
+        }
+
         Maps.Add(plan.Map);
         Histories.Add(plan.RootHistory);
         Calendars.Add(plan.DefaultCalendar);

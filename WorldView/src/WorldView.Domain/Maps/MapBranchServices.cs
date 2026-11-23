@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Time;
@@ -6,12 +7,18 @@ using WorldView.Domain.Time;
 namespace WorldView.Domain.Maps;
 
 /// <summary>
-/// Map 创建服务（Core Domain）：校验 Project 存在 → 构建创建计划（含根 History、
-/// default Calendar、day-zero Configuration，P2-09-11 §4.1 不变量）→ 单事务持久化。
+/// Map 创建服务（Core Domain）：校验 Project 存在 → 校验名称唯一（WP-20a 产品规则：
+/// 同 Project 内唯一，<see cref="MapRules.MapNameComparer"/> 大小写不敏感）→
+/// 构建创建计划（含根 History、default Calendar、day-zero Configuration，
+/// P2-09-11 §4.1 不变量）→ 单事务持久化。持久化实现在创建事务内以同一比较器
+/// 重读校验（权威约束；本预检是面向调用方的语义化拒绝）。
 /// </summary>
 public static class MapService
 {
-    /// <summary>创建 Map；Project 不存在抛 <see cref="InvalidOperationException"/>。</summary>
+    /// <summary>
+    /// 创建 Map；Project 不存在抛 <see cref="InvalidOperationException"/>；
+    /// 同 Project 内同名（不区分大小写）抛 <see cref="CoreDomainConflictException"/>。
+    /// </summary>
     public static MapCreationPlan CreateMap(
         ICoreDomainDatabase database,
         Guid projectId,
@@ -20,6 +27,12 @@ public static class MapService
     {
         var project = database.FindProject(projectId)
             ?? throw new InvalidOperationException($"项目 {projectId} 不存在，无法创建地图。");
+
+        var name = MapRules.NormalizeName(mapName);
+        if (database.ListMaps(projectId).Any(m => MapRules.MapNameComparer.Equals(m.MapName, name)))
+        {
+            throw new CoreDomainConflictException($"同一项目内已存在同名地图「{name}」（名称唯一，不区分大小写）。");
+        }
 
         var plan = MapRules.CreateMap(project, mapName, nowUtcMs);
         database.CreateMapStructure(plan);

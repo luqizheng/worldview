@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -198,6 +199,21 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
             using var transaction = db.Database.BeginTransaction();
             try
             {
+                // WP-20a 名称唯一性（权威写路径约束，语义归 MapRules）：同 Project 内
+                // 名称唯一（MapRules.MapNameComparer，序数大小写不敏感）。SQLite 唯一索引
+                // 的 BINARY/NOCASE 排序无法表达该语义（NOCASE 仅折叠 ASCII），故在创建
+                // 事务内读回同 Project 的名称做内存比较；事务整体位于连接协调器临界区内，
+                // 校验与写入对进程内全部写路径原子（单机 V1 约束，见端口契约）。
+                var existingNames = db.Maps
+                    .Where(x => x.ProjectId == plan.Map.ProjectId)
+                    .Select(x => x.MapName)
+                    .ToArray();
+                if (existingNames.Any(n => MapRules.MapNameComparer.Equals(n, plan.Map.MapName)))
+                {
+                    throw new CoreDomainConflictException(
+                        $"同一项目内已存在同名地图「{plan.Map.MapName}」（名称唯一，不区分大小写）。");
+                }
+
                 db.Maps.Add(new CoreMapEntity
                 {
                     MapId = plan.Map.MapId,

@@ -48,7 +48,10 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <TextBlock Opacity="0.8" Text="{Binding MapsStatusText}" TextWrapping="Wrap" />
-                <Button Content="打开地图工作区" Command="{Binding OpenWorkspaceCommand}" HorizontalAlignment="Left" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="CreateMapButton" Content="创建地图…" Click="OnCreateMapClick" />
+                    <Button Content="打开地图工作区" Command="{Binding OpenWorkspaceCommand}" />
+                </StackPanel>
             </StackPanel>
 
             <!-- 工作区会话 -->

@@ -1,5 +1,6 @@
 using System;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Tests.TestDoubles;
 using WorldView.Domain.Time;
@@ -58,6 +59,63 @@ public class MapBranchRulesTests
     public void CreateMap_RejectsBlankName()
     {
         Assert.Throws<ArgumentException>(() => MapRules.CreateMap(NewProject(), "  ", nowUtcMs: 1L));
+    }
+
+    [Fact]
+    public void MapNameComparer_IsOrdinalCaseInsensitive()
+    {
+        // WP-20a 产品语义：大小写不敏感（跨 Windows/macOS 一致），空白参与比较。
+        Assert.True(MapRules.MapNameComparer.Equals("Main Map", "main map"));
+        Assert.True(MapRules.MapNameComparer.Equals("MAP", "map"));
+        Assert.False(MapRules.MapNameComparer.Equals("Main Map", "Main  Map"));
+        Assert.False(MapRules.MapNameComparer.Equals("主地图", "主地图 "));
+    }
+
+    [Fact]
+    public void MapService_DuplicateName_SameProject_ThrowsConflict()
+    {
+        var db = new FakeCoreDomainDatabase();
+        var project = NewProject();
+        db.Projects.Add(project);
+        MapService.CreateMap(db, project.ProjectId, "Main Map", nowUtcMs: 1L);
+
+        // 精确重复与大小写变体均被拒绝（非 UI 路径的领域级语义化拒绝）。
+        Assert.Throws<CoreDomainConflictException>(() =>
+            MapService.CreateMap(db, project.ProjectId, "Main Map", nowUtcMs: 2L));
+        Assert.Throws<CoreDomainConflictException>(() =>
+            MapService.CreateMap(db, project.ProjectId, "  main map  ", nowUtcMs: 3L));
+        Assert.Single(db.Maps);
+    }
+
+    [Fact]
+    public void MapService_SameName_DifferentProjects_NoConflict()
+    {
+        var db = new FakeCoreDomainDatabase();
+        var projectA = NewProject();
+        var projectB = NewProject();
+        db.Projects.Add(projectA);
+        db.Projects.Add(projectB);
+
+        MapService.CreateMap(db, projectA.ProjectId, "Main Map", nowUtcMs: 1L);
+        var plan = MapService.CreateMap(db, projectB.ProjectId, "main map", nowUtcMs: 2L);
+
+        Assert.Equal(2, db.Maps.Count);
+        Assert.Equal("main map", plan.Map.MapName);
+    }
+
+    [Fact]
+    public void CreateMapStructure_DuplicateName_ThrowsConflict()
+    {
+        // 持久化端口层的权威约束（绕过 MapService 预检直写）。
+        var db = new FakeCoreDomainDatabase();
+        var project = NewProject();
+        db.Projects.Add(project);
+        var first = MapRules.CreateMap(project, "World", nowUtcMs: 1L);
+        db.CreateMapStructure(first);
+
+        var duplicate = MapRules.CreateMap(project, "WORLD", nowUtcMs: 2L);
+        Assert.Throws<CoreDomainConflictException>(() => db.CreateMapStructure(duplicate));
+        Assert.Single(db.Maps);
     }
 
     [Fact]

@@ -24,6 +24,13 @@ public sealed record MapCreationPlan
 /// <summary>Map 创建规则（Core Domain 独占）。</summary>
 public static class MapRules
 {
+    /// <summary>
+    /// Map 名称比较语义（WP-20a 产品规则）：同一 Project 内名称唯一，跨 Windows/macOS
+    /// 采用一致的 <see cref="StringComparer.OrdinalIgnoreCase"/>（序数、不区分大小写）；
+    /// 不做额外 Unicode 归一化。持久化写路径以同一比较器为准（Domain 拥有语义）。
+    /// </summary>
+    public static readonly StringComparer MapNameComparer = StringComparer.OrdinalIgnoreCase;
+
     /// <summary>day-zero Calendar Configuration 的规则 schema 占位版本（无规则内容）。</summary>
     public const long PlaceholderRulesSchemaVersion = 0;
 
