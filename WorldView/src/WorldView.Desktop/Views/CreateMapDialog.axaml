@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:WorldView.Desktop.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="220"
+        x:Class="WorldView.Desktop.Views.CreateMapDialog"
+        x:DataType="vm:CreateMapDialogViewModel"
+        Title="创建地图" Width="440" Height="230" MinWidth="380" MinHeight="200"
+        CanResize="False" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+    <!--
+      创建地图对话框（WP-20a）：名称输入 → CreateMapUseCase（正式 Core Domain 创建）。
+      成功关闭并刷新列表；失败显示错误留在对话框；取消不产生任何持久化变化。
+    -->
+
+    <StackPanel Margin="16" Spacing="10">
+        <TextBlock FontWeight="SemiBold" FontSize="16" Text="新建地图" />
+        <TextBlock Opacity="0.8" Text="地图名称（同一项目内唯一，不区分大小写）" />
+        <TextBox x:Name="NameBox" Text="{Binding MapName}" Watermark="例如：主地图" />
+        <TextBlock Text="{Binding ErrorText}"
+                   Foreground="Red" TextWrapping="Wrap"
+                   IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,6,0,0">
+            <Button Content="创建" MinWidth="88" IsDefault="True"
+                    Command="{Binding CreateCommand}" />
+            <Button Content="取消" MinWidth="88" IsCancel="True"
+                    Command="{Binding CancelCommand}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

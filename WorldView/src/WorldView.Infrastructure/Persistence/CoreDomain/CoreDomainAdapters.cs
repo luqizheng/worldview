@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Packaging;
+using WorldView.Domain.Maps;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Domain.Workspace;
@@ -148,6 +149,70 @@ public sealed class CoreDomainMapQueryService : IMapQueryService
         return Task.FromResult(map is null
             ? null
             : new MapSummary { MapId = map.MapId, DisplayName = map.MapName });
+    }
+}
+
+/// <summary>
+/// WP-20a 端口 IMapCreationService 的正式 Core Domain 适配：会话绑定（构造时持有
+/// 本会话的包数据库）→ 调用正式 Domain <see cref="MapService"/>（创建规则与名称
+/// 唯一性不复制）→ 单事务持久化（失败整体回滚，不留半创建 Map）。
+/// 领域冲突（同名地图）映射为 DuplicateName 失败结果；输入空白映射为 InvalidName。
+/// </summary>
+public sealed class CoreDomainMapCreationService : IMapCreationService
+{
+    private readonly SqliteCoreDomainDatabase _core;
+    private readonly TimeProvider _timeProvider;
+
+    public CoreDomainMapCreationService(IPackageDatabase sessionDatabase, TimeProvider? timeProvider = null)
+    {
+        _core = new SqliteCoreDomainDatabase(sessionDatabase);
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
+
+    public Task<MapCreationResult> CreateAsync(MapCreationRequest request, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var plan = MapService.CreateMap(
+                _core,
+                request.ProjectId,
+                request.MapName,
+                _timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+
+            return Task.FromResult(MapCreationResult.Ok(new MapSummary
+            {
+                MapId = plan.Map.MapId,
+                DisplayName = plan.Map.MapName,
+            }));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            return Task.FromResult(MapCreationResult.Failed(
+                MapCreationFailureKind.InvalidName,
+                "地图名不能为空白。"));
+        }
+        catch (CoreDomainConflictException ex)
+        {
+            return Task.FromResult(MapCreationResult.Failed(
+                MapCreationFailureKind.DuplicateName,
+                ex.Message));
+        }
+        catch (Exception ex) when (
+            ex is InvalidOperationException
+            or CoreDomainDataException
+            or Microsoft.Data.Sqlite.SqliteException)
+        {
+            // 含会话关闭后的 ObjectDisposedException（InvalidOperationException 派生）：
+            // 会话已释放时同样以失败结果拒绝，不留局部状态。
+            return Task.FromResult(MapCreationResult.Failed(
+                MapCreationFailureKind.CreationFailed,
+                $"地图创建失败：{ex.Message}"));
+        }
     }
 }
 
