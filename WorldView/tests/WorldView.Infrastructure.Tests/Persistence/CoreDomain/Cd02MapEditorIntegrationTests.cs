@@ -118,7 +118,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         var bytes = Encoding.UTF8.GetBytes(envelope);
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
+        core.MarkAssetVerified(project.ProjectId, asset.AssetId, new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength), Now + 5);
 
         // Building/Cave 不允许 Definition 与 typed link 分两次提交。
         Assert.Throws<CoreDomainConflictException>(

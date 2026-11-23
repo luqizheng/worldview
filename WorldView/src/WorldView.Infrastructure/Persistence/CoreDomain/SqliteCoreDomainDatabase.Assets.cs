@@ -115,36 +115,75 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    public void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
+    public void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
     {
+        var stateText = integrityState switch
+        {
+            AssetIntegrityState.Corrupt => "corrupt",
+            AssetIntegrityState.Missing => "missing",
+            _ => throw new CoreDomainConflictException("完整性失败接口只接受 Corrupt 或 Missing，Verified 必须通过字节验证证据写入。"),
+        };
+
         _access.Execute(connection =>
         {
             using var transaction = connection.BeginTransaction();
             try
             {
-                var stateText = integrityState switch
-                {
-                    AssetIntegrityState.Verified => "verified",
-                    AssetIntegrityState.Unverified => "unverified",
-                    AssetIntegrityState.Corrupt => "corrupt",
-                    AssetIntegrityState.Missing => "missing",
-                    _ => throw new CoreDomainDataException($"integrity_state {integrityState} 不可识别。"),
-                };
                 using var update = connection.CreateCommand();
                 update.Transaction = transaction;
                 update.CommandText = """
                     UPDATE core_asset
-                    SET integrity_state = $state, created_at_utc_ms = created_at_utc_ms
+                    SET integrity_state = $state
                     WHERE project_id = $projectId AND asset_id = $assetId;
                     """;
                 update.Parameters.AddWithValue("$state", stateText);
                 update.Parameters.AddWithValue("$projectId", Uuid(projectId));
                 update.Parameters.AddWithValue("$assetId", Uuid(assetId));
                 if (update.ExecuteNonQuery() != 1)
-                {
-                    throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，无法更新完整性状态。");
-                }
+                    throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，无法记录完整性失败。");
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
 
+    public void MarkAssetVerified(Guid projectId, Guid assetId, AssetVerificationEvidence evidence, long nowUtcMs)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        var expectedHash = AssetRules.NormalizeContentHash(evidence.ExpectedHash);
+        var actualHash = AssetRules.NormalizeContentHash(evidence.ActualHash);
+        if (evidence.ExpectedByteLength < 0 || evidence.ActualByteLength < 0
+            || !string.Equals(expectedHash, actualHash, StringComparison.Ordinal)
+            || evidence.ExpectedByteLength != evidence.ActualByteLength)
+            throw new CoreDomainConflictException("Asset verification evidence 的 hash 或 byte length 不一致，拒绝写入 Verified。");
+
+        _access.Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                var current = TryReadAssetRow(transaction, projectId, assetId)
+                    ?? throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，无法标记 Verified。");
+                if (!string.Equals(current.HashAlgorithm, "sha-256", StringComparison.Ordinal)
+                    || !string.Equals(current.ContentHash, expectedHash, StringComparison.Ordinal)
+                    || current.ByteLength != evidence.ExpectedByteLength)
+                    throw new CoreDomainConflictException("Asset verification evidence 与当前 Asset 元数据不匹配（metadata 已变化或证据过期）。");
+
+                using var update = connection.CreateCommand();
+                update.Transaction = transaction;
+                update.CommandText = """
+                    UPDATE core_asset
+                    SET integrity_state = 'verified'
+                    WHERE project_id = $projectId AND asset_id = $assetId;
+                    """;
+                update.Parameters.AddWithValue("$projectId", Uuid(projectId));
+                update.Parameters.AddWithValue("$assetId", Uuid(assetId));
+                if (update.ExecuteNonQuery() != 1)
+                    throw new CoreDomainConflictException($"Asset {assetId} 在验证期间不可更新。");
                 transaction.Commit();
             }
             catch
