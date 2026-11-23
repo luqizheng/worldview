@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Sessions;
+using WorldView.Application.Settings;
 using WorldView.Application.UseCases;
 using WorldView.Desktop.ViewModels;
 using WorldView.Infrastructure.Assets;
@@ -13,6 +14,7 @@ using WorldView.Infrastructure.Logging;
 using WorldView.Infrastructure.Persistence;
 using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.RecentProjects;
+using WorldView.Infrastructure.Settings;
 
 namespace WorldView.Desktop;
 
@@ -82,6 +84,7 @@ internal static class Program
             sp.GetRequiredService<IPackageDatabaseFactory>()));
         services.AddSingleton<IProjectIdentityReader, CoreDomainProjectIdentityReader>();
         services.AddSingleton<IProjectFieldPayloadRecovery, CoreDomainFieldPayloadRecovery>();
+        services.AddSingleton<IProjectSettingsDocumentRecovery, CoreDomainSettingsDocumentRecovery>();
 
         // 用例
         services.AddSingleton<CreateProjectUseCase>(sp => new CreateProjectUseCase(
@@ -98,7 +101,8 @@ internal static class Program
             sp.GetRequiredService<ProjectSessionRegistry>(),
             sp.GetRequiredService<IProjectIdentityReader>(),
             log: sp.GetRequiredService<IAppLog>(),
-            fieldPayloadRecovery: sp.GetRequiredService<IProjectFieldPayloadRecovery>()));
+            fieldPayloadRecovery: sp.GetRequiredService<IProjectFieldPayloadRecovery>(),
+            settingsDocumentRecovery: sp.GetRequiredService<IProjectSettingsDocumentRecovery>()));
 
         // 启动面与工作区 ViewModel 工厂
         services.AddSingleton<StartViewModel>();
