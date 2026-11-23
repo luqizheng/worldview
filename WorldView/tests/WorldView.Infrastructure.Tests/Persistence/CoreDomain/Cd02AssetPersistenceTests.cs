@@ -141,14 +141,13 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var (project, _) = SeedProject();
         var core = Core();
         var identityId = CreateActiveRiverObject(project.ProjectId);
-        var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
+        var asset = RegisterVerifiedAsset(core, project.ProjectId, "verified-then-corrupt"u8.ToArray(), Now);
 
         // verified → 可引用。
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
 
         // corrupt → 新 link 拒绝（既有 link 不自动删除——引用期间的资产字节保持可用语义由使用方保障）。
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 3);
+        core.RecordAssetIntegrityFailure(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 3);
         var identityId2 = CreateActiveRiverObject(project.ProjectId);
         Assert.Throws<CoreDomainConflictException>(
             () => AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId2, asset.AssetId, "centerline", Now + 4));
@@ -160,8 +159,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var (project, _) = SeedProject();
         var core = Core();
         var identityId = CreateActiveRiverObject(project.ProjectId);
-        var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        var asset = RegisterVerifiedAsset(core, project.ProjectId, "fk-chain-bytes"u8.ToArray(), Now);
 
         // 未声明 role（extent 不是 river 的 role）拒绝。
         Assert.Throws<CoreDomainConflictException>(
@@ -205,7 +203,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var core = Core();
         var identityId = CreateActiveRiverObject(project.ProjectId);
         var orphan = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 8, "application/json", "1", Now);
-        var referenced = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash[..63] + "0", 8, "application/json", "1", Now);
+        var referenced = RegisterVerifiedAsset(core, project.ProjectId, "referenced-bytes"u8.ToArray(), Now);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, referenced.AssetId, "centerline", Now + 1);
 
         var orphans = core.FindOrphanAssetIds(project.ProjectId);
@@ -227,7 +225,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var bytes = System.Text.Encoding.UTF8.GetBytes(envelopeJson);
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        MarkVerified(core, project.ProjectId, asset, bytes, Now + 1);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
 
         // envelope 结构校验（P2-09-25 有界实现）。
@@ -252,15 +250,32 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         Assert.Equal(bytes.Length, core.FindAsset(project.ProjectId, asset.AssetId)!.ByteLength);
     }
 
+    /// <summary>测试辅助：以实测字节摘要标记 Verified（Task 002-A 后 Verified 只接受真实字节测量；生产路径为字节验证用例）。</summary>
+    private static void MarkVerified(ICoreDomainDatabase core, Guid projectId, AssetRecord asset, byte[] bytes, long now)
+    {
+        core.MarkAssetVerified(
+            projectId,
+            asset.AssetId,
+            AssetByteDigest.MeasureAsync(new MemoryStream(bytes)).GetAwaiter().GetResult(),
+            now);
+    }
+
+    /// <summary>测试辅助：登记真实字节元数据并以实测摘要标记 Verified。</summary>
+    private static AssetRecord RegisterVerifiedAsset(ICoreDomainDatabase core, Guid projectId, byte[] bytes, long now)
+    {
+        var hash = AssetRules.Sha256Hex(bytes);
+        var asset = AssetService.RegisterAsset(core, projectId, Guid.NewGuid(), hash, bytes.LongLength, "application/json", "1", now);
+        MarkVerified(core, projectId, asset, bytes, now + 1);
+        return asset;
+    }
+
     [Fact]
     public void SchemaAudit_ForeignKeyCheckAndIntegrityCheck_NoViolationsAfterObjectAssetLink()
     {
         var (project, _) = SeedProject();
         var core = Core();
         var identityId = CreateActiveRiverObject(project.ProjectId);
-        var asset = AssetService.RegisterAsset(
-            core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        var asset = RegisterVerifiedAsset(core, project.ProjectId, "schema-audit-bytes"u8.ToArray(), Now);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
 
         var audit = Access().Execute(connection =>

@@ -143,6 +143,95 @@ public sealed class GeometryAndAssetRulesTests
         GeometryRules.ValidateManifest(settlement, Manifest(role: "anchor", family: "point"));
     }
 
+    // ---- Geometry Manifest 身份 / Cardinality（G3-05 port） ----
+
+    [Fact]
+    public void ValidateManifest_EmptyComponentIdentity_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var manifest = Manifest() with { GeometryComponentId = Guid.Empty };
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifest(descriptor, manifest));
+        Assert.Contains("geometry_component_id", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifest_EmptyAssetIdentity_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var manifest = Manifest() with { AssetId = Guid.Empty };
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifest(descriptor, manifest));
+        Assert.Contains("asset_id", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_RoleMin_RejectedWhenMissing()
+    {
+        // river.centerline min=1：空集合不满足 role 下限。
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, Array.Empty<GeometryComponentManifest>()));
+        Assert.Contains("centerline", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_RoleMax_RejectedWhenExceeded()
+    {
+        // settlement.anchor max=1：两个 anchor 超出上限。
+        var descriptor = ObjectTypeRegistry.Require("settlement");
+        var manifests = new[]
+        {
+            Manifest(role: "anchor", family: "point"),
+            Manifest(role: "anchor", family: "point"),
+        };
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, manifests));
+        Assert.Contains("anchor", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_CombinedMin_Rejected()
+    {
+        // mountain_range 的 extent/ridge 各自 min=0，但 combined_min=1。
+        var descriptor = ObjectTypeRegistry.Require("mountain_range");
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, Array.Empty<GeometryComponentManifest>()));
+        Assert.Contains("combined_min", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_DuplicateComponentIdentity_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        var componentId = Guid.NewGuid();
+        var manifests = new[]
+        {
+            Manifest() with { GeometryComponentId = componentId },
+            Manifest() with { GeometryComponentId = componentId },
+        };
+        var ex = Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(descriptor, manifests));
+        Assert.Contains("重复", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_ValidSet_Pass()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        GeometryRules.ValidateManifestCollection(descriptor, new[] { Manifest() });
+    }
+
+    [Fact]
+    public void ValidateManifestCollection_UndeclaredRole_Rejected()
+    {
+        var descriptor = ObjectTypeRegistry.Require("river");
+        Assert.Throws<CoreDomainConflictException>(
+            () => GeometryRules.ValidateManifestCollection(
+                descriptor,
+                new[] { Manifest(role: "footprint", family: "polygon") }));
+    }
+
     // ---- ValidateManifestConsistency ----
 
     [Fact]

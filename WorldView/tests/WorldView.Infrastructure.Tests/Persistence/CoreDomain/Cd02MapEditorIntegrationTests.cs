@@ -62,6 +62,17 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         {"schema_version":1,"canonical_name":"NAME","building_class":"residential","description":"demo building","horizontal_frame":{"frame_id":"hframe-1","coordinate_kind":"local_cartesian","unit":"m","origin":{"x":0,"y":0},"orientation_degrees":0,"precision_profile_id":"hp-1"},"vertical_frame":{"vertical_frame_id":"vframe-1","unit":"m","positive_axis":"up","precision_profile_id":"vp-1"},"levels":[{"level_id":"level-ground","level_label":"Ground Floor","level_kind":"ground","display_order":0,"elevation_local":0,"status":"active"}],"spaces":[{"space_id":"space-hall","space_kind":"room","label":"Hall","status":"active"}],"plans":[],"boundaries":[],"access":{"entrances":[],"openings":[],"connections":[],"vertical_connectors":[],"exterior_anchors":[]},"geometry_components":[]}
         """.Replace("NAME", canonicalName);
 
+    private static string BuildingAggregateWithFootprint(string canonicalName, Guid componentId, Guid assetId, string contentHash) =>
+        BuildingAggregate(canonicalName).Replace(
+            "\"geometry_components\":[]",
+            "\"geometry_components\":[{\"geometry_component_id\":\"" + componentId.ToString("D") +
+            "\",\"geometry_role\":\"footprint\",\"geometry_family\":\"polygon\",\"dimension\":2," +
+            "\"coordinate_context_id\":\"local-context-1\",\"child_context\":{}," +
+            "\"asset_id\":\"" + assetId.ToString("D") + "\",\"content_hash\":\"" + contentHash +
+            "\",\"spatial_reference_id\":\"sr-local-1\",\"geometry_schema_version\":\"1\"," +
+            "\"provenance\":{\"source_kind\":\"authored\"}," +
+            "\"validity_metadata\":{\"status\":\"valid\",\"validation_profile_id\":\"v1\",\"issue_codes\":[]}}]");
+
     [Fact]
     public void Me04_BuildingAuthoringPath_AllThroughDomainServices()
     {
@@ -100,22 +111,43 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
             new InitialObjectMembership { MembershipPayloadJson = """{"placement":{"x":10,"y":20}}""" },
             Now + 3);
 
-        // 5) 几何 Asset：字节发布 → 权威登记 → typed link（footprint role 经 registry 校验）。
+        // 5) 几何 Asset：字节发布 → 权威登记 → Definition + 完整 geometry_component link set 原子发布。
         var envelope = """
             {"format_id":"worldview.geometry-json","format_version":1,"spatial_reference_id":"sr-local-1","axis_order":"x_y","unit":"m","coordinate_precision_profile_id":"p1","dimension":2,"geometry_family":"polygon","body":[[[0,0],[8,0],[8,6],[0,6],[0,0]]]}
             """;
         var bytes = Encoding.UTF8.GetBytes(envelope);
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now + 4);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 5);
-        var link = AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "footprint", Now + 6);
-        Assert.NotNull(core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "footprint"));
+        core.MarkAssetVerified(
+            project.ProjectId,
+            asset.AssetId,
+            AssetByteDigest.MeasureAsync(new MemoryStream(bytes)).GetAwaiter().GetResult(),
+            Now + 5);
 
-        // 6) definition CAS 编辑（聚合 payload 更新 + hash 重写）。
+        // Building/Cave 不允许 Definition 与 typed link 分两次提交。
+        Assert.Throws<CoreDomainConflictException>(
+            () => AssetService.LinkDefinitionAsset(core, project.ProjectId, buildingId, asset.AssetId, "geometry_component", Now + 6));
+
         var definition = core.ReadObjectDefinition(project.ProjectId, buildingId)!;
-        var updated = ObjectDefinitionService.EditDefinition(
+        var componentId = Guid.NewGuid();
+        var published = ObjectDefinitionService.PublishDefinitionWithGeometryAssets(
             core, project.ProjectId, buildingId, definition.DefinitionHash,
-            BuildingAggregate("Demo Hall Renamed"), 1, Now + 7);
+            BuildingAggregateWithFootprint("Demo Hall", componentId, asset.AssetId, asset.ContentHash),
+            1, Now + 7);
+        var link = core.FindDefinitionAssetLink(project.ProjectId, buildingId, asset.AssetId, "geometry_component");
+        Assert.NotNull(link);
+        Assert.Equal("geometry_component", link.Role);
+
+        // 6) definition CAS 编辑：不允许通过普通编辑改变正式 geometry_components。
+        Assert.Throws<CoreDomainConflictException>(
+            () => ObjectDefinitionService.EditDefinition(
+                core, project.ProjectId, buildingId, published.DefinitionHash,
+                BuildingAggregate("Demo Hall Renamed"), 1, Now + 8));
+
+        // 非 geometry 字段仍可 CAS 编辑，组件身份与 Asset pin 保持不变。
+        var updated = ObjectDefinitionService.EditDefinition(
+            core, project.ProjectId, buildingId, published.DefinitionHash,
+            BuildingAggregateWithFootprint("Demo Hall Renamed", componentId, asset.AssetId, asset.ContentHash), 1, Now + 9);
         Assert.Contains("Demo Hall Renamed", updated.DefinitionPayloadJson);
 
         // 7) Initial State CAS 编辑（baseline 建立时成员已由 Insert 建立 → expected=null 非法；用重读凭据）。
