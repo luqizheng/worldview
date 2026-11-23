@@ -24,6 +24,23 @@ public sealed class FieldPackageReaderTests
         Assert.Throws<FieldPackageValidationException>(() => reader.ReadTile(1, 0));
     }
 
+    [Theory]
+    [InlineData("minimal-elevation-2x2.wvfld", 1, 1)]
+    [InlineData("land-water-4x2-two-tiles.wvfld", 2, 2)]
+    [InlineData("edge-elevation-3x2.wvfld", 2, 2)]
+    public void OpenAndReadTiles_ValidatesCanonicalGoldenPackages(string packageName, int expectedTileCount, int expectedGridWidth)
+    {
+        var packageBytes = ReadResource(packageName);
+        using var package = new MemoryStream(packageBytes);
+        using var reader = FieldPackageReader.Open(package, leaveOpen: true);
+
+        Assert.Equal(expectedGridWidth, reader.GridWidth);
+        Assert.Equal(expectedTileCount, reader.TileCount);
+        for (uint y = 0; y < 1; y++)
+        for (uint x = 0; x < expectedTileCount; x++)
+            Assert.NotEmpty(reader.ReadTile(x, y));
+    }
+
     [Fact]
     public void Open_RejectsInvalidMagicBeforeParsingManifest()
     {
