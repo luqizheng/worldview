@@ -61,6 +61,8 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
                     if (read == 0)
                         break;
                     byteLength = checked(byteLength + read);
+                    if (byteLength > SettingsDocumentFormat.MaximumDocumentBytes)
+                        throw new InvalidDataException("Settings document exceeds the V1 size limit.");
                     digest.AppendData(buffer, 0, read);
                     await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                 }
