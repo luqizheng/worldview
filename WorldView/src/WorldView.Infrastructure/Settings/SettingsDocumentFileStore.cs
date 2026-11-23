@@ -28,6 +28,7 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
         _stagingRoot = Path.Combine(_settingsRoot, SettingsDocumentPaths.StagingDirectoryName);
         _hashRoot = Path.Combine(_settingsRoot, "sha256");
 
+        EnsureNotReparsePoint(_packageRoot);
         Directory.CreateDirectory(_settingsRoot);
         EnsureNotReparsePoint(_settingsRoot);
         Directory.CreateDirectory(_stagingRoot);
@@ -75,9 +76,11 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
             if (!SettingsDocumentPaths.TryResolvePublishedPath(_packageRoot, relative, hash, out var finalPath))
                 throw new InvalidDataException("Settings document destination is not confined to the package root.");
 
-            var parent = Path.GetDirectoryName(finalPath)!;
-            Directory.CreateDirectory(parent);
-            EnsureDirectoryChainSafe(parent);
+            var firstLevel = Path.Combine(_hashRoot, hash[..2]);
+            EnsureDirectoryExistsSafe(firstLevel);
+            var secondLevel = Path.Combine(firstLevel, hash[2..4]);
+            EnsureDirectoryExistsSafe(secondLevel);
+            EnsureDirectoryChainSafe(secondLevel);
             if (File.Exists(finalPath))
             {
                 await VerifyFileAsync(finalPath, hash, byteLength, cancellationToken).ConfigureAwait(false);
@@ -181,6 +184,22 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
         EnsureNotReparsePoint(path);
         File.Delete(path);
         return true;
+    }
+
+    private static void EnsureDirectoryExistsSafe(string directory)
+    {
+        if (Directory.Exists(directory))
+        {
+            EnsureNotReparsePoint(directory);
+            return;
+        }
+
+        var parent = Path.GetDirectoryName(directory);
+        if (parent is null)
+            throw new InvalidDataException("Settings directory has no package parent.");
+        EnsureNotReparsePoint(parent);
+        Directory.CreateDirectory(directory);
+        EnsureNotReparsePoint(directory);
     }
 
     private void EnsureDirectoryChainSafe(string directory)
