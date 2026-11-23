@@ -170,6 +170,21 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         }));
     }
 
+    /// <summary>Appends a second (codec_id 1) registry entry with free-form strings/parameters
+    /// and returns the re-canonicalized manifest.</summary>
+    private static string ManifestWithExtraCodec(string codecName, string codecVersion, string parametersJson)
+    {
+        var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!;
+        ((JsonArray)root["codec_registry"]!).Add(new JsonObject
+        {
+            ["codec_id"] = 1,
+            ["codec_name"] = codecName,
+            ["version"] = codecVersion,
+            ["parameters"] = JsonNode.Parse(parametersJson),
+        });
+        return FieldManifestCanonicalizer.Canonicalize(root.ToJsonString());
+    }
+
     private static PublishFieldRevisionPlan Plan(
         Guid projectId,
         Guid mapId,
@@ -377,6 +392,62 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var revision = FieldDatasetService.PublishRevision(core, plan);
 
         Assert.Contains(originX, revision.ManifestJson);
+    }
+
+    [Fact]
+    public void PublishRevision_AcceptsJcsCanonicalManifestWithJcsOnlyStringSpellings()
+    {
+        // Regression: the persistence fixed-point check once used the legacy CanonicalJson,
+        // whose string escaping (\"+\", HTML-sensitive, non-ASCII) differs from RFC 8785 JCS
+        // and therefore rejected perfectly valid canonical manifests at publication.
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        var manifest = ManifestWithExtraCodec("zstd+tuned", "1/中文", """{"note":"值+1"}""");
+        var plan = Plan(project.ProjectId, mapId, datasetId, revisionId,
+            null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest,
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
+        };
+
+        FieldDatasetService.PublishRevision(core, plan);
+        var stored = core.FindFieldRevision(project.ProjectId, datasetId, revisionId)!;
+
+        Assert.Contains("zstd+tuned", stored.ManifestJson);
+        Assert.Contains("值+1", stored.ManifestJson);
+        var codec = stored.Metadata!.Codecs.Single(c => c.CodecId == 1);
+        Assert.Equal("zstd+tuned", codec.CodecName);
+        Assert.Equal("1/中文", codec.Version);
+        Assert.Equal("""{"note":"值+1"}""", codec.ParametersJson);
+    }
+
+    [Fact]
+    public void PublishRevision_KeepsExponentFormCodecParametersByteIdenticalAndReadable()
+    {
+        // Regression: typed codec parameters were once stored via System.Text.Json raw-text
+        // re-serialization and re-checked with the legacy CanonicalJson, whose double spelling
+        // (1E-07) differs from the RFC 8785 form (1e-7), so a publishable revision became
+        // unreadable on the next load.
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        var manifest = ManifestWithExtraCodec("delta+z", "1", """{"quantum":1e-7}""");
+        var plan = Plan(project.ProjectId, mapId, datasetId, revisionId,
+            null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest,
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
+        };
+
+        FieldDatasetService.PublishRevision(core, plan);
+        var stored = core.FindFieldRevision(project.ProjectId, datasetId, revisionId)!;
+
+        var codec = stored.Metadata!.Codecs.Single(c => c.CodecId == 1);
+        Assert.Equal("""{"quantum":1e-7}""", codec.ParametersJson);
+        Assert.Contains("\"parameters\":{\"quantum\":1e-7},\"version\":\"1\"", stored.ManifestJson);
     }
 
     [Fact]

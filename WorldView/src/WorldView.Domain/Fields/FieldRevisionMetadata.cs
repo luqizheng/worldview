@@ -115,10 +115,12 @@ public sealed record FieldRevisionMetadata
 
     private static string CanonicalizeJson(JsonElement value)
     {
-        // Codec parameters are retained as a small canonical JSON extension point;
-        // all core Field semantics around them remain typed.
-        using var document = JsonDocument.Parse(value.GetRawText());
-        return JsonSerializer.Serialize(document.RootElement);
+        // Codec parameters are retained as a small canonical JSON extension point; all core
+        // Field semantics around them remain typed. The stored form is the exact RFC 8785
+        // canonical bytes from the validated manifest, so typed rows and ManifestJson never
+        // disagree on spelling (System.Text.Json would otherwise re-escape strings and the
+        // legacy CanonicalJson would rewrite exponent-form numbers such as 1e-7 as 1E-07).
+        return FieldManifestCanonicalizer.Canonicalize(value.GetRawText());
     }
 }
 
