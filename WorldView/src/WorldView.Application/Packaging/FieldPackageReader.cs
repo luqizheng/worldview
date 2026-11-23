@@ -148,10 +148,15 @@ public sealed class FieldPackageReader : IDisposable
                 if (coveragePlane is null || coveragePlane.BytesPerCell != 1 || coveragePlane.SampleFormat != "uint8")
                     throw Error(FieldPackageBinaryErrorCodes.Mask, "Explicit coverage mask must be a distinct one-byte uint8 plane.");
             }
-            var codecIds = root.GetProperty("codec_registry").EnumerateArray()
-                .Select(c => c.GetProperty("codec_id").GetInt32()).ToArray();
+            var codecRegistry = root.GetProperty("codec_registry").EnumerateArray().ToArray();
+            var codecIds = codecRegistry.Select(c => c.GetProperty("codec_id").GetInt32()).ToArray();
             if (codecIds.Distinct().Count() != codecIds.Length || !codecIds.Contains(0))
                 throw Error(FieldPackageBinaryErrorCodes.Directory, "Codec registry must contain unique IDs and codec 0.");
+            var noCodec = codecRegistry.Single(c => c.GetProperty("codec_id").GetInt32() == 0);
+            if (!string.Equals(noCodec.GetProperty("codec_name").GetString(), "none", StringComparison.Ordinal) ||
+                !string.Equals(noCodec.GetProperty("version").GetString(), "1", StringComparison.Ordinal) ||
+                noCodec.GetProperty("parameters").EnumerateObject().Any())
+                throw Error(FieldPackageBinaryErrorCodes.Directory, "Codec 0 must identify the parameter-free none codec version 1.");
 
             var directoryHeader = ReadAt(source, directoryOffset, 16);
             if (U16(directoryHeader, 0) != 1 || U16(directoryHeader, 2) != 0 || U32(directoryHeader, 4) != 72)
