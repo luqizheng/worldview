@@ -1,149 +1,82 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using WorldView.Domain.Assets;
 using WorldView.Domain.Persistence;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain;
 
 /// <summary>
-/// <see cref="SqliteCoreDomainDatabase"/> 的 Asset 权威元数据与 definition typed link
-/// 写路径（CD-02-D）。单事务临界区模式与 Objects 部分一致。
+/// Asset authoritative metadata and typed definition links, persisted through the
+/// Core Domain EF model. Asset bytes remain in the external content-addressed store.
+/// Every compound write is serialized by the package connection coordinator and committed
+/// as one SQLite transaction.
 /// </summary>
 public sealed partial class SqliteCoreDomainDatabase
 {
     public AssetRecord? FindAsset(Guid projectId, Guid assetId) =>
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            return TryReadAssetRow(transaction, projectId, assetId);
+            var entity = db.Assets.AsNoTracking()
+                .SingleOrDefault(x => x.ProjectId == projectId && x.AssetId == assetId);
+            return entity is null ? null : MapAsset(entity);
         });
 
     public AssetRecord? FindAssetByContentHash(Guid projectId, string hashAlgorithm, string contentHash)
     {
-        const string sql = """
-            SELECT asset_id, project_id, content_hash, hash_algorithm, byte_length,
-                   media_type, format_version, relative_path, publication_state,
-                   integrity_state, created_at_utc_ms
-            FROM core_asset
-            WHERE project_id = $projectId AND hash_algorithm = $hashAlgorithm AND content_hash = $contentHash;
-            """;
-        return _access.Execute(connection =>
+        var normalizedHash = AssetRules.NormalizeContentHash(contentHash);
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$hashAlgorithm", hashAlgorithm);
-            command.Parameters.AddWithValue("$contentHash", AssetRules.NormalizeContentHash(contentHash));
-            using var reader = command.ExecuteReader();
-            return reader.Read() ? MapAsset(reader) : null;
+            var entity = db.Assets.AsNoTracking().SingleOrDefault(x =>
+                x.ProjectId == projectId
+                && x.HashAlgorithm == hashAlgorithm
+                && x.ContentHash == normalizedHash);
+            return entity is null ? null : MapAsset(entity);
         });
     }
 
-    public IReadOnlyList<AssetRecord> ListAssets(Guid projectId)
-    {
-        const string sql = """
-            SELECT asset_id, project_id, content_hash, hash_algorithm, byte_length,
-                   media_type, format_version, relative_path, publication_state,
-                   integrity_state, created_at_utc_ms
-            FROM core_asset
-            WHERE project_id = $projectId
-            ORDER BY asset_id;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            using var reader = command.ExecuteReader();
-            var rows = new List<AssetRecord>();
-            while (reader.Read())
-            {
-                rows.Add(MapAsset(reader));
-            }
-
-            return (IReadOnlyList<AssetRecord>)rows;
-        });
-    }
+    public IReadOnlyList<AssetRecord> ListAssets(Guid projectId) =>
+        _ef.Execute(db => (IReadOnlyList<AssetRecord>)db.Assets.AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .OrderBy(x => x.AssetId)
+            .AsEnumerable()
+            .Select(MapAsset)
+            .ToArray());
 
     public AssetRecord RegisterAsset(RegisterAssetPlan plan)
     {
-        return _access.Execute(connection =>
+        return _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                using (var insert = connection.CreateCommand())
+                var entity = new CoreAssetEntity
                 {
-                    insert.Transaction = transaction;
-                    insert.CommandText = """
-                        INSERT INTO core_asset
-                            (asset_id, project_id, content_hash, hash_algorithm, byte_length,
-                             media_type, format_version, relative_path, publication_state,
-                             integrity_state, created_at_utc_ms)
-                        VALUES ($assetId, $projectId, $contentHash, 'sha-256', $byteLength,
-                                $mediaType, $formatVersion, $relativePath, 'published',
-                                'unverified', $createdAt);
-                        """;
-                    insert.Parameters.AddWithValue("$assetId", Uuid(plan.AssetId));
-                    insert.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                    insert.Parameters.AddWithValue("$contentHash", AssetRules.NormalizeContentHash(plan.ContentHash));
-                    insert.Parameters.AddWithValue("$byteLength", plan.ByteLength);
-                    insert.Parameters.AddWithValue("$mediaType", plan.MediaType);
-                    insert.Parameters.AddWithValue("$formatVersion", plan.FormatVersion);
-                    insert.Parameters.AddWithValue("$relativePath", AssetRules.ContentAddressedRelativePath(plan.ContentHash));
-                    insert.Parameters.AddWithValue("$createdAt", plan.CreatedAtUtcMs);
-                    insert.ExecuteNonQuery();
-                }
-
-                var record = TryReadAssetRow(transaction, plan.ProjectId, plan.AssetId)
-                    ?? throw new CoreDomainDataException("Asset 登记后不可读（数据损坏）。");
-                transaction.Commit();
-                return record;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
-        });
-    }
-
-    public void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
-    {
-        _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            try
-            {
-                var stateText = integrityState switch
-                {
-                    AssetIntegrityState.Verified => "verified",
-                    AssetIntegrityState.Unverified => "unverified",
-                    AssetIntegrityState.Corrupt => "corrupt",
-                    AssetIntegrityState.Missing => "missing",
-                    _ => throw new CoreDomainDataException($"integrity_state {integrityState} 不可识别。"),
+                    AssetId = plan.AssetId,
+                    ProjectId = plan.ProjectId,
+                    ContentHash = AssetRules.NormalizeContentHash(plan.ContentHash),
+                    HashAlgorithm = "sha-256",
+                    ByteLength = plan.ByteLength,
+                    MediaType = plan.MediaType,
+                    FormatVersion = plan.FormatVersion,
+                    RelativePath = AssetRules.ContentAddressedRelativePath(plan.ContentHash),
+                    PublicationState = "published",
+                    IntegrityState = "unverified",
+                    CreatedAtUtcMs = plan.CreatedAtUtcMs,
                 };
-                using var update = connection.CreateCommand();
-                update.Transaction = transaction;
-                update.CommandText = """
-                    UPDATE core_asset
-                    SET integrity_state = $state, created_at_utc_ms = created_at_utc_ms
-                    WHERE project_id = $projectId AND asset_id = $assetId;
-                    """;
-                update.Parameters.AddWithValue("$state", stateText);
-                update.Parameters.AddWithValue("$projectId", Uuid(projectId));
-                update.Parameters.AddWithValue("$assetId", Uuid(assetId));
-                if (update.ExecuteNonQuery() != 1)
-                {
-                    throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，无法更新完整性状态。");
-                }
 
+                db.Assets.Add(entity);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
+                return MapAsset(entity);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+            {
+                transaction.Rollback();
+                throw sqlite;
             }
             catch
             {
@@ -153,107 +86,112 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
+    public void UpdateAssetIntegrityState(
+        Guid projectId,
+        Guid assetId,
+        AssetIntegrityState integrityState,
+        long nowUtcMs)
     {
-        const string sql = """
-            SELECT a.asset_id
-            FROM core_asset a
-            WHERE a.project_id = $projectId
-              AND NOT EXISTS (
-                  SELECT 1 FROM core_object_definition_asset l
-                  WHERE l.project_id = a.project_id AND l.asset_id = a.asset_id)
-            ORDER BY a.asset_id;
-            """;
-        return _access.Execute(connection =>
+        _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
+        var stateText = integrityState switch
         {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            using var reader = command.ExecuteReader();
-            var ids = new List<Guid>();
-            while (reader.Read())
+            AssetIntegrityState.Verified => "verified",
+            AssetIntegrityState.Unverified => "unverified",
+            AssetIntegrityState.Corrupt => "corrupt",
+            AssetIntegrityState.Missing => "missing",
+            _ => throw new CoreDomainDataException($"integrity_state {integrityState} 不可识别。"),
+        };
+
+        _ef.Execute(db =>
+        {
+            using var transaction = db.Database.BeginTransaction();
+            try
             {
-                ids.Add(ParseUuid(reader.GetString(0)));
+                var entity = db.Assets.SingleOrDefault(x =>
+                    x.ProjectId == projectId && x.AssetId == assetId);
+                if (entity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法更新完整性状态。");
+                }
+
+                entity.IntegrityState = stateText;
+                SaveChangesOrThrowSqlite(db);
+                transaction.Commit();
             }
-
-            return (IReadOnlyList<Guid>)ids;
-        });
-    }
-
-    public ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(Guid projectId, Guid objectIdentityId, Guid assetId, string role)
-    {
-        const string sql = """
-            SELECT object_definition_asset_id, project_id, object_identity_id, asset_id, role, created_at_utc_ms
-            FROM core_object_definition_asset
-            WHERE project_id = $projectId AND object_identity_id = $identityId
-              AND asset_id = $assetId AND role = $role;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
-            command.Parameters.AddWithValue("$assetId", Uuid(assetId));
-            command.Parameters.AddWithValue("$role", role);
-            using var reader = command.ExecuteReader();
-            return reader.Read() ? MapDefinitionAssetLink(reader) : null;
-        });
-    }
-
-    public IReadOnlyList<ObjectDefinitionAssetLinkRecord> ListDefinitionAssetLinks(Guid projectId, Guid objectIdentityId)
-    {
-        const string sql = """
-            SELECT object_definition_asset_id, project_id, object_identity_id, asset_id, role, created_at_utc_ms
-            FROM core_object_definition_asset
-            WHERE project_id = $projectId AND object_identity_id = $identityId
-            ORDER BY asset_id, role;
-            """;
-        return _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-            command.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
-            using var reader = command.ExecuteReader();
-            var rows = new List<ObjectDefinitionAssetLinkRecord>();
-            while (reader.Read())
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
             {
-                rows.Add(MapDefinitionAssetLink(reader));
+                transaction.Rollback();
+                throw sqlite;
             }
-
-            return (IReadOnlyList<ObjectDefinitionAssetLinkRecord>)rows;
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         });
     }
+
+    public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId) =>
+        _ef.Execute(db => (IReadOnlyList<Guid>)db.Assets.AsNoTracking()
+            .Where(asset => asset.ProjectId == projectId
+                && !db.ObjectDefinitionAssets.Any(link =>
+                    link.project_id == asset.ProjectId && link.asset_id == asset.AssetId))
+            .OrderBy(asset => asset.AssetId)
+            .Select(asset => asset.AssetId)
+            .ToArray());
+
+    public ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(
+        Guid projectId,
+        Guid objectIdentityId,
+        Guid assetId,
+        string role) =>
+        _ef.Execute(db =>
+        {
+            var entity = db.ObjectDefinitionAssets.AsNoTracking().SingleOrDefault(x =>
+                x.project_id == projectId
+                && x.object_identity_id == objectIdentityId
+                && x.asset_id == assetId
+                && x.role == role);
+            return entity is null ? null : MapDefinitionAssetLink(entity);
+        });
+
+    public IReadOnlyList<ObjectDefinitionAssetLinkRecord> ListDefinitionAssetLinks(
+        Guid projectId,
+        Guid objectIdentityId) =>
+        _ef.Execute(db => (IReadOnlyList<ObjectDefinitionAssetLinkRecord>)db.ObjectDefinitionAssets
+            .AsNoTracking()
+            .Where(x => x.project_id == projectId && x.object_identity_id == objectIdentityId)
+            .OrderBy(x => x.asset_id)
+            .ThenBy(x => x.role)
+            .AsEnumerable()
+            .Select(MapDefinitionAssetLink)
+            .ToArray());
 
     public void LinkDefinitionAsset(LinkDefinitionAssetPlan plan)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                using var insert = connection.CreateCommand();
-                insert.Transaction = transaction;
-                insert.CommandText = """
-                    INSERT INTO core_object_definition_asset
-                        (object_definition_asset_id, project_id, object_identity_id, asset_id, role, created_at_utc_ms)
-                    VALUES ($linkId, $projectId, $identityId, $assetId, $role, $createdAt);
-                    """;
-                insert.Parameters.AddWithValue("$linkId", Uuid(plan.ObjectDefinitionAssetId));
-                insert.Parameters.AddWithValue("$projectId", Uuid(plan.ProjectId));
-                insert.Parameters.AddWithValue("$identityId", Uuid(plan.ObjectIdentityId));
-                insert.Parameters.AddWithValue("$assetId", Uuid(plan.AssetId));
-                insert.Parameters.AddWithValue("$role", plan.Role);
-                insert.Parameters.AddWithValue("$createdAt", plan.CreatedAtUtcMs);
-                insert.ExecuteNonQuery();
+                db.ObjectDefinitionAssets.Add(new CoreObjectDefinitionAssetEntity
+                {
+                    object_definition_asset_id = plan.ObjectDefinitionAssetId,
+                    project_id = plan.ProjectId,
+                    object_identity_id = plan.ObjectIdentityId,
+                    asset_id = plan.AssetId,
+                    role = plan.Role,
+                    created_at_utc_ms = plan.CreatedAtUtcMs,
+                });
+
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+            {
+                transaction.Rollback();
+                throw sqlite;
             }
             catch
             {
@@ -265,28 +203,29 @@ public sealed partial class SqliteCoreDomainDatabase
 
     public void UnlinkDefinitionAsset(Guid projectId, Guid objectIdentityId, Guid assetId, string role)
     {
-        _access.Execute(connection =>
+        _ef.Execute(db =>
         {
-            using var transaction = connection.BeginTransaction();
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                using var delete = connection.CreateCommand();
-                delete.Transaction = transaction;
-                delete.CommandText = """
-                    DELETE FROM core_object_definition_asset
-                    WHERE project_id = $projectId AND object_identity_id = $identityId
-                      AND asset_id = $assetId AND role = $role;
-                    """;
-                delete.Parameters.AddWithValue("$projectId", Uuid(projectId));
-                delete.Parameters.AddWithValue("$identityId", Uuid(objectIdentityId));
-                delete.Parameters.AddWithValue("$assetId", Uuid(assetId));
-                delete.Parameters.AddWithValue("$role", role);
-                if (delete.ExecuteNonQuery() != 1)
+                var entity = db.ObjectDefinitionAssets.SingleOrDefault(x =>
+                    x.project_id == projectId
+                    && x.object_identity_id == objectIdentityId
+                    && x.asset_id == assetId
+                    && x.role == role);
+                if (entity is null)
                 {
                     throw new CoreDomainConflictException("definition Asset link 不存在，无法移除。");
                 }
 
+                db.ObjectDefinitionAssets.Remove(entity);
+                SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+            {
+                transaction.Rollback();
+                throw sqlite;
             }
             catch
             {
@@ -296,66 +235,66 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    // ---- 行读取辅助 ----
-
-    private AssetRecord? TryReadAssetRow(SqliteTransaction transaction, Guid projectId, Guid assetId)
+    private static AssetRecord MapAsset(CoreAssetEntity entity)
     {
-        const string sql = """
-            SELECT asset_id, project_id, content_hash, hash_algorithm, byte_length,
-                   media_type, format_version, relative_path, publication_state,
-                   integrity_state, created_at_utc_ms
-            FROM core_asset
-            WHERE project_id = $projectId AND asset_id = $assetId;
-            """;
-        using var command = transaction.Connection!.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = sql;
-        command.Parameters.AddWithValue("$projectId", Uuid(projectId));
-        command.Parameters.AddWithValue("$assetId", Uuid(assetId));
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? MapAsset(reader) : null;
-    }
-
-    private static AssetRecord MapAsset(SqliteDataReader reader)
-    {
-        var integrityText = reader.GetString(9);
-        var integrity = integrityText switch
+        var integrity = entity.IntegrityState switch
         {
             "verified" => AssetIntegrityState.Verified,
             "unverified" => AssetIntegrityState.Unverified,
             "corrupt" => AssetIntegrityState.Corrupt,
             "missing" => AssetIntegrityState.Missing,
-            _ => throw new CoreDomainDataException($"integrity_state \"{integrityText}\" 不可识别。"),
+            _ => throw new CoreDomainDataException(
+                $"integrity_state \"{entity.IntegrityState}\" 不可识别。"),
         };
-        var hash = reader.GetString(2);
-        if (!AssetRules.IsSha256Hex(hash))
+
+        if (!AssetRules.IsSha256Hex(entity.ContentHash))
         {
-            throw new CoreDomainDataException($"content_hash \"{hash}\" 不是规范 SHA-256 表示（数据损坏）。");
+            throw new CoreDomainDataException(
+                $"content_hash \"{entity.ContentHash}\" 不是规范 SHA-256 表示（数据损坏）。");
+        }
+
+        if (entity.PublicationState != "published")
+        {
+            throw new CoreDomainDataException(
+                $"publication_state \"{entity.PublicationState}\" 不可识别。");
         }
 
         return new AssetRecord
         {
-            AssetId = ParseUuid(reader.GetString(0)),
-            ProjectId = ParseUuid(reader.GetString(1)),
-            ContentHash = hash,
-            HashAlgorithm = reader.GetString(3),
-            ByteLength = reader.GetInt64(4),
-            MediaType = reader.GetString(5),
-            FormatVersion = reader.GetString(6),
-            RelativePath = AssetRules.NormalizeRelativePath(reader.GetString(7)),
+            AssetId = entity.AssetId,
+            ProjectId = entity.ProjectId,
+            ContentHash = entity.ContentHash,
+            HashAlgorithm = entity.HashAlgorithm,
+            ByteLength = entity.ByteLength,
+            MediaType = entity.MediaType,
+            FormatVersion = entity.FormatVersion,
+            RelativePath = AssetRules.NormalizeRelativePath(entity.RelativePath),
             PublicationState = AssetPublicationState.Published,
             IntegrityState = integrity,
-            CreatedAtUtcMs = reader.GetInt64(10),
+            CreatedAtUtcMs = entity.CreatedAtUtcMs,
         };
     }
 
-    private static ObjectDefinitionAssetLinkRecord MapDefinitionAssetLink(SqliteDataReader reader) => new()
+    private static ObjectDefinitionAssetLinkRecord MapDefinitionAssetLink(
+        CoreObjectDefinitionAssetEntity entity) => new()
     {
-        ObjectDefinitionAssetId = ParseUuid(reader.GetString(0)),
-        ProjectId = ParseUuid(reader.GetString(1)),
-        ObjectIdentityId = ParseUuid(reader.GetString(2)),
-        AssetId = ParseUuid(reader.GetString(3)),
-        Role = reader.GetString(4),
-        CreatedAtUtcMs = reader.GetInt64(5),
+        ObjectDefinitionAssetId = entity.object_definition_asset_id,
+        ProjectId = entity.project_id,
+        ObjectIdentityId = entity.object_identity_id,
+        AssetId = entity.asset_id,
+        Role = entity.role,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
     };
+
+    private static void SaveChangesOrThrowSqlite(CoreDomainDbContext db)
+    {
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+        {
+            throw sqlite;
+        }
+    }
 }

@@ -60,7 +60,7 @@ public static class ProjectPackageStructure
         }
 
         string candidate = candidateRelativePath.Trim();
-        if (Path.IsPathRooted(candidate))
+        if (Path.IsPathRooted(candidate) || IsWindowsRootedPath(candidate))
         {
             return false;
         }
@@ -82,5 +82,25 @@ public static class ProjectPackageStructure
         {
             return false;
         }
+    }
+
+    // Path.IsPathRooted follows the host OS. Package manifests are portable, so reject
+    // Windows drive/UNC roots even when validation runs on Unix (and vice versa).
+    private static bool IsWindowsRootedPath(string path)
+    {
+        if (path.Length == 0)
+        {
+            return false;
+        }
+
+        if (path[0] is '\\' or '/')
+        {
+            return true;
+        }
+
+        return path.Length >= 3
+            && char.IsAsciiLetter(path[0])
+            && path[1] == ':'
+            && path[2] is '\\' or '/';
     }
 }

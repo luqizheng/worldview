@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://world-view.local/schemas/field-package-manifest-v1.schema.json",
-  "title": "World View Field Package Canonical Manifest V1",
-  "description": "Strict V1 manifest shape; descriptor and cross-field checks are additionally enforced by Core Domain and the package reader.",
+  "$id": "https://world-view.local/schemas/field-package-manifest.schema.json",
+  "title": "World View Field Package Canonical Manifest",
+  "description": "The single canonical manifest contract for the initial World View release. Descriptor-specific and owner-context constraints are additionally enforced by Core Domain and the package reader.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -81,6 +81,14 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 160
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "m",
+            "ft"
+          ],
+          "description": "Physical unit of elevation sample values. Required for elevation and not applicable to categorical fields."
         }
       }
     },
@@ -89,7 +97,8 @@
       "additionalProperties": false,
       "required": [
         "map_space_id",
-        "spatial_reference_id"
+        "spatial_reference_id",
+        "coordinate_precision_profile_id"
       ],
       "properties": {
         "map_space_id": {
@@ -101,6 +110,18 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        },
+        "coordinate_precision_profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Coordinate precision profile selected by the immutable Spatial Reference definition; distinct from sample value encoding."
+        },
+        "vertical_reference_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Stable vertical datum/reference identity. Required for elevation; distinct from horizontal spatial_reference_id and sample unit."
         }
       }
     },
@@ -141,16 +162,20 @@
           "maximum": 65535
         },
         "origin_x": {
-          "$ref": "#/$defs/decimalString"
+          "$ref": "#/$defs/decimalString",
+          "description": "Grid alignment origin X; alignment is represented by origin_x/origin_y, axis_orientation and cell_registration."
         },
         "origin_y": {
-          "$ref": "#/$defs/decimalString"
+          "$ref": "#/$defs/decimalString",
+          "description": "Grid alignment origin Y; alignment is represented by origin_x/origin_y, axis_orientation and cell_registration."
         },
         "spacing_x": {
-          "$ref": "#/$defs/positiveDecimalString"
+          "$ref": "#/$defs/positiveDecimalString",
+          "description": "Grid resolution along X; together with spacing_y, width and height defines the grid resolution."
         },
         "spacing_y": {
-          "$ref": "#/$defs/positiveDecimalString"
+          "$ref": "#/$defs/positiveDecimalString",
+          "description": "Grid resolution along Y; together with spacing_x, width and height defines the grid resolution."
         },
         "axis_orientation": {
           "enum": [
@@ -256,7 +281,8 @@
         "profile_id": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 160
+          "maxLength": 160,
+          "description": "Sample representation/encoding profile identity; not the coordinate precision profile selected by the Spatial Reference."
         },
         "profile_scope": {
           "enum": [
@@ -441,6 +467,64 @@
             "not": {
               "required": [
                 "category_codes"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "elevation"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "field": {
+            "required": [
+              "unit"
+            ]
+          },
+          "spatial": {
+            "required": [
+              "vertical_reference_id"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "field": {
+            "properties": {
+              "field_key": {
+                "const": "land_water"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "field": {
+            "not": {
+              "required": [
+                "unit"
+              ]
+            }
+          },
+          "spatial": {
+            "not": {
+              "required": [
+                "vertical_reference_id"
               ]
             }
           }

@@ -10,6 +10,12 @@ public sealed record MapRecord
 
     public required Guid ProjectId { get; init; }
 
+    /// <summary>Map 创建时生成且不可变的唯一空间身份。</summary>
+    public string MapSpaceId { get; init; } = string.Empty;
+
+    /// <summary>当前活动的项目级不可变 Spatial Reference；未配置时禁止发布空间数据。</summary>
+    public string? SpatialReferenceId { get; init; }
+
     /// <summary>地图名（非空白，去首尾空白后保存）。</summary>
     public required string MapName { get; init; }
 

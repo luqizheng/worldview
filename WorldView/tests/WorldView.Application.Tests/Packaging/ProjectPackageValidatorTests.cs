@@ -17,7 +17,7 @@ public class ProjectPackageValidatorTests : IDisposable
 
     public ProjectPackageValidatorTests()
     {
-        _bootstrapper = new ApplicationBootstrapper(Array.Empty<IMigrationSource>());
+        _bootstrapper = new ApplicationBootstrapper();
         _packageRoot = Path.Combine(Path.GetTempPath(), $"wv-validator-{Guid.NewGuid():N}.wvproject");
     }
 

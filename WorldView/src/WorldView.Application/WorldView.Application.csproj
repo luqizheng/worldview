@@ -1,12 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Corvus.Text.Json" Version="5.8.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WorldView.Domain\WorldView.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 会话生命周期的内部状态转移仅供测试工程断言使用。 -->
+    <!-- Session lifecycle internals are exposed only for focused application tests. -->
     <InternalsVisibleTo Include="WorldView.Application.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../docs/architecture/core-domain/p2-09-34-field-package-canonical-manifest-schema-v0.1.json"
+                      Link="Packaging/Schemas/field-package-manifest.schema.json"
+                      LogicalName="WorldView.Application.Packaging.Schemas.field-package-manifest.schema.json" />
   </ItemGroup>
 
 </Project>

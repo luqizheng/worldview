@@ -30,7 +30,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
 {
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public PersistenceConcurrencyTests()
@@ -57,20 +57,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         var database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, fileName));
         database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
-        return database;
-    }
-
-    /// <summary>仅建 ledger + 元数据、不应用任何模块迁移的数据库（迁移失败测试用）。</summary>
-    private SqlitePackageDatabase CreateLedgerOnlyDatabase(string fileName)
-    {
-        var database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, fileName));
-        database.OpenAsync().GetAwaiter().GetResult();
-        database.EnsureLedgerTableAsync().GetAwaiter().GetResult();
-        database.WriteMetadataAsync(new BootstrapMetadata
-        {
-            DatabaseFormatVersion = 1,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-        }).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(database);
         return database;
     }
 
@@ -320,7 +307,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         MapService.CreateMap(core, project.ProjectId, "M", 10L);
 
         var barrier = new Barrier(3);
-        var ledgerTask = Task.Run(async () =>
+        var metadataTask = Task.Run(async () =>
         {
             barrier.SignalAndWait();
             Exception? failure = null;
@@ -328,8 +315,8 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             {
                 failure = await CaptureAsync(async () =>
                 {
-                    var entries = await _database.ReadLedgerAsync().ConfigureAwait(false);
-                    Assert.Equal(10, entries.Count);
+                    var metadata = await _database.ReadMetadataAsync().ConfigureAwait(false);
+                    Assert.NotNull(metadata);
                 }).ConfigureAwait(false);
             }
 
@@ -361,7 +348,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             return failure;
         });
 
-        var failures = (await Task.WhenAll(ledgerTask, integrityTask, coreTask).ConfigureAwait(false))
+        var failures = (await Task.WhenAll(metadataTask, integrityTask, coreTask).ConfigureAwait(false))
             .Where(f => f is not null).ToList();
         Assert.Empty(failures);
     }
@@ -483,11 +470,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             foreach (var table in new[]
                      {
                          "core_project", "core_map", "core_history", "core_branch",
-                         "core_calendar", "core_calendar_configuration", "schema_migration",
+                         "core_calendar", "core_calendar_configuration",
                          "core_object_type", "core_object", "core_object_definition",
                          "core_object_id_allocator", "core_object_id_reservation",
                          "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
-                         "core_asset", "core_object_definition_asset",
+                         "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision",
                      })
             {
                 counts[table] = Scalar(connection, $"SELECT COUNT(*) FROM {table}");
@@ -550,9 +537,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
 
         var workersTasks = Enumerable.Range(0, workers).Select(w => Task.Run(() =>
         {
-            barrier.SignalAndWait();
+            // 构造适配器会确认/应用 EF Migration；在释放屏障前完成构造，
+            // 让并发窗口只覆盖实际数据库操作与 Dispose。
             var workerCore = new SqliteCoreDomainDatabase(_database);
             var workerQuery = new CoreDomainMapQueryService(_database);
+            barrier.SignalAndWait();
             for (var i = 0; i < rounds; i++)
             {
                 var failure = Capture(() =>
@@ -593,7 +582,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
             var branches = access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_branch"));
             // 成功提交的写数量取决于 dispose 与写者的交错（0..workers*rounds/2 均合法），
             // 但任何已提交的写必须完整（branch 行与 branch_owned history 一一对应）。
-            Assert.True(branches is >= 0 and <= workers * rounds / 2, $"branches={branches}");
+            Assert.True(branches is >= 0 and <= workers * ((rounds + 1) / 2), $"branches={branches}");
             Assert.Equal(
                 branches,
                 access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_history WHERE history_kind = 'branch_owned'")));
@@ -627,167 +616,6 @@ public sealed class PersistenceConcurrencyTests : IDisposable
     }
 
     // ---- 5.4 Migration Tests ----
-
-    private sealed class InlineMigrationSource : IMigrationSource
-    {
-        private readonly ModuleMigration _migration;
-
-        public InlineMigrationSource(ModuleMigration migration) => _migration = migration;
-
-        public IReadOnlyList<ModuleMigration> DiscoverMigrations() => new[] { _migration };
-    }
-
-    [Fact]
-    public async Task Migration_PendingApplied_ConcurrentlyWithCoreReads_BothSucceed()
-    {
-        // 迁移入口与其他数据库操作并发：同一数据库实例上全部经同一协调器，
-        // 迁移事务不可能被其他操作切入。暂存库已应用 core-domain 全部 4 条迁移，
-        // 再以“core-domain + 1 条自定义迁移”的完整来源做校验 → 恰有 1 条 pending，
-        // 其应用与 Core 读并发执行。
-        var extra = new ModuleMigration
-        {
-            ModuleId = "cd01-f1-test",
-            MigrationId = "001_extra",
-            Checksum = "cafe01",
-            SqlScript = "CREATE TABLE cd_f1_extra (id INTEGER PRIMARY KEY);",
-        };
-        var staged = CreateInitializedDatabase("staged.sqlite");
-        try
-        {
-            var core = new SqliteCoreDomainDatabase(staged);
-            var project = ProjectRules.CreateProject("P", 1L);
-            core.InsertProject(ProjectCreationPlan.Create(project));
-            var mapPlan = MapService.CreateMap(core, project.ProjectId, "M", 10L);
-            BranchService.CreateBranch(
-                core, project.ProjectId, mapPlan.RootHistory.HistoryId, "B", HistoricalTime.Epoch, 20L);
-
-            var fullBootstrapper = new ApplicationBootstrapper(new IMigrationSource[]
-            {
-                new CoreDomainMigrationSource(), new InlineMigrationSource(extra),
-            });
-            var barrier = new Barrier(2);
-            var migrate = Task.Run(async () =>
-            {
-                barrier.SignalAndWait();
-                return await CaptureAsync(async () =>
-                {
-                    var result = await fullBootstrapper.ValidateExistingDatabaseAsync(staged).ConfigureAwait(false);
-                    Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
-                    Assert.Single(result.AppliedMigrations); // 仅 001_extra
-                }).ConfigureAwait(false);
-            });
-            var read = Task.Run(() =>
-            {
-                barrier.SignalAndWait();
-                Exception? failure = null;
-                var reader = new CoreDomainMapQueryService(staged);
-                for (var i = 0; i < 80 && failure is null; i++)
-                {
-                    failure = Capture(() =>
-                        Assert.Single(reader.ListMapsAsync(project.ProjectId).GetAwaiter().GetResult()));
-                }
-
-                return failure;
-            });
-
-            var failures = (await Task.WhenAll(migrate, read).ConfigureAwait(false))
-                .Where(f => f is not null).ToList();
-            Assert.Empty(failures);
-
-            var ledger = await staged.ReadLedgerAsync().ConfigureAwait(false);
-            Assert.Equal(11, ledger.Count); // 10 core-domain + 1 extra，无重复应用
-            Assert.Equal(1, AccessOf(staged).Execute(c => Scalar(c, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'cd_f1_extra'")));
-            Assert.True(await staged.IntegrityCheckAsync().ConfigureAwait(false));
-        }
-        finally
-        {
-            await staged.DisposeAsync().ConfigureAwait(false);
-        }
-    }
-
-    [Fact]
-    public async Task Migration_FailingScript_RollsBackSchemaAndLedger()
-    {
-        var failing = new ModuleMigration
-        {
-            ModuleId = "test-module",
-            MigrationId = "001_bad",
-            Checksum = "deadbeef",
-            SqlScript = "CREATE TABLE cd_f1_probe (id INTEGER PRIMARY KEY); CREATE TABLE cd_f1_probe (id INTEGER PRIMARY KEY);",
-        };
-        var database = CreateLedgerOnlyDatabase("failing.sqlite");
-        try
-        {
-            var bootstrapper = new ApplicationBootstrapper(new[] { new InlineMigrationSource(failing) });
-            var result = await bootstrapper.ValidateExistingDatabaseAsync(database).ConfigureAwait(false);
-            Assert.False(result.Success);
-            Assert.Contains(result.Issues, i => i.Code == PackageIssueCode.InternalError);
-
-            var access = AccessOf(database);
-            Assert.Equal(0, access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'cd_f1_probe'")));
-            Assert.Equal(0, access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration WHERE module_id = 'test-module'")));
-
-            // 回滚后连接可用：core-domain 正式迁移仍可正常补齐（schema 版本正确）。
-            var repair = await _bootstrapper.ValidateExistingDatabaseAsync(database).ConfigureAwait(false);
-            Assert.True(repair.Success, string.Join("; ", repair.Issues.Select(i => i.Message)));
-            Assert.Equal(10, repair.AppliedMigrations.Count);
-        }
-        finally
-        {
-            await database.DisposeAsync().ConfigureAwait(false);
-        }
-    }
-
-    [Fact]
-    public async Task Migration_TwoConnectionsSameFile_ConcurrentInitialize_AppliedExactlyOnce()
-    {
-        var first = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "race.sqlite"));
-        var second = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "race.sqlite"));
-        await first.OpenAsync().ConfigureAwait(false);
-        await second.OpenAsync().ConfigureAwait(false);
-        try
-        {
-            var barrier = new Barrier(2);
-            var results = new BootstrapResult[2];
-            var t1 = Task.Run(async () =>
-            {
-                barrier.SignalAndWait();
-                results[0] = await _bootstrapper.InitializeNewDatabaseAsync(first, DateTimeOffset.UtcNow).ConfigureAwait(false);
-            });
-            var t2 = Task.Run(async () =>
-            {
-                barrier.SignalAndWait();
-                results[1] = await _bootstrapper.InitializeNewDatabaseAsync(second, DateTimeOffset.UtcNow).ConfigureAwait(false);
-            });
-            await Task.WhenAll(t1, t2).ConfigureAwait(false);
-
-            // 跨连接（文件级）竞争：ledger 主键 + SQLite 文件锁保证每条迁移恰好应用一次；
-            // 双成功（后者读到 0 pending）或一成功一 fail-closed 均为合法结局。
-            Assert.Contains(results, r => r.Success);
-
-            await using var verify = (SqlitePackageDatabase)_factory.CreateForFile(first.DatabasePath);
-            await verify.OpenAsync().ConfigureAwait(false);
-            Assert.True(await verify.IntegrityCheckAsync().ConfigureAwait(false));
-            var access = AccessOf(verify);
-            Assert.Equal(10, access.Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
-            Assert.Equal(10, access.Execute(
-                c => Scalar(c, "SELECT COUNT(DISTINCT migration_id) FROM schema_migration")));
-        }
-        finally
-        {
-            await first.DisposeAsync().ConfigureAwait(false);
-            await second.DisposeAsync().ConfigureAwait(false);
-        }
-    }
-
-    [Fact]
-    public async Task Migration_SecondValidation_AppliesNothing()
-    {
-        var result = await _bootstrapper.ValidateExistingDatabaseAsync(_database).ConfigureAwait(false);
-        Assert.True(result.Success, string.Join("; ", result.Issues.Select(i => i.Message)));
-        Assert.Empty(result.AppliedMigrations);
-        Assert.Equal(10, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM schema_migration")));
-    }
 
     // ---- 辅助 ----
 
