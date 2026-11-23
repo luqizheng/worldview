@@ -2,8 +2,10 @@
 
 - 分支：`feat/efcore-v1-asset-geometry-invariants`
 - Base：`feat/efcore-v1-complete-model`（PR #11 Head，Draft 保持）
+- Stacked PR：[#22](https://github.com/luqizheng/worldview/pull/22)（Draft，Base 指向 PR #11 Head）
 - 基线 SHA：`991aa17b7a3f6f2588aabf596e2e808b6c9cdde2`
-- 状态：本地 Windows Debug/Release 全部通过；四平台 GitHub Actions 结果见文末（等待新 SHA 运行）
+- 实现提交 SHA：`d017449ab78f041eda2a612eb3f5c67bf9d61b92`
+- 状态：本地 Windows Debug/Release 全部通过；四平台 GitHub Actions 全部成功
 
 ## 1. 实际迁移的领域规则
 
@@ -167,12 +169,16 @@
 
 ## 7. GitHub Actions 四平台结果
 
+Workflow `.NET CI`，run 577（[run 45132975988](https://github.com/luqizheng/worldview/actions/runs/45132975988)），`head_sha = d017449ab78f041eda2a612eb3f5c67bf9d61b92`。
+
 | OS | Configuration | 结果 |
 |---|---|---|
-| Windows | Debug | 待新提交 SHA 运行 |
-| Windows | Release | 待新提交 SHA 运行 |
-| macOS | Debug | 待新提交 SHA 运行 |
-| macOS | Release | 待新提交 SHA 运行 |
+| Windows | Debug | success |
+| Windows | Release | success |
+| macOS | Debug | success |
+| macOS | Release | success |
+
+说明：PR #22 的 Base 是 PR #11 的功能分支，GitHub 默认 `pull_request` 过滤器只监听 `master`；因此本分支通过同时启用“功能分支 push”触发四平台矩阵，运行结果对应上述实现 SHA，未引用任何旧 SHA 记录。
 
 ## 8. 已知问题
 

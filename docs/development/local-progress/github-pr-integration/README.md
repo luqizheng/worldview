@@ -4,7 +4,7 @@
 
 | 任务 | 标题 | 状态 | 报告 |
 |---|---|---|---|
-| Task 002 | EF Core V1 Asset / Geometry Invariant Port | 进行中（本地 Windows Debug/Release 已通过，等待四平台 CI） | [002-efcore-v1-asset-geometry-invariant-port.md](002-efcore-v1-asset-geometry-invariant-port.md) |
+| Task 002 | EF Core V1 Asset / Geometry Invariant Port | 已完成（本地 Windows Debug/Release + 四平台 CI 全部通过；PR #22 Draft） | [002-efcore-v1-asset-geometry-invariant-port.md](002-efcore-v1-asset-geometry-invariant-port.md) |
 
 ## 约定
 
