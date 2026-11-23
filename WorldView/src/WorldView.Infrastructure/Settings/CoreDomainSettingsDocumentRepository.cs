@@ -75,8 +75,9 @@ public sealed class CoreDomainSettingsDocumentRepository : ISettingsDocumentRepo
             if (!context.Projects.Any(x => x.ProjectId == projectId))
                 throw new CoreDomainDataException("Cannot publish Project Settings for an unknown Project.");
 
-            var version = context.ProjectSettingsRevisions.Where(x => x.ProjectId == projectId)
-                .Select(x => x.Version).DefaultIfEmpty(0).Max() + 1;
+            var previousVersions = context.ProjectSettingsRevisions.Where(x => x.ProjectId == projectId)
+                .Select(x => x.Version).ToArray();
+            var version = previousVersions.Length == 0 ? 1 : previousVersions.Max() + 1;
             var revision = new CoreProjectSettingsRevisionEntity
             {
                 ProjectSettingsRevisionId = Guid.NewGuid(),
@@ -122,9 +123,10 @@ public sealed class CoreDomainSettingsDocumentRepository : ISettingsDocumentRepo
             if (!context.Maps.Any(x => x.ProjectId == projectId && x.MapId == mapId))
                 throw new CoreDomainDataException("Cannot publish Map Settings for a Map outside the specified Project.");
 
-            var version = context.MapSettingsRevisions
+            var previousVersions = context.MapSettingsRevisions
                 .Where(x => x.ProjectId == projectId && x.MapId == mapId)
-                .Select(x => x.Version).DefaultIfEmpty(0).Max() + 1;
+                .Select(x => x.Version).ToArray();
+            var version = previousVersions.Length == 0 ? 1 : previousVersions.Max() + 1;
             var revision = new CoreMapSettingsRevisionEntity
             {
                 MapSettingsRevisionId = Guid.NewGuid(),
