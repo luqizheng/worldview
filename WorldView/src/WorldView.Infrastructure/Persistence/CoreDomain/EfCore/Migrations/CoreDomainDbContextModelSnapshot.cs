@@ -1311,35 +1311,41 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsCurrentEntity", b =>
             {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
-                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_current_core_project_project_id");
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsRevisionEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "ProjectSettingsRevisionId")
                     .HasPrincipalKey("ProjectId", "ProjectSettingsRevisionId")
-                    .OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_current_project_settings_revision");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsRevisionEntity", b =>
             {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
-                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_revision_core_project_project_id");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsCurrentEntity", b =>
             {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
-                    .OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_revision_core_map_project_map");
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId", "MapSettingsRevisionId")
                     .HasPrincipalKey("ProjectId", "MapId", "MapSettingsRevisionId")
-                    .OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_current_map_settings_revision");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", b =>
             {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
-                    .OnDelete(DeleteBehavior.NoAction).IsRequired();
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_current_core_map_project_map");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", b =>
