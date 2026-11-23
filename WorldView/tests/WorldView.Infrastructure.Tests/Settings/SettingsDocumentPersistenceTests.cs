@@ -156,6 +156,25 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
         await Assert.ThrowsAsync<FileNotFoundException>(() =>
             recovery.ReconcileAsync(_database, _root, project.ProjectId));
     }
+    [Fact]
+    public async Task StartupRecovery_FailsClosedWhenAReferencedRevisionIsCorrupt()
+    {
+        var project = ProjectRules.CreateProject("Corrupt Settings", 3100);
+        _core.InsertProject(ProjectCreationPlan.Create(project));
+        var repository = new CoreDomainSettingsDocumentRepository(_database);
+        var fileStore = new SettingsDocumentFileStore(_root);
+        var service = new SettingsDocumentService(repository, fileStore);
+        var revision = await service.SaveProjectAsync(project.ProjectId,
+            JObject.Parse("{\\"name\\":\\"must remain intact\\"}"));
+
+        var path = Path.Combine(_root, revision.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        await File.WriteAllTextAsync(path, "{corrupt}");
+
+        var recovery = new CoreDomainSettingsDocumentRecovery();
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            recovery.ReconcileAsync(_database, _root, project.ProjectId));
+    }
+
     private sealed class CancelAfterPutFileStore(
         ISettingsDocumentFileStore inner,
         System.Threading.CancellationTokenSource cancellation) : ISettingsDocumentFileStore
