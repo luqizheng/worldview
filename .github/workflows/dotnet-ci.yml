@@ -19,6 +19,9 @@ jobs:
         os: [windows-latest, macos-latest]
         configuration: [Debug, Release]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: WorldView
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,13 +35,10 @@ jobs:
         run: dotnet --info
 
       - name: Restore
-        working-directory: WorldView
         run: dotnet restore WorldView.sln
 
       - name: Build
-        working-directory: WorldView
         run: dotnet build WorldView.sln --configuration ${{ matrix.configuration }} --no-restore
 
-      - name: Test
-        working-directory: WorldView
-        run: dotnet test WorldView.sln --configuration ${{ matrix.configuration }} --no-build --no-restore
+      - name: Test (with slow-test diagnostics)
+        run: dotnet test WorldView.sln --configuration ${{ matrix.configuration }} --no-build --no-restore -- --show-slowest-tests 20
