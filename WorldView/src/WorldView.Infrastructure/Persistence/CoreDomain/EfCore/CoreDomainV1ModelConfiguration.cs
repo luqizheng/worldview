@@ -81,6 +81,7 @@ internal static class CoreDomainV1ModelConfiguration
         {
             entity.ToTable("core_project_settings_current");
             entity.HasKey(x => x.ProjectId);
+            entity.HasIndex(x => new { x.ProjectId, x.ProjectSettingsRevisionId });
             entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.ProjectSettingsRevisionId).HasColumnName("project_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
@@ -124,6 +125,7 @@ internal static class CoreDomainV1ModelConfiguration
         {
             entity.ToTable("core_map_settings_current");
             entity.HasKey(x => new { x.ProjectId, x.MapId });
+            entity.HasIndex(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId });
             entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.MapId).HasColumnName("map_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.MapSettingsRevisionId).HasColumnName("map_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
