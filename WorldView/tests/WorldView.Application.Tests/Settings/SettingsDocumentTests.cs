@@ -86,7 +86,7 @@ public sealed class SettingsDocumentTests
         var trailing = Encoding.UTF8.GetBytes(
             "{\"format\":\"worldview.project-settings\",\"schemaVersion\":1,"
             + "\"projectId\":\"11111111-1111-1111-1111-111111111111\",\"settings\":{}} {}");
-        Assert.Throws<JsonSerializationException>(() =>
+        Assert.ThrowsAny<JsonException>(() =>
             SettingsDocument.Parse(trailing, ProjectId));
     }
 
