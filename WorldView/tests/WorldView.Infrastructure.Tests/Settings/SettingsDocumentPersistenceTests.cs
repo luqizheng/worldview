@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using Microsoft.Data.Sqlite;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Settings;
 using WorldView.Domain.Maps;
@@ -139,6 +140,56 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
             .ReconcileAsync(_database, _root, project.ProjectId);
         Assert.Contains(orphanHashes[0], report.CollectedOrphanContentHashes);
         Assert.Empty(fileStore.ListPublishedContentHashes());
+    }
+
+    [Fact]
+    public async Task FailedCurrentPointerUpdate_RollsBackNewRevisionAndPreservesPreviousCurrentDocument()
+    {
+        var project = ProjectRules.CreateProject("Settings Transaction Rollback", 2800);
+        _core.InsertProject(ProjectCreationPlan.Create(project));
+        var repository = new CoreDomainSettingsDocumentRepository(_database);
+        var fileStore = new SettingsDocumentFileStore(_root);
+        var service = new SettingsDocumentService(repository, fileStore);
+
+        var first = await service.SaveProjectAsync(project.ProjectId,
+            JObject.Parse("""{"theme":"dark"}"""));
+
+        // Force the second SaveChanges (current-pointer UPDATE) to fail after the
+        // immutable revision INSERT has already executed inside the same transaction.
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = _database.DatabasePath,
+            Pooling = false,
+        }.ToString()))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TRIGGER TR_test_reject_project_settings_current_update
+                BEFORE UPDATE ON core_project_settings_current
+                BEGIN
+                    SELECT RAISE(ABORT, 'injected current-pointer failure');
+                END;
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        await Assert.ThrowsAnyAsync<Exception>(() => service.SaveProjectAsync(project.ProjectId,
+            JObject.Parse("""{"theme":"light"}""")));
+
+        Assert.Single(repository.ListProjectSettingsRevisions(project.ProjectId));
+        var current = await service.LoadCurrentProjectAsync(project.ProjectId);
+        Assert.Equal("dark", (string?)current!.Settings["theme"]);
+
+        var hashes = fileStore.ListPublishedContentHashes();
+        Assert.Equal(2, hashes.Count);
+        Assert.Contains(first.ContentHash, hashes);
+        var orphanHash = Assert.Single(hashes.Where(hash => hash != first.ContentHash));
+
+        var report = await new CoreDomainSettingsDocumentRecovery()
+            .ReconcileAsync(_database, _root, project.ProjectId);
+        Assert.Contains(orphanHash, report.CollectedOrphanContentHashes);
+        Assert.Contains(first.ContentHash, fileStore.ListPublishedContentHashes());
     }
 
     [Fact]
