@@ -63,6 +63,96 @@ public sealed class FieldPackageReaderTests
         Assert.Equal(FieldPackageBinaryErrorCodes.TileHash, error.Code);
     }
 
+    [Fact]
+    public void Open_RejectsTruncatedHeader()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes[..71])));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Truncated, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsDeclaredPhysicalLengthMismatch()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(64), (ulong)bytes.Length + 1);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Length, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsNonzeroManifestAlignmentPadding()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        var manifestEnd = 72 + manifest.Length;
+        var directoryOffset = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(40)));
+        Assert.True(directoryOffset > manifestEnd);
+        bytes[manifestEnd] = 0x7f;
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Header, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsNonzeroDirectoryEntryFlags()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        var directoryOffset = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(40)));
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(directoryOffset + 16 + 14), 1);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Directory, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsDirectoryEntryCountMismatch()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        var directoryOffset = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(40)));
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(directoryOffset + 8), 2);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Directory, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsTilePayloadRangeOutsidePackage()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        var directoryOffset = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(40)));
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(directoryOffset + 16 + 16), (ulong)bytes.Length + 8);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.TileRange, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsUnsupportedTileCodec()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var bytes = BuildPackage(manifest, Convert.FromHexString("000000000000c03f000010c00000284200000000"));
+        var directoryOffset = checked((int)BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(40)));
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(directoryOffset + 16 + 12), 1);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(bytes)));
+        Assert.Equal(FieldPackageBinaryErrorCodes.CodecUnsupported, error.Code);
+    }
+
     private static byte[] BuildPackage(byte[] manifest, byte[] tile)
     {
         const int headerLength = 72;
