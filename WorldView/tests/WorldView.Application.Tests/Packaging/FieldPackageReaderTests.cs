@@ -3,6 +3,8 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
+using WorldView.Domain.Fields;
 using WorldView.Application.Packaging;
 
 namespace WorldView.Application.Tests.Packaging;
@@ -67,6 +69,46 @@ public sealed class FieldPackageReaderTests
         using var reader = FieldPackageReader.Open(package, leaveOpen: true);
 
         var error = Assert.Throws<FieldPackageValidationException>(() => reader.ReadTile(0, 0));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Mask, error.Code);
+    }
+
+    [Fact]
+    public void ReadTile_AcceptsDistinctExplicitCoverageMask()
+    {
+        var manifest = WithExplicitCoverageMask();
+        var decoded = Convert.FromHexString("000000000000c03f000010c0000028420000000000010100");
+        using var package = new MemoryStream(BuildPackage(manifest, decoded));
+        using var reader = FieldPackageReader.Open(package, leaveOpen: true);
+
+        Assert.Equal(decoded, reader.ReadTile(0, 0));
+    }
+
+    [Fact]
+    public void ReadTile_RejectsInvalidExplicitCoverageMaskValue()
+    {
+        var manifest = WithExplicitCoverageMask();
+        var decoded = Convert.FromHexString("000000000000c03f000010c0000028420000000000010102");
+        using var package = new MemoryStream(BuildPackage(manifest, decoded));
+        using var reader = FieldPackageReader.Open(package, leaveOpen: true);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() => reader.ReadTile(0, 0));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Mask, error.Code);
+    }
+
+    [Fact]
+    public void Open_RejectsCoverageMaskAliasingValidityMask()
+    {
+        var node = JsonNode.Parse(Encoding.UTF8.GetString(ReadResource("minimal-elevation-2x2.manifest.json")))!;
+        node["coverage"] = new JsonObject
+        {
+            ["mask_plane_name"] = "validity_mask",
+            ["mode"] = "explicit_mask",
+        };
+        var manifest = Encoding.UTF8.GetBytes(FieldManifestCanonicalizer.Canonicalize(node.ToJsonString()));
+        var decoded = Convert.FromHexString("000000000000c03f000010c00000284200000000");
+
+        var error = Assert.Throws<FieldPackageValidationException>(() =>
+            FieldPackageReader.Open(new MemoryStream(BuildPackage(manifest, decoded))));
         Assert.Equal(FieldPackageBinaryErrorCodes.Mask, error.Code);
     }
 
@@ -207,6 +249,23 @@ public sealed class FieldPackageReaderTests
         SHA256.HashData(tile).CopyTo(entry.Slice(40));
         tile.CopyTo(result, payloadOffset);
         return result;
+    }
+
+    private static byte[] WithExplicitCoverageMask()
+    {
+        var node = JsonNode.Parse(Encoding.UTF8.GetString(ReadResource("minimal-elevation-2x2.manifest.json")))!;
+        node["value_encoding"]!["planes"]!.AsArray().Add(new JsonObject
+        {
+            ["bytes_per_cell"] = 1,
+            ["name"] = "coverage_mask",
+            ["sample_format"] = "uint8",
+        });
+        node["coverage"] = new JsonObject
+        {
+            ["mask_plane_name"] = "coverage_mask",
+            ["mode"] = "explicit_mask",
+        };
+        return Encoding.UTF8.GetBytes(FieldManifestCanonicalizer.Canonicalize(node.ToJsonString()));
     }
 
     private static int Align8(int value) => checked((value + 7) & ~7);
