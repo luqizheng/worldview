@@ -30,6 +30,7 @@
 
 ## 固定边界（每次执行均遵守）
 
+- **commit 前必须 build**：`dotnet build WorldView\WorldView.sln -c Debug` 确认 0 error；文档-only 提交同样适用。
 - 不合并、不关闭 PR，不删除分支，不修改 PR base，不修改仓库权限/Secrets。
 - 不擅自决定未确认的 Elevation precision、quantization、Land/Water 类码、codec profile、tile 尺寸。
 - 不以跳过测试、降低断言或屏蔽错误的方式换取绿色 CI。
