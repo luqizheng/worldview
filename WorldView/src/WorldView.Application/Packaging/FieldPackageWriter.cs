@@ -114,7 +114,6 @@ public static class FieldPackageWriter
             using var spool = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
                 64 * 1024, FileOptions.SequentialScan);
             var entries = new List<DirectoryEntry>(checked((int)expectedCount));
-            long spoolLength = 0;
             foreach (var tile in tiles)
             {
                 if (entries.Count >= expectedCount)
@@ -141,7 +140,6 @@ public static class FieldPackageWriter
                 var hash = SHA256.HashData(tile.DecodedBytes.Span);
                 var spoolOffset = spool.Position;
                 spool.Write(tile.DecodedBytes.Span);
-                spoolLength = checked(spoolLength + decodedLength);
                 entries.Add(new DirectoryEntry(tile.TileX, tile.TileY, tile.ValidWidth, tile.ValidHeight,
                     spoolOffset, decodedLength, hash));
             }
@@ -239,7 +237,7 @@ public static class FieldPackageWriter
             try
             {
                 destination.Position = 0;
-                var packageHash = Convert.ToHexString(SHA256.HashData(destination));
+                var packageHash = Convert.ToHexString(SHA256.HashData(destination)).ToLowerInvariant();
                 return new FieldPackageWriteResult(packageLength, entries.Count, packageHash);
             }
             finally
@@ -351,6 +349,7 @@ public static class FieldPackageWriter
     {
         if (count < 0) throw Error(FieldPackageBinaryErrorCodes.Overflow, "Negative padding length.");
         Span<byte> zeros = stackalloc byte[8];
+        zeros.Clear();
         while (count > 0)
         {
             var write = (int)Math.Min(zeros.Length, count);
