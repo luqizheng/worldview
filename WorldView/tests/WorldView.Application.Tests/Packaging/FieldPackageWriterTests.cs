@@ -28,7 +28,7 @@ public sealed class FieldPackageWriterTests
 
         Assert.Equal(expectedPackage, destination.ToArray());
         Assert.Equal(expectedHash, result.PackageSha256);
-        Assert.Equal(expectedPackage.Length, result.PackageLength);
+        Assert.Equal((long)expectedPackage.Length, result.PackageLength);
         Assert.Equal(tiles.Count, result.TileCount);
     }
 
