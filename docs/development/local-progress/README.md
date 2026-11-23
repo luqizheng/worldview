@@ -8,8 +8,9 @@
 |---|---|---|
 | `field-package/001-reader-writer.md` | WVFLDPK Reader/Writer 实施 | **缺失**：Reader/Writer 实现于本任务系列开始前的历史提交中完成（见 `feat/field-package-reader-writer` 分支 packaging 提交序列与 PR #17），当时未按本目录规范产出报告；不补造事后报告 |
 | `field-package/002-owner-context-validation.md` | Descriptor / Map Space / Spatial Reference Owner Context Validation | 完成 |
-| `field-package/003-payload-import.md` | Field Payload Import Adapter | 待做 |
-| `field-package/004-conformance-tests.md` | Conformance / Fuzz / Resource Limits | 待做 |
+| `field-package/003-payload-import.md` | Field Payload Import Adapter | 完成（Task 005 已重构其内部 Payload 布局，见 005 报告） |
+| `field-package/004-conformance-tests.md` | Conformance / Fuzz / Resource Limits | 完成 |
+| `field-package/005-import-export-authority-boundary.md` | Import/Export Authority Boundary（内部 Payload V1、Profile Gate、Exporter、Cancellation） | 完成 |
 
 ## 分支与 PR 上下文
 
