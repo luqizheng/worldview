@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Settings;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Domain.Projects;
 using WorldView.Infrastructure.Persistence;
