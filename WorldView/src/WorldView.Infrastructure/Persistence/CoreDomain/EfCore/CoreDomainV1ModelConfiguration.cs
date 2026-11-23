@@ -72,7 +72,7 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.ContentHash).HasColumnName("content_hash").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.ByteLength).HasColumnName("byte_length").HasColumnType("INTEGER");
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
-            entity.HasAlternateKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId });
+            entity.HasAlternateKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId }).HasName("AK_core_project_settings_revision_owner_revision");
             entity.HasIndex(x => new { x.ProjectId, x.Version }).IsUnique();
             entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_core_project_settings_revision_core_project_project_id");
@@ -116,7 +116,7 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.ContentHash).HasColumnName("content_hash").HasColumnType("TEXT").IsRequired();
             entity.Property(x => x.ByteLength).HasColumnName("byte_length").HasColumnType("INTEGER");
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
-            entity.HasAlternateKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId });
+            entity.HasAlternateKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId }).HasName("AK_core_map_settings_revision_owner_map_revision");
             entity.HasIndex(x => new { x.ProjectId, x.MapId, x.Version }).IsUnique();
             entity.HasOne<CoreMapEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.MapId })
