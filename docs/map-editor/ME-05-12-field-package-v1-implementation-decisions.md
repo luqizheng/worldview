@@ -137,3 +137,44 @@ Limits are checked before allocation, seek or decode. A policy rejection is a ty
 10. Keep the production writer disabled until the production precision/category/codec decisions in §4 are confirmed.
 
 No implementation, benchmark or platform pass is claimed by this baseline document.
+
+## 8. Manifest integrity at export and Descriptor Registry evolution (Task 007)
+
+### 8.1 Authority relationships (normative)
+
+The six data identities involved in import → persist → export remain distinct and are never conflated:
+
+| Identity | Authority role |
+|---|---|
+| `ManifestJson` (persisted column) | Immutable interchange snapshot of the imported package manifest, stored as the exact canonical bytes; written verbatim into exported packages. Never rebuilt from typed metadata. |
+| Typed `FieldRevisionMetadata` | The sole authority for domain reads and business operations; rebuilt from typed columns with zero JSON parsing. |
+| Internal Field Payload (BLOB/ManagedFile) | The runtime tile-content authority (decoded tile concatenation, hash + length verified on read). |
+| Package SHA-256 | Digest of the whole WVFLDPK interchange file; import/export result records only. |
+| Internal Payload SHA-256 | Digest of the internal payload; payload `ContentHash` and revision `ContentFingerprint` share this value in two roles. It never covers the manifest. |
+| `ContentFingerprint` | Revision content identity = internal payload digest (Task 005 decision). |
+
+### 8.2 Export-side manifest integrity guard (normative)
+
+The published revision row is structurally immutable at the database level (`trg_core_map_field_revision_immutable_update` aborts every UPDATE/DELETE); the Dataset descriptor pin is protected by `trg_core_map_field_dataset_pin_immutable`. These triggers are the first-line defense against post-publication mutation through any SQL client.
+
+Because a persisted manifest can still diverge from the typed columns through a fully bypassed defense (tampered backup restore, trigger loss), export re-establishes the publication invariant before writing any output file:
+
+1. The persisted manifest must be byte-identical RFC 8785 canonical UTF-8 (`WVPK_EXPORT_MANIFEST_NOT_CANONICAL`).
+2. The persisted manifest must still pass the same closed-world validation the publication path applies — `FieldDatasetService.ValidateManifest` with the typed descriptor pins (`WVPK_EXPORT_MANIFEST_INVALID`).
+3. The manifest-derived typed projection must structurally equal the authoritative typed columns, member by member, with codec parameters compared as canonical bytes (`WVPK_EXPORT_MANIFEST_METADATA_MISMATCH`).
+
+A revision whose persisted manifest fails any of these checks is never repackaged, and the manifest is never rebuilt from typed metadata to mask the divergence. The structural tile-plan vs payload-length reconciliation (`WVPK_EXPORT_PAYLOAD_LENGTH`) remains in place as a further guard. Reads keep zero JSON parsing by design; they are guarded by the triggers plus registry pin re-verification, not by the export-side check.
+
+### 8.3 Field Descriptor Registry evolution rules (normative)
+
+The V1 registry is compiled code — a pure `(field_key, schema_version) → semantics_id` mapping with no runtime mutation, override, or deletion path. The evolution rules are:
+
+1. A published descriptor mapping is immutable forever: changing the `semantics_id` derived for a published `(field_key, schema_version)` is forbidden, because every revision read re-derives the pin from the registry and a changed mapping would make all derived revisions fail closed.
+2. A published descriptor mapping must never be removed: removal makes existing Datasets and Revisions unreadable.
+3. Semantic changes are introduced only by new `(field_key, schema_version)` registrations with a new `semantics_id` (convention: `world-view.field.<field_key>.v<schema_version>`).
+4. A new schema version must not change the interpretation semantics of an older version.
+5. Every persisted Revision/Dataset keeps its original descriptor pins (typed columns); the persistence layer rejects publication-time pin changes and re-verifies pins against the registry on every read, so registry/pin divergence fails closed loudly and can never silently reinterpret an existing revision.
+6. Registry content cannot be used to silently change what an existing revision means — structurally impossible today (compiled mapping + read-path pin verification) and pinned by tests.
+7. Additions are the only allowed registry evolution and must not disturb existing entries.
+
+Semantic vs non-semantic classification: in V1 the registry contains no display metadata at all — every field of the mapping is semantic and immutable. If display metadata is ever introduced, it must live in a separate explicitly non-semantic structure, never merged into the semantic mapping and never allowed to alter descriptor resolution.
