@@ -105,6 +105,14 @@ public static class FieldPackageWriter
             throw Error(FieldPackageBinaryErrorCodes.Directory, "Codec 0 must identify the parameter-free none codec version 1.");
 
         var bytesPerCell = planes.Aggregate(0L, (sum, plane) => checked(sum + plane.BytesPerCell));
+        var manifestLength = manifestUtf8.Length;
+        var directoryOffset = Align8(checked(HeaderLength + (long)manifestLength));
+        var directoryLength = checked(DirectoryHeaderLength + (long)expectedCount * DirectoryEntryLength);
+        var payloadOffset = Align8(checked(directoryOffset + directoryLength));
+        var plannedPayloadCursor = payloadOffset;
+        if (payloadOffset > options.MaximumPackageBytes)
+            throw Error(FieldPackageBinaryErrorCodes.Limit, "Package header, manifest and directory exceed the configured writer package-size policy.");
+
         var temporaryDirectory = options.TemporaryDirectory ?? Path.GetTempPath();
         Directory.CreateDirectory(temporaryDirectory);
         var spoolPath = Path.Combine(temporaryDirectory, $"wvfldp-{Guid.NewGuid():N}.spool");
@@ -136,6 +144,11 @@ public static class FieldPackageWriter
                 if (decodedLength <= 0 || decodedLength > options.MaximumStoredTileBytes)
                     throw Error(FieldPackageBinaryErrorCodes.Limit, "Stored tile length exceeds writer policy.");
 
+                plannedPayloadCursor = Align8(plannedPayloadCursor);
+                plannedPayloadCursor = checked(plannedPayloadCursor + decodedLength);
+                if (plannedPayloadCursor > options.MaximumPackageBytes)
+                    throw Error(FieldPackageBinaryErrorCodes.Limit, "Package exceeds the configured writer package-size policy.");
+
                 ValidateMaskBytes(tile.DecodedBytes.Span, planes, validityName, coverageName, validWidth, validHeight);
                 var hash = SHA256.HashData(tile.DecodedBytes.Span);
                 var spoolOffset = spool.Position;
@@ -148,10 +161,6 @@ public static class FieldPackageWriter
                 throw Error(FieldPackageBinaryErrorCodes.Directory, "Tile source is missing one or more native-grid coordinates.");
             spool.Flush();
 
-            var manifestLength = manifestUtf8.Length;
-            var directoryOffset = Align8(checked(HeaderLength + (long)manifestLength));
-            var directoryLength = checked(DirectoryHeaderLength + (long)entries.Count * DirectoryEntryLength);
-            var payloadOffset = Align8(checked(directoryOffset + directoryLength));
             var payloadCursor = payloadOffset;
             foreach (var entry in entries)
             {
@@ -160,8 +169,8 @@ public static class FieldPackageWriter
                 payloadCursor = checked(payloadCursor + entry.StoredLength);
             }
             var packageLength = payloadCursor;
-            if (packageLength > options.MaximumPackageBytes)
-                throw Error(FieldPackageBinaryErrorCodes.Limit, "Package exceeds the configured writer package-size policy.");
+            if (packageLength != plannedPayloadCursor)
+                throw Error(FieldPackageBinaryErrorCodes.Length, "Planned and indexed payload lengths differ.");
 
             destination.SetLength(0);
             destination.Position = 0;
