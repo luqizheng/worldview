@@ -32,7 +32,7 @@ public sealed record FieldPackageWriteResult(long PackageLength, int TileCount, 
 /// <summary>
 /// Deterministic codec-0 WVFLDPK 1.0 writer. Tiles are consumed once in canonical
 /// (tile_y, tile_x) order and spooled to disk; the complete field is never held in memory.
-/// The writer is sequential and not thread-safe.
+/// Package-size limits are enforced during spooling. The writer is sequential and not thread-safe.
 /// </summary>
 public static class FieldPackageWriter
 {
