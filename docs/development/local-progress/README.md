@@ -11,6 +11,7 @@
 | `field-package/003-payload-import.md` | Field Payload Import Adapter | 完成（Task 005 已重构其内部 Payload 布局，见 005 报告） |
 | `field-package/004-conformance-tests.md` | Conformance / Fuzz / Resource Limits | 完成 |
 | `field-package/005-import-export-authority-boundary.md` | Import/Export Authority Boundary（内部 Payload V1、Profile Gate、Exporter、Cancellation） | 完成 |
+| `field-package/006-manifest-persistence-authority-audit.md` | Field Manifest 持久化权威审计（消费者清单/字段映射表/三方案比较；附 2 处 canonicalizer 缺陷修复） | 完成（推荐方案 A：保留 ManifestJson 交换快照 + typed 权威，现状结构不变） |
 
 ## 分支与 PR 上下文
 
