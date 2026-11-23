@@ -268,4 +268,36 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         MarkVerified(core, projectId, asset, bytes, now + 1);
         return asset;
     }
+
+    [Fact]
+    public void SchemaAudit_ForeignKeyCheckAndIntegrityCheck_NoViolationsAfterObjectAssetLink()
+    {
+        var (project, _) = SeedProject();
+        var core = Core();
+        var identityId = CreateActiveRiverObject(project.ProjectId);
+        var asset = RegisterVerifiedAsset(core, project.ProjectId, "schema-audit-bytes"u8.ToArray(), Now);
+        AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
+
+        var audit = Access().Execute(connection =>
+        {
+            using var foreignKeyCommand = connection.CreateCommand();
+            foreignKeyCommand.CommandText = "PRAGMA foreign_key_check;";
+            var foreignKeyViolations = 0;
+            using (var foreignKeyReader = foreignKeyCommand.ExecuteReader())
+            {
+                while (foreignKeyReader.Read())
+                {
+                    foreignKeyViolations++;
+                }
+            }
+
+            using var integrityCommand = connection.CreateCommand();
+            integrityCommand.CommandText = "PRAGMA integrity_check;";
+            var integrityResult = (string)integrityCommand.ExecuteScalar()!;
+            return (ForeignKeyViolations: foreignKeyViolations, IntegrityResult: integrityResult);
+        });
+
+        Assert.Equal(0, audit.ForeignKeyViolations);
+        Assert.Equal("ok", audit.IntegrityResult);
+    }
 }
