@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 
 namespace WorldView.Application.Packaging;
 
@@ -32,7 +33,10 @@ public sealed record FieldPackageWriteResult(long PackageLength, int TileCount, 
 /// <summary>
 /// Deterministic codec-0 WVFLDPK 1.0 writer. Tiles are consumed once in canonical
 /// (tile_y, tile_x) order and spooled to disk; the complete field is never held in memory.
-/// Package-size limits are enforced during spooling. The writer is sequential and not thread-safe.
+/// Package-size limits are enforced during spooling. Cancellation is cooperative and checked
+/// between I/O, validation and copy stages (tile ingestion/spool, payload copy, post-write
+/// self-validation); a cancelled write never publishes a partial package and always removes
+/// its temporary spool. The writer is sequential and not thread-safe.
 /// </summary>
 public static class FieldPackageWriter
 {
@@ -45,12 +49,14 @@ public static class FieldPackageWriter
         Stream destination,
         ReadOnlyMemory<byte> manifestUtf8,
         IEnumerable<FieldPackageTileInput> tiles,
-        FieldPackageWriterOptions? options = null)
+        FieldPackageWriterOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(tiles);
         options ??= new FieldPackageWriterOptions();
         ValidateOptions(options);
+        cancellationToken.ThrowIfCancellationRequested();
         if (!destination.CanRead || !destination.CanWrite || !destination.CanSeek)
             throw new ArgumentException("Package destination must be readable, writable and seekable for post-write validation.", nameof(destination));
 
@@ -124,6 +130,7 @@ public static class FieldPackageWriter
             var entries = new List<DirectoryEntry>(checked((int)expectedCount));
             foreach (var tile in tiles)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (entries.Count >= expectedCount)
                     throw Error(FieldPackageBinaryErrorCodes.Directory, "Tile source contains more entries than the dense native grid.");
 
@@ -206,9 +213,10 @@ public static class FieldPackageWriter
             var copyBuffer = new byte[64 * 1024];
             foreach (var entry in entries)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 WriteZeros(destination, entry.PayloadOffset - destination.Position);
                 spool.Position = entry.SpoolOffset;
-                CopyExactly(spool, destination, entry.StoredLength, copyBuffer);
+                CopyExactly(spool, destination, entry.StoredLength, copyBuffer, cancellationToken);
             }
             if (destination.Position != packageLength)
                 throw Error(FieldPackageBinaryErrorCodes.Length, "Writer output length differs from the calculated package length.");
@@ -236,6 +244,7 @@ public static class FieldPackageWriter
             {
                 foreach (var entry in entries)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var decoded = reader.ReadTile(entry.TileX, entry.TileY);
                     if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(decoded), entry.Sha256))
                         throw Error(FieldPackageBinaryErrorCodes.TileHash, "Writer self-validation found a tile hash mismatch.");
@@ -276,15 +285,19 @@ public static class FieldPackageWriter
 
     /// <summary>
     /// Publishes a completed package by same-directory rename. Existing destination files are
-    /// never overwritten; a failed write leaves no publishable partial destination.
+    /// never overwritten; a failed or cancelled write leaves no publishable partial destination.
+    /// Cancellation is checked before writing starts and once more before the atomic rename,
+    /// so a cancel before publication never produces the formal destination file.
     /// </summary>
     public static FieldPackageWriteResult WriteFileAtomically(
         string destinationPath,
         ReadOnlyMemory<byte> manifestUtf8,
         IEnumerable<FieldPackageTileInput> tiles,
-        FieldPackageWriterOptions? options = null)
+        FieldPackageWriterOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        cancellationToken.ThrowIfCancellationRequested();
         var fullPath = Path.GetFullPath(destinationPath);
         var directory = Path.GetDirectoryName(fullPath)!;
         Directory.CreateDirectory(directory);
@@ -298,9 +311,10 @@ public static class FieldPackageWriter
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
                 64 * 1024, FileOptions.SequentialScan | FileOptions.WriteThrough))
             {
-                result = Write(stream, manifestUtf8, tiles, options);
+                result = Write(stream, manifestUtf8, tiles, options, cancellationToken);
                 stream.Flush(flushToDisk: true);
             }
+            cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporaryPath, fullPath, overwrite: false);
             return result;
         }
@@ -367,10 +381,12 @@ public static class FieldPackageWriter
         }
     }
 
-    private static void CopyExactly(Stream source, Stream destination, long count, byte[] buffer)
+    private static void CopyExactly(Stream source, Stream destination, long count, byte[] buffer,
+        CancellationToken cancellationToken)
     {
         while (count > 0)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var requested = (int)Math.Min(buffer.Length, count);
             var read = source.Read(buffer, 0, requested);
             if (read == 0) throw new EndOfStreamException("Tile spool ended before its declared length.");
