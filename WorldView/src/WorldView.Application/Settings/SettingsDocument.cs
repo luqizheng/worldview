@@ -16,7 +16,6 @@ public static class SettingsDocumentFormat
 
     public static readonly JsonSerializerSettings SerializerSettings = new()
     {
-        Formatting = Formatting.None,
         Culture = CultureInfo.InvariantCulture,
         DateFormatHandling = DateFormatHandling.IsoDateFormat,
         FloatFormatHandling = FloatFormatHandling.Default,
@@ -73,7 +72,7 @@ public sealed record SettingsDocument
         root["settings"] = (JObject)Settings.DeepClone();
 
         return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
-            .GetBytes(JsonConvert.SerializeObject(root, SettingsDocumentFormat.SerializerSettings));
+            .GetBytes(JsonConvert.SerializeObject(root, Formatting.None, SettingsDocumentFormat.SerializerSettings));
     }
 
     public static SettingsDocument Parse(
@@ -173,6 +172,31 @@ public sealed record SettingsDocument
             throw new JsonSerializationException("Settings document Map ID cannot be empty.");
         if (Settings is null)
             throw new JsonSerializationException("Settings payload cannot be null.");
+        ValidateSettingsToken(Settings);
+    }
+
+    private static void ValidateSettingsToken(JToken token)
+    {
+        if (token.Type is JTokenType.Comment or JTokenType.Raw or JTokenType.Undefined or JTokenType.Constructor)
+            throw new JsonSerializationException($"Unsupported JSON token type '{token.Type}' in settings payload.");
+
+        if (token.Type == JTokenType.Float)
+        {
+            var value = token.Value<double>();
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new JsonSerializationException("Non-finite numbers are not valid settings JSON.");
+        }
+
+        if (token is JObject obj)
+        {
+            foreach (var property in obj.Properties())
+                ValidateSettingsToken(property.Value);
+        }
+        else if (token is JArray array)
+        {
+            foreach (var item in array)
+                ValidateSettingsToken(item);
+        }
     }
 
     private static bool ContainsComment(JToken token)
