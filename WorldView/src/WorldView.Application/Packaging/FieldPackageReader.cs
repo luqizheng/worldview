@@ -124,9 +124,18 @@ public sealed class FieldPackageReader : IDisposable
                 throw Error(FieldPackageBinaryErrorCodes.Limit, "Tile directory exceeds configured entry limit.");
 
             var planes = root.GetProperty("value_encoding").GetProperty("planes").EnumerateArray()
-                .Select(p => new Plane(p.GetProperty("name").GetString()!, ReadPositiveInt(p, "bytes_per_cell")))
+                .Select(p => new Plane(
+                    p.GetProperty("name").GetString()!,
+                    ReadPositiveInt(p, "bytes_per_cell"),
+                    p.GetProperty("sample_format").GetString()!))
                 .ToArray();
             if (planes.Length == 0) throw Error(FieldPackageBinaryErrorCodes.Directory, "Manifest declares no value planes.");
+            if (planes.Select(p => p.Name).Distinct(StringComparer.Ordinal).Count() != planes.Length)
+                throw Error(FieldPackageBinaryErrorCodes.Directory, "Manifest plane names must be unique.");
+            var validityPlaneName = root.GetProperty("no_data").GetProperty("mask_plane").GetProperty("plane_name").GetString();
+            var validityPlane = planes.SingleOrDefault(p => string.Equals(p.Name, validityPlaneName, StringComparison.Ordinal));
+            if (validityPlane is null || validityPlane.BytesPerCell != 1 || validityPlane.SampleFormat != "uint8")
+                throw Error(FieldPackageBinaryErrorCodes.Mask, "Manifest must declare its validity mask as a one-byte uint8 plane.");
             var codecIds = root.GetProperty("codec_registry").EnumerateArray()
                 .Select(c => c.GetProperty("codec_id").GetInt32()).ToArray();
             if (codecIds.Distinct().Count() != codecIds.Length || !codecIds.Contains(0))
@@ -234,7 +243,7 @@ public sealed class FieldPackageReader : IDisposable
         if (!_leaveOpen) _source.Dispose();
     }
 
-    private sealed record Plane(string Name, int BytesPerCell);
+    private sealed record Plane(string Name, int BytesPerCell, string SampleFormat);
     private static FieldPackageValidationException Error(string code, string message, Exception? inner = null)
         => new(code, message, inner);
     private static byte[] ReadAt(Stream stream, long offset, long count)
