@@ -1332,7 +1332,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
                     .OnDelete(DeleteBehavior.NoAction).IsRequired()
-                    .HasConstraintName("FK_core_map_settings_revision_core_map_project_map");
+                    .HasConstraintName("FK_core_map_settings_current_core_map_project_map");
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId", "MapSettingsRevisionId")
                     .HasPrincipalKey("ProjectId", "MapId", "MapSettingsRevisionId")
@@ -1345,7 +1345,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
                     .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
                     .OnDelete(DeleteBehavior.NoAction).IsRequired()
-                    .HasConstraintName("FK_core_map_settings_current_core_map_project_map");
+                    .HasConstraintName("FK_core_map_settings_revision_core_map_project_map");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", b =>
