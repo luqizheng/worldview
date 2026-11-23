@@ -6,6 +6,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Settings;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Persistence;
+using WorldView.Infrastructure.Persistence.CoreDomain;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 namespace WorldView.Infrastructure.Settings;
