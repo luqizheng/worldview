@@ -1,9 +1,9 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 3.19
+- Version: 3.20
 - Date: 2026-11-23
 - Status: Active design work plan
-- Supersedes: ME-01-work-plan-and-document-status-v3.18.md (retained for history)
+- Supersedes: ME-01-work-plan-and-document-status-v3.19.md (retained for history)
 
 This document tracks the Map Editor product/architecture and specialist editor design workstreams. Design completion does not imply implementation completion or frozen APIs/schemas. The GitHub repository `luqizheng/worldview` is the authoritative project documentation location.
 
@@ -103,6 +103,10 @@ ME-04-00 and ME-04-A establish the scope and current descriptor inventory. ME-04
 | ME-08-00 | [Spatial Operations & Domain Integration](world-view-me-08-spatial-operations-and-domain-integration-v0.1.md) | 0.1 | Spatial Operations / Domain Integration Working Baseline | Spatial Site composition, nested Spatial Groups, typed Spatial Entities, dedicated 2D interior editing scene, extensible layout/theme/module system, domain-specific connections and two-endpoint connection semantics |
 
 ME-08-00 V0.1 records the confirmed product/domain decisions for scene composition and spatial connections. It composes existing ME-04 Building/Cave/Level/Space semantics and ME-05 geometry/predicate boundaries; it does not authorize new Core Domain descriptors, relationships, Commands, schema, APIs or persistence changes. Confirmed decisions: Building opens in a dedicated 2D interior editing scene; both single-Building and multi-entity Spatial Sites are supported; Spatial Groups may nest while entity types remain explicit; layout templates, scene themes and functional modules are extensible; domain-specific connection objects follow a shared protocol; ordinary connections have two endpoints and multi-way junctions use an intermediate spatial entity. Road/River endpoint identity and all new domain descriptor adoption remain open in their owning workstreams.
+
+| ME-08-06 | [Unified Spatial Operations Model](world-view-me-08-06-unified-spatial-operations-model-v0.1.md) | 0.1 | Unified Spatial Operations Working Baseline | Unified operation lifecycle and families; view/organization/geometry/domain-relation boundaries; coordinate-context isolation; formal write routing; validation, review, cancellation and recovery |
+
+ME-08-06 V0.1 establishes one operation lifecycle across World Map, Building Interior, Cave and Spatial Site editing while preserving specialist domain semantics. It distinguishes view state, organization, geometry and typed domain relationships; defines explicit coordinate and write-context routing; reuses ME-06 Typed Intent/Candidate/Change Set/recovery; and keeps split/merge deferred. It does not authorize new Core Domain descriptors, Commands, schema, APIs or persistence. The next planned item is ME-08-07 Spatial Operation UX & Scenario Matrix.
 
 ## Core Domain — Building & Cave Adoption (proposal stage)
 
