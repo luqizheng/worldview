@@ -23,7 +23,7 @@ The document envelope uses these exact identifiers:
 | Project | worldview.project-settings |
 | Map | worldview.map-settings |
 
-The envelope's schemaVersion is an integer. The initial schema version is 1. It is distinct from the SQLite migration version and the package format version.
+The envelope's schemaVersion is an integer. The initial schema version is 1. V1 settings documents are limited to 16 MiB. It is distinct from the SQLite migration version and the package format version.
 
 ## 3. JSON document envelope
 
