@@ -1,6 +1,6 @@
 # Map Editor Work Plan and Document Status
 
-- Version: 3.20
+- Version: 3.21
 - Date: 2026-11-23
 - Status: Active design work plan
 - Supersedes: ME-01-work-plan-and-document-status-v3.19.md (retained for history)
@@ -107,6 +107,10 @@ ME-08-00 V0.1 records the confirmed product/domain decisions for scene compositi
 | ME-08-06 | [Unified Spatial Operations Model](world-view-me-08-06-unified-spatial-operations-model-v0.1.md) | 0.1 | Unified Spatial Operations Working Baseline | Unified operation lifecycle and families; view/organization/geometry/domain-relation boundaries; coordinate-context isolation; formal write routing; validation, review, cancellation and recovery |
 
 ME-08-06 V0.1 establishes one operation lifecycle across World Map, Building Interior, Cave and Spatial Site editing while preserving specialist domain semantics. It distinguishes view state, organization, geometry and typed domain relationships; defines explicit coordinate and write-context routing; reuses ME-06 Typed Intent/Candidate/Change Set/recovery; and keeps split/merge deferred. It does not authorize new Core Domain descriptors, Commands, schema, APIs or persistence. The next planned item is ME-08-07 Spatial Operation UX & Scenario Matrix.
+
+| ME-08-07 | [Spatial Operation UX & Scenario Matrix](world-view-me-08-07-spatial-operation-ux-and-scenario-matrix-v0.1.md) | 0.1 | Spatial Operation UX Working Baseline | Shared editor surface and operation states; World Map, Building Interior, Cave, Spatial Site, nested Group, typed connection and template/module journeys; diagnostics, cancellation, recovery, accessibility and acceptance matrix |
+
+ME-08-07 V0.1 translates ME-08-06 into eight end-to-end UX scenario families and an acceptance matrix. It defines one shared desktop editor surface with explicit contexts, typed selection, Inspector and operation/review surface; preserves transient/formal/derived-state distinctions; and specifies Windows/macOS accessibility and recovery. It does not authorize missing Core Domain capabilities or claim runtime/platform conformance. The next planned item is ME-08 cross-architecture integration review and implementation handoff.
 
 ## Core Domain — Building & Cave Adoption (proposal stage)
 
