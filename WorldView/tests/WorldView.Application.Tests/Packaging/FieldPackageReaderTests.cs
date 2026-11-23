@@ -38,6 +38,19 @@ public sealed class FieldPackageReaderTests
     }
 
     [Fact]
+    public void ReadTile_RejectsInvalidValidityMaskAfterHashVerification()
+    {
+        var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
+        var decoded = Convert.FromHexString("000000000000c03f000010c00000284200000000");
+        decoded[^1] = 2;
+        using var package = new MemoryStream(BuildPackage(manifest, decoded));
+        using var reader = FieldPackageReader.Open(package, leaveOpen: true);
+
+        var error = Assert.Throws<FieldPackageValidationException>(() => reader.ReadTile(0, 0));
+        Assert.Equal(FieldPackageBinaryErrorCodes.Mask, error.Code);
+    }
+
+    [Fact]
     public void ReadTile_RejectsPayloadHashMismatch()
     {
         var manifest = ReadResource("minimal-elevation-2x2.manifest.json");
