@@ -74,7 +74,8 @@ internal static class CoreDomainV1ModelConfiguration
             entity.Property(x => x.CreatedAtUtcMs).HasColumnName("created_at_utc_ms").HasColumnType("INTEGER");
             entity.HasAlternateKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId });
             entity.HasIndex(x => new { x.ProjectId, x.Version }).IsUnique();
-            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_project_settings_revision_core_project_project_id");
         });
 
         modelBuilder.Entity<CoreProjectSettingsCurrentEntity>(entity =>
@@ -88,7 +89,8 @@ internal static class CoreDomainV1ModelConfiguration
             entity.HasOne<CoreProjectSettingsRevisionEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_project_settings_current_project_settings_revision");
         });
 
         modelBuilder.Entity<CoreMapSettingsRevisionEntity>(entity =>
@@ -118,7 +120,8 @@ internal static class CoreDomainV1ModelConfiguration
             entity.HasOne<CoreMapEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.MapId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId })
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_map_settings_revision_core_map_project_map");
         });
 
         modelBuilder.Entity<CoreMapSettingsCurrentEntity>(entity =>
@@ -132,11 +135,13 @@ internal static class CoreDomainV1ModelConfiguration
             entity.HasOne<CoreMapEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.MapId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId })
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_map_settings_current_core_map_project_map");
             entity.HasOne<CoreMapSettingsRevisionEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId, x.MapSettingsRevisionId })
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_map_settings_current_map_settings_revision");
         });
 
         modelBuilder.Entity<CoreSpatialReferenceEntity>(entity =>
