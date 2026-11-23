@@ -337,4 +337,13 @@ Task 002-A 之后 `AssetByteDigest` 的构造器虽为 private，但 `MeasureAsy
 
 ## 13. Task 002-B 四平台 CI 结果
 
-（推送后由实际 CI run 回填：run ID 与准确 HEAD SHA。）
+Workflow `.NET CI`，同一 HEAD 的两条 run 均为 success：run 591（[run 45144094274](https://github.com/luqizheng/worldview/actions/runs/45144094274)，push 事件触发）与 run 592（[run 45144102170](https://github.com/luqizheng/worldview/actions/runs/45144102170)，pull_request 事件触发，即 PR #22 检查），`head_sha = 275b69caafe68f3e7af04fc293e55fa88ad58c76`（PR #22 当前 HEAD，含 Task 002-B 修复 `3d6ad4b` 与 CodeGraph gitignore 跟踪提交 `275b69c`）。
+
+| OS | Configuration | 结果 |
+|---|---|---|
+| Windows | Debug | success |
+| Windows | Release | success |
+| macOS | Debug | success |
+| macOS | Release | success |
+
+本地 Windows 结果见 §B5（Debug / Release 均 538 通过 / 0 失败）。CI 验收基准 HEAD 为 `275b69c`；本节回填为其后的 docs-only 提交，不影响代码验收结论。Base 仍为 `feat/efcore-v1-complete-model`，PR #22 未合并。
