@@ -9,7 +9,7 @@
 
 | 日期 | 任务 | 来源 PR | 结果 | 证据 |
 |---|---|---|---|---|
-| 2026-11-23 | T-01 完成 Task 005/006/007 四平台 CI 验证与证据回写 | PR #21 → PR #17 | COMPLETED（文档回写已推送；PR 描述更新因无写权限 BLOCKED） | run `45124453470` 4/4 success；Windows 本地 Debug/Release 632/632 |
+| 2026-11-23 | T-01 完成 Task 005/006/007 四平台 CI 验证与证据回写 | PR #21 → PR #17 | COMPLETED（文档已推送；PR #17/#21 描述已更新） | run `45124453470` 4/4 success；Windows 本地 Debug/Release 632/632 |
 
 ## 待处理任务状态
 
