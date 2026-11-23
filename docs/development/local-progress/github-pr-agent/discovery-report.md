@@ -88,3 +88,14 @@ T-18 PR#4 (TX 覆盖) ──► 独立分支，无阻塞
 ## 5. Blocked / 人工决策清单
 
 见 §2.2、§2.4；本次不猜测任何生产参数、不改变 PR base、不合并、不关闭 PR。
+
+## 6. 状态更新（2026-11-23，执行后）
+
+| 任务 | 原状态 | 现状态 | 说明 |
+|---|---|---|---|
+| T-01 | IN_PROGRESS | COMPLETED | 四平台 CI 全绿（run `45124453470`），文档与 PR #17/#21 描述已回写 |
+| T-02 | BLOCKED | COMPLETED | G2 合并入 PR #7 分支（`617d052`），迁移 2 处 test-only 完整性写入（`4ba4191`）；本地 407/407 |
+| T-03 | BLOCKED | COMPLETED | PR #7 分支 workflow 触发 `push: **`，push 与 pull_request 两个 run 均 4/4 success |
+
+**经验修正**：仓库内不同分支携带不同版本的 `dotnet-ci.yml`。`feat/field-package-reader-writer` 等分支沿用仅 master 触发的旧版，故需要临时 CI PR；PR #7 分支使用 `push: **` 版本，可自行触发。后续判断某分支是否会获得 CI，必须先读该分支上的 workflow 文件，而不是只看 master。
+

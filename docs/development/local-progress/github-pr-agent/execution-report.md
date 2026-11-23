@@ -28,16 +28,22 @@ Windows Debug    44 + 181 + 182 = 407/407 通过，失败 0
 Windows Release  44 + 181 + 182 = 407/407 通过，失败 0
 ```
 
-- 合并后构建 0 error；G2 原有 181 Domain / 44 Application 测试与 G3 的 182 Infrastructure 测试全部通过。
-- **macOS CI：未取得（BLOCKED）**。PR #7 的 base 是 `fix/cd-02-g3-geometry-manifest-identities`，master-targeted workflow 不触发；且 `origin/master`（`5127d14`）不是该分支祖先（merge-base `7e176dd`），临时 CI PR 会测试一个合成合并结果，可能产生误导性绿灯，故未采用。需按 T-03 由用户决定 CI 触发策略。
+- **GitHub Actions（head `4ba4191`）**：
+
+| Run | Event | windows-latest | macos-latest |
+|---|---|---|---|
+| `45126277835` | push | success（Debug+Release） | success（Debug+Release） |
+| `45126288400` | pull_request | success（Debug+Release） | success（Debug+Release） |
+
+- 修正先前判断：PR #7 分支的 `.github/workflows/dotnet-ci.yml`（`World View .NET CI`）触发条件为 `push: branches: ["**"]` + 任意 `pull_request`，因此 stacked 分支会正常获得 CI。此前"stacked 分支不触发 CI"只适用于 `feat/field-package-reader-writer` 等沿用旧 workflow（仅 master）的分支。
 
 ### PR 描述更新
 
-PR #7 body 已更新（REST API PATCH）：Dependency 段标记 G2 整合完成并说明迁移方式；Validation 段记录 head `4ba4191`、本地 407/407、macOS 待验证及原因；Summary 增加整合条目。
+PR #7 body 已更新（REST API PATCH）：Dependency 段标记 G2 整合完成并说明迁移方式；Validation 段记录 head `4ba4191`、本地 407/407、Windows/macOS CI 两个 run 全绿；Summary 增加整合条目。
 
 ### 状态
 
-T-02 = **IMPLEMENTED**（Windows 已实测，macOS CI 阻塞于 T-03）。未合并、未关闭 PR，未改 base。
+T-02 = **COMPLETED**（实现 + Windows 本地全量 + Windows/macOS CI 均通过）。未合并、未关闭 PR，未改 base。
 
 ---
 
