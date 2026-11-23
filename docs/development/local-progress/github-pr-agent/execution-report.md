@@ -58,14 +58,14 @@ Release  Domain 233 + Application 118 + Infrastructure 281 = 632/632 通过，�
 
 ### 6. 推送与提交
 
-- 提交：（见下方"提交记录"）
-- 推送：`origin feat/field-package-reader-writer`
-- 推送后 PR #21 会针对新的 docs-only head 再触发一轮 CI；该 head 不含代码变更，验收以 run `45124453470` 为准。
+- 提交：`e665f3f` — `docs(local-progress): record four-platform CI verification for task 007`
+- 推送：`git push origin HEAD` → `6f91f6f..e665f3f  HEAD -> feat/field-package-reader-writer`
+- 推送后 PR #21 会针对新的 docs-only head 再触发一轮 CI；该 head 不含代码变更，验收以 run `45124453470`（head `6f91f6f`）为准。推送后查询新 run 时匿名 GitHub API 已触发限流（60 次/小时），未能读取该 run 编号；不影响验收证据。
 
 ### 7. PR 描述更新
 
 - 目标：PR #17 的 "Validation" 段仍写 `Current PR head: 47e9159`（陈旧）且 "Task 006 macOS CI pending"。
-- 状态：**未完成（BLOCKED，缺少写权限）**。本机无 `gh` CLI、无 `GITHUB_TOKEN`/`GH_TOKEN`，GitHub REST API 仅有匿名读权限（且触发 60 次/小时限流），无法 PATCH PR body。允许范围内的替代动作：已在仓库内文档回写完整证据；PR 描述更新需用户授权 GitHub 写权限或手工粘贴。
+- 状态：**未完成（BLOCKED，缺少本会话可用的写权限）**。本机无 `gh` CLI、无 `GITHUB_TOKEN`/`GH_TOKEN`；GitHub 授权请求已返回 success，但要求"开始新会话后重试"，因此本会话内无法 PATCH PR body。允许范围内的替代动作：已在仓库内文档回写完整证据；PR 描述更新需在新会话中执行或手工粘贴：
 
 ### 8. 剩余任务
 
