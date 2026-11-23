@@ -28,10 +28,11 @@ public sealed record SchemaViolation
 /// 支持关键词（与 P2-09-38/39 V0.5 实际使用集一致）：type / properties / required /
 /// additionalProperties(false) / items / enum / const / minLength / maxLength /
 /// minimum / maximum / exclusiveMinimum / minItems / maxItems / uniqueItems /
-/// pattern / oneOf / allOf / $ref(#/$defs/...) / $defs / dependentRequired /
-/// maxProperties。schema 内出现任何**不支持**的关键词即 fail-closed（拒绝静默跳过，
-/// 与 unknown_fields=reject 同一原则）。全量 Draft 2020-12 引擎与第三方包在 Domain
-/// 禁用（无第三方依赖原则）；若未来 schema 引入新关键词，本类是扩展点。
+/// pattern / oneOf / allOf / if / then / else / not / $ref(#/$defs/...) / $defs /
+/// dependentRequired / maxProperties。schema 内出现任何**不支持**的关键词即
+/// fail-closed（拒绝静默跳过，与 unknown_fields=reject 同一原则）。全量 Draft 2020-12
+/// 引擎与第三方包在 Domain 禁用（无第三方依赖原则）；若未来 schema 引入新关键词，
+/// 本类是扩展点。明确边界：本类只实现上述关键词子集，不宣称完整支持 JSON Schema 标准。
 /// </summary>
 public static class JsonSchemaSubset
 {
@@ -39,8 +40,8 @@ public static class JsonSchemaSubset
     {
         "type", "properties", "required", "additionalProperties", "items", "enum", "const",
         "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "minItems",
-        "maxItems", "uniqueItems", "pattern", "oneOf", "allOf", "$ref", "$defs",
-        "dependentRequired", "maxProperties",
+        "maxItems", "uniqueItems", "pattern", "oneOf", "allOf", "if", "then", "else", "not",
+        "$ref", "$defs", "dependentRequired", "maxProperties",
     };
 
     /// <summary>校验 <paramref name="instance"/> 是否满足 schema；返回全部违规（空 = 通过）。</summary>
@@ -94,7 +95,8 @@ public static class JsonSchemaSubset
                     EnsureSupportedKeywords(sub.Value, $"{path}/{property.Name}/{sub.Name}");
                 }
             }
-            else if (property.Name is "items" or "additionalProperties" && property.Value.ValueKind == JsonValueKind.Object)
+            else if (property.Name is "items" or "additionalProperties" or "if" or "then" or "else" or "not"
+                && property.Value.ValueKind == JsonValueKind.Object)
             {
                 EnsureSupportedKeywords(property.Value, $"{path}/{property.Name}");
             }
@@ -142,6 +144,41 @@ public static class JsonSchemaSubset
             foreach (var branch in allOf.EnumerateArray())
             {
                 ApplySchema(branch, instance, path, violations, context);
+            }
+        }
+
+        // Draft 2020-12 条件应用：if 仅作条件判定，命中应用 then，否则应用 else。
+        // if 单独的判定失败不构成实例违规（不传播条件分支违规）。
+        if (schema.TryGetProperty("if", out var ifSchema))
+        {
+            var conditionViolations = new List<SchemaViolation>();
+            ApplySchema(ifSchema, instance, path, conditionViolations, context);
+            if (conditionViolations.Count == 0)
+            {
+                if (schema.TryGetProperty("then", out var thenSchema))
+                {
+                    ApplySchema(thenSchema, instance, path, violations, context);
+                }
+            }
+            else if (schema.TryGetProperty("else", out var elseSchema))
+            {
+                ApplySchema(elseSchema, instance, path, violations, context);
+            }
+        }
+
+        // not：子 schema 满足即违规。
+        if (schema.TryGetProperty("not", out var notSchema))
+        {
+            var notViolations = new List<SchemaViolation>();
+            ApplySchema(notSchema, instance, path, notViolations, context);
+            if (notViolations.Count == 0)
+            {
+                violations.Add(new SchemaViolation
+                {
+                    Keyword = "not",
+                    InstancePath = path,
+                    Message = "实例不应满足 not 子 schema。",
+                });
             }
         }
 

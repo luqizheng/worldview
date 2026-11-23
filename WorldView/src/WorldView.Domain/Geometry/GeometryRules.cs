@@ -76,6 +76,16 @@ public static class GeometryRules
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(manifest);
 
+        if (manifest.GeometryComponentId == Guid.Empty)
+        {
+            throw new CoreDomainConflictException("geometry_component_id 不能为空（必须是稳定的 opaque identity）。");
+        }
+
+        if (manifest.AssetId == Guid.Empty)
+        {
+            throw new CoreDomainConflictException("asset_id 不能为空（必须引用已登记的 Core Asset）。");
+        }
+
         var role = descriptor.FindGeometryRole(manifest.GeometryRole)
             ?? throw new CoreDomainConflictException(
                 $"geometry role \"{manifest.GeometryRole}\" 未在 {descriptor.TypeKey} descriptor 中声明（declared_geometry_roles_only）。");
@@ -115,6 +125,51 @@ public static class GeometryRules
         if (!KnownFamilies.Contains(manifest.GeometryFamily, StringComparer.Ordinal))
         {
             throw new CoreDomainConflictException($"geometry family \"{manifest.GeometryFamily}\" 不在 V1 词汇内。");
+        }
+    }
+
+    /// <summary>
+    /// 校验一个 owner payload 中的完整 Geometry Component manifest 集合：每项先执行
+    /// descriptor role/family 校验，再执行各 role 的 min/max 基数、descriptor combined_min
+    /// 和 owner 内 component identity 唯一性检查。本方法只校验单个 owner 快照；跨 revision
+    /// 的 ID 永不复用仍由持久化 owner 服务保证。
+    /// </summary>
+    public static void ValidateManifestCollection(
+        ObjectTypeDescriptor descriptor,
+        IEnumerable<GeometryComponentManifest> manifests)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(manifests);
+
+        var items = manifests.ToArray();
+        var componentIds = new HashSet<Guid>();
+
+        foreach (var manifest in items)
+        {
+            ValidateManifest(descriptor, manifest);
+            if (!componentIds.Add(manifest.GeometryComponentId))
+            {
+                throw new CoreDomainConflictException(
+                    $"geometry_component_id \"{manifest.GeometryComponentId:D}\" 在同一 owner payload 中重复。");
+            }
+        }
+
+        foreach (var role in descriptor.GeometryRoles)
+        {
+            var count = items.LongCount(m => string.Equals(m.GeometryRole, role.Role, StringComparison.Ordinal));
+            if (count < role.Min || (role.Max is not null && count > role.Max.Value))
+            {
+                throw new CoreDomainConflictException(
+                    $"Object Type \"{descriptor.TypeKey}\" 的 geometry role \"{role.Role}\" 数量 {count} "
+                    + $"超出 descriptor 基数 [{role.Min}, {(role.Max?.ToString() ?? "unbounded")}]。");
+            }
+        }
+
+        if (descriptor.GeometryCombinedMin is { } combinedMin && items.LongLength < combinedMin)
+        {
+            throw new CoreDomainConflictException(
+                $"Object Type \"{descriptor.TypeKey}\" 的 geometry component 总数 {items.LongLength} "
+                + $"小于 combined_min {combinedMin}。");
         }
     }
 

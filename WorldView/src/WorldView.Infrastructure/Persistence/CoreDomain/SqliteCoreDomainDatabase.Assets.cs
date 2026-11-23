@@ -86,7 +86,7 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    public void UpdateAssetIntegrityState(
+    public void RecordAssetIntegrityFailure(
         Guid projectId,
         Guid assetId,
         AssetIntegrityState integrityState,
@@ -95,11 +95,10 @@ public sealed partial class SqliteCoreDomainDatabase
         _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
         var stateText = integrityState switch
         {
-            AssetIntegrityState.Verified => "verified",
-            AssetIntegrityState.Unverified => "unverified",
             AssetIntegrityState.Corrupt => "corrupt",
             AssetIntegrityState.Missing => "missing",
-            _ => throw new CoreDomainDataException($"integrity_state {integrityState} 不可识别。"),
+            _ => throw new CoreDomainConflictException(
+                "完整性失败接口只接受 Corrupt 或 Missing，Verified 必须通过字节验证证据写入。"),
         };
 
         _ef.Execute(db =>
@@ -112,10 +111,67 @@ public sealed partial class SqliteCoreDomainDatabase
                 if (entity is null)
                 {
                     throw new CoreDomainConflictException(
-                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法更新完整性状态。");
+                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法记录完整性失败。");
                 }
 
                 entity.IntegrityState = stateText;
+                SaveChangesOrThrowSqlite(db);
+                transaction.Commit();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+            {
+                transaction.Rollback();
+                throw sqlite;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
+
+    public void MarkAssetVerified(
+        Guid projectId,
+        Guid assetId,
+        AssetVerificationEvidence evidence,
+        long nowUtcMs)
+    {
+        _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
+        ArgumentNullException.ThrowIfNull(evidence);
+
+        var expectedHash = AssetRules.NormalizeContentHash(evidence.ExpectedHash);
+        var actualHash = AssetRules.NormalizeContentHash(evidence.ActualHash);
+        if (evidence.ExpectedByteLength < 0 || evidence.ActualByteLength < 0
+            || !string.Equals(expectedHash, actualHash, StringComparison.Ordinal)
+            || evidence.ExpectedByteLength != evidence.ActualByteLength)
+        {
+            throw new CoreDomainConflictException(
+                "Asset verification evidence 的 hash 或 byte length 不一致，拒绝写入 Verified。");
+        }
+
+        _ef.Execute(db =>
+        {
+            using var transaction = db.Database.BeginTransaction();
+            try
+            {
+                var entity = db.Assets.SingleOrDefault(x =>
+                    x.ProjectId == projectId && x.AssetId == assetId);
+                if (entity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法标记 Verified。");
+                }
+
+                if (!string.Equals(entity.HashAlgorithm, "sha-256", StringComparison.Ordinal)
+                    || !string.Equals(entity.ContentHash, expectedHash, StringComparison.Ordinal)
+                    || entity.ByteLength != evidence.ExpectedByteLength)
+                {
+                    throw new CoreDomainConflictException(
+                        "Asset verification evidence 与当前 Asset 元数据不匹配（metadata 已变化或证据过期）。");
+                }
+
+                entity.IntegrityState = "verified";
                 SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }

@@ -55,9 +55,11 @@ public static class AssetService
     }
 
     /// <summary>
-    /// 建立 definition geometry typed link。校验：Object 存在且 active（draft/abandoned
-    /// 不得建立正式引用）、Object Type 的 role 已在 descriptor 声明（registry）、Asset
-    /// 存在于同 Project 且完整性状态可用（corrupt/missing 拒绝）、重复 link 冲突。
+    /// 建立 legacy compact Object Type 的 definition geometry link。校验：Object active、
+    /// role 已在 descriptor 声明、Asset 同 Project 且字节验证通过（仅 Verified 可作为
+    /// 正式引用目标）、重复 link 冲突。Building/Cave typed aggregate 禁止单独 link，必须
+    /// 通过 <see cref="Objects.ObjectDefinitionService.PublishDefinitionWithGeometryAssets"/>
+    /// 原子发布完整 link set。
     /// </summary>
     public static ObjectDefinitionAssetLinkRecord LinkDefinitionAsset(
         ICoreDomainDatabase database,
@@ -73,6 +75,12 @@ public static class AssetService
 
         var type = database.FindObjectType(projectId, identity.ObjectTypeId)
             ?? throw new CoreDomainDataException($"身份 {objectIdentityId} 引用的 Object Type {identity.ObjectTypeId} 不存在（数据损坏）。");
+        if (ObjectTypeRegistry.Require(type.TypeKey).HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave geometry Asset links must be published with the complete Definition through PublishDefinitionWithGeometryAssets.");
+        }
+
         try
         {
             ObjectTypeRegistry.ValidateGeometryRole(type.TypeKey, role);
@@ -84,10 +92,10 @@ public static class AssetService
 
         var asset = database.FindAsset(projectId, assetId)
             ?? throw new CoreDomainConflictException($"Asset {assetId} 不存在或不属于项目 {projectId}，拒绝建立 Asset link。");
-        if (asset.IntegrityState is AssetIntegrityState.Corrupt or AssetIntegrityState.Missing)
+        if (asset.IntegrityState != AssetIntegrityState.Verified)
         {
             throw new CoreDomainConflictException(
-                $"Asset {assetId} 完整性状态为 {asset.IntegrityState}，不得建立正式引用。");
+                $"Asset {assetId} 完整性状态为 {asset.IntegrityState}；正式 Geometry Definition 仅可引用已验证（Verified）Asset。");
         }
 
         if (database.FindDefinitionAssetLink(projectId, objectIdentityId, assetId, role) is not null)
@@ -125,6 +133,16 @@ public static class AssetService
         Guid assetId,
         string role)
     {
+        var identity = database.FindObject(projectId, objectIdentityId)
+            ?? throw new CoreDomainConflictException($"Object {objectIdentityId} 不存在或不属于项目 {projectId}。");
+        var type = database.FindObjectType(projectId, identity.ObjectTypeId)
+            ?? throw new CoreDomainDataException($"Object {objectIdentityId} 的 Object Type 不存在（数据损坏）。");
+        if (ObjectTypeRegistry.Require(type.TypeKey).HasTypedAggregateSchema)
+        {
+            throw new CoreDomainConflictException(
+                "Building/Cave geometry Asset links must be removed through atomic Definition publication.");
+        }
+
         if (database.FindDefinitionAssetLink(projectId, objectIdentityId, assetId, role) is null)
         {
             throw new CoreDomainConflictException(

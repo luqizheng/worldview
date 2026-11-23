@@ -1,9 +1,13 @@
 using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
+using WorldView.Domain.Aggregates;
+using WorldView.Domain.Assets;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -517,6 +521,211 @@ public sealed partial class SqliteCoreDomainDatabase
                 throw;
             }
         });
+    }
+
+    public void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan)
+    {
+        _ef.Execute(db =>
+        {
+            using var transaction = db.Database.BeginTransaction();
+            try
+            {
+                // 事务内重读 Object 生命周期与类型（不信任调用方快照）。
+                var identityEntity = db.Objects.AsNoTracking().SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId)
+                    ?? throw new CoreDomainConflictException(
+                        $"Object {plan.ObjectIdentityId} 不存在或不属于项目 {plan.ProjectId}。");
+                var typeKey = db.ObjectTypes.AsNoTracking()
+                    .Where(x => x.project_id == plan.ProjectId && x.object_type_id == identityEntity.object_type_id)
+                    .Select(x => x.type_key)
+                    .SingleOrDefault()
+                    ?? throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 引用的 Object Type 不存在（数据损坏）。");
+                var identity = MapObject(identityEntity, typeKey);
+                if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+                {
+                    throw new CoreDomainConflictException(
+                        $"身份 {plan.ObjectIdentityId} 处于 {identity.LifecycleStatus} 状态；仅 active Object 可发布 Geometry Definition。");
+                }
+
+                ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
+                var descriptor = ObjectTypeRegistry.Require(typeKey);
+                if (!descriptor.HasTypedAggregateSchema || typeKey is not ("building" or "cave_system"))
+                {
+                    throw new CoreDomainConflictException(
+                        $"Object Type {typeKey} 没有已采纳的 Building/Cave typed Geometry publication adapter。");
+                }
+
+                var current = db.ObjectDefinitions.SingleOrDefault(x =>
+                    x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId)
+                    ?? throw new CoreDomainDataException(
+                        $"active Object {plan.ObjectIdentityId} 缺少定义行（数据损坏，R-定义单行）。");
+                var currentHash = CanonicalJson.Sha256Hex(current.definition_payload_json);
+                if (!string.Equals(currentHash, current.definition_hash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainDataException(
+                        $"Object {plan.ObjectIdentityId} 的 definition_hash 与 payload 不一致（数据损坏）。");
+                }
+
+                if (!string.Equals(current.definition_hash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainConflictException("定义 CAS 冲突：expected hash 与当前定义不匹配。");
+                }
+
+                var (canonicalPayload, definitionHash) =
+                    CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+                ObjectTypeRegistry.ValidateDefinition(typeKey, canonicalPayload);
+
+                // 校验既有 link set（仅形状/集合一致性），允许通过本次发布修复旧的不一致。
+                var currentLinks = db.ObjectDefinitionAssets.AsNoTracking()
+                    .Where(x => x.project_id == plan.ProjectId && x.object_identity_id == plan.ObjectIdentityId)
+                    .OrderBy(x => x.asset_id)
+                    .ThenBy(x => x.role)
+                    .AsEnumerable()
+                    .Select(x => (AssetId: x.asset_id.ToString("D"), Role: x.role))
+                    .ToArray();
+                ValidateGeometryPublicationContext(
+                    db, plan.ProjectId, typeKey, current.definition_payload_json, currentLinks, requireVerifiedAssets: false);
+
+                var desiredAssets = ReadGeometryAssetMap(canonicalPayload);
+                var desiredLinks = desiredAssets.Keys
+                    .OrderBy(id => id)
+                    .Select(assetId => (AssetId: assetId.ToString("D"), Role: "geometry_component"))
+                    .ToArray();
+                ValidateGeometryPublicationContext(
+                    db, plan.ProjectId, typeKey, canonicalPayload, desiredLinks, requireVerifiedAssets: true);
+
+                // Building/Cave typed schema 只拥有 geometry_component links；其他 role 已在上面 fail-closed。
+                var existingGeometryLinks = db.ObjectDefinitionAssets
+                    .Where(x => x.project_id == plan.ProjectId
+                        && x.object_identity_id == plan.ObjectIdentityId
+                        && x.role == "geometry_component")
+                    .ToList();
+                db.ObjectDefinitionAssets.RemoveRange(existingGeometryLinks);
+                SaveChangesOrThrowSqlite(db);
+
+                foreach (var assetId in desiredAssets.Keys.OrderBy(id => id))
+                {
+                    db.ObjectDefinitionAssets.Add(new CoreObjectDefinitionAssetEntity
+                    {
+                        object_definition_asset_id = Guid.NewGuid(),
+                        project_id = plan.ProjectId,
+                        object_identity_id = plan.ObjectIdentityId,
+                        asset_id = assetId,
+                        role = "geometry_component",
+                        created_at_utc_ms = plan.NowUtcMs,
+                    });
+                }
+
+                current.definition_schema_version = plan.DefinitionSchemaVersion;
+                current.definition_payload_json = canonicalPayload;
+                current.definition_hash = definitionHash;
+                current.updated_at_utc_ms = plan.NowUtcMs;
+
+                SaveChangesOrThrowSqlite(db);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
+
+    private static Dictionary<Guid, string> ReadGeometryAssetMap(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        if (!document.RootElement.TryGetProperty("geometry_components", out var components)
+            || components.ValueKind != JsonValueKind.Array)
+        {
+            throw new CoreDomainConflictException("typed Geometry Definition 缺少 geometry_components 数组。");
+        }
+
+        var assets = new Dictionary<Guid, string>();
+        foreach (var component in components.EnumerateArray())
+        {
+            if (!component.TryGetProperty("asset_id", out var assetElement)
+                || assetElement.ValueKind != JsonValueKind.String
+                || !Guid.TryParseExact(assetElement.GetString(), "D", out var assetId)
+                || !component.TryGetProperty("content_hash", out var hashElement)
+                || hashElement.ValueKind != JsonValueKind.String
+                || !AssetRules.IsSha256Hex(hashElement.GetString()!))
+            {
+                throw new CoreDomainConflictException("Geometry Component 的 asset_id/content_hash 格式非法。");
+            }
+
+            var contentHash = hashElement.GetString()!;
+            if (assets.TryGetValue(assetId, out var existingHash))
+            {
+                if (!string.Equals(existingHash, contentHash, StringComparison.Ordinal))
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} 被同一 owner 的多个 Geometry Component 固定到不同 content_hash。");
+                }
+            }
+            else
+            {
+                assets.Add(assetId, contentHash);
+            }
+        }
+
+        return assets;
+    }
+
+    private static void ValidateGeometryPublicationContext(
+        CoreDomainDbContext db,
+        Guid projectId,
+        string typeKey,
+        string payloadJson,
+        IReadOnlyList<(string AssetId, string Role)> links,
+        bool requireVerifiedAssets)
+    {
+        var assets = ReadGeometryAssetMap(payloadJson);
+        var catalog = new List<(string AssetId, string ContentHash)>();
+        if (!requireVerifiedAssets)
+        {
+            // 仅校验既有 owner/link 形状。旧的 corrupt/missing Asset 不应阻止一次
+            // 原子替换/移除来修复 Definition。
+            catalog.AddRange(assets.Select(asset => (asset.Key.ToString("D"), asset.Value)));
+        }
+        else
+        {
+            foreach (var assetId in assets.Keys)
+            {
+                var asset = db.Assets.AsNoTracking().SingleOrDefault(x =>
+                    x.ProjectId == projectId && x.AssetId == assetId);
+
+                // 事务内重读 integrity state：只有 Verified 的 Asset 可进入正式发布。
+                if (asset is not null && !string.Equals(asset.IntegrityState, "verified", StringComparison.Ordinal))
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} integrity_state 为 {asset.IntegrityState}；只有 Verified Asset 可发布到正式 Geometry Definition。");
+                }
+
+                if (asset is not null)
+                {
+                    catalog.Add((asset.AssetId.ToString("D"), asset.ContentHash));
+                }
+
+                // asset 不存在时由 aggregate validator 产生稳定的 missing-asset 错误。
+            }
+        }
+
+        var issues = BuildingCaveAggregateValidator.Validate(
+            typeKey,
+            payloadJson,
+            new AggregatePublicationContext
+            {
+                AssetLinks = links,
+                AssetCatalog = catalog,
+            });
+        if (issues.Count > 0)
+        {
+            throw new CoreDomainConflictException(
+                "Geometry Definition publication validation failed: "
+                + string.Join("; ", issues.Select(issue => $"{issue.ErrorCode}: {issue.Message}")));
+        }
     }
 
     // ---- Map 注册（P2 存在层） ----

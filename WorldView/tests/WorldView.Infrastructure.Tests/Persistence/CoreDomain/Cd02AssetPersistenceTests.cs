@@ -144,11 +144,11 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
 
         // verified → 可引用。
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        MarkVerified(core, project.ProjectId, asset, Now + 1);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
 
         // corrupt → 新 link 拒绝（既有 link 不自动删除——引用期间的资产字节保持可用语义由使用方保障）。
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 3);
+        core.RecordAssetIntegrityFailure(project.ProjectId, asset.AssetId, AssetIntegrityState.Corrupt, Now + 3);
         var identityId2 = CreateActiveRiverObject(project.ProjectId);
         Assert.Throws<CoreDomainConflictException>(
             () => AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId2, asset.AssetId, "centerline", Now + 4));
@@ -161,7 +161,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var core = Core();
         var identityId = CreateActiveRiverObject(project.ProjectId);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 128, "application/json", "1", Now);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        MarkVerified(core, project.ProjectId, asset, Now + 1);
 
         // 未声明 role（extent 不是 river 的 role）拒绝。
         Assert.Throws<CoreDomainConflictException>(
@@ -206,6 +206,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var identityId = CreateActiveRiverObject(project.ProjectId);
         var orphan = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash, 8, "application/json", "1", Now);
         var referenced = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), ValidHash[..63] + "0", 8, "application/json", "1", Now);
+        MarkVerified(core, project.ProjectId, referenced, Now + 1);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, referenced.AssetId, "centerline", Now + 1);
 
         var orphans = core.FindOrphanAssetIds(project.ProjectId);
@@ -227,7 +228,7 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var bytes = System.Text.Encoding.UTF8.GetBytes(envelopeJson);
         var hash = AssetRules.Sha256Hex(bytes);
         var asset = AssetService.RegisterAsset(core, project.ProjectId, Guid.NewGuid(), hash, bytes.Length, "application/json", "1", Now);
-        core.UpdateAssetIntegrityState(project.ProjectId, asset.AssetId, AssetIntegrityState.Verified, Now + 1);
+        MarkVerified(core, project.ProjectId, asset, Now + 1);
         AssetService.LinkDefinitionAsset(core, project.ProjectId, identityId, asset.AssetId, "centerline", Now + 2);
 
         // envelope 结构校验（P2-09-25 有界实现）。
@@ -250,5 +251,15 @@ public sealed class Cd02AssetPersistenceTests : IDisposable
         var link = core.FindDefinitionAssetLink(project.ProjectId, identityId, asset.AssetId, "centerline");
         GeometryRules.ValidateManifestConsistency(asset, link, manifest);
         Assert.Equal(bytes.Length, core.FindAsset(project.ProjectId, asset.AssetId)!.ByteLength);
+    }
+
+    /// <summary>测试辅助：以与当前元数据一致的证据显式标记 Verified（生产路径为字节验证用例）。</summary>
+    private static void MarkVerified(ICoreDomainDatabase core, Guid projectId, AssetRecord asset, long now)
+    {
+        core.MarkAssetVerified(
+            projectId,
+            asset.AssetId,
+            new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength),
+            now);
     }
 }
