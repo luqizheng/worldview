@@ -28,6 +28,8 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
         _stagingRoot = Path.Combine(_settingsRoot, SettingsDocumentPaths.StagingDirectoryName);
         _hashRoot = Path.Combine(_settingsRoot, "sha256");
 
+        if (!Directory.Exists(_packageRoot))
+            throw new DirectoryNotFoundException("Settings storage requires an existing package root.");
         EnsureNotReparsePoint(_packageRoot);
         Directory.CreateDirectory(_settingsRoot);
         EnsureNotReparsePoint(_settingsRoot);
