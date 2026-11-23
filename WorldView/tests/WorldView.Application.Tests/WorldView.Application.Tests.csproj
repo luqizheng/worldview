@@ -25,4 +25,4 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-</Project>
+  <ItemGroup>\n    <EmbeddedResource Include="..\\..\\..\\docs\\architecture\\core-domain\\fixtures\\field-package-v1\\*.manifest.json"\n                      Link="Fixtures\\FieldPackageV1\\%(Filename)%(Extension)" />\n  </ItemGroup>\n\n</Project>
