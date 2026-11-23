@@ -1,10 +1,12 @@
 # P0 / P1 / P2 Gaps and Recommendations
 
-优先级定义：**P0** = 阻止 M1；**P1** = M1 之后近期必须解决；**P2** = 专业地图制作阶段（M3/M4）；**Deferred** = 暂不应做。全部 Gap 均有审计证据（`WHOLE_PRODUCT_CAPABILITY_INVENTORY.md` 对应章节），机读版见 JSON `gaps` 数组。
+优先级定义：**P0** = 阻止 M1；**P1** = M1 之后近期必须解决；**P2** = 专业地图制作阶段（M3/M4）；**Deferred** = 暂不应做。全部 Gap 均有审计证据（`WHOLE_PRODUCT_CAPABILITY_INVENTORY.md` 对应章节），机读版见 JSON `gaps` 与 `resolved_gaps` 数组。
+
+> **2026-11-24 修订**：WP-20a Map 创建切片已完成（PR #26，分支 `feat/wp20a-map-creation` @ `50e3d3e`；本地 728/728 测试，CI run 45211773969 四 job 全绿）。GAP-P0-2 移出活动 P0（见"已解决"节）；活动 P0 由 4 项变为 3 项；P1 表 GAP-P1-04 缺口收窄。其余内容仍以 2026-11-23 审计为准。
 
 ---
 
-## P0 — 阻止 M1（4 项）
+## P0 — 阻止 M1（3 项）
 
 ### GAP-P0-1 Map Rendering 管线整体缺失
 - **影响范围**：M1 验收 6（空白视口）、7（Pan/Zoom/resize 变换）；11（渲染不改数据）与 12（快照/变换/平台视口自动化测试）在渲染实现前不可验证；RND-01~19 全部 MISSING。
@@ -13,48 +15,9 @@
 - **推荐解决方向**：WP-30 最小切片——Presentation Context + Scene Snapshot 最小子集 + Avalonia 视口宿主 + Skia 绘制 + map↔screen 仿射变换 + Pan/Zoom + 空白帧中性背景（来自正式读投影，不伪造几何）。先落两项技术决策：自绘控件 vs `CustomDrawOperation`；PRA-01 最小子集裁剪清单。
 - **阻塞 M1**：是。
 
-### GAP-P0-2 Map 创建无用户入口
-- **影响范围**：M1 验收 3；PMM-B6。
-- **证据**：领域/持久化/测试三层齐备（`MapBranchServices.cs:12-28`、`MapCreation.cs:25-48`、`SqliteCoreDomainDatabase.cs:194-264`），但 Application/Desktop 对 `MapService` **零调用**（grep 复核）；ProjectWindow 仅三个命令（关闭项目/打开工作区/关闭工作区）。
-- **依赖**：无硬阻塞——领域创建服务就绪，仅需接线（外加名称唯一性的最小 Domain 规则）。
-- **推荐解决方向（WP-20a 架构要求，依赖方向固定）**：
-
-  ```text
-  ProjectWindow / ViewModel
-          |
-          v
-  CreateMapUseCase
-          |
-          v
-  IMapCreationService
-          |
-          v
-  CoreDomainMapCreationService
-          |
-          v
-  MapService
-          |
-          v
-  ICoreDomainDatabase
-          |
-          v
-  SqliteCoreDomainDatabase
-          |
-          v
-  SQLite transaction
-  ```
-
-  - Application 层新增 `IMapCreationService` 端口；Infrastructure 层实现 `CoreDomainMapCreationService`（绑定当前 ProjectSession 的 `IPackageDatabase`，调用正式 Domain `MapService`，不复制 Domain 创建规则）。
-  - `CreateMapUseCase` 只依赖 Application 抽象，不引用 Infrastructure 或 SQLite；UI 不直接操作 Domain 数据库或执行 SQL。
-  - 复用 `CoreDomainProjectCreationService`、`CoreDomainMapQueryService` 的会话绑定适配器模式；经组合根注册，保证 ProjectSession 生命周期正确。
-  - ProjectWindow"创建地图"入口 + 创建对话框（成功后刷新列表、不自动打开）；Map 名称唯一性产品规则（同 Project 内唯一、大小写不敏感）由 Domain/正式持久化写路径保障，不只在 ViewModel 检查。
-  - **不重做现有 Map Domain 模型，不增加影子 Map 表。**
-  - **建议作为第一个实施任务。**
-- **阻塞 M1**：是。
-
 ### GAP-P0-3 Map 工作区无产品界面 / 上下文接线断裂
 - **影响范围**：M1 验收 5/6；PMM-B8/B13/C15/C16/C17。
-- **证据**：UI 打开工作区恒传 `branchId:null, historicalTimeInput:null`（`ProjectWorkspaceViewModel.cs:105-107`）；`MapWorkspaceSession.SwitchContextAsync`（`MapWorkspaceSession.cs:49-79`）零调用零测试死代码；`ValidatedWorkspaceContext` 自标"不透明占位"（`IMapQueryService.cs:104-115`）；ViewState 全占位。
+- **证据**：UI 打开工作区恒传 `branchId:null, historicalTimeInput:null`（`ProjectWorkspaceViewModel.cs:111-114`）；`MapWorkspaceSession.SwitchContextAsync`（`MapWorkspaceSession.cs:49-79`）零调用零测试死代码；`ValidatedWorkspaceContext` 自标"不透明占位"（`IMapQueryService.cs:104-115`）；ViewState 全占位。
 - **依赖**：与 GAP-P0-1 同批实施（工作界面 = 文本列表 + 视口）。
 - **推荐解决方向**：WP-30 同批——打开工作区时解析并**显示** Branch/时间上下文（WP-20 exit criteria 要求）；M1 阶段不实现 Branch 切换 UI（可用默认根 Branch），`SwitchContextAsync` 要么接线要么显式移除（避免死代码进发布）。
 - **阻塞 M1**：是。
@@ -68,6 +31,38 @@
 
 ---
 
+## 已解决（Resolved）
+
+### GAP-P0-2 Map 创建无用户入口 — ✅ 已解决（WP-20a，PR #26）
+
+- **原状态**：P0（阻塞 M1 验收 3）。领域/持久化/测试三层齐备，但 Application 用例层与 UI 均为零。
+- **解决方式**：WP-20a Map 创建切片（分支 `feat/wp20a-map-creation`，commit `50e3d3e`，PR #26），按原 GAP-P0-2 规定的固定依赖方向落地，四层全链：
+
+  ```text
+  ProjectWindow 创建按钮/CreateMapDialog
+          |
+          v
+  CreateMapUseCase（失败种类 InvalidName/DuplicateName/CreationFailed）
+          |
+          v
+  IMapCreationService（Application 端口）
+          |
+          v
+  CoreDomainMapCreationService（会话绑定适配器，CoreDomainAdapters.cs:161）
+          |
+          v
+  MapService（正式 Domain 服务）
+          |
+          v
+  SqliteCoreDomainDatabase（创建事务内名称复检 :211，单事务无部分 Map）
+  ```
+
+- **关键实现点**：名称唯一性 `MapRules.MapNameComparer=OrdinalIgnoreCase`（预检 `MapBranchServices.cs:32-34` + 创建事务内复检，权威在正式持久化写路径）；**无 Schema/Migration 变更**；未重做 Map Domain 模型、未加影子表；成功后仅刷新列表不自动打开；组合根注册 `Program.cs:114-115`。
+- **验证**：测试 +28（700→728 全绿，Debug 本机实测 + CI run 45211773969 四 job 全绿含 Release）——Domain 比较器语义/重复拒绝/跨项目共存/持久化闸拒绝；Application 用例边界/失败种类；Infrastructure 真实 SQLite 端到端（非 UI 重复名拒绝无部分数据、跨包隔离）；新增 `WorldView.Desktop.Tests` 纯 ViewModel 测试。
+- **遗留**：GUI 冒烟未做（M1 平台门统一处理）；Branch/时间上下文显式显示属 WP-20b（GAP-P0-3 关联范围）。
+
+---
+
 ## P1 — M1 之后近期必须解决（15 项）
 
 | ID | 缺口 | 影响范围 | 证据 | 依赖 | 推荐方向 | 阻塞 M1 |
@@ -75,8 +70,8 @@
 | GAP-P1-01 | 进程级异常只写 stderr（WinExe 不可观测）；`ApplicationBootstrapper(log: null)`；窗口 async void 无保护 | 可诊断性/交付质量 | `Program.cs:29,34,77`；`StartWindow.axaml.cs:42,57` | 无 | 钩子接 `FileAppLog`；补 UI 线程 handler | 否（建议随 WP-10） |
 | GAP-P1-02 | ProjectWindow 点 X 不关会话（句柄占用至停机；重开同包 DuplicateOpen 二开窗口） | 数据一致性 UX | `ProjectWindow.axaml.cs` 无窗口→VM 链路 | 无 | Closing 事件→`CloseAsync` 或明确提示 | 否 |
 | GAP-P1-03 | Settings 服务已实现但生产未接线；无设置 UI | 应用偏好（最近 Map 等落点） | `SettingsDocumentService` 未注册 DI | WP-20b 偏好项 | 接线+最小设置面 | 否 |
-| GAP-P1-04 | Desktop/UI 测试为零；应用启停无测试 | 回归安全网 | 测试工程不引用 Desktop | WP-30 视口测试共址 | 新建 Desktop 冒烟工程（Avalonia headless） | 否 |
-| GAP-P1-05 | `JsonRecentProjectsStore` 零测试 | M1 验收 10 的证据强度 | tests 全域 grep 零命中 | 无 | 补存储单测（读写/截断/降级） | 否（建议同 WP-20a） |
+| GAP-P1-04 | Avalonia headless UI 测试与应用启停测试为零（WP-20a 已新增 Desktop.Tests 纯 ViewModel 单测，缺口收窄未关闭） | 回归安全网 | 无 headless Avalonia 测试；停机逻辑 `Program.cs:44-45` 无覆盖 | WP-30 视口测试共址 | 新建 Desktop 冒烟工程（Avalonia headless） | 否 |
+| GAP-P1-05 | `JsonRecentProjectsStore` 零测试 | M1 验收 10 的证据强度 | tests 全域 grep 零命中 | 无 | 补存储单测（读写/截断/降级） | 否 |
 | GAP-P1-06 | EF 迁移防降级守卫（未知迁移版本拒绝打开）无专门测试 | 长期演进安全 | `CoreDomainEfSession.ApplyMigrations` fail-closed 无测试名命中 | 无 | 补负向测试 | 否 |
 | GAP-P1-07 | 几何 envelope 结构校验器建成但未接入生产发布链 | 数据完整性一致性 | `GeometryAssetEnvelope.Validate` 生产零调用（src 仅常量引用）；生产走 registry schema+`ValidateGeometryPublicationContext`（不校验 envelope JSON 内容） | 无 | 接入发布事务或在 CD-03 明确降级理由 | 否 |
 | GAP-P1-08 | 资产验证用例/孤儿对账生产零调用；Asset 孤儿只读上报无回收 | 资产一致性闭环 | `VerifyAssetIntegrityUseCase`/`FindOrphanAssetIds` 仅测试可达 | 无 | WP-20/30 期间接入启动对账或独立维护路径 | 否 |
@@ -121,7 +116,8 @@
 
 ## 建议的第一批实施任务（供产品负责人裁决）
 
-1. **WP-20a Map 创建切片**（GAP-P0-2）：最小、零阻塞、可测试性最好，直接打通 M1 验收 3（架构方向见 GAP-P0-2 依赖图：`IMapCreationService` 端口 → `CoreDomainMapCreationService` → 正式 `MapService`）。
+> 2026-11-24 更新：原第 1 项 **WP-20a Map 创建切片已完成**（PR #26，`50e3d3e`，GAP-P0-2 已解决，M1 验收 3 转为 IMPLEMENTED_VERIFIED）。剩余顺序如下。
+
+1. **WP-30 技术决策 + 渲染切片**（GAP-P0-1/P0-3）：先两页决策文档（自绘控件 vs `CustomDrawOperation`；PRA-01 最小子集裁剪），再实施——现已是最大单项与 M1 关键路径首位。
 2. **WP-10 小项包**（GAP-P1-01/02/05/11 + GAP-P1-15 打包发布链）：全部小改动，随批清理死代码；打包/发布产物归 WP-10。
-3. **WP-30 技术决策 + 渲染切片**（GAP-P0-1/P0-3）：先两页决策文档，再实施。
-4. **平台门清单**（GAP-P0-4 macOS GUI 冒烟）：双平台冒烟清单模板 + macOS 实机执行留证，可与 1-3 并行准备。
+3. **平台门清单**（GAP-P0-4 macOS GUI 冒烟）：双平台冒烟清单模板 + macOS 实机执行留证，可与 1-2 并行准备。

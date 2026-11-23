@@ -11,7 +11,7 @@
 | 操作系统 | Windows 10.0.26300 x64（win32） |
 | .NET SDK | 11.0.100（`dotnet --version`） |
 | 工作目录 | `WorldView/`（约束：`dotnet test` 必须从 WorldView 目录跑，根目录会报 MTP/VSTest 错误） |
-| 基线 | `master` @ `30527eb31d73452703b1bd53c22cea5cce112aa9` |
+| 基线 | 2026-11-23 审计：`master` @ `30527eb31d73452703b1bd53c22cea5cce112aa9`；2026-11-24 修订实测：`feat/wp20a-map-creation` @ `50e3d3e32f7e76539e2d35ba9a3fc06428609b8d`（PR #26） |
 
 ### 1.1 构建
 
@@ -21,19 +21,25 @@
 耗时：约 6.4 s
 ```
 
-### 1.2 测试（2026-11-23）
+### 1.2 测试（2026-11-23 审计 @ master `30527eb`；2026-11-24 修订实测 @ `50e3d3e`）
 
 ```
 命令：dotnet test WorldView.sln -c Debug --nologo
 Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.Testing.Platform"}}）
-结果：总计 700 / 通过 700 / 失败 0 / 跳过 0（耗时 27.7s）
 
+master@30527eb（2026-11-23）：总计 700 / 通过 700 / 失败 0 / 跳过 0（耗时 27.7s）
   WorldView.Domain.Tests          262 通过（1.5s）
   WorldView.Application.Tests     125 通过（2.5s）
   WorldView.Infrastructure.Tests  313 通过（27.5s）
+
+feat/wp20a-map-creation@50e3d3e（2026-11-24，WP-20a 后）：总计 728 / 通过 728 / 失败 0 / 跳过 0（耗时 30.7s）
+  WorldView.Domain.Tests          266 通过（+4）
+  WorldView.Application.Tests     133 通过（+8）
+  WorldView.Infrastructure.Tests  318 通过（+5，含 Wp20aMapCreationTests）
+  WorldView.Desktop.Tests          11 通过（新工程，+11）
 ```
 
-与上一轮盘点（基线 `3fd1815`，同一代码）结果一致；与 CI 基线一致。
+修订实测与 WP-20a 提交说明（+28）及 CI 一致。
 
 ### 1.3 未在本机执行（NOT_RUN 或未执行）
 
@@ -55,10 +61,11 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 | 矩阵 | windows-latest + macos-latest × Debug + Release = 4 job；`fail-fast: false`；`working-directory: WorldView` |
 | 步骤 | checkout@v4 → setup-dotnet@v4（11.0.x）→ `dotnet --info` → restore → build（`--no-restore`）→ test（`--no-build` + `-- --show-slowest-tests 20`，MTP 扩展参数） |
 | 权限 | `contents: read`（最小权限） |
-| **HEAD 运行** | **run [45183823988](https://github.com/luqizheng/worldview/actions/runs/45183823988)（2026-11-23T13:25Z，HEAD `30527eb`）：4 job 全部 success**（windows Debug/Release、macos Debug/Release） |
+| **HEAD 运行（master 基线）** | **run [45183823988](https://github.com/luqizheng/worldview/actions/runs/45183823988)（2026-11-23T13:25Z，HEAD `30527eb`）：4 job 全部 success**（windows Debug/Release、macos Debug/Release） |
+| **PR #26 运行（WP-20a 分支）** | **run [45211773969](https://github.com/luqizheng/worldview/actions/runs/45211773969)（pull_request，head `50e3d3e`）：4 job 全部 success**（windows Debug 4m35s / Release 5m27s、macos Debug 1m36s / Release 57s） |
 | 近期基线 | run 45170759757（`3fd1815`）等近 6 次 master 运行全部 success |
 
-**CI 能证明的**：两个平台的编译 + 700 单测/集成测试通过（含真实 SQLite 端到端）。**CI 不能证明的**：GUI 应用在任一平台的实际运行（无 UI 测试、无打包产物、无冒烟 job）。
+**CI 能证明的**：两个平台的编译 + 728 单测/集成测试通过（含真实 SQLite 端到端与 WP-20a 创建链）。**CI 不能证明的**：GUI 应用在任一平台的实际运行（无 UI/headless 测试、无打包产物、无冒烟 job）。
 
 ---
 
@@ -66,28 +73,28 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 
 ### 3.1 规模
 
-- 49 个测试类 / 515 个 `[Fact]` / 28 个 `[Theory]`（Theory 经 InlineData/JSON 向量展开后实际用例数更高，如 55 条 Building/Cave 聚合校验向量由 `Cd02AggregateVectorConformanceTests` 嵌入 JSON 驱动）。
+- 4 个测试工程 / 53 个测试类 / 541 个 `[Fact]` / 29 个 `[Theory]`（Theory 经 InlineData/JSON 向量展开后实际用例数更高，如 55 条 Building/Cave 聚合校验向量由 `Cd02AggregateVectorConformanceTests` 嵌入 JSON 驱动）。WP-20a 后口径（2026-11-24）：新增 `WorldView.Desktop.Tests`（2 个 ViewModel 测试类，纯单测不启动 UI）。
 - 测试栈：xunit.v3 4.0.3 + MTP；**冗余配置**：csproj 同时保留 VSTest 适配器（`Microsoft.NET.Test.Sdk` 18.12.0 + `xunit.runner.visualstudio` 4.0.1）——GAP-P1-13。
 
 ### 3.2 类型分布
 
 | 类型 | 工程 | 落地方式 | 状态 |
 |---|---|---|---|
-| 纯单元 | Domain.Tests / Application.Tests | 内存替身（`FakeCoreDomainDatabase` 920 行、`FakePackageDatabase`、`InMemoryFileSystem`）；golden fixtures 以 EmbeddedResource 嵌入 | IMPLEMENTED_VERIFIED |
-| 真实 SQLite 集成 | Infrastructure.Tests 全部 21 类 | 每类独立临时目录 + `SqlitePackageDatabaseFactory.CreateForFile`；部分断言直连（`SqlitePackageDatabaseTests.cs:53` 裸连接） | IMPLEMENTED_VERIFIED |
-| 端到端 | `Cd01EndToEndTests`（创建→重开→查询→工作区，镜像 Program.cs 组合根、零端口替身）；`RealPackageFlowTests`；`Cd02MapEditorIntegrationTests`（ME-04 领域全链） | 真实 SQLite + 真实文件系统 | IMPLEMENTED_VERIFIED |
+| 纯单元 | Domain.Tests / Application.Tests / Desktop.Tests | 内存替身（`FakeCoreDomainDatabase` 920 行、`FakePackageDatabase`、`InMemoryFileSystem`）；golden fixtures 以 EmbeddedResource 嵌入；Desktop.Tests 为纯 ViewModel 单测（WP-20a，11 例） | IMPLEMENTED_VERIFIED |
+| 真实 SQLite 集成 | Infrastructure.Tests 全部 22 类 | 每类独立临时目录 + `SqlitePackageDatabaseFactory.CreateForFile`；部分断言直连（`SqlitePackageDatabaseTests.cs:53` 裸连接） | IMPLEMENTED_VERIFIED |
+| 端到端 | `Cd01EndToEndTests`（创建→重开→查询→工作区，镜像 Program.cs 组合根、零端口替身）；`RealPackageFlowTests`；`Cd02MapEditorIntegrationTests`（ME-04 领域全链）；`Wp20aMapCreationTests`（创建/查询/打开工作区不变量、非 UI 重复名拒绝无部分数据、跨包隔离） | 真实 SQLite + 真实文件系统 | IMPLEMENTED_VERIFIED |
 | 并发/事务 | `PersistenceConcurrencyTests`（12） | 共享协调器/Dispose fail-closed/飞行中 Dispose | IMPLEMENTED_VERIFIED |
-| UI 测试 | — | 无任何工程引用 WorldView.Desktop；无 Avalonia headless | **MISSING** |
+| UI 测试 | `WorldView.Desktop.Tests`（WP-20a 起） | 纯 ViewModel 层单测；**无 Avalonia headless 控件/交互测试** | PARTIAL |
 | 应用启停测试 | — | `Program.cs:44-45` 停机无覆盖 | **MISSING** |
 | Renderer 生命周期测试 | — | 渲染器不存在 | NOT_APPLICABLE |
 
 ### 3.3 已知覆盖缺口（全部有 grep 证据）
 
-1. Desktop 工程 0 覆盖（GAP-P1-04）。
+1. Avalonia headless UI 测试与应用启停 0 覆盖（GAP-P1-04；WP-20a 已补 Desktop ViewModel 层单测 11 例，缺口收窄未关闭）。
 2. `JsonRecentProjectsStore` 0 覆盖（GAP-P1-05）。
 3. `MapWorkspaceSession.SwitchContextAsync` 0 覆盖（且为零调用死代码）。
 4. EF 迁移防降级守卫（`__EFMigrationsHistory` 未知版本拒绝）无专门测试（GAP-P1-06）。
-5. ViewModel 门槛/异常分支无单测。
+5. ViewModel 门槛/异常分支部分覆盖：`CreateMapDialogViewModel`/`ProjectWorkspaceViewModel` 已有单测（WP-20a）；其余 VM（StartViewModel 等）无。
 
 ---
 
@@ -98,8 +105,8 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 | 项 | 证据 | 状态 |
 |---|---|---|
 | Debug 构建 | 本机实测 0 错误 | ✅ |
-| Debug 测试 | 本机实测 700/700 | ✅ |
-| Release 构建+测试 | CI run 45183823988 windows-latest/Release success | ✅（仅 CI） |
+| Debug 测试 | 本机实测 728/728（WP-20a 分支 50e3d3e，2026-11-24；master 基线 700/700） | ✅ |
+| Release 构建+测试 | CI run 45183823988 / 45211773969 windows-latest/Release success | ✅（仅 CI） |
 | GUI 实际运行 | **本审计未执行冒烟**；历史会话亦无正式 GUI 冒烟记录 | ⚠️ IMPLEMENTED_UNVERIFIED |
 | 打包产物 | 无（仅 framework-dependent 本地产物） | ❌ |
 | 平台代码 | 路径/日志三分支 Windows 侧；`app.manifest`（supportedOS Win10，无 DPI 节点） | ✅ |
@@ -108,8 +115,8 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 
 | 项 | 证据 | 状态 |
 |---|---|---|
-| Debug 构建+测试 | CI run 45183823988 macos-latest/Debug success | ✅（仅 CI） |
-| Release 构建+测试 | CI run 45183823988 macos-latest/Release success | ✅（仅 CI） |
+| Debug 构建+测试 | CI run 45183823988 / 45211773969 macos-latest/Debug success | ✅（仅 CI） |
+| Release 构建+测试 | CI run 45183823988 / 45211773969 macos-latest/Release success | ✅（仅 CI） |
 | 本机任何执行 | NOT_RUN（审计环境为 Windows） | NOT_RUN |
 | GUI 实际运行 | **零证据**（无 macOS UI 冒烟、无头 Avalonia 测试、发布产物） | ❌ |
 | 平台代码 | `JsonRecentProjectsStore.cs:117-122`、`FileAppLog.cs:22-26` 的 macOS 路径分支（未在 macOS 上运行验证） | ⚠️ 代码存在，行为未验证 |
@@ -124,3 +131,4 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 - 对上一轮盘点（基线 `3fd1815`，代码与当前 HEAD 完全一致）的结论做了**交叉复核并修正 3 处**：① `ObjectTypeSeedingService` 经项目创建生产可达（旧结论"全部写服务无生产调用方"过绝对）；② `FieldDatasetService` 的 4 处 Application 调用方本身无 UI 入口；③ `MapInitialStateService` 在 src 的唯一命中是常量引用非服务调用。
 - 主审独立完成：git 基线固定、构建、700 测试实测、CI run 核验（gh CLI）、10 份必读文档存在性与关键内容核对、工程统计。
 - 本审计未修改任何业务代码/Schema/Migration/CI/正式设计文档；新增文件仅 `docs/implementation/wp-00-inventory/` 下 7 份报告。
+- **2026-11-24 修订取证（WP-20a）**：在 `feat/wp20a-map-creation` @ `50e3d3e` 上重跑 Debug 构建+测试（728/728，逐工程 266/133/318/11），gh CLI 核验 PR #26 CI run 45211773969（head `50e3d3e`，四 job success），逐文件行号复核 WP-20a 新增代码（端口/用例/适配器/Domain 规则/事务复检/DI/UI 对话框）。修订未修改任何业务代码/Schema/Migration/CI。
