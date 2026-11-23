@@ -85,7 +85,8 @@ internal static class CoreDomainV1ModelConfiguration
             entity.HasIndex(x => new { x.ProjectId, x.ProjectSettingsRevisionId });
             entity.Property(x => x.ProjectId).HasColumnName("project_id").HasColumnType("TEXT").HasConversion(guidToText);
             entity.Property(x => x.ProjectSettingsRevisionId).HasColumnName("project_settings_revision_id").HasColumnType("TEXT").HasConversion(guidToText);
-            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<CoreProjectEntity>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_core_project_settings_current_core_project_project_id");
             entity.HasOne<CoreProjectSettingsRevisionEntity>().WithMany()
                 .HasForeignKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
                 .HasPrincipalKey(x => new { x.ProjectId, x.ProjectSettingsRevisionId })
