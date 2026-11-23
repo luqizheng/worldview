@@ -83,6 +83,8 @@ public sealed record SettingsDocument
     {
         if (utf8.IsEmpty)
             throw new JsonSerializationException("Settings document is empty.");
+        if (utf8.Length > SettingsDocumentFormat.MaximumDocumentBytes)
+            throw new JsonSerializationException("Settings document exceeds the V1 size limit.");
 
         // Strict UTF-8 decoding rejects malformed byte sequences. A BOM is not part of V1.
         var text = new UTF8Encoding(false, true).GetString(utf8);
@@ -104,11 +106,8 @@ public sealed record SettingsDocument
             LineInfoHandling = LineInfoHandling.Load,
         });
 
-        while (jsonReader.Read())
-        {
-            if (jsonReader.TokenType != JsonToken.Comment)
-                throw new JsonSerializationException("Settings document contains trailing JSON content.");
-        }
+        if (jsonReader.Read())
+            throw new JsonSerializationException("Settings document contains trailing JSON content.");
 
         if (ContainsComment(root))
             throw new JsonSerializationException("Comments are not permitted in settings documents.");
