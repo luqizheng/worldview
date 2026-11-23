@@ -108,6 +108,41 @@ public sealed class SettingsDocumentFileStoreTests
         }
     }
 
+    [Fact]
+    public async Task OpenReadAsync_RejectsSymlinkedPublishedFile()
+    {
+        var root = CreatePackageRoot();
+        var outside = CreatePackageRoot();
+        try
+        {
+            var store = new SettingsDocumentFileStore(root);
+            const string hash = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+            var relative = SettingsDocumentPaths.GetRelativePath(hash);
+            var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            var outsideFile = Path.Combine(outside, "outside.json");
+            await File.WriteAllTextAsync(outsideFile, "{}");
+            try
+            {
+                File.CreateSymbolicLink(path, outsideFile);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                       or PlatformNotSupportedException or NotSupportedException)
+            {
+                // Some Windows configurations disable unprivileged symbolic-link creation.
+                return;
+            }
+
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.OpenReadAsync(hash));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
     private static string CreatePackageRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "worldview-settings-tests", Guid.NewGuid().ToString("N"));
