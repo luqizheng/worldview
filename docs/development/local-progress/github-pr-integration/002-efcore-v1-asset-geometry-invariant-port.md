@@ -347,3 +347,11 @@ Workflow `.NET CI`，同一 HEAD 的两条 run 均为 success：run 591（[run 4
 | macOS | Release | success |
 
 本地 Windows 结果见 §B5（Debug / Release 均 538 通过 / 0 失败）。CI 验收基准 HEAD 为 `275b69c`；本节回填为其后的 docs-only 提交，不影响代码验收结论。Base 仍为 `feat/efcore-v1-complete-model`，PR #22 未合并。
+
+## 14. Base 切换到 master 与同步记录（2026-11-23）
+
+#11（EF Core V1 cutover）合并进 master（`7bbf169`）后，PR #22 的 Base 由 `feat/efcore-v1-complete-model` 更改为 `master`，并把 master 合入本分支（合并提交 `a3c1406`）。master 侧带入：#12（CI 工具链修复 + packaging 修复）、#24（CD-02-G 文档迁移）、#25（SchemaAudit 审计测试）。
+
+**冲突解决（仅 1 个文件）**：`Cd02AssetPersistenceTests.cs` 尾部双方重叠。保留本分支的 `MarkVerified` / `RegisterVerifiedAsset` 辅助（002-A/B 收紧后的 API），并把 #25 的 `SchemaAudit_ForeignKeyCheckAndIntegrityCheck_NoViolationsAfterObjectAssetLink` **适配**到收紧 API——原测试用的 `UpdateAssetIntegrityState(..., Verified, ...)` 在 002-A 后已不存在，改为经 `RegisterVerifiedAsset`（实测字节 → `AssetByteDigest` → `MarkAssetVerified`）建立 Verified 链接后再做全局 `foreign_key_check` + `integrity_check` 审计。审计语义不变。
+
+**验证**：本地 Windows Debug **539/539**（538 基线 + SchemaAudit，0 失败）；CI 四平台 success @ `a3c1406`（[run 45166607126](https://github.com/luqizheng/worldview/actions/runs/45166607126)，push 事件；[run 45166614429](https://github.com/luqizheng/worldview/actions/runs/45166614429)，pull_request 事件）。**Base 切换后的代码验收基准 HEAD 为 `a3c1406`。**
