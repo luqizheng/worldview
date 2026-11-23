@@ -229,7 +229,19 @@ public sealed class FieldPackageReader : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_tiles.TryGetValue((tileX, tileY), out var address))
             throw Error(FieldPackageBinaryErrorCodes.Directory, "Requested tile coordinate is outside the validated grid.");
-        var stored = ReadAt(_source, address.PayloadOffset, checked((int)address.StoredLength));
+        byte[] stored;
+        try
+        {
+            stored = ReadAt(_source, address.PayloadOffset, checked((int)address.StoredLength));
+        }
+        catch (EndOfStreamException ex)
+        {
+            throw Error(FieldPackageBinaryErrorCodes.Truncated, "Tile payload ended before its stored length was read.", ex);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw Error(FieldPackageBinaryErrorCodes.Io, "Tile payload I/O failed.", ex);
+        }
         var digest = SHA256.HashData(stored);
         if (!CryptographicOperations.FixedTimeEquals(digest, address.Sha256))
             throw Error(FieldPackageBinaryErrorCodes.TileHash, $"Tile ({tileX},{tileY}) SHA-256 does not match its directory entry.");
