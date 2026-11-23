@@ -136,6 +136,18 @@ public sealed class FieldPackageReader : IDisposable
             var validityPlane = planes.SingleOrDefault(p => string.Equals(p.Name, validityPlaneName, StringComparison.Ordinal));
             if (validityPlane is null || validityPlane.BytesPerCell != 1 || validityPlane.SampleFormat != "uint8")
                 throw Error(FieldPackageBinaryErrorCodes.Mask, "Manifest must declare its validity mask as a one-byte uint8 plane.");
+
+            string? coveragePlaneName = null;
+            var coverage = root.GetProperty("coverage");
+            if (string.Equals(coverage.GetProperty("mode").GetString(), "explicit_mask", StringComparison.Ordinal))
+            {
+                coveragePlaneName = coverage.GetProperty("mask_plane_name").GetString();
+                if (string.Equals(coveragePlaneName, validityPlaneName, StringComparison.Ordinal))
+                    throw Error(FieldPackageBinaryErrorCodes.Mask, "Coverage and validity masks must be distinct planes.");
+                var coveragePlane = planes.SingleOrDefault(p => string.Equals(p.Name, coveragePlaneName, StringComparison.Ordinal));
+                if (coveragePlane is null || coveragePlane.BytesPerCell != 1 || coveragePlane.SampleFormat != "uint8")
+                    throw Error(FieldPackageBinaryErrorCodes.Mask, "Explicit coverage mask must be a distinct one-byte uint8 plane.");
+            }
             var codecIds = root.GetProperty("codec_registry").EnumerateArray()
                 .Select(c => c.GetProperty("codec_id").GetInt32()).ToArray();
             if (codecIds.Distinct().Count() != codecIds.Length || !codecIds.Contains(0))
@@ -218,6 +230,10 @@ public sealed class FieldPackageReader : IDisposable
             throw Error(FieldPackageBinaryErrorCodes.TileHash, $"Tile ({tileX},{tileY}) SHA-256 does not match its directory entry.");
         using var json = JsonDocument.Parse(ManifestUtf8);
         var validityName = json.RootElement.GetProperty("no_data").GetProperty("mask_plane").GetProperty("plane_name").GetString();
+        var coverage = json.RootElement.GetProperty("coverage");
+        var coverageName = string.Equals(coverage.GetProperty("mode").GetString(), "explicit_mask", StringComparison.Ordinal)
+            ? coverage.GetProperty("mask_plane_name").GetString()
+            : null;
         var planes = json.RootElement.GetProperty("value_encoding").GetProperty("planes").EnumerateArray().ToArray();
         var offset = 0;
         for (var i = 0; i < planes.Length; i++)
@@ -225,11 +241,12 @@ public sealed class FieldPackageReader : IDisposable
             var name = planes[i].GetProperty("name").GetString();
             var bytesPerCell = planes[i].GetProperty("bytes_per_cell").GetInt32();
             var length = checked(address.ValidWidth * address.ValidHeight * bytesPerCell);
-            if (string.Equals(name, validityName, StringComparison.Ordinal))
+            if (string.Equals(name, validityName, StringComparison.Ordinal) ||
+                string.Equals(name, coverageName, StringComparison.Ordinal))
             {
                 for (var j = offset; j < offset + length; j++)
                     if (stored[j] is not (0 or 1))
-                        throw Error(FieldPackageBinaryErrorCodes.Mask, "Validity mask contains a value other than 0 or 1.");
+                        throw Error(FieldPackageBinaryErrorCodes.Mask, "Validity and coverage masks may contain only 0 or 1.");
             }
             offset += length;
         }
