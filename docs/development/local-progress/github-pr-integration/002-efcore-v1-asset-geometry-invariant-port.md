@@ -6,6 +6,7 @@
 - 基线 SHA：`991aa17b7a3f6f2588aabf596e2e808b6c9cdde2`
 - 实现提交 SHA：`d017449ab78f041eda2a612eb3f5c67bf9d61b92`
 - Task 002-A 修复提交 SHA：`11fa9387b82f32dcf351c5a7e0b80e3ac07dbe34`
+- Task 002-B 修复提交 SHA：见 §12（与文档同批提交推送后由 CI run 记录）
 - 状态：本地 Windows Debug/Release 全部通过；四平台 GitHub Actions 全部成功
 
 ## 0. Task 002-A 修复记录 — Verified 写入不可绕过 + `$defs` 递归 fail-closed
@@ -282,3 +283,58 @@ Workflow `.NET CI`，run 585（[run 45138162297](https://github.com/luqizheng/wo
 | macOS | Release | success |
 
 同 HEAD SHA 的 pull_request 事件 run 586（[run 45138170562](https://github.com/luqizheng/worldview/actions/runs/45138170562)）四平台同样全部 success。PR #22 HEAD 更新为 `11fa938`；Base 仍为 `feat/efcore-v1-complete-model`（`991aa17`）未修改；PR #22 与 PR #11 均未合并。
+
+## 12. Task 002-B 修复记录 — AssetByteDigest 创建权限收紧
+
+### B1. 原始问题
+
+Task 002-A 之后 `AssetByteDigest` 的构造器虽为 private，但 `MeasureAsync(Stream)` 是 **public** 静态工厂：任意普通调用方可以自行 `new MemoryStream(...)` 测量任意已知内容，拿到与 Asset 元数据一致的摘要后直接调用 `MarkAssetVerified`——绕过 `IAssetStore.OpenReadAsync` 的真实字节来源约束。摘要的"来自真实字节"承诺只保证了字节存在，未保证字节来源是 Project Asset Store。
+
+### B2. 权限收紧方案
+
+- `AssetByteDigest.MeasureAsync` 由 `public` 改为 **`internal`**；构造器保持 private；不新增任何 public/其他可见性的摘要创建工厂（无 `FromHash` / `FromBytes` / `Create` 等旁路）。
+- `WorldView.Domain.csproj` 以 `<InternalsVisibleTo>` **精确授权**（沿用仓库既有惯例，如 Application→Application.Tests）：
+  - `WorldView.Application`——生产唯一授权：`VerifyAssetIntegrityUseCase`（IAssetStore.OpenReadAsync → MeasureAsync → MarkAssetVerified）；
+  - `WorldView.Domain.Tests` / `WorldView.Infrastructure.Tests`——仅摘要行为与 API Surface 锁定测试程序集，非生产入口。
+- 分层不变：`InternalsVisibleTo` 只产生 friend 程序集声明，不产生工程引用；Domain 仍不依赖 Application/Infrastructure。
+- `ICoreDomainDatabase.MarkAssetVerified` 保持只接受 `AssetByteDigest`，未退回调用方自报 Hash/Length 的 API。
+- 摘要类型保持 public（端口签名需要）；实例仍以只读 `ContentHash`/`ByteLength` 承载数据。
+
+### B3. API Surface 变化
+
+| 成员 | Task 002-A | Task 002-B |
+|---|---|---|
+| 构造器 | private | private（不变） |
+| `MeasureAsync` | public static | **internal static** |
+| 其他 public 静态工厂 | 无 | 无（不变） |
+| public 类型面 | 类型 public、属性只读 | 不变 |
+| Domain friend 程序集 | 无 | 恰为 Application（生产）+ Domain.Tests/Infrastructure.Tests（测试锁定） |
+
+受信验证路径不变：`IAssetStore.OpenReadAsync → VerifyAssetIntegrityUseCase → AssetByteDigest.MeasureAsync → MarkAssetVerified → SQLite 事务内重读元数据 → 验证 Hash/Length/Algorithm → Verified`。不存在其他普通业务入口可创建摘要并写入 Verified。
+
+### B4. 新增测试
+
+- `WorldView/tests/WorldView.Domain.Tests/Assets/AssetByteDigestTests.cs`（重构 + 新增，反射/API Surface 锁定而非仅方法名）：
+  - `Digest_CannotBeConstructedOutsideAuthorizedPath`：public 实例构造器为空；**public 静态声明方法全空**（MeasureAsync 与任何其他工厂都不是 public）；internal `MeasureAsync` 存在且 `IsAssembly`（internal）；
+  - `MeasureCreation_IsAuthorizedOnlyToApplicationVerificationPathAndTestAssemblies`：Domain 的 `InternalsVisibleTo` friend 集合**恰等于** `{WorldView.Application, WorldView.Domain.Tests, WorldView.Infrastructure.Tests}`——任何新增 friend 都会失败，防止摘要创建能力悄悄扩散；
+  - 原有 MeasureAsync 行为测试保留（测试程序集为授权 friend，直接调用即为授权生效的编译级证明）。
+- `WorldView/tests/WorldView.Infrastructure.Tests/Assets/AssetIntegrityVerificationTests.cs`：
+  - `VerifiedWrite_ApiSurfaceOnlyAcceptsMeasuredDigest` 更新：端口签名锁定 + public 面全空 + Domain friend 集合包含 `WorldView.Application`；
+  - 功能链路全部保留：正常 IAssetStore 文件验证后写入 Verified；错误内容测量摘要不能写入 Verified（元数据不匹配拒绝）；缺失 → Missing；读取失败 → ReadFailed；已 Verified 后篡改再验证 → Corrupt（旧 Verified 失效）；Verified-only Geometry 引用规则继续有效。
+
+### B5. Task 002-B 本地结果（Windows）
+
+| 步骤 | 结果 |
+|---|---|
+| Debug Build | 通过（0 error） |
+| Debug Test | 通过 538 / 失败 0（537 + 新增 friend 集合锁定 1） |
+| Release Build | 通过 |
+| Release Test | 通过 538 / 失败 0 |
+
+### B6. Task 002-B 四平台 CI
+
+见 §13。
+
+## 13. Task 002-B 四平台 CI 结果
+
+（推送后由实际 CI run 回填：run ID 与准确 HEAD SHA。）

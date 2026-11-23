@@ -6,6 +6,7 @@
 |---|---|---|---|
 | Task 002 | EF Core V1 Asset / Geometry Invariant Port | 已完成（本地 Windows Debug/Release + 四平台 CI 全部通过；PR #22 Draft） | [002-efcore-v1-asset-geometry-invariant-port.md](002-efcore-v1-asset-geometry-invariant-port.md) |
 | Task 002-A | Verified 写入不可绕过 + `$defs` 递归 fail-closed 修复 | 已完成（本地 Windows Debug/Release 537/0；四平台 CI 见报告 §11） | [002-efcore-v1-asset-geometry-invariant-port.md](002-efcore-v1-asset-geometry-invariant-port.md) §0 |
+| Task 002-B | `AssetByteDigest` 创建权限收紧（internal + InternalsVisibleTo 精确授权） | 已完成（本地 Windows Debug/Release 538/0；四平台 CI 见报告 §13） | [002-efcore-v1-asset-geometry-invariant-port.md](002-efcore-v1-asset-geometry-invariant-port.md) §12 |
 
 ## 约定
 

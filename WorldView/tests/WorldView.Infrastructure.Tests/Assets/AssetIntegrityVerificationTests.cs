@@ -242,9 +242,10 @@ public sealed class AssetIntegrityVerificationTests : IDisposable
     [Fact]
     public void VerifiedWrite_ApiSurfaceOnlyAcceptsMeasuredDigest()
     {
-        // Task 002-A 防伪造边界：Verified 写入端口只接受实测摘要类型，
-        // 该类型无公开构造器、唯一公开静态成员是 MeasureAsync——
-        // 普通调用方不经真实字节读取就不存在摘要实例。
+        // Task 002-A/002-B 防伪造边界：Verified 写入端口只接受实测摘要类型；
+        // 该类型 public 面无构造器、无任何 public 静态摘要创建工厂（002-B 起
+        // MeasureAsync 亦为 internal），创建能力仅经 InternalsVisibleTo 授予
+        // Application 验证路径——普通调用方不经真实字节读取就不存在摘要实例。
         var port = typeof(ICoreDomainDatabase).GetMethod(nameof(ICoreDomainDatabase.MarkAssetVerified))!;
         Assert.Equal(
             new[] { typeof(Guid), typeof(Guid), typeof(AssetByteDigest), typeof(long) },
@@ -252,12 +253,11 @@ public sealed class AssetIntegrityVerificationTests : IDisposable
 
         Assert.Empty(typeof(AssetByteDigest)
             .GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        Assert.Equal(
-            new[] { nameof(AssetByteDigest.MeasureAsync) },
-            typeof(AssetByteDigest)
-                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
-                .Select(m => m.Name)
-                .ToArray());
+        Assert.Empty(typeof(AssetByteDigest)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly));
+        Assert.Contains("WorldView.Application", typeof(AssetByteDigest).Assembly
+            .GetCustomAttributes<System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
+            .Select(a => a.AssemblyName));
     }
 
     [Fact]
