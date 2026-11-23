@@ -29,7 +29,7 @@
     { "id": "DSK-08", "area": "desktop", "name": "异常处理和日志", "status": "PARTIAL", "source_files": ["src/WorldView.Infrastructure/Logging/FileAppLog.cs", "src/WorldView.Desktop/Program.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs"], "evidence": ["FileAppLog.cs:14 按日滚动+三分支路径", "UseCase 层 try/catch 完整"], "gaps": ["进程级钩子未接 FileAppLog；无 DispatcherUnhandledException；窗口层 async void 无保护"], "confidence": "high" },
     { "id": "DSK-09", "area": "desktop", "name": "DPI/窗口缩放/多显示器", "status": "PARTIAL", "source_files": ["src/WorldView.Desktop/app.manifest", "src/WorldView.Desktop/Views/StartWindow.axaml"], "test_files": [], "evidence": ["app.manifest 仅 supportedOS，无 DPI 节点", "窗口固定尺寸+Min"], "gaps": ["全靠 Avalonia 默认；无渲染表面故 DPI 处理暂无适用对象"], "confidence": "high" },
     { "id": "DSK-10", "area": "desktop", "name": "Windows/macOS 原生差异", "status": "PARTIAL", "source_files": ["src/WorldView.Infrastructure/RecentProjects/JsonRecentProjectsStore.cs", "src/WorldView.Infrastructure/Logging/FileAppLog.cs", "src/WorldView.Application/Settings/SettingsDocumentPaths.cs"], "test_files": [], "evidence": ["路径三分支 JsonRecentProjectsStore.cs:110-126、FileAppLog.cs:22-26", "SettingsDocumentPaths.cs:53-55 Windows 大小写语义"], "gaps": ["Desktop 零平台分支；无 macOS 窗口行为适配"], "confidence": "high" },
-    { "id": "DSK-11", "area": "desktop", "name": "安装包/发布包/运行时依赖", "status": "MISSING", "source_files": ["src/WorldView.Desktop/WorldView.Desktop.csproj", ".github/workflows/dotnet-ci.yml"], "test_files": [], "evidence": ["无 PublishSingleFile/SelfContained/RuntimeIdentifier/pubxml", "CI 无发布 job；无 installer 工程"], "gaps": ["M1 验收需双平台流程，当前无发布产物"], "confidence": "high" },
+    { "id": "DSK-11", "area": "desktop", "name": "安装包/发布包/运行时依赖", "status": "MISSING", "source_files": ["src/WorldView.Desktop/WorldView.Desktop.csproj", ".github/workflows/dotnet-ci.yml"], "test_files": [], "evidence": ["无 PublishSingleFile/SelfContained/RuntimeIdentifier/pubxml", "CI 无发布 job；无 installer 工程"], "gaps": ["归 WP-10 / GAP-P1-15（桌面交付准备，非 M1 独立阻塞项）；M1 平台门是 GUI 流程证据（GAP-P0-4）"], "confidence": "high" },
     { "id": "DSK-12", "area": "desktop", "name": "UI 层级合规（不经 UI 直连数据库）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Desktop/Program.cs", "src/WorldView.Desktop/ViewModels/StartViewModel.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/Cd01EndToEndTests.cs"], "evidence": ["Desktop 全部 Infrastructure using 仅 Program.cs:11-17（组合根）", "ViewModel 仅依赖 Application 抽象"], "gaps": [], "confidence": "high" },
 
     { "id": "PMM-A1", "area": "map-management", "name": "Project 包创建", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Application/UseCases/CreateProjectUseCase.cs", "src/WorldView.Infrastructure/Persistence/CoreDomain/CoreDomainAdapters.cs"], "test_files": ["tests/WorldView.Application.Tests/UseCases/SessionUseCaseTests.cs", "tests/WorldView.Infrastructure.Tests/Persistence/CoreDomain/CoreDomainPersistenceTests.cs"], "evidence": ["CreateProjectUseCase.cs:77-266", "CoreDomainAdapters.cs:20-75 正式创建服务已接入组合根"], "gaps": [], "confidence": "high" },
@@ -131,7 +131,7 @@
     { "id": "TCI-09", "area": "tests-ci", "name": "本地构建脚本", "status": "IMPLEMENTED_VERIFIED", "source_files": ["WorldView/scripts/build.ps1"], "test_files": [], "evidence": ["build/run/test/verify-environment ps1+sh 薄封装"], "gaps": ["MTP/VSTest 双通道冗余配置（GAP-P1-13）"], "confidence": "high" },
 
     { "id": "PLT-01", "area": "platform", "name": "Windows GUI 运行证据", "status": "IMPLEMENTED_UNVERIFIED", "source_files": [], "test_files": [], "evidence": ["组合根完整无启动即失败点（代码角度可启动）", "本审计未执行 GUI 冒烟"], "gaps": ["M1 验收 11 需全流程演练"], "confidence": "medium" },
-    { "id": "PLT-02", "area": "platform", "name": "macOS GUI 运行证据", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["macOS 仅 CI 测试进程证据；无 UI 冒烟/无头 Avalonia 测试/发布产物"], "gaps": ["GAP-P0-4"], "confidence": "high" },
+    { "id": "PLT-02", "area": "platform", "name": "macOS GUI 运行证据", "status": "MISSING", "source_files": [], "test_files": [], "evidence": ["macOS 仅 CI 测试进程证据；无 UI 冒烟/无头 Avalonia 测试"], "gaps": ["GAP-P0-4"], "confidence": "high" },
     { "id": "PLT-03", "area": "platform", "name": "平台代码分支支持", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Infrastructure/RecentProjects/JsonRecentProjectsStore.cs"], "test_files": [], "evidence": ["路径/日志/路径比较三分支齐备；app.manifest 仅 Windows 生效"], "gaps": [], "confidence": "high" },
 
     { "id": "SEC-01", "area": "security-integrity", "name": "不可伪造验证凭证（AssetByteDigest）", "status": "IMPLEMENTED_VERIFIED", "source_files": ["src/WorldView.Domain/Assets/AssetByteDigest.cs"], "test_files": ["tests/WorldView.Infrastructure.Tests/Assets/AssetIntegrityVerificationTests.cs"], "evidence": ["internal MeasureAsync+friend 白名单；反射探测防伪造 :249"], "gaps": [], "confidence": "high" },
@@ -163,7 +163,8 @@
     { "id": "GAP-P0-1", "area": "rendering", "description": "Map Rendering 管线整体缺失：Presentation Context/Scene Snapshot/Builder/Publisher/视口/Skia/坐标变换/Pan-Zoom 等全部零实现（RND-01~19）", "blocks_m1": true, "evidence": ["AXAML 控件树/csproj/solution/PRA-01 官方审计四方交叉证实", "ProjectWindow.axaml:15 注释自证为显式阶段决策"] },
     { "id": "GAP-P0-2", "area": "map-management", "description": "Map 创建无用户入口：领域/持久化/测试齐备但 Application 用例层与 UI 均为零（PMM-B6）", "blocks_m1": true, "evidence": ["Application/Desktop 对 MapService 零调用（grep 复核）", "ProjectWindow 仅三个命令"] },
     { "id": "GAP-P0-3", "area": "map-management", "description": "Map 工作区无产品界面：文本窗口、SwitchContextAsync 零调用死代码、ViewState 全占位、UI 恒传 null Branch/时间（PMM-B8/B13/C15/C16/C17）", "blocks_m1": true, "evidence": ["MapWorkspaceSession.cs:49-79,109-125", "ProjectWorkspaceViewModel.cs:105-107"] },
-    { "id": "GAP-P0-4", "area": "platform", "description": "macOS GUI 运行证据为零 + 无打包/发布链（PLT-02/DSK-11）", "blocks_m1": true, "evidence": ["macOS CI job 仅 build+test", "无 pubxml/PublishSingleFile/CI 发布 job/installer"] },
+    { "id": "GAP-P0-4", "area": "platform", "description": "macOS GUI 实际运行证据缺失：仅 CI build+test，无 GUI 冒烟/headless Avalonia 测试（PLT-02）；CI 不能替代 GUI 运行证据", "blocks_m1": true, "evidence": ["macOS CI job 仅 build+test（run 45183823988）", "roadmap：support is established by evidence on both platforms, not inferred from shared source code"] },
+    { "id": "GAP-P1-15", "area": "desktop", "description": "Windows/macOS 打包发布链缺失：无 pubxml/PublishSingleFile/SelfContained/CI 发布 job/installer（DSK-11）——归 WP-10 桌面交付与发布准备，不构成 M1 独立阻塞项", "blocks_m1": false, "evidence": ["无发布产物（仅 framework-dependent 本地产物）", "CI 无发布 job"] },
     { "id": "GAP-P1-01", "area": "desktop", "description": "进程级异常钩子只写 stderr，WinExe 下不可观测；FileAppLog 未接入", "blocks_m1": false, "evidence": ["Program.cs:29,34"] },
     { "id": "GAP-P1-02", "area": "desktop", "description": "ProjectWindow 点 X 不关会话：句柄占用至停机；重开同包 DuplicateOpen 二开窗口", "blocks_m1": false, "evidence": ["ProjectWindow.axaml.cs 无窗口→VM 关闭链路"] },
     { "id": "GAP-P1-03", "area": "desktop", "description": "Settings 服务已实现但生产未接线；无设置 UI", "blocks_m1": false, "evidence": ["SettingsDocumentService 未注册 DI"] },
@@ -211,20 +212,21 @@
   "milestone_assessment": {
     "m1_definition": "创建真实 Project 和 Map，打开地图进入真实工作界面，显示可操作的地图视口，保存并重新打开后数据仍然存在（双平台）",
     "m1_verdict": "NOT_MET",
-    "m1_rough_completion": "35%-45%（以状态矩阵为准，勿引用为精确值）",
+    "m1_acceptance_source": "docs/map-editor/implementation-roadmap-v1.md WP-30 M1 acceptance（唯一依据；本 JSON 编号与其一一对应，不另设正式验收编号）",
+    "m1_rough_completion": "35%-45%（区间估计，非精确完成度指标；验收判定以 m1_items 状态矩阵为准）",
     "m1_items": [
-      { "no": 1, "item": "启动软件", "status": "IMPLEMENTED_UNVERIFIED", "note": "代码角度可启动；GUI 冒烟未做" },
-      { "no": 2, "item": "创建 Project", "status": "IMPLEMENTED_VERIFIED", "note": "UI+用例+端到端测试" },
-      { "no": 3, "item": "创建 Map", "status": "BLOCKED", "note": "领域齐备，无用例层/UI（GAP-P0-2）" },
-      { "no": 4, "item": "查看 Map 列表", "status": "IMPLEMENTED_VERIFIED", "note": "真实数据文本列表" },
-      { "no": 5, "item": "打开 Map", "status": "PARTIAL", "note": "会话打开有测试；UI 恒传 null Branch/时间；文本窗" },
-      { "no": 6, "item": "显示空白 Map Viewport", "status": "MISSING", "note": "视口控件不存在（GAP-P0-1）" },
-      { "no": 7, "item": "Pan / Zoom", "status": "MISSING", "note": "占位属性零消费者（GAP-P0-1）" },
-      { "no": 8, "item": "关闭 Map 和 Project", "status": "IMPLEMENTED_VERIFIED", "note": "有测试；ProjectWindow X 键语义注意（GAP-P1-02）" },
-      { "no": 9, "item": "退出应用", "status": "IMPLEMENTED_VERIFIED", "note": "CloseAllAsync 停机兜底" },
-      { "no": 10, "item": "重启并打开原 Map", "status": "PARTIAL", "note": "Project 重开端到端已验证；Map 需手动从列表重开；无 last-map 恢复；UI 级重启流未演练" },
-      { "no": 11, "item": "Windows 流程通过", "status": "MISSING", "note": "验收 6/7 未满足，全流程未演练" },
-      { "no": 12, "item": "macOS 流程通过", "status": "MISSING", "note": "仅 CI build+test；无 GUI 证据（GAP-P0-4）" }
+      { "no": 1, "item": "Launch World View on Windows", "status": "IMPLEMENTED_UNVERIFIED", "note": "代码角度可启动；GUI 冒烟未做" },
+      { "no": 2, "item": "Create a Project Package", "status": "IMPLEMENTED_VERIFIED", "note": "UI+用例+端到端测试" },
+      { "no": 3, "item": "Create a Map through Core Domain", "status": "BLOCKED", "note": "领域齐备，无用例层/端口/适配器/UI（GAP-P0-2）" },
+      { "no": 4, "item": "See the Map in the Project's Map list", "status": "IMPLEMENTED_VERIFIED", "note": "真实数据文本列表" },
+      { "no": 5, "item": "Open the Map workspace", "status": "PARTIAL", "note": "会话打开有测试；UI 恒传 null Branch/时间；文本窗" },
+      { "no": 6, "item": "See the empty Map viewport (not a placeholder browser page)", "status": "MISSING", "note": "视口控件不存在（GAP-P0-1）" },
+      { "no": 7, "item": "Pan and zoom the viewport; resize the window and maintain correct transforms", "status": "MISSING", "note": "占位属性零消费者（GAP-P0-1）" },
+      { "no": 8, "item": "Close the Map and Project, exit the application, restart and reopen the same Map", "status": "PARTIAL", "note": "会话关闭/停机/重开语义有测试；UI 级全流程未演练（GAP-P1-02/05）" },
+      { "no": 9, "item": "Verify Map identity and persisted data are unchanged", "status": "IMPLEMENTED_VERIFIED", "note": "Cd01EndToEndTests 重开后身份/数据一致断言" },
+      { "no": 10, "item": "Repeat the same user flow on macOS", "status": "MISSING", "note": "仅 CI build+test；无 GUI 证据（GAP-P0-4）" },
+      { "no": 11, "item": "Verify no map data is created or changed by pan/zoom/rendering", "status": "MISSING", "note": "验证对象（pan/zoom/渲染）尚不存在，实现后须证明只读（GAP-P0-1 伴生项）" },
+      { "no": 12, "item": "Run automated tests for snapshot consistency, transform correctness, session lifecycle and platform-specific viewport behavior", "status": "PARTIAL", "note": "session lifecycle 已覆盖；snapshot/transform/viewport 三类零基础（GAP-P0-1/GAP-P1-04）" }
     ],
     "m1_blockers": ["GAP-P0-1", "GAP-P0-2", "GAP-P0-3", "GAP-P0-4"],
     "m1_out_of_scope_confirmations": "复杂地形/道路/河流/建筑/洞穴/Site/Group/Typed Connections/Templates/AI/3D/GIS 均不在 M1 范围（与 roadmap v1 WP-30 out-of-scope 一致）"

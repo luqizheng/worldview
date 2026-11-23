@@ -37,7 +37,7 @@
 | 1.8 | 异常处理和日志 | PARTIAL | `FileAppLog.cs:14`（按日滚动、三分支路径）；UseCase 层 try/catch 完整（`CreateProjectUseCase.cs:168-178` 等）；VM 局部 catch | UseCase 异常路径有测试 | 进程级钩子未接 `FileAppLog`；无 `DispatcherUnhandledException`；窗口层 async void 无保护 |
 | 1.9 | DPI/窗口缩放/多显示器 | PARTIAL | 窗口固定尺寸+Min（`StartWindow.axaml:10-11`、`ProjectWindow.axaml:11`）；`app.manifest` 仅 supportedOS 声明，**无 DPI 节点** | 无 | 全靠 Avalonia 默认行为；因无渲染表面，DPI 处理暂无适用对象 |
 | 1.10 | Windows/macOS 原生差异 | PARTIAL | Desktop 零平台分支；差异沉在 Infrastructure（`JsonRecentProjectsStore.cs:110-126`、`FileAppLog.cs:22-26`、`SettingsDocumentPaths.cs:53-55` Windows 大小写语义） | CI 双 OS 矩阵 | 无 macOS 窗口行为适配代码；GUI 实际运行验证缺失（见 §7） |
-| 1.11 | 安装包/发布包/运行时依赖 | MISSING | csproj 无 PublishSingleFile/SelfContained/RuntimeIdentifier；无 *.pubxml；CI 无发布 job；无 installer 工程 | 无 | M1 验收要求双平台流程通过，当前连"发布产物"都不存在（仅 framework-dependent 本地产物） |
+| 1.11 | 安装包/发布包/运行时依赖 | MISSING | csproj 无 PublishSingleFile/SelfContained/RuntimeIdentifier；无 *.pubxml；CI 无发布 job；无 installer 工程 | 无 | 属桌面交付与发布准备，归 **WP-10 / GAP-P1-15**；不构成 M1 的独立阻塞项（M1 平台门是 GUI 流程证据，见 GAP-P0-4）。当前仅 framework-dependent 本地产物 |
 | 1.12 | UI 层级合规 | IMPLEMENTED_VERIFIED | Desktop 全部 Infrastructure using 仅 `Program.cs:11-17`（组合根）；ViewModel 仅依赖 Application 抽象（`StartViewModel.cs:7-9`） | `Cd01EndToEndTests` 镜像组合根 | 无越层；AGENTS.md 约定一致 |
 | 1.13 | 死代码 | — | `StartViewModel.cs:90-93`（CoreDomainProjectCreationUnavailable）与 `:142-145`（ProjectIdentityUnavailable）两分支**确认不可达**（`Program.cs:83-85` 无条件注册正式实现） | — | 防御性历史遗留，建议随 WP-10 清理 |
 
@@ -208,7 +208,7 @@
 | 平台代码分支 | `JsonRecentProjectsStore.cs:110-126`、`FileAppLog.cs:22-26`、`SettingsDocumentPaths.cs:53-55`（Windows 大小写语义）、`app.manifest`（仅 Windows 生效） | 同左三分支的 macOS 路径；无窗口行为适配 |
 | 打包发布 | ❌ 无 | ❌ 无 |
 
-结论：**"CI 在两个平台编译+测试通过"不能等同"两个平台 GUI 流程运行通过"。** M1 验收的平台门（11/12）当前在两个平台都未正式关闭，macOS 侧差距更大。
+结论：**"CI 在两个平台编译+测试通过"不能等同"两个平台 GUI 流程运行通过"。** M1 验收的平台门（GUI 冒烟 + macOS 全流程，正式验收项 10）当前在两个平台都未正式关闭，macOS 侧差距更大（GAP-P0-4）。打包发布链缺失是性质不同的交付准备问题，归 WP-10（GAP-P1-15），不与 GUI 运行证据混为一个问题。
 
 ---
 

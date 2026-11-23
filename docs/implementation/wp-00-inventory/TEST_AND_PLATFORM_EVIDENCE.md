@@ -42,7 +42,7 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 | Release 配置本机测试 | NOT_RUN | 审计只读纪律下未重复；CI Release 矩阵绿可作证据 |
 | GUI 应用启动冒烟（Windows） | **未执行** | 只读审计不启动交互式应用；M1 验收时须补正式冒烟清单 |
 | macOS 任何本地执行 | NOT_RUN | 审计环境为 Windows |
-| `dotnet publish` 打包验证 | NOT_RUN | 属实施任务（GAP-P0-4），非审计范围 |
+| `dotnet publish` 打包验证 | NOT_RUN | 属实施任务（GAP-P1-15，WP-10 范围），非审计范围 |
 
 ---
 
@@ -114,7 +114,7 @@ Runner：Microsoft.Testing.Platform（global.json: {"test":{"runner":"Microsoft.
 | GUI 实际运行 | **零证据**（无 macOS UI 冒烟、无头 Avalonia 测试、发布产物） | ❌ |
 | 平台代码 | `JsonRecentProjectsStore.cs:117-122`、`FileAppLog.cs:22-26` 的 macOS 路径分支（未在 macOS 上运行验证） | ⚠️ 代码存在，行为未验证 |
 
-**结论（与 roadmap 约束一致）**：CI 双平台绿 ≠ 双平台 GUI 流程通过。M1 验收的平台门（第 11/12 项）在两个平台都未关闭；macOS 侧连"能启动的发布产物"都不存在。
+**结论（与 roadmap 约束一致）**：CI 双平台绿 ≠ 双平台 GUI 流程通过。M1 验收的平台门（GUI 冒烟与 macOS 全流程，正式验收项 10）在两个平台都未关闭（macOS 侧即 GAP-P0-4）；打包/发布产物缺失是性质不同的交付准备问题，归 WP-10（GAP-P1-15），不计为 M1 独立平台门。
 
 ---
 

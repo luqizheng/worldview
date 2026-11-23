@@ -7,7 +7,7 @@
 ## P0 — 阻止 M1（4 项）
 
 ### GAP-P0-1 Map Rendering 管线整体缺失
-- **影响范围**：M1 验收 6（空白视口）、7（Pan/Zoom）、11/12（平台全流程）；RND-01~19 全部 MISSING。
+- **影响范围**：M1 验收 6（空白视口）、7（Pan/Zoom/resize 变换）；11（渲染不改数据）与 12（快照/变换/平台视口自动化测试）在渲染实现前不可验证；RND-01~19 全部 MISSING。
 - **证据**：Desktop 3 个 AXAML 无 Canvas/Viewport/自定义控件（`ProjectWindow.axaml:15` 注释自证阶段决策）；全仓无 Skia 标识符、无 SkiaSharp 包；`WorkspaceViewState.CameraX/Y/Zoom` 零消费者（唯一消费是单测 `SessionUseCaseTests.cs:393,397`）；PRA-01 官方审计自判 NOT IMPLEMENTED（验收矩阵 9/10 Not implemented）。
 - **依赖**：设计契约已冻结（PRA-01 v0.1 / PRODUCTION_RENDERER_ARCHITECTURE v0.2）；无数据侧阻塞。
 - **推荐解决方向**：WP-30 最小切片——Presentation Context + Scene Snapshot 最小子集 + Avalonia 视口宿主 + Skia 绘制 + map↔screen 仿射变换 + Pan/Zoom + 空白帧中性背景（来自正式读投影，不伪造几何）。先落两项技术决策：自绘控件 vs `CustomDrawOperation`；PRA-01 最小子集裁剪清单。
@@ -16,8 +16,40 @@
 ### GAP-P0-2 Map 创建无用户入口
 - **影响范围**：M1 验收 3；PMM-B6。
 - **证据**：领域/持久化/测试三层齐备（`MapBranchServices.cs:12-28`、`MapCreation.cs:25-48`、`SqliteCoreDomainDatabase.cs:194-264`），但 Application/Desktop 对 `MapService` **零调用**（grep 复核）；ProjectWindow 仅三个命令（关闭项目/打开工作区/关闭工作区）。
-- **依赖**：无硬阻塞——领域零改动。
-- **推荐解决方向**：WP-20a 切片：`CreateMapUseCase`（输入校验→`MapService.CreateMap`→返回 MapSummary）+ ProjectWindow"新建地图"入口 + 重复名策略（当前领域未禁止同名，需产品裁决）+ 用例层测试。**建议作为第一个实施任务。**
+- **依赖**：无硬阻塞——领域创建服务就绪，仅需接线（外加名称唯一性的最小 Domain 规则）。
+- **推荐解决方向（WP-20a 架构要求，依赖方向固定）**：
+
+  ```text
+  ProjectWindow / ViewModel
+          |
+          v
+  CreateMapUseCase
+          |
+          v
+  IMapCreationService
+          |
+          v
+  CoreDomainMapCreationService
+          |
+          v
+  MapService
+          |
+          v
+  ICoreDomainDatabase
+          |
+          v
+  SqliteCoreDomainDatabase
+          |
+          v
+  SQLite transaction
+  ```
+
+  - Application 层新增 `IMapCreationService` 端口；Infrastructure 层实现 `CoreDomainMapCreationService`（绑定当前 ProjectSession 的 `IPackageDatabase`，调用正式 Domain `MapService`，不复制 Domain 创建规则）。
+  - `CreateMapUseCase` 只依赖 Application 抽象，不引用 Infrastructure 或 SQLite；UI 不直接操作 Domain 数据库或执行 SQL。
+  - 复用 `CoreDomainProjectCreationService`、`CoreDomainMapQueryService` 的会话绑定适配器模式；经组合根注册，保证 ProjectSession 生命周期正确。
+  - ProjectWindow"创建地图"入口 + 创建对话框（成功后刷新列表、不自动打开）；Map 名称唯一性产品规则（同 Project 内唯一、大小写不敏感）由 Domain/正式持久化写路径保障，不只在 ViewModel 检查。
+  - **不重做现有 Map Domain 模型，不增加影子 Map 表。**
+  - **建议作为第一个实施任务。**
 - **阻塞 M1**：是。
 
 ### GAP-P0-3 Map 工作区无产品界面 / 上下文接线断裂
@@ -27,16 +59,16 @@
 - **推荐解决方向**：WP-30 同批——打开工作区时解析并**显示** Branch/时间上下文（WP-20 exit criteria 要求）；M1 阶段不实现 Branch 切换 UI（可用默认根 Branch），`SwitchContextAsync` 要么接线要么显式移除（避免死代码进发布）。
 - **阻塞 M1**：是。
 
-### GAP-P0-4 macOS GUI 证据为零 + 打包发布链缺失
-- **影响范围**：M1 验收 12（macOS 流程）、11 的证据强度；DSK-11、PLT-02。
-- **证据**：macOS 仅 CI build+test 绿（run 45183823988）；无 pubxml/`PublishSingleFile`/`SelfContained`/CI 发布 job/installer；roadmap 明文"support is established by evidence on both platforms, not inferred from shared source code"。
+### GAP-P0-4 macOS GUI 实际运行证据缺失
+- **影响范围**：M1 验收 10（macOS 全流程）；PLT-02。
+- **证据**：macOS 仅 CI build+test 绿（run 45183823988 macos-latest Debug/Release）；无任何 macOS GUI 冒烟、无 headless Avalonia UI 测试；roadmap 明文"support is established by evidence on both platforms, not inferred from shared source code"。
 - **依赖**：依赖前三个 Gap 有可演示的流程。
-- **推荐解决方向**：`dotnet publish` 自包含产物（win-x64 + osx-x64/arm64）+ CI 可选发布 job + 双平台 GUI 冒烟清单（M1 十二项逐项留证）。
+- **推荐解决方向**：在 macOS 实机启动桌面应用并完成正式 M1 用户流程（roadmap WP-30 十二项逐项执行），记录实际设备、系统版本、应用版本/commit、执行结果与未通过项。**CI build/test 不能替代 GUI 运行证据。**
 - **阻塞 M1**：是。
 
 ---
 
-## P1 — M1 之后近期必须解决（14 项）
+## P1 — M1 之后近期必须解决（15 项）
 
 | ID | 缺口 | 影响范围 | 证据 | 依赖 | 推荐方向 | 阻塞 M1 |
 |---|---|---|---|---|---|---|
@@ -54,6 +86,7 @@
 | GAP-P1-12 | WAL 未启用 + Backups 目录无写入者（两个已声明 open gate） | 数据安全（单机 V1 可暂缓） | `SqlitePackageDatabase.cs:32-33` 注释 | 备份/恢复证明先行 | 按原 gate 计划执行，勿跳过证明 | 否 |
 | GAP-P1-13 | MTP 与 VSTest 双通道冗余配置 | 测试栈演进 | csproj 保留 `Microsoft.NET.Test.Sdk`+`xunit.runner.visualstudio`，global.json 切 MTP | 无 | 择一去冗余（升级窗口处理） | 否 |
 | GAP-P1-14 | M2 渲染完整性（Layer/Label/Symbol/LOD/Raster/Cache）全缺 | M2（可读地图查看器） | RND-11,14-18 | GAP-P1-09 + WP-40 序列 | 按 roadmap WP-40 顺序 | 否 |
+| GAP-P1-15 | Windows/macOS 打包发布链缺失（无 pubxml/PublishSingleFile/SelfContained/CI 发布 job/installer） | 桌面交付与发布准备（WP-10 Desktop application foundation） | DSK-11 | WP-10 | `dotnet publish` 自包含产物（win-x64 + osx-x64/arm64）+ CI 可选发布 job + 发布产物验证流程 | 否（属 WP-10 交付准备，**不构成 M1 独立阻塞项**；M1 平台门是 GUI 流程证据，见 GAP-P0-4） |
 
 ---
 
@@ -88,7 +121,7 @@
 
 ## 建议的第一批实施任务（供产品负责人裁决）
 
-1. **WP-20a Map 创建切片**（GAP-P0-2）：最小、零阻塞、可测试性最好，直接打通 M1 验收 3。
-2. **WP-10 小项包**（GAP-P1-01/02/05/11）：全部小改动，随批清理死代码。
+1. **WP-20a Map 创建切片**（GAP-P0-2）：最小、零阻塞、可测试性最好，直接打通 M1 验收 3（架构方向见 GAP-P0-2 依赖图：`IMapCreationService` 端口 → `CoreDomainMapCreationService` → 正式 `MapService`）。
+2. **WP-10 小项包**（GAP-P1-01/02/05/11 + GAP-P1-15 打包发布链）：全部小改动，随批清理死代码；打包/发布产物归 WP-10。
 3. **WP-30 技术决策 + 渲染切片**（GAP-P0-1/P0-3）：先两页决策文档，再实施。
-4. **平台门清单**（GAP-P0-4）：发布产物 + 冒烟清单模板，可与 1-3 并行准备。
+4. **平台门清单**（GAP-P0-4 macOS GUI 冒烟）：双平台冒烟清单模板 + macOS 实机执行留证，可与 1-3 并行准备。

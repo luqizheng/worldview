@@ -37,8 +37,8 @@ graph TD
 ```mermaid
 graph LR
     subgraph M1Path["M1 必需依赖（关键路径）"]
-        WP10["WP-10 Desktop 补强<br/>异常可观测/窗口关闭语义/打包<br/>现状缺口小"]
-        WP20["WP-20 Map 管理<br/>CreateMapUseCase+UI 入口<br/>Branch/时间显式显示<br/>领域零改动，纯接线"]
+        WP10["WP-10 Desktop 补强<br/>异常可观测/窗口关闭语义/打包（GAP-P1-15）<br/>现状缺口小"]
+        WP20["WP-20 Map 管理<br/>WP-20a 创建切片：CreateMapUseCase<br/>→ IMapCreationService 端口<br/>→ CoreDomainMapCreationService 适配器<br/>→ 正式 MapService；UI 入口+名称唯一性<br/>WP-20b：Branch/时间显式显示"]
         WP30["WP-30 基础渲染<br/>PRA-01 最小子集+视口+Skia<br/>+双向变换+Pan/Zoom+空白帧"]
         M1["M1 Basic Map Application<br/>12 项验收双平台通过"]
         WP10 --> WP20 --> WP30 --> M1
@@ -47,7 +47,7 @@ graph LR
 
 **关键判断**：
 
-- WP-20 **不被任何硬阻塞**：`MapRules.CreateMap`/`MapService`/SQLite 写入/端到端测试全部就绪，缺的只是 Application 用例类与 UI 命令。是投入产出比最高的第一切片。
+- WP-20a（Map 创建切片）**不被任何硬阻塞**：`MapRules.CreateMap`/`MapService`/SQLite 写入/端到端测试全部就绪，缺的是 Application 端口（`IMapCreationService`）、Infrastructure 会话绑定适配器（`CoreDomainMapCreationService`）、用例编排（`CreateMapUseCase`）与 UI 命令，外加 Map 名称唯一性的最小 Domain 规则。是投入产出比最高的第一切片。
 - WP-30 **是唯一从 0 开始的 M1 组件**（21 项渲染能力零实现），但其设计契约已冻结（PRA-01/PRODUCTION_RENDERER_ARCHITECTURE v0.2），且 M1 只需"空白但真实"的最小子集——**不需要** Map Engine 的空间谓词/测量/布尔运算（Pan/Zoom 只需仿射变换与视口状态）。
 - M1 **不需要** Authoring 的任何部分，也不需要 Relationship/Command/Checkpoint/History 重建（它们是 M3/M4 的地基）。
 
@@ -57,7 +57,7 @@ graph LR
 graph TD
     subgraph M1Needs["M1 必需（12 项验收直接消费）"]
         m1a["ProjectSession/OpenWorkspaceAsync<br/>✅ 已实现有测试"]
-        m1b["MapRules.CreateMap + MapService<br/>✅ 领域就绪 → 缺用例/UI（WP-20）"]
+        m1b["MapRules.CreateMap + MapService<br/>✅ 领域就绪 → 缺端口/适配器/用例/UI（WP-20a）"]
         m1c["IMapQueryService 地图摘要<br/>✅ 已接通 UI"]
         m1d["WorkspaceContextRules.TryResolve<br/>✅ 有测试（UI 需显式显示结果）"]
         m1e["视口最小管线<br/>❌ 全缺（WP-30）<br/>PresentationContext→SceneSnapshot→Publisher→Skia"]
@@ -92,8 +92,8 @@ graph TD
 
 ## 5. 推荐实施顺序（与 roadmap 一致，附本次审计修正）
 
-1. **WP-20a Map 创建切片**（最小、零阻塞、可立即开工）：`CreateMapUseCase` + ProjectWindow 入口 + 重复名策略确认 + 用例测试。
-2. **WP-10 并行小项**：异常钩子接日志；窗口关闭语义；RecentProjectsStore 测试。
+1. **WP-20a Map 创建切片**（最小、零阻塞、可立即开工）：`IMapCreationService` 端口（Application）+ `CoreDomainMapCreationService` 适配器（Infrastructure，复用 `CoreDomainMapQueryService` 的会话绑定模式）+ `CreateMapUseCase`（只依赖 Application 抽象）+ ProjectWindow 创建入口 + Map 名称唯一性规则（Domain 最小修改，正式写路径保障）+ 用例/适配器/UI 测试。
+2. **WP-10 并行小项**：异常钩子接日志；窗口关闭语义；RecentProjectsStore 测试；打包发布链（GAP-P1-15，`dotnet publish` 产物 + 验证流程）。
 3. **WP-30 渲染切片**（最大单项，建议先出两页技术决策：自绘控件 vs CustomDrawOperation；PRA-01 最小子集清单）。
 4. **WP-20b**：Branch/时间显式显示与选择 UI、最近 Map 偏好（roadmap WP-20 exit criteria）。
-5. **平台门收尾**：Windows/macOS 发布产物 + GUI 冒烟清单 → M1 验收记录。
+5. **平台门收尾**：macOS GUI 冒烟清单执行（GAP-P0-4）+ Windows 全流程冒烟 → M1 验收记录（发布产物属 WP-10 的 GAP-P1-15，非 M1 独立门）。

@@ -32,14 +32,14 @@
 
 ## M1 完成度
 
-**结论：M1 未达成，且当前代码上无法通过验收。** 12 项验收中：4 项完成、3 项部分、2 项缺失（空白视口、Pan/Zoom）、3 项验证门未过（Windows 全流程未演练、macOS 仅 CI build+test 无 GUI 证据）。
+**结论：M1 未达成，且当前代码上无法通过验收。** 正式验收编号以 `docs/map-editor/implementation-roadmap-v1.md` WP-30 的 12 项 M1 acceptance 为唯一依据。12 项中：3 项完成、3 项部分、1 项关键断点（Map 创建无用例层/UI）、5 项缺失或未验证（空白视口、Pan/Zoom、macOS 全流程、渲染不改数据证明、渲染类自动化测试）。
 
-诚实的量化估计（以状态矩阵为准，见 `M1_BASIC_MAP_APPLICATION_GAP_ANALYSIS.md`）：**约 35%–45%**。数据侧（Project 生命周期、Map 持久化、重启恢复）已就绪；缺的是「渲染管线从 0 到 1」与「Map 创建的产品接线」两块。
+诚实的量化估计（以状态矩阵为准，见 `M1_BASIC_MAP_APPLICATION_GAP_ANALYSIS.md`）：**约 35%–45%——这是区间估计，不是精确完成度指标**；验收判定以逐项状态矩阵为准。数据侧（Project 生命周期、Map 持久化、重启恢复）已就绪；缺的是「渲染管线从 0 到 1」与「Map 创建的产品接线」两块。
 
 M1 的关键路径（与 roadmap v1 的 WP 序列一致）：
 
-1. **WP-10** Desktop 补强（异常可观测性、窗口关闭语义、打包）——非渲染阻塞项
-2. **WP-20** Map 创建用例层 + UI 入口 + Branch/时间上下文接线
+1. **WP-10** Desktop 补强（异常可观测性、窗口关闭语义、打包发布链）——打包归此 WP，非渲染阻塞项
+2. **WP-20** Map 管理：WP-20a Map 创建切片（用例层+端口+适配器+UI 入口）、WP-20b Branch/时间上下文显式显示
 3. **WP-30** 最小渲染切片：Presentation Context + Scene Snapshot + Avalonia 视口 + Skia 绘制 + map↔screen 变换 + Pan/Zoom + 空白地图帧
 
 ---
@@ -48,17 +48,19 @@ M1 的关键路径（与 roadmap v1 的 WP 序列一致）：
 
 | ID | 缺口 | 阻塞 M1 |
 |---|---|---|
-| P0-1 | Map Rendering 管线整体缺失（视口/Skia/Scene Snapshot/坐标变换/Pan-Zoom 21 项全 MISSING） | 是（验收 6/7/11/12） |
+| P0-1 | Map Rendering 管线整体缺失（视口/Skia/Scene Snapshot/坐标变换/Pan-Zoom 21 项全 MISSING） | 是（验收 6/7；11 与 12 的渲染部分随其存在才可验证） |
 | P0-2 | Map 创建无用户入口：领域服务齐备但 Application 用例层与 UI 均为零 | 是（验收 3） |
 | P0-3 | Map 工作区无产品界面：文本窗口、`SwitchContextAsync` 零调用死代码、ViewState 全占位、UI 恒传 null Branch/时间 | 是（验收 5/6） |
-| P0-4 | macOS GUI 运行证据为零 + 无打包/发布链（无 pubxml/PublishSingleFile/CI 发布 job/installer） | 是（验收 12；11 的证据强度也受限） |
+| P0-4 | macOS GUI 实际运行证据缺失（仅 CI build+test，无 GUI 冒烟/headless 测试；CI 不能替代 GUI 运行证据） | 是（验收 10；12 的 macOS 侧平台证据） |
+
+注：打包/发布链缺失（无 pubxml/PublishSingleFile/CI 发布 job/installer）是**性质不同的另一问题**，归 **GAP-P1-15 / WP-10 Desktop application foundation**（桌面交付与发布准备），不构成 M1 的独立阻塞项——M1 平台门是 GUI 流程证据，不是 installer。
 
 ---
 
 ## 建议下一步
 
 1. **不要开始任何渲染实现**——先由产品负责人审阅本盘点，确认 M1 范围与 WP-10/20/30 切片顺序（roadmap v1 §5 已给出骨架）。
-2. 第一个实施任务建议为 **WP-20 的 Map 创建切片**（`CreateMapUseCase` + ProjectWindow 入口 + Branch/时间显式选择），它是纯数据侧工作、领域零改动、可测试性最好，且直接解除 P0-2。
+2. 第一个实施任务建议为 **WP-20a 的 Map 创建切片**，依赖方向固定：`CreateMapUseCase` → `IMapCreationService` 端口（Application）→ `CoreDomainMapCreationService` 适配器（Infrastructure，绑定当前 ProjectSession 数据库）→ 正式 Domain `MapService`，外加 ProjectWindow 创建入口与 Map 名称唯一性规则（Domain 最小修改）。它是纯数据侧工作、可测试性最好，且直接解除 P0-2（架构要求详见 `P0_P1_GAPS_AND_RECOMMENDATIONS.md` GAP-P0-2）。Branch/时间上下文显式显示属 WP-20b，不混入本切片。
 3. WP-30 渲染切片开工前，先落两份技术决策：Avalonia 自绘控件 vs `CustomDrawOperation` 的框架矩阵；Scene Snapshot 契约以 PRA-01 v0.1 为基线的最小子集。
 4. 并行小项（不阻塞主线）：进程异常钩子接入 `FileAppLog`；`JsonRecentProjectsStore` 补测试；迁移防降级守卫补测试。
 
