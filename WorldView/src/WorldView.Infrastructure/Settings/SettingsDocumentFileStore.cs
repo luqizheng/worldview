@@ -131,23 +131,28 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
             return Array.Empty<string>();
         EnsureDirectoryChainSafe(_hashRoot);
 
-        return Directory.EnumerateFiles(_hashRoot, "*.json", SearchOption.AllDirectories)
-            .Select(path =>
+        var hashes = new System.Collections.Generic.List<string>();
+        foreach (var firstLevel in Directory.EnumerateDirectories(_hashRoot))
+        {
+            EnsureNotReparsePoint(firstLevel);
+            foreach (var secondLevel in Directory.EnumerateDirectories(firstLevel))
             {
-                EnsureNotReparsePoint(path);
-                var hash = Path.GetFileNameWithoutExtension(path);
-                if (hash.Length != 64 || !hash.All(IsLowerHex))
-                    return null;
-                var relative = SettingsDocumentPaths.GetRelativePath(hash);
-                return SettingsDocumentPaths.TryResolvePublishedPath(_packageRoot, relative, hash, out var expected)
-                    && string.Equals(Path.GetFullPath(path), expected, PathComparison)
-                        ? hash
-                        : null;
-            })
-            .Where(hash => hash is not null)
-            .Select(hash => hash!)
-            .OrderBy(hash => hash, StringComparer.Ordinal)
-            .ToArray();
+                EnsureNotReparsePoint(secondLevel);
+                foreach (var path in Directory.EnumerateFiles(secondLevel, "*.json", SearchOption.TopDirectoryOnly))
+                {
+                    EnsureNotReparsePoint(path);
+                    var hash = Path.GetFileNameWithoutExtension(path);
+                    if (hash.Length != 64 || !hash.All(IsLowerHex))
+                        continue;
+                    var relative = SettingsDocumentPaths.GetRelativePath(hash);
+                    if (SettingsDocumentPaths.TryResolvePublishedPath(_packageRoot, relative, hash, out var expected)
+                        && string.Equals(Path.GetFullPath(path), expected, PathComparison))
+                        hashes.Add(hash);
+                }
+            }
+        }
+
+        return hashes.OrderBy(hash => hash, StringComparer.Ordinal).ToArray();
     }
 
     public int CleanupStagingFiles()
@@ -180,17 +185,25 @@ public sealed class SettingsDocumentFileStore : ISettingsDocumentFileStore
 
     private void EnsureDirectoryChainSafe(string directory)
     {
+        var root = Path.TrimEndingDirectorySeparator(_packageRoot);
+        var rootPrefix = root + Path.DirectorySeparatorChar;
         var current = Path.GetFullPath(directory);
-        while (current.StartsWith(_packageRoot, PathComparison))
+        while (true)
         {
+            if (!string.Equals(Path.TrimEndingDirectorySeparator(current), root, PathComparison)
+                && !current.StartsWith(rootPrefix, PathComparison))
+                throw new InvalidDataException("Settings directory escaped the package root.");
+
             if (Directory.Exists(current))
                 EnsureNotReparsePoint(current);
-            if (string.Equals(Path.TrimEndingDirectorySeparator(current),
-                Path.TrimEndingDirectorySeparator(_packageRoot), PathComparison))
+            if (string.Equals(Path.TrimEndingDirectorySeparator(current), root, PathComparison))
                 return;
-            current = Path.GetDirectoryName(current) ?? break;
+
+            var parent = Path.GetDirectoryName(current);
+            if (parent is null)
+                throw new InvalidDataException("Settings directory escaped the package root.");
+            current = parent;
         }
-        throw new InvalidDataException("Settings directory escaped the package root.");
     }
 
     private static async Task VerifyFileAsync(string path, string expectedHash, long expectedLength,
