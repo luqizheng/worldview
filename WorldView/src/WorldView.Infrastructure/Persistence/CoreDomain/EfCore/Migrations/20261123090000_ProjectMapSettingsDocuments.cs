@@ -102,6 +102,11 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
                     onDelete: ReferentialAction.NoAction);
             });
 
+        migrationBuilder.CreateIndex(
+            name: "IX_core_project_settings_current_project_id_project_settings_revision_id",
+            table: "core_project_settings_current",
+            columns: new[] { "project_id", "project_settings_revision_id" });
+
         migrationBuilder.CreateTable(
             name: "core_map_settings_current",
             columns: table => new
@@ -122,6 +127,31 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
                     new[] { "project_id", "map_id", "map_settings_revision_id" },
                     onDelete: ReferentialAction.NoAction);
             });
+        migrationBuilder.CreateIndex(
+            name: "IX_core_map_settings_current_project_id_map_id_map_settings_revision_id",
+            table: "core_map_settings_current",
+            columns: new[] { "project_id", "map_id", "map_settings_revision_id" });
+
+        migrationBuilder.Sql("""
+            CREATE TRIGGER TR_core_project_settings_revision_immutable_update
+            BEFORE UPDATE ON core_project_settings_revision
+            BEGIN SELECT RAISE(ABORT, 'Project Settings revisions are immutable'); END;
+            """);
+        migrationBuilder.Sql("""
+            CREATE TRIGGER TR_core_project_settings_revision_immutable_delete
+            BEFORE DELETE ON core_project_settings_revision
+            BEGIN SELECT RAISE(ABORT, 'Project Settings revisions are immutable'); END;
+            """);
+        migrationBuilder.Sql("""
+            CREATE TRIGGER TR_core_map_settings_revision_immutable_update
+            BEFORE UPDATE ON core_map_settings_revision
+            BEGIN SELECT RAISE(ABORT, 'Map Settings revisions are immutable'); END;
+            """);
+        migrationBuilder.Sql("""
+            CREATE TRIGGER TR_core_map_settings_revision_immutable_delete
+            BEFORE DELETE ON core_map_settings_revision
+            BEGIN SELECT RAISE(ABORT, 'Map Settings revisions are immutable'); END;
+            """);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
