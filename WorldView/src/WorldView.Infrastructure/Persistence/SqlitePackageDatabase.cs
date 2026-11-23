@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,28 +10,11 @@ using WorldView.Infrastructure.Persistence.CoreDomain;
 namespace WorldView.Infrastructure.Persistence;
 
 /// <summary>
-/// 供 Application Bootstrap 使用的物理 DDL（应用拥有的元数据，非领域 schema）：
-/// - schema_migration 迁移 ledger（列名对齐 P2-09-11 V0.11 §7）；
-/// - wv_bootstrap_metadata 键值元数据（数据库格式版本、创建时间）。
-/// Core Domain / AI Assistant 领域表绝不在此创建（P2-09-13 §2）。
+/// 包级元数据表 DDL。领域 Schema 完全由 EF Core Migrations 管理。
 /// </summary>
 internal static class SqliteBootstrapSchema
 {
-    public const string LedgerTableName = "schema_migration";
     public const string MetadataTableName = "wv_bootstrap_metadata";
-
-    public const string CreateLedgerTableSql =
-        """
-        CREATE TABLE IF NOT EXISTS schema_migration (
-            module_id        TEXT    NOT NULL,
-            migration_id     TEXT    NOT NULL,
-            checksum         TEXT    NOT NULL,
-            applied_at_utc_ms INTEGER NOT NULL,
-            min_app_version  TEXT    NULL,
-            max_app_version  TEXT    NULL,
-            PRIMARY KEY (module_id, migration_id)
-        )
-        """;
 
     public const string CreateMetadataTableSql =
         """
@@ -51,11 +33,9 @@ internal static class SqliteBootstrapSchema
 /// 保持默认——WAL 依赖备份/恢复证明，属未关闭的 open gate，CD-01 不启用）。
 ///
 /// 并发模型（CD-01-F1 V1）：本实例拥有的唯一物理连接由
-/// <see cref="SqliteConnectionAccess"/> 统一协调——本类全部操作（含迁移事务与
-/// Dispose）经同一临界区串行执行；Core Domain 适配器经
+/// <see cref="SqliteConnectionAccess"/> 统一协调——本类全部操作（含 Dispose）经同一临界区串行执行；Core Domain 适配器经
 /// <see cref="ISqliteConnectionProvider.GetAccess"/> 共享同一协调器，不存在
-/// 互不相干的实例级锁。跨实例（同一文件的多个连接）由 SQLite 文件级锁 +
-/// ledger 主键唯一性兜底 fail-closed。
+/// 互不相干的实例级锁。跨实例（同一文件的多个连接）由 SQLite 文件级锁兜底 fail-closed。
 /// </summary>
 public sealed class SqlitePackageDatabase : IPackageDatabase, ISqliteConnectionProvider
 {
@@ -165,113 +145,6 @@ public sealed class SqlitePackageDatabase : IPackageDatabase, ISqliteConnectionP
             command.Parameters.AddWithValue("$format", metadata.DatabaseFormatVersion.ToString(CultureInfo.InvariantCulture));
             command.Parameters.AddWithValue("$created", metadata.CreatedAtUtc.ToString("O", CultureInfo.InvariantCulture));
             command.ExecuteNonQuery();
-        });
-        return Task.CompletedTask;
-    }
-
-    public Task<IReadOnlyList<MigrationLedgerEntry>> ReadLedgerAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var entries = _access.Execute(connection =>
-        {
-            if (!TableExists(connection, SqliteBootstrapSchema.LedgerTableName))
-            {
-                return new List<MigrationLedgerEntry>();
-            }
-
-            using var command = connection.CreateCommand();
-            command.CommandText =
-                $"""
-                SELECT module_id, migration_id, checksum, applied_at_utc_ms, min_app_version, max_app_version
-                FROM {SqliteBootstrapSchema.LedgerTableName}
-                ORDER BY applied_at_utc_ms, module_id, migration_id;
-                """;
-            using var reader = command.ExecuteReader();
-            var rows = new List<MigrationLedgerEntry>();
-            while (reader.Read())
-            {
-                rows.Add(new MigrationLedgerEntry
-                {
-                    ModuleId = reader.GetString(0),
-                    MigrationId = reader.GetString(1),
-                    Checksum = reader.GetString(2),
-                    AppliedAtUtcMs = reader.GetInt64(3),
-                    MinAppVersion = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    MaxAppVersion = reader.IsDBNull(5) ? null : reader.GetString(5),
-                });
-            }
-
-            return rows;
-        });
-        return Task.FromResult<IReadOnlyList<MigrationLedgerEntry>>(entries);
-    }
-
-    public Task<bool> LedgerTableExistsAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var exists = _access.Execute(connection => TableExists(connection, SqliteBootstrapSchema.LedgerTableName));
-        return Task.FromResult(exists);
-    }
-
-    public Task EnsureLedgerTableAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        _access.Execute(connection =>
-        {
-            using var command = connection.CreateCommand();
-            command.CommandText = SqliteBootstrapSchema.CreateLedgerTableSql;
-            command.ExecuteNonQuery();
-        });
-        return Task.CompletedTask;
-    }
-
-    public Task ExecuteMigrationAsync(ModuleMigration migration, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        ArgumentNullException.ThrowIfNull(migration);
-
-        // 整体置于统一临界区（CD-01-F1）：单事务 = 迁移脚本 + ledger 插入
-        // （P2-09-11 §7），Begin/Commit/Rollback 全程持锁，其他数据库操作
-        // （含 Core Domain 适配器）不可能进入该事务或与其交错。
-        // 说明：Microsoft.Data.Sqlite 的同步 ADO.NET 调用在单连接串行模型下使用，
-        // 以同步执行保证句柄/事务行为确定，方法仍以 Task 形式对齐异步契约。
-        _access.Execute(connection =>
-        {
-            using var transaction = connection.BeginTransaction();
-            try
-            {
-                using (var scriptCommand = connection.CreateCommand())
-                {
-                    scriptCommand.Transaction = transaction;
-                    scriptCommand.CommandText = migration.SqlScript;
-                    scriptCommand.ExecuteNonQuery();
-                }
-
-                using (var ledgerCommand = connection.CreateCommand())
-                {
-                    ledgerCommand.Transaction = transaction;
-                    ledgerCommand.CommandText =
-                        $"""
-                        INSERT INTO {SqliteBootstrapSchema.LedgerTableName}
-                            (module_id, migration_id, checksum, applied_at_utc_ms, min_app_version, max_app_version)
-                        VALUES ($module, $migration, $checksum, $appliedAt, $minVersion, $maxVersion)
-                        """;
-                    ledgerCommand.Parameters.AddWithValue("$module", migration.ModuleId);
-                    ledgerCommand.Parameters.AddWithValue("$migration", migration.MigrationId);
-                    ledgerCommand.Parameters.AddWithValue("$checksum", migration.Checksum);
-                    ledgerCommand.Parameters.AddWithValue("$appliedAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-                    ledgerCommand.Parameters.AddWithValue("$minVersion", (object?)migration.MinAppVersion ?? DBNull.Value);
-                    ledgerCommand.Parameters.AddWithValue("$maxVersion", (object?)migration.MaxAppVersion ?? DBNull.Value);
-                    ledgerCommand.ExecuteNonQuery();
-                }
-
-                transaction.Commit();
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
         });
         return Task.CompletedTask;
     }

@@ -18,7 +18,7 @@ public sealed class PackageValidationOutcome
 
 /// <summary>
 /// Project Package 分阶段校验器（AF-01 §3.3）：
-/// 包形状 → manifest → 数据库 → bootstrap/ledger → Asset 根 → 项目身份。
+/// 包形状 → manifest → 数据库 → 包元数据 → Asset 根 → 项目身份。
 /// 只读检查，不修复、不重写包；不支持的更高版本拒绝对其写入。
 /// 项目身份读取依赖 Core Domain 读取服务：未注册时登记为依赖门槛（DependencyGate），
 /// 不伪造“包有效”的结论。
@@ -144,7 +144,7 @@ public sealed class ProjectPackageValidator
                 return new PackageValidationOutcome { Report = report };
             }
 
-            // ---- 阶段 4：bootstrap 元数据与迁移 ledger（fail-closed） ----
+            // ---- 阶段 4：包级元数据（fail-closed） ----
             var bootstrap = await _bootstrapper.ValidateExistingDatabaseAsync(database, cancellationToken).ConfigureAwait(false);
             foreach (var issue in bootstrap.Issues)
             {

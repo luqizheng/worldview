@@ -28,8 +28,9 @@ public sealed class InMemoryFileSystem : IFileSystem
     private static string Normalize(string path)
     {
         var full = System.IO.Path.GetFullPath(path);
-        return full.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
-            .TrimEnd(System.IO.Path.DirectorySeparatorChar);
+        var normalized = full.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+        // Preserve the filesystem root ("/" or "C:\\") so absolute paths retain their leading root.
+        return System.IO.Path.TrimEndingDirectorySeparator(normalized);
     }
 
     public bool DirectoryExists(string path)
@@ -53,11 +54,12 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalized = Normalize(path);
         lock (_gate)
         {
-            var segments = normalized.Split(System.IO.Path.DirectorySeparatorChar);
-            var current = string.Empty;
-            foreach (var segment in segments)
+            var root = System.IO.Path.GetPathRoot(normalized) ?? string.Empty;
+            var current = root;
+            var remainder = normalized[root.Length..];
+            foreach (var segment in remainder.Split(System.IO.Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
             {
-                current = current.Length == 0 ? segment : current + System.IO.Path.DirectorySeparatorChar + segment;
+                current = System.IO.Path.Combine(current, segment);
                 if (!_nodes.TryGetValue(current, out var node))
                 {
                     _nodes[current] = new Node(IsDirectory: true);

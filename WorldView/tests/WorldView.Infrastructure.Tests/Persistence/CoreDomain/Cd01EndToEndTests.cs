@@ -27,7 +27,7 @@ public sealed class Cd01EndToEndTests : IDisposable
     private readonly FileSystem _fileSystem = new();
     private readonly SqlitePackageDatabaseFactory _databaseFactory = new();
     private readonly FileAssetStoreFactory _assetStoreFactory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
 
     public Cd01EndToEndTests()
     {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Projects;
@@ -34,6 +35,15 @@ public interface ICoreDomainDatabase
 
     /// <summary>查找属于指定 Project 的 Map；不存在或跨 Project 返回 null。</summary>
     MapRecord? FindMap(Guid projectId, Guid mapId);
+
+    /// <summary>查找同一 Project 内不可变的 Spatial Reference 定义。</summary>
+    SpatialReferenceDefinitionRecord? FindSpatialReferenceDefinition(Guid projectId, string spatialReferenceId);
+
+    /// <summary>插入不可变 Spatial Reference 定义；重复身份或跨 Project 引用必须拒绝。</summary>
+    void InsertSpatialReferenceDefinition(SpatialReferenceDefinitionRecord definition);
+
+    /// <summary>为尚未绑定的 Map 建立初始 Spatial Reference；不提供原位替换路径。</summary>
+    MapRecord BindMapSpatialReference(Guid projectId, Guid mapId, string spatialReferenceId, long nowUtcMs);
 
     /// <summary>列出指定 Project 的全部 Map（按创建时间、ID 稳定排序）。</summary>
     IReadOnlyList<MapRecord> ListMaps(Guid projectId);
@@ -190,6 +200,38 @@ public interface ICoreDomainDatabase
 
     /// <summary>事务：移除 definition Asset link（不存在则冲突）。</summary>
     void UnlinkDefinitionAsset(Guid projectId, Guid objectIdentityId, Guid assetId, string role);
+
+    // ---- Map Source Field Dataset / immutable Field Revision (ME-05-01) ----
+
+    /// <summary>按 Map + stable field key 查找唯一 Map-owned Field Dataset。</summary>
+    FieldDatasetRecord? FindFieldDataset(Guid projectId, Guid mapId, string fieldKey);
+
+    /// <summary>按 Dataset / Revision ID 查找不可变已发布 revision。</summary>
+    FieldRevisionRecord? FindFieldRevision(Guid projectId, Guid fieldDatasetId, Guid fieldRevisionId);
+
+    /// <summary>列出 Dataset 的全部已发布 revisions（revision_number 升序）。</summary>
+    IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId);
+
+    /// <summary>
+    /// 原子发布 Field Revision：验证当前 revision CAS，插入不可变 revision 并推进 Dataset
+    /// current pointer。首次发布在同一事务建立 Dataset；Field Payload 元数据与字节必须在同一事务完成登记。
+    /// </summary>
+    FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan);
+
+    /// <summary>Find immutable payload metadata by its owning Field Revision.</summary>
+    FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId);
+
+    /// <summary>List all payload metadata for one Project in stable identity order.</summary>
+    IReadOnlyList<FieldPayloadRecord> ListFieldPayloads(Guid projectId);
+
+    /// <summary>
+    /// Update the integrity state after an authoritative byte verification pass.
+    /// Callers may set Verified only after validating the complete payload bytes.
+    /// </summary>
+    void SetFieldPayloadIntegrityState(Guid projectId, Guid fieldPayloadId, FieldPayloadIntegrityState state);
+
+    /// <summary>Read exact raw bytes for a SQLite BLOB payload; ManagedFile payloads are rejected.</summary>
+    byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId);
 }
 
 /// <summary>Core Domain 数据损坏（行不可解析、不变量破坏、结构缺失）：fail-closed，不静默修补。</summary>

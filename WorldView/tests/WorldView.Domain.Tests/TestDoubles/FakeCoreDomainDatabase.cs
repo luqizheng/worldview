@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
@@ -20,6 +21,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public List<ProjectRecord> Projects { get; } = new();
 
     public List<MapRecord> Maps { get; } = new();
+
+    public List<SpatialReferenceDefinitionRecord> SpatialReferenceDefinitions { get; } = new();
 
     public List<HistoryRecord> Histories { get; } = new();
 
@@ -44,6 +47,14 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public List<AssetRecord> Assets { get; } = new();
 
     public List<ObjectDefinitionAssetLinkRecord> DefinitionAssetLinks { get; } = new();
+
+    public List<FieldDatasetRecord> FieldDatasets { get; } = new();
+
+    public List<FieldRevisionRecord> FieldRevisions { get; } = new();
+
+    public List<FieldPayloadRecord> FieldPayloads { get; } = new();
+
+    public Dictionary<Guid, byte[]> FieldPayloadBlobs { get; } = new();
 
     public List<MapInitialStateRecord> InitialStates { get; } = new();
 
@@ -85,6 +96,34 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public MapRecord? FindMap(Guid projectId, Guid mapId) =>
         Maps.FirstOrDefault(m => m.ProjectId == projectId && m.MapId == mapId);
+
+    public SpatialReferenceDefinitionRecord? FindSpatialReferenceDefinition(Guid projectId, string spatialReferenceId) =>
+        SpatialReferenceDefinitions.FirstOrDefault(x => x.ProjectId == projectId && x.SpatialReferenceId == spatialReferenceId);
+
+    public void InsertSpatialReferenceDefinition(SpatialReferenceDefinitionRecord definition)
+    {
+        if (FindProject(definition.ProjectId) is null)
+            throw new CoreDomainConflictException("Spatial Reference Project 不存在。");
+        if (FindSpatialReferenceDefinition(definition.ProjectId, definition.SpatialReferenceId) is not null)
+            throw new CoreDomainConflictException("Spatial Reference identity 已存在且不可覆盖。");
+        SpatialReferenceDefinitions.Add(SpatialReferenceRules.Validate(definition));
+    }
+
+    public MapRecord BindMapSpatialReference(Guid projectId, Guid mapId, string spatialReferenceId, long nowUtcMs)
+    {
+        var map = FindMap(projectId, mapId) ?? throw new CoreDomainConflictException("Map 不存在或不属于当前 Project。");
+        if (FindSpatialReferenceDefinition(projectId, spatialReferenceId) is null)
+            throw new CoreDomainConflictException("Spatial Reference 不存在或不属于当前 Project。");
+        if (map.SpatialReferenceId is not null)
+        {
+            if (map.SpatialReferenceId == spatialReferenceId) return map;
+            throw new CoreDomainConflictException("Map 的 Spatial Reference 已绑定；更换必须经过坐标转换流程。");
+        }
+        var bound = map with { SpatialReferenceId = spatialReferenceId, UpdatedAtUtcMs = nowUtcMs };
+        Maps.Remove(map);
+        Maps.Add(bound);
+        return bound;
+    }
 
     public IReadOnlyList<MapRecord> ListMaps(Guid projectId) =>
         Maps.Where(m => m.ProjectId == projectId)
@@ -545,9 +584,106 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)
     {
-        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId).Select(l => l.AssetId).ToHashSet();
+        var linked = DefinitionAssetLinks.Where(l => l.ProjectId == projectId)
+            .Select(l => l.AssetId).ToHashSet();
         return Assets.Where(a => a.ProjectId == projectId && !linked.Contains(a.AssetId))
             .Select(a => a.AssetId).OrderBy(g => g).ToArray();
+    }
+
+    public FieldDatasetRecord? FindFieldDataset(Guid projectId, Guid mapId, string fieldKey) =>
+        FieldDatasets.FirstOrDefault(x => x.ProjectId == projectId && x.MapId == mapId && x.FieldKey == fieldKey);
+
+    public FieldRevisionRecord? FindFieldRevision(Guid projectId, Guid fieldDatasetId, Guid fieldRevisionId) =>
+        FieldRevisions.FirstOrDefault(x => x.ProjectId == projectId
+            && x.FieldDatasetId == fieldDatasetId && x.FieldRevisionId == fieldRevisionId);
+
+    public IReadOnlyList<FieldRevisionRecord> ListFieldRevisions(Guid projectId, Guid fieldDatasetId) =>
+        FieldRevisions.Where(x => x.ProjectId == projectId && x.FieldDatasetId == fieldDatasetId)
+            .OrderBy(x => x.RevisionNumber).ToArray();
+
+    public FieldPayloadRecord? FindFieldPayload(Guid projectId, Guid fieldRevisionId) =>
+        FieldPayloads.FirstOrDefault(x => x.ProjectId == projectId && x.FieldRevisionId == fieldRevisionId);
+
+    public IReadOnlyList<FieldPayloadRecord> ListFieldPayloads(Guid projectId) =>
+        FieldPayloads.Where(x => x.ProjectId == projectId)
+            .OrderBy(x => x.FieldPayloadId).ToArray();
+
+    public void SetFieldPayloadIntegrityState(Guid projectId, Guid fieldPayloadId, FieldPayloadIntegrityState state)
+    {
+        var index = FieldPayloads.FindIndex(x => x.ProjectId == projectId && x.FieldPayloadId == fieldPayloadId);
+        if (index < 0)
+            throw new CoreDomainConflictException("Field Payload does not exist in the requested Project.");
+        FieldPayloads[index] = FieldPayloads[index] with { IntegrityState = state };
+    }
+
+    public byte[]? ReadFieldPayloadBlob(Guid projectId, Guid fieldRevisionId)
+    {
+        var payload = FindFieldPayload(projectId, fieldRevisionId);
+        if (payload is null)
+            return null;
+        if (payload.StorageKind != FieldPayloadStorageKind.SqliteBlob)
+            throw new InvalidOperationException("Field Payload is stored as ManagedFile, not SQLite BLOB.");
+        return FieldPayloadBlobs.TryGetValue(payload.FieldPayloadId, out var bytes)
+            ? bytes.ToArray()
+            : throw new CoreDomainDataException("SQLite BLOB Field Payload is missing from the fake database.");
+    }
+
+    public FieldRevisionRecord PublishFieldRevision(PublishFieldRevisionPlan plan)
+    {
+        var dataset = FindFieldDataset(plan.ProjectId, plan.MapId, plan.FieldKey);
+        if (dataset is null)
+        {
+            if (plan.ExpectedCurrentFieldRevisionId is not null)
+                throw new CoreDomainConflictException("首次 Field Dataset publication 的 expected current revision 必须为 null。");
+            dataset = new FieldDatasetRecord
+            {
+                FieldDatasetId = plan.FieldDatasetId,
+                ProjectId = plan.ProjectId,
+                MapId = plan.MapId,
+                FieldKey = plan.FieldKey,
+                DescriptorSchemaVersion = plan.DescriptorSchemaVersion,
+                SemanticsId = plan.SemanticsId,
+                CurrentFieldRevisionId = null,
+                CreatedAtUtcMs = plan.CreatedAtUtcMs,
+                UpdatedAtUtcMs = plan.CreatedAtUtcMs,
+            };
+            FieldDatasets.Add(dataset);
+        }
+        else
+        {
+            if (dataset.FieldDatasetId != plan.FieldDatasetId
+                || dataset.CurrentFieldRevisionId != plan.ExpectedCurrentFieldRevisionId)
+                throw new CoreDomainConflictException("Field Dataset identity 或 current revision CAS 冲突。");
+        }
+
+        var payload = FieldPayloadRules.Create(plan.Payload);
+        FieldPayloads.Add(payload);
+        if (payload.StorageKind == FieldPayloadStorageKind.SqliteBlob)
+            FieldPayloadBlobs.Add(payload.FieldPayloadId, plan.PayloadBytes!.ToArray());
+
+        var revision = new FieldRevisionRecord
+        {
+            FieldRevisionId = plan.FieldRevisionId,
+            ProjectId = plan.ProjectId,
+            FieldDatasetId = plan.FieldDatasetId,
+            RevisionNumber = FieldRevisions.Where(x => x.ProjectId == plan.ProjectId && x.FieldDatasetId == plan.FieldDatasetId)
+                .Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1,
+            ParentRevisionId = dataset.CurrentFieldRevisionId,
+            Payload = payload,
+            ContentFingerprint = plan.ContentFingerprint,
+            ManifestJson = plan.ManifestJson,
+            Metadata = plan.Metadata,
+            ProvenanceJson = plan.ProvenanceJson,
+            CreatedAtUtcMs = plan.CreatedAtUtcMs,
+        };
+        FieldRevisions.Add(revision);
+        FieldDatasets.Remove(dataset);
+        FieldDatasets.Add(dataset with
+        {
+            CurrentFieldRevisionId = revision.FieldRevisionId,
+            UpdatedAtUtcMs = plan.CreatedAtUtcMs,
+        });
+        return revision;
     }
 
     public ObjectDefinitionAssetLinkRecord? FindDefinitionAssetLink(Guid projectId, Guid objectIdentityId, Guid assetId, string role) =>
