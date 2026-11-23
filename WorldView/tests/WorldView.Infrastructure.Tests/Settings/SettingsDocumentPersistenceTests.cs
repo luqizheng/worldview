@@ -174,8 +174,9 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
             command.ExecuteNonQuery();
         }
 
-        await Assert.ThrowsAnyAsync<Exception>(() => service.SaveProjectAsync(project.ProjectId,
-            JObject.Parse("""{"theme":"light"}""")));
+        var failure = await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(() =>
+            service.SaveProjectAsync(project.ProjectId, JObject.Parse("""{"theme":"light"}""")));
+        Assert.Contains("injected current-pointer failure", failure.InnerException?.Message ?? failure.Message);
 
         Assert.Single(repository.ListProjectSettingsRevisions(project.ProjectId));
         var current = await service.LoadCurrentProjectAsync(project.ProjectId);
