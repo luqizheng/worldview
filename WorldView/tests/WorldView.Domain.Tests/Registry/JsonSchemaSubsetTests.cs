@@ -96,6 +96,102 @@ public sealed class JsonSchemaSubsetTests
         Assert.Contains("contains", error.Message);
     }
 
+    // ---- $defs 全量递归 fail-closed（Task 002-A）----
+
+    [Fact]
+    public void UnreferencedDefs_WithUnsupportedKeyword_FailsClosed()
+    {
+        const string schema = """
+            {
+              "type": "object",
+              "$defs": {
+                "unused_definition": { "type": "object", "contains": { "const": 1 } }
+              },
+              "properties": { "name": { "type": "string" } }
+            }
+            """;
+        using var schemaDocument = JsonDocument.Parse(schema);
+        using var instanceDocument = JsonDocument.Parse("""{"name":"a"}""");
+
+        var error = Assert.Throws<RegistryException>(
+            () => JsonSchemaSubset.Validate(schemaDocument.RootElement, instanceDocument.RootElement));
+
+        Assert.Equal("schema_invalid", error.ErrorCode);
+        Assert.Contains("contains", error.Message);
+        Assert.Contains("unused_definition", error.Message);
+    }
+
+    [Fact]
+    public void ReferencedDefs_WithUnsupportedKeyword_FailsClosed()
+    {
+        const string schema = """
+            {
+              "type": "object",
+              "$defs": {
+                "used_definition": { "type": "object", "contains": { "const": 1 } }
+              },
+              "properties": { "value": { "$ref": "#/$defs/used_definition" } }
+            }
+            """;
+        using var schemaDocument = JsonDocument.Parse(schema);
+        using var instanceDocument = JsonDocument.Parse("""{"value":{}}""");
+
+        var error = Assert.Throws<RegistryException>(
+            () => JsonSchemaSubset.Validate(schemaDocument.RootElement, instanceDocument.RootElement));
+
+        Assert.Equal("schema_invalid", error.ErrorCode);
+        Assert.Contains("contains", error.Message);
+        Assert.Contains("used_definition", error.Message);
+    }
+
+    [Fact]
+    public void NestedDefs_WithUnsupportedKeyword_FailsClosed()
+    {
+        const string schema = """
+            {
+              "$defs": {
+                "outer": {
+                  "type": "object",
+                  "$defs": {
+                    "inner": { "patternProperties": { "^x-": {} } }
+                  }
+                }
+              },
+              "properties": { "name": { "$ref": "#/$defs/outer" } }
+            }
+            """;
+        using var schemaDocument = JsonDocument.Parse(schema);
+        using var instanceDocument = JsonDocument.Parse("""{"name":{}}""");
+
+        var error = Assert.Throws<RegistryException>(
+            () => JsonSchemaSubset.Validate(schemaDocument.RootElement, instanceDocument.RootElement));
+
+        Assert.Equal("schema_invalid", error.ErrorCode);
+        Assert.Contains("patternProperties", error.Message);
+    }
+
+    [Fact]
+    public void ValidDefsRef_ComposesValidation()
+    {
+        // 合法 $defs + $ref：通过关键字检查，且引用定义的约束真实参与校验。
+        const string schema = """
+            {
+              "type": "object",
+              "$defs": {
+                "short_text": { "type": "string", "minLength": 3, "maxLength": 8 }
+              },
+              "required": ["name"],
+              "properties": { "name": { "$ref": "#/$defs/short_text" } },
+              "additionalProperties": false
+            }
+            """;
+
+        Assert.Empty(Validate(schema, """{"name":"abc"}"""));
+        Assert.Contains(
+            Validate(schema, """{"name":"ab"}"""),
+            v => v.Keyword == "minLength");
+    }
+
     // ---- 真实 Building / Cave payload 与条件 schema 的集成 ----
 
     [Fact]

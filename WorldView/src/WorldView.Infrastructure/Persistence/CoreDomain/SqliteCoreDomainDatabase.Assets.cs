@@ -134,21 +134,11 @@ public sealed partial class SqliteCoreDomainDatabase
     public void MarkAssetVerified(
         Guid projectId,
         Guid assetId,
-        AssetVerificationEvidence evidence,
+        AssetByteDigest digest,
         long nowUtcMs)
     {
         _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
-        ArgumentNullException.ThrowIfNull(evidence);
-
-        var expectedHash = AssetRules.NormalizeContentHash(evidence.ExpectedHash);
-        var actualHash = AssetRules.NormalizeContentHash(evidence.ActualHash);
-        if (evidence.ExpectedByteLength < 0 || evidence.ActualByteLength < 0
-            || !string.Equals(expectedHash, actualHash, StringComparison.Ordinal)
-            || evidence.ExpectedByteLength != evidence.ActualByteLength)
-        {
-            throw new CoreDomainConflictException(
-                "Asset verification evidence 的 hash 或 byte length 不一致，拒绝写入 Verified。");
-        }
+        ArgumentNullException.ThrowIfNull(digest);
 
         _ef.Execute(db =>
         {
@@ -163,12 +153,14 @@ public sealed partial class SqliteCoreDomainDatabase
                         $"Asset {assetId} 不存在或不属于项目 {projectId}，无法标记 Verified。");
                 }
 
+                // 写事务内重读当前元数据：只接受与当前 content_hash/byte_length 完全一致的
+                // 实测摘要（摘要本身只能来自真实字节流测量，无法凭空构造——Task 002-A）。
                 if (!string.Equals(entity.HashAlgorithm, "sha-256", StringComparison.Ordinal)
-                    || !string.Equals(entity.ContentHash, expectedHash, StringComparison.Ordinal)
-                    || entity.ByteLength != evidence.ExpectedByteLength)
+                    || !string.Equals(entity.ContentHash, digest.ContentHash, StringComparison.Ordinal)
+                    || entity.ByteLength != digest.ByteLength)
                 {
                     throw new CoreDomainConflictException(
-                        "Asset verification evidence 与当前 Asset 元数据不匹配（metadata 已变化或证据过期）。");
+                        "Asset 实测字节摘要与当前元数据不匹配（metadata 已变化或摘要过期），拒绝写入 Verified。");
                 }
 
                 entity.IntegrityState = "verified";

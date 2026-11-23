@@ -42,16 +42,6 @@ public sealed record AssetRecord
     public required long CreatedAtUtcMs { get; init; }
 }
 
-/// <summary>
-/// 字节验证工作流的摘要证据。持久化适配器会在写事务内校验该证据与当前元数据一致；
-/// 此 DTO 不是抵御恶意进程伪造摘要的密码学凭证。
-/// </summary>
-public sealed record AssetVerificationEvidence(
-    string ExpectedHash,
-    string ActualHash,
-    long ExpectedByteLength,
-    long ActualByteLength);
-
 /// <summary>发布状态（V1 单态：core_asset 只登记已发布 Asset）。</summary>
 public enum AssetPublicationState
 {

@@ -30,7 +30,9 @@ public sealed record SchemaViolation
 /// minimum / maximum / exclusiveMinimum / minItems / maxItems / uniqueItems /
 /// pattern / oneOf / allOf / if / then / else / not / $ref(#/$defs/...) / $defs /
 /// dependentRequired / maxProperties。schema 内出现任何**不支持**的关键词即
-/// fail-closed（拒绝静默跳过，与 unknown_fields=reject 同一原则）。全量 Draft 2020-12
+/// fail-closed（拒绝静默跳过，与 unknown_fields=reject 同一原则）；检查递归覆盖
+/// $defs 全部定义（含未引用定义与嵌套 $defs，Task 002-A），$ref 解析目标必然
+/// 已经过完整关键字支持检查。全量 Draft 2020-12
 /// 引擎与第三方包在 Domain 禁用（无第三方依赖原则）；若未来 schema 引入新关键词，
 /// 本类是扩展点。明确边界：本类只实现上述关键词子集，不宣称完整支持 JSON Schema 标准。
 /// </summary>
@@ -107,6 +109,16 @@ public static class JsonSchemaSubset
                 {
                     EnsureSupportedKeywords(branch, $"{path}/{property.Name}/{index}");
                     index++;
+                }
+            }
+            else if (property.Name is "$defs" && property.Value.ValueKind == JsonValueKind.Object)
+            {
+                // Task 002-A：$defs 全量递归 fail-closed——每个定义（含未被 $ref 引用的
+                // 定义与嵌套 $defs）都必须经过关键字支持检查；$ref 解析目标因此必然
+                // 已被完整检查，未知关键字不会因"未被引用"而静默漏检。
+                foreach (var definition in property.Value.EnumerateObject())
+                {
+                    EnsureSupportedKeywords(definition.Value, $"{path}/$defs/{definition.Name}");
                 }
             }
         }

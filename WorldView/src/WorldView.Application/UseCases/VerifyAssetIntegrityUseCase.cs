@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -11,7 +10,9 @@ namespace WorldView.Application.UseCases;
 
 /// <summary>
 /// 以 Project Asset Store 中的真实不可变字节对账 Core Asset 完整性元数据。
-/// 文件存在本身绝不等于 Asset Verified；hash 与 length 必须从实际字节计算。
+/// 文件存在本身绝不等于 Asset Verified；hash 与 length 必须从实际字节计算，
+/// 且 Verified 只能经 <see cref="AssetByteDigest.MeasureAsync"/> 实测摘要写入
+/// （普通调用方无法构造摘要伪造 Verified，Task 002-A）。
 /// </summary>
 public sealed class VerifyAssetIntegrityUseCase
 {
@@ -77,13 +78,12 @@ public sealed class VerifyAssetIntegrityUseCase
                 "Asset Store 中不存在对应内容。");
         }
 
-        string actualHash;
-        long actualLength;
+        AssetByteDigest digest;
         try
         {
             await using (content)
             {
-                (actualHash, actualLength) = await ComputeHashAsync(content, cancellationToken)
+                digest = await AssetByteDigest.MeasureAsync(content, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
@@ -100,16 +100,12 @@ public sealed class VerifyAssetIntegrityUseCase
                 $"Asset 字节读取失败：{ex.Message}");
         }
 
-        var matches = string.Equals(actualHash, asset.ContentHash, StringComparison.Ordinal)
-            && actualLength == asset.ByteLength;
+        var matches = string.Equals(digest.ContentHash, asset.ContentHash, StringComparison.Ordinal)
+            && digest.ByteLength == asset.ByteLength;
 
         if (matches)
         {
-            _database.MarkAssetVerified(
-                projectId,
-                assetId,
-                new AssetVerificationEvidence(asset.ContentHash, actualHash, asset.ByteLength, actualLength),
-                NowUtcMs());
+            _database.MarkAssetVerified(projectId, assetId, digest, NowUtcMs());
         }
         else
         {
@@ -121,38 +117,14 @@ public sealed class VerifyAssetIntegrityUseCase
             matches ? AssetIntegrityVerificationOutcome.Verified : AssetIntegrityVerificationOutcome.Corrupt,
             assetId,
             asset.ContentHash,
-            actualHash,
+            digest.ContentHash,
             matches
                 ? null
-                : $"Asset 字节与元数据不一致（预期长度 {asset.ByteLength}，实际长度 {actualLength}；"
-                    + $"预期 hash {asset.ContentHash}，实际 hash {actualHash}）。");
+                : $"Asset 字节与元数据不一致（预期长度 {asset.ByteLength}，实际长度 {digest.ByteLength}；"
+                    + $"预期 hash {asset.ContentHash}，实际 hash {digest.ContentHash}）。");
     }
 
     private long NowUtcMs() => _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
-
-    private static async Task<(string Hash, long Length)> ComputeHashAsync(
-        Stream content,
-        CancellationToken cancellationToken)
-    {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buffer = new byte[81920];
-        long length = 0;
-
-        while (true)
-        {
-            var read = await content.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
-                .ConfigureAwait(false);
-            if (read == 0)
-            {
-                break;
-            }
-
-            hash.AppendData(buffer, 0, read);
-            length = checked(length + read);
-        }
-
-        return (Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant(), length);
-    }
 }
 
 /// <summary>字节验证结果（缺失/长度不符/hash 不符/读取失败分别可区分）。</summary>

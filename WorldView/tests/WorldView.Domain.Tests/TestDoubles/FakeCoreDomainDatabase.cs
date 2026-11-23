@@ -699,21 +699,16 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         Assets.Add(asset with { IntegrityState = integrityState });
     }
 
-    public void MarkAssetVerified(Guid projectId, Guid assetId, AssetVerificationEvidence evidence, long nowUtcMs)
+    public void MarkAssetVerified(Guid projectId, Guid assetId, AssetByteDigest digest, long nowUtcMs)
     {
-        ArgumentNullException.ThrowIfNull(evidence);
-        if (!string.Equals(evidence.ExpectedHash, evidence.ActualHash, StringComparison.Ordinal)
-            || evidence.ExpectedByteLength != evidence.ActualByteLength)
-        {
-            throw new CoreDomainConflictException("Asset verification evidence 不一致。");
-        }
+        ArgumentNullException.ThrowIfNull(digest);
 
         var asset = FindAsset(projectId, assetId)
             ?? throw new CoreDomainConflictException("Asset 不存在。");
-        if (!string.Equals(asset.ContentHash, evidence.ExpectedHash, StringComparison.Ordinal)
-            || asset.ByteLength != evidence.ExpectedByteLength)
+        if (!string.Equals(asset.ContentHash, digest.ContentHash, StringComparison.Ordinal)
+            || asset.ByteLength != digest.ByteLength)
         {
-            throw new CoreDomainConflictException("Asset verification evidence 与当前元数据不匹配。");
+            throw new CoreDomainConflictException("Asset 实测字节摘要与当前元数据不匹配。");
         }
 
         Assets.Remove(asset);

@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.UseCases;
@@ -219,25 +221,43 @@ public sealed class AssetIntegrityVerificationTests : IDisposable
     }
 
     [Fact]
-    public void MarkVerified_WithStaleEvidence_RejectedAndStateUnchanged()
+    public async Task MarkVerified_WithDigestMeasuredFromOtherBytes_RejectedAndStateUnchanged()
     {
         var project = SeedProject();
         var asset = RegisterWithRealBytes(project.ProjectId, "metadata"u8.ToArray());
-        var otherHash = new string('b', 64);
+
+        // 摘要真实来自字节测量（不可伪造），但与当前 Asset 元数据不一致 →
+        // 写事务内重读元数据拒绝写入，状态保持 Unverified。
+        var foreignDigest = await AssetByteDigest.MeasureAsync(new MemoryStream("foreign-bytes"u8.ToArray()));
+        Assert.NotEqual(foreignDigest.ContentHash, asset.ContentHash);
 
         Assert.Throws<CoreDomainConflictException>(() => _core.MarkAssetVerified(
             project.ProjectId,
             asset.AssetId,
-            new AssetVerificationEvidence(asset.ContentHash, otherHash, asset.ByteLength, asset.ByteLength),
+            foreignDigest,
             Now + 1));
         Assert.Equal(AssetIntegrityState.Unverified, _core.FindAsset(project.ProjectId, asset.AssetId)!.IntegrityState);
+    }
 
-        Assert.Throws<CoreDomainConflictException>(() => _core.MarkAssetVerified(
-            project.ProjectId,
-            asset.AssetId,
-            new AssetVerificationEvidence(otherHash, otherHash, asset.ByteLength, asset.ByteLength),
-            Now + 2));
-        Assert.Equal(AssetIntegrityState.Unverified, _core.FindAsset(project.ProjectId, asset.AssetId)!.IntegrityState);
+    [Fact]
+    public void VerifiedWrite_ApiSurfaceOnlyAcceptsMeasuredDigest()
+    {
+        // Task 002-A 防伪造边界：Verified 写入端口只接受实测摘要类型，
+        // 该类型无公开构造器、唯一公开静态成员是 MeasureAsync——
+        // 普通调用方不经真实字节读取就不存在摘要实例。
+        var port = typeof(ICoreDomainDatabase).GetMethod(nameof(ICoreDomainDatabase.MarkAssetVerified))!;
+        Assert.Equal(
+            new[] { typeof(Guid), typeof(Guid), typeof(AssetByteDigest), typeof(long) },
+            port.GetParameters().Select(p => p.ParameterType).ToArray());
+
+        Assert.Empty(typeof(AssetByteDigest)
+            .GetConstructors(BindingFlags.Public | BindingFlags.Instance));
+        Assert.Equal(
+            new[] { nameof(AssetByteDigest.MeasureAsync) },
+            typeof(AssetByteDigest)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Select(m => m.Name)
+                .ToArray());
     }
 
     [Fact]

@@ -192,10 +192,13 @@ public interface ICoreDomainDatabase
     void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
 
     /// <summary>
-    /// 事务：仅在 evidence 的预期/实际 hash 与长度均一致、且预期值仍匹配当前 Asset
-    /// 元数据时写入 Verified。实现方必须在同一写事务内重读当前元数据并验证 evidence。
+    /// 事务：写入 Verified——仅接受经真实字节流测量得到的 <see cref="AssetByteDigest"/>
+    /// （不透明凭证：只能由 Domain 的 <see cref="AssetByteDigest.MeasureAsync"/> 在完整
+    /// 读取字节后产生，普通调用方无法构造；Task 002-A）。实现方必须在同一写事务内重读
+    /// 当前 Asset 元数据，要求 digest 的 hash 与 byte length 和当前 content_hash /
+    /// byte_length 完全一致（Asset 身份由 Project+Asset 键界定）；不一致抛冲突。
     /// </summary>
-    void MarkAssetVerified(Guid projectId, Guid assetId, AssetVerificationEvidence evidence, long nowUtcMs);
+    void MarkAssetVerified(Guid projectId, Guid assetId, AssetByteDigest digest, long nowUtcMs);
 
     /// <summary>列出未被任何 typed link 引用的 Asset ID（孤儿对账；只读，不自动删除）。</summary>
     IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId);

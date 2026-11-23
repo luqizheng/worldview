@@ -121,7 +121,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         core.MarkAssetVerified(
             project.ProjectId,
             asset.AssetId,
-            new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength),
+            AssetByteDigest.MeasureAsync(new MemoryStream(bytes)).GetAwaiter().GetResult(),
             Now + 5);
 
         // Building/Cave 不允许 Definition 与 typed link 分两次提交。

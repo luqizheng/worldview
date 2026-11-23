@@ -99,7 +99,7 @@ public sealed class GeometryAtomicPublicationTests : IDisposable
             _core.MarkAssetVerified(
                 projectId,
                 asset.AssetId,
-                new AssetVerificationEvidence(asset.ContentHash, asset.ContentHash, asset.ByteLength, asset.ByteLength),
+                AssetByteDigest.MeasureAsync(new MemoryStream(bytes)).GetAwaiter().GetResult(),
                 Now + 1);
         }
 
