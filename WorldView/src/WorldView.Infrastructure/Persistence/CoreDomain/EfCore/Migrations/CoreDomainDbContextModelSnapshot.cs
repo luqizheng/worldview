@@ -1250,7 +1250,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("SchemaVersion").HasColumnType("INTEGER").HasColumnName("schema_version");
                 b.Property<long>("Version").HasColumnType("INTEGER").HasColumnName("version");
                 b.HasKey("ProjectSettingsRevisionId");
-                b.HasAlternateKey("ProjectId", "ProjectSettingsRevisionId");
+                b.HasAlternateKey("ProjectId", "ProjectSettingsRevisionId").HasName("AK_core_project_settings_revision_owner_revision");
                 b.HasIndex("ProjectId", "Version").IsUnique();
                 b.ToTable("core_project_settings_revision", t =>
                     {
@@ -1285,7 +1285,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("SchemaVersion").HasColumnType("INTEGER").HasColumnName("schema_version");
                 b.Property<long>("Version").HasColumnType("INTEGER").HasColumnName("version");
                 b.HasKey("MapSettingsRevisionId");
-                b.HasAlternateKey("ProjectId", "MapId", "MapSettingsRevisionId");
+                b.HasAlternateKey("ProjectId", "MapId", "MapSettingsRevisionId").HasName("AK_core_map_settings_revision_owner_map_revision");
                 b.HasIndex("ProjectId", "MapId", "Version").IsUnique();
                 b.ToTable("core_map_settings_revision", t =>
                     {
