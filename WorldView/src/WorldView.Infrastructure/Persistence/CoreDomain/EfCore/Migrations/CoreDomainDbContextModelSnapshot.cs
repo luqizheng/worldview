@@ -1268,7 +1268,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.Property<string>("ProjectId").HasColumnType("TEXT").HasColumnName("project_id");
                 b.Property<string>("ProjectSettingsRevisionId").IsRequired().HasColumnType("TEXT").HasColumnName("project_settings_revision_id");
                 b.HasKey("ProjectId");
-                b.HasIndex("ProjectId", "ProjectSettingsRevisionId");
+                b.HasIndex("ProjectId", "ProjectSettingsRevisionId").HasDatabaseName("IX_core_project_settings_current_revision");
                 b.ToTable("core_project_settings_current");
             });
 
@@ -1304,7 +1304,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.Property<string>("MapSettingsRevisionId").IsRequired().HasColumnType("TEXT").HasColumnName("map_settings_revision_id");
                 b.Property<string>("ProjectId").HasColumnType("TEXT").HasColumnName("project_id");
                 b.HasKey("ProjectId", "MapId");
-                b.HasIndex("ProjectId", "MapId", "MapSettingsRevisionId");
+                b.HasIndex("ProjectId", "MapId", "MapSettingsRevisionId").HasDatabaseName("IX_core_map_settings_current_revision");
                 b.ToTable("core_map_settings_current");
             });
 
