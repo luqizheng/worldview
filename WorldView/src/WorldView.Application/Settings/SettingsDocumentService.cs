@@ -29,6 +29,8 @@ public sealed class SettingsDocumentService
     {
         var document = SettingsDocument.ForProject(projectId, settings);
         var bytes = document.ToUtf8Bytes();
+        if (bytes.Length > SettingsDocumentFormat.MaximumDocumentBytes)
+            throw new InvalidDataException("Settings document exceeds the V1 size limit.");
         using var input = new MemoryStream(bytes, writable: false);
         var file = await _fileStore.PutAsync(input, cancellationToken).ConfigureAwait(false);
         // A cancellation here intentionally leaves an unreferenced immutable file for recovery.
@@ -70,17 +72,9 @@ public sealed class SettingsDocumentService
             || !string.Equals(revision.HashAlgorithm, "sha-256", StringComparison.Ordinal)
             || revision.ByteLength <= 0
             || revision.ByteLength > SettingsDocumentFormat.MaximumDocumentBytes
-            || !SettingsDocumentPaths.TryResolvePublishedPath(
-                _fileStore is null ? string.Empty : GetPackageRootNotAvailable(),
-                revision.RelativePath, revision.ContentHash, out _))
-        {
-            // The store itself resolves only the canonical hash path. Metadata still has to
-            // agree with the canonical path before the bytes are opened.
-            if (revision.ByteLength <= 0 || revision.ByteLength > SettingsDocumentFormat.MaximumDocumentBytes
-                || !string.Equals(revision.RelativePath,
-                    SettingsDocumentPaths.GetRelativePath(revision.ContentHash), StringComparison.Ordinal))
-                throw new InvalidDataException("Settings revision metadata is invalid or outside the V1 contract.");
-        }
+            || !string.Equals(revision.RelativePath,
+                SettingsDocumentPaths.GetRelativePath(revision.ContentHash), StringComparison.Ordinal))
+            throw new InvalidDataException("Settings revision metadata is invalid or outside the V1 contract.");
 
         await using var input = await _fileStore.OpenReadAsync(revision.ContentHash, cancellationToken)
             .ConfigureAwait(false);
@@ -109,8 +103,4 @@ public sealed class SettingsDocumentService
 
         return SettingsDocument.Parse(output.ToArray(), projectId, mapId);
     }
-
-    // Kept separate to avoid exposing package paths through the Application storage port.
-    // The file-store contract guarantees that OpenReadAsync resolves a validated content hash.
-    private static string GetPackageRootNotAvailable() => string.Empty;
 }
