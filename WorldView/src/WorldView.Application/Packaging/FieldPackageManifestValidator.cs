@@ -14,6 +14,8 @@ public static class FieldPackageErrorCodes
     public const string ManifestEncoding = "WVPK_MANIFEST_ENCODING";
     public const string ManifestCanonical = "WVPK_MANIFEST_CANONICAL";
     public const string ManifestSchema = "WVPK_MANIFEST_SCHEMA";
+    /// <summary>Descriptor/owner metadata mismatch (ME-05-10 §10 taxonomy).</summary>
+    public const string DescriptorMismatch = "WVPK_DESCRIPTOR_MISMATCH";
     public const string ResourceLimit = "WVPK_LIMIT";
 }
 
