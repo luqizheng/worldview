@@ -93,6 +93,30 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task CancellationAfterFilePublication_LeavesARecoverableOrphan()
+    {
+        var project = ProjectRules.CreateProject("Settings Cancellation", 2400);
+        _core.InsertProject(ProjectCreationPlan.Create(project));
+        var repository = new CoreDomainSettingsDocumentRepository(_database);
+        var innerStore = new SettingsDocumentFileStore(_root);
+        using var cancellation = new System.Threading.CancellationTokenSource();
+        var cancellingStore = new CancelAfterPutFileStore(innerStore, cancellation);
+        var service = new SettingsDocumentService(repository, cancellingStore);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.SaveProjectAsync(project.ProjectId, JObject.Parse("{\"cancelled\":true}"), cancellation.Token));
+
+        Assert.Empty(repository.ListProjectSettingsRevisions(project.ProjectId));
+        var orphanHashes = innerStore.ListPublishedContentHashes();
+        Assert.Single(orphanHashes);
+
+        var report = await new CoreDomainSettingsDocumentRecovery()
+            .ReconcileAsync(_database, _root, project.ProjectId);
+        Assert.Contains(orphanHashes[0], report.CollectedOrphanContentHashes);
+        Assert.Empty(innerStore.ListPublishedContentHashes());
+    }
+
+    [Fact]
     public async Task FailedMetadataPublication_LeavesARecoverableOrphanWithoutChangingCurrentReference()
     {
         var project = ProjectRules.CreateProject("Settings Rollback", 2500);
@@ -131,4 +155,26 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
         await Assert.ThrowsAsync<FileNotFoundException>(() =>
             recovery.ReconcileAsync(_database, _root, project.ProjectId));
     }
+    private sealed class CancelAfterPutFileStore(
+        ISettingsDocumentFileStore inner,
+        System.Threading.CancellationTokenSource cancellation) : ISettingsDocumentFileStore
+    {
+        public async Task<SettingsDocumentFilePutResult> PutAsync(
+            Stream content, System.Threading.CancellationToken cancellationToken = default)
+        {
+            var result = await inner.PutAsync(content, cancellationToken);
+            cancellation.Cancel();
+            return result;
+        }
+
+        public Task<Stream?> OpenReadAsync(string contentHash, System.Threading.CancellationToken cancellationToken = default) =>
+            inner.OpenReadAsync(contentHash, cancellationToken);
+
+        public System.Collections.Generic.IReadOnlyList<string> ListPublishedContentHashes() =>
+            inner.ListPublishedContentHashes();
+
+        public int CleanupStagingFiles() => inner.CleanupStagingFiles();
+        public bool Delete(string contentHash) => inner.Delete(contentHash);
+    }
+
 }
