@@ -33,7 +33,7 @@ def sha256(data: bytes) -> str:
 
 def build_package(manifest: bytes, tiles: list[dict]) -> bytes:
     parsed = json.loads(manifest)
-    if manifest.startswith(b"\\xef\\xbb\\xbf") or manifest.endswith((b"\\n", b"\\r")):
+    if manifest.startswith(b"\xef\xbb\xbf") or manifest.endswith((b"\n", b"\r")):
         raise ValueError("Manifest sidecar must be UTF-8 JCS without BOM or trailing newline.")
     if parsed["format"] != {"major": 1, "minor": 0}:
         raise ValueError("Only WVFLDPK 1.0 fixtures are supported.")
@@ -90,7 +90,7 @@ def build_package(manifest: bytes, tiles: list[dict]) -> bytes:
     directory = struct.pack("<HHIQ", 1, 0, DIRECTORY_ENTRY_SIZE, len(entries)) + b"".join(entries)
     header = struct.pack(
         "<8sHHIIIQQQQQQ",
-        b"WVFLDPK\\0",
+        b"WVFLDPK\0",
         1,
         0,
         HEADER_SIZE,
@@ -105,13 +105,13 @@ def build_package(manifest: bytes, tiles: list[dict]) -> bytes:
     )
     output = bytearray(header)
     output.extend(manifest)
-    output.extend(b"\\0" * (directory_offset - len(output)))
+    output.extend(b"\0" * (directory_offset - len(output)))
     output.extend(directory)
-    output.extend(b"\\0" * (payload_offset - len(output)))
+    output.extend(b"\0" * (payload_offset - len(output)))
     for offset, raw in payloads:
         if len(output) > offset:
             raise ValueError("Calculated tile payload ranges overlap.")
-        output.extend(b"\\0" * (offset - len(output)))
+        output.extend(b"\0" * (offset - len(output)))
         output.extend(raw)
     if len(output) != package_length:
         raise ValueError("Calculated package length does not match emitted bytes.")
@@ -141,7 +141,7 @@ def main() -> None:
         "and payload offsets/lengths are recalculated with 8-byte alignment; tile payload "
         "bytes and tile hashes are unchanged."
     )
-    INVENTORY_PATH.write_text(json.dumps(inventory, indent=2) + "\\n", encoding="utf-8")
+    INVENTORY_PATH.write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
