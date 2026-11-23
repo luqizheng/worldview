@@ -5,7 +5,7 @@
 - Stacked PR：[#22](https://github.com/luqizheng/worldview/pull/22)（Draft，Base 指向 PR #11 Head）
 - 基线 SHA：`991aa17b7a3f6f2588aabf596e2e808b6c9cdde2`
 - 实现提交 SHA：`d017449ab78f041eda2a612eb3f5c67bf9d61b92`
-- Task 002-A 修复提交 SHA：见 §11（与文档同批提交后由 CI run 记录）
+- Task 002-A 修复提交 SHA：`11fa9387b82f32dcf351c5a7e0b80e3ac07dbe34`
 - 状态：本地 Windows Debug/Release 全部通过；四平台 GitHub Actions 全部成功
 
 ## 0. Task 002-A 修复记录 — Verified 写入不可绕过 + `$defs` 递归 fail-closed
@@ -68,7 +68,7 @@
 
 ### A6. Task 002-A 四平台 CI
 
-见 §11（与修复代码同批推送后由对应 CI run 记录准确 HEAD SHA）。
+见 §11（`head_sha = 11fa9387b82f32dcf351c5a7e0b80e3ac07dbe34`，四平台全部 success）。
 
 ## 1. 实际迁移的领域规则
 
@@ -174,7 +174,7 @@
 ## 4. Migration
 
 - 没有新增或修改 Migration。
-- 没有新增数据库字段；`AssetVerificationEvidence` 为事务内校验证据，不落库。
+- 没有新增数据库字段；`AssetByteDigest` 为事务内校验凭证，不落库（Task 002-A 前身 `AssetVerificationEvidence` 同样不落库）。
 - 现有 FK / UNIQUE / CHECK 与 Snapshot 未变化；Model Snapshot 一致性测试通过。
 - 现有 `core_object_definition_asset` FK 的删除行为不会造成孤立 link；单条删除路径仍受 FK 与 Domain 规则约束。
 - 新 Migration 可从空数据库完整初始化（本次未新增）。
@@ -272,4 +272,13 @@ Task 002-A 四平台 CI 见 §11。
 
 ## 11. Task 002-A 四平台 CI 结果
 
-（推送后由实际 CI run 回填：run ID 与准确 HEAD SHA。）
+Workflow `.NET CI`，run 585（[run 45138162297](https://github.com/luqizheng/worldview/actions/runs/45138162297)，push 事件触发），`head_sha = 11fa9387b82f32dcf351c5a7e0b80e3ac07dbe34`（Task 002-A 修复提交）。
+
+| OS | Configuration | 结果 |
+|---|---|---|
+| Windows | Debug | success |
+| Windows | Release | success |
+| macOS | Debug | success |
+| macOS | Release | success |
+
+同 HEAD SHA 的 pull_request 事件 run 586（[run 45138170562](https://github.com/luqizheng/worldview/actions/runs/45138170562)）四平台同样全部 success。PR #22 HEAD 更新为 `11fa938`；Base 仍为 `feat/efcore-v1-complete-model`（`991aa17`）未修改；PR #22 与 PR #11 均未合并。
