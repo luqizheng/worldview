@@ -25,8 +25,8 @@ public sealed class FieldPackageReaderTests
     }
 
     [Theory]
-    [InlineData("minimal-elevation-2x2.wvfld", 1, 1)]
-    [InlineData("land-water-4x2-two-tiles.wvfld", 2, 2)]
+    [InlineData("minimal-elevation-2x2.wvfld", 1, 2)]
+    [InlineData("land-water-4x2-two-tiles.wvfld", 2, 4)]
     [InlineData("edge-elevation-3x2.wvfld", 2, 3)]
     public void OpenAndReadTiles_ValidatesCanonicalGoldenPackages(string packageName, int expectedTileCount, int expectedGridWidth)
     {
