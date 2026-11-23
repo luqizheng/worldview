@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using WorldView.Application.Abstractions;
 
 namespace WorldView.Application.Settings;
 
@@ -20,7 +21,7 @@ public sealed record SettingsDocumentRecoveryReport
 public interface IProjectSettingsDocumentRecovery
 {
     Task<SettingsDocumentRecoveryReport> ReconcileAsync(
-        Abstractions.IPackageDatabase database,
+        IPackageDatabase database,
         string packageRoot,
         Guid projectId,
         CancellationToken cancellationToken = default);
