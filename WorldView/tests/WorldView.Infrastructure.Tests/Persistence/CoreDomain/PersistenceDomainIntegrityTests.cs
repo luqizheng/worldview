@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -68,6 +69,19 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
             using var command = connection.CreateCommand();
             command.CommandText = sql;
             command.ExecuteNonQuery();
+        });
+    }
+
+    private void ExecuteRawInTransaction(string sql)
+    {
+        Access().Execute(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+            transaction.Commit();
         });
     }
 
@@ -408,14 +422,44 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 
         // 手工铺 MaxDepth+1 级链（服务路径每次 O(depth) 校验太慢，且服务会成功创建——
         // 深度本身不是写约束，超深由解析器防御）。
+        // SQL 仍按一次批量写入真实 SQLite；解析器的逐节点查找使用从同一批数据构建的
+        // lookup，避免在本测试中执行 2,000 次独立 SQLite 查询。适配器查询由上面的
+        // Persistence 测试覆盖，本测试专注验证 resolver 的深度边界。
         const int depth = BranchLineageResolver.MaxDepth + 1;
         var builder = new StringBuilder();
+        var histories = new Dictionary<Guid, HistoryRecord> { [map.RootHistory.HistoryId] = map.RootHistory };
+        var branchesByOwnHistory = new Dictionary<Guid, BranchRecord>();
         var parent = map.RootHistory.HistoryId;
         Guid deepestOwn = Guid.Empty;
         for (var i = 0; i < depth; i++)
         {
             var historyId = Guid.NewGuid();
             var branchId = Guid.NewGuid();
+            var createdAt = i + 1L;
+            var branchName = $"L{i}";
+            var history = new HistoryRecord
+            {
+                HistoryId = historyId,
+                ProjectId = project.ProjectId,
+                Kind = HistoryKind.BranchOwned,
+                OwnerMapId = null,
+                CreatedAtUtcMs = createdAt,
+            };
+            var branch = new BranchRecord
+            {
+                BranchId = branchId,
+                ProjectId = project.ProjectId,
+                ParentHistoryId = parent,
+                OwnHistoryId = historyId,
+                ParentAt = new HistoricalTime(0, 0),
+                BranchName = branchName,
+                LifecycleStatus = "active",
+                CreatedAtUtcMs = createdAt,
+                UpdatedAtUtcMs = createdAt,
+            };
+
+            histories.Add(historyId, history);
+            branchesByOwnHistory.Add(historyId, branch);
             if (i == depth - 1)
             {
                 deepestOwn = historyId;
@@ -423,22 +467,23 @@ public sealed class PersistenceDomainIntegrityTests : IDisposable
 
             builder.AppendLine($"""
                 INSERT INTO core_history (history_id, project_id, history_kind, owner_map_id, created_at_utc_ms)
-                VALUES ('{U(historyId)}', '{U(project.ProjectId)}', 'branch_owned', NULL, {i + 1});
+                VALUES ('{U(historyId)}', '{U(project.ProjectId)}', 'branch_owned', NULL, {createdAt});
                 INSERT INTO core_branch (branch_id, project_id, parent_history_id, own_history_id,
                                          parent_day_number, parent_offset_seconds, branch_name, lifecycle_status,
                                          created_at_utc_ms, updated_at_utc_ms)
-                VALUES ('{U(branchId)}', '{U(project.ProjectId)}', '{U(parent)}', '{U(historyId)}', 0, 0, 'L{i}', 'active', {i + 1}, {i + 1});
+                VALUES ('{U(branchId)}', '{U(project.ProjectId)}', '{U(parent)}', '{U(historyId)}', 0, 0, '{branchName}', 'active', {createdAt}, {createdAt});
                 """);
             parent = historyId;
         }
 
-        ExecuteRaw(builder.ToString());
+        ExecuteRawInTransaction(builder.ToString());
 
         var deepest = core.FindBranchByOwnHistory(project.ProjectId, deepestOwn);
         Assert.NotNull(deepest);
+        Assert.Equal(branchesByOwnHistory[deepestOwn], deepest);
         Assert.Null(BranchLineageResolver.TryResolve(
-            deepest!, map.Map.MapId, id => core.FindHistory(project.ProjectId, id),
-            id => core.FindBranchByOwnHistory(project.ProjectId, id), out var error));
+            deepest!, map.Map.MapId, id => histories.GetValueOrDefault(id),
+            id => branchesByOwnHistory.GetValueOrDefault(id), out var error));
         Assert.Contains("深度超过上限", error);
     }
 
