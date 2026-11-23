@@ -4,6 +4,7 @@
 **分支**：`feat/field-package-reader-writer`（PR #17 head，stacked on PR #11）
 **性质**：完整性验证 + 1 处导出防线缺口的最小修复 + 架构规则固化（无 schema 变更、无迁移、无兼容层、无新数据库字段）
 **状态**：Windows Debug/Release 各 **632/632** 通过（608 基线 + 24 新增）；macOS 待 GitHub Actions（见 §9）
+**Commit**：修复 `7729e70`（fix(fields)），本报告 `4603802`（docs(local-progress)）
 
 ## 1. 任务范围与实际完成内容
 
@@ -167,7 +168,7 @@ dotnet test  WorldView.sln -c Release → 632/632 通过
 
 **根因**：PR #17 的 base 是 `feat/efcore-v1-complete-model`（PR #11，未合并），而 `dotnet-ci.yml` 仅对 `pull_request: branches: [master]` 触发；PR #20（临时指向 master 的 CI 验证 PR）在 `4c9248d` 跑完已关闭。指向 PR #17 分支的推送不再触发 CI。
 
-**影响与本任务处理**：Task 005/006/007 的 macOS Debug/Release 均属"待验证"。本任务推送后将在报告中复查是否有新 run；若仍无，需按既有 PR #20 惯例新建临时 CI 验证 PR（body 注明勿合并、跑完关闭）或调整 workflow 触发条件——两者涉及对外操作/CI 配置变更，留待用户裁决。Windows 侧 Debug/Release 全量已在本地实证（§8）。
+**影响与本任务处理**：Task 005/006/007 的 macOS Debug/Release 均属"待验证"。本任务推送（`7729e70` + `4603802` → HEAD `4603802`）后已复查：**仍无新 workflow run**（新 HEAD combined status 为 pending），与根因分析一致。macOS 验证需按既有 PR #20 惯例新建临时 CI 验证 PR（body 注明勿合并、跑完关闭）或调整 workflow 触发条件——两者涉及对外操作/CI 配置变更，留待用户裁决。Windows 侧 Debug/Release 全量已在本地实证（§8）。
 
 ## 10. 未解决问题与后续依赖
 
