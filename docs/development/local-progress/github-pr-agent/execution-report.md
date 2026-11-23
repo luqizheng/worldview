@@ -1,6 +1,48 @@
 # Execution Report — PR Task Agent
 
-## 本次执行（2026-11-23）
+## 第二轮执行（2026-11-23，T-02）
+
+### 任务
+
+| 项 | 内容 |
+|---|---|
+| 任务 ID | **T-02** |
+| 任务名 | PR #7 与 G2 证据路径整合（替换 test-only `Verified` 写入） |
+| 任务来源 | PR #7 `feat/cd-02-g3-atomic-geometry-publication`（body 的 Dependencies 段） |
+| 执行前 Head | `a8d31f9` |
+| 执行后 Head | `4ba4191`（`617d052` G2 合并 + `4ba4191` 测试迁移） |
+| 前置检查 | 主工作区干净；使用独立 worktree 操作，未触碰 `feat/field-package-reader-writer` |
+
+### 变更
+
+1. 将 PR #2（G2 Asset 字节校验）合并进 PR #7 分支：**无冲突**。选择 merge 而非 rebase，因为不改 PR base、无需 force-push，且保留两条开发线的历史，便于审查。
+2. 迁移 G2 合并后仍存在的 test-only 完整性写入（2 处）：
+   - `Cd02MapEditorIntegrationTests.cs`：`UpdateAssetIntegrityState(..., Verified, ...)` → `MarkAssetVerified(..., new AssetVerificationEvidence(hash, hash, length, length), ...)`。
+   - `UpdateAssetIntegrityState(..., Corrupt, ...)` → `RecordAssetIntegrityFailure(..., AssetIntegrityState.Corrupt, ...)`（G2 已移除旧 API）。
+3. 未修改任何生产代码、schema、manifest 契约或 PR base。
+
+### 验证
+
+```text
+Windows Debug    44 + 181 + 182 = 407/407 通过，失败 0
+Windows Release  44 + 181 + 182 = 407/407 通过，失败 0
+```
+
+- 合并后构建 0 error；G2 原有 181 Domain / 44 Application 测试与 G3 的 182 Infrastructure 测试全部通过。
+- **macOS CI：未取得（BLOCKED）**。PR #7 的 base 是 `fix/cd-02-g3-geometry-manifest-identities`，master-targeted workflow 不触发；且 `origin/master`（`5127d14`）不是该分支祖先（merge-base `7e176dd`），临时 CI PR 会测试一个合成合并结果，可能产生误导性绿灯，故未采用。需按 T-03 由用户决定 CI 触发策略。
+
+### PR 描述更新
+
+PR #7 body 已更新（REST API PATCH）：Dependency 段标记 G2 整合完成并说明迁移方式；Validation 段记录 head `4ba4191`、本地 407/407、macOS 待验证及原因；Summary 增加整合条目。
+
+### 状态
+
+T-02 = **IMPLEMENTED**（Windows 已实测，macOS CI 阻塞于 T-03）。未合并、未关闭 PR，未改 base。
+
+---
+
+## 第一轮执行（2026-11-23，T-01）
+
 
 ### 1. 执行的任务
 

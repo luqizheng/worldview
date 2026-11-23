@@ -10,13 +10,14 @@
 | 日期 | 任务 | 来源 PR | 结果 | 证据 |
 |---|---|---|---|---|
 | 2026-11-23 | T-01 完成 Task 005/006/007 四平台 CI 验证与证据回写 | PR #21 → PR #17 | COMPLETED（文档已推送；PR #17/#21 描述已更新） | run `45124453470` 4/4 success；Windows 本地 Debug/Release 632/632 |
+| 2026-11-23 | T-02 PR #7 与 G2 证据路径整合 | PR #7 | IMPLEMENTED（Windows 407/407；macOS CI 阻塞于 T-03） | head `4ba4191`；G2 合并 `617d052` |
 
 ## 待处理任务状态
 
 | 任务 | 状态 | 阻塞原因 / 下一步 |
 |---|---|---|
-| T-02 PR #7 与 G2 证据路径整合 | BLOCKED | 需先确定 PR #2（G2）与 PR #5 的合并/整合顺序（人工决策） |
-| T-03 PR #7 的 CI 验证 | BLOCKED | head `a8d31f9` 从未触发 CI；需临时验证 PR 或调整 workflow（CI 配置决策） |
+| T-02 PR #7 与 G2 证据路径整合 | IMPLEMENTED | 代码与 Windows 验证完成；macOS CI 依赖 T-03 的触发策略决策 |
+| T-03 PR #7 的 CI 验证 | BLOCKED | master 不是该分支祖先，临时 PR 会验证合成合并结果；需 workflow 触发策略决策 |
 | T-04 PR #15 收尾 | BLOCKED | 依赖 PR #11 合并后 retarget 并重跑 CI |
 | T-05 TX 独立读者 / 崩溃恢复 / 自动重试 | BLOCKED | 需要 idempotency key 设计与 V1 范围决策 |
 | T-06 Field Package 生产参数（精度/类码/codec/tile 尺寸） | BLOCKED | 项目约束明确禁止擅自决定 |
