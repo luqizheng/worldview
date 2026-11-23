@@ -49,6 +49,7 @@ public sealed class FieldPackageManifestValidator : IDisposable
         {
             DefaultDialect = JsonSchemaDialect.Draft202012,
             CodeGeneration = JsonSchemaCodeGeneration.Disabled,
+            CompileRegularExpressions = false,
         });
     }
 
@@ -84,7 +85,7 @@ public sealed class FieldPackageManifestValidator : IDisposable
         {
             throw;
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or JsonException)
         {
             throw new FieldPackageValidationException(FieldPackageErrorCodes.ManifestEncoding,
                 "Field Package manifest could not be parsed as one strict UTF-8 JSON value.", ex);
