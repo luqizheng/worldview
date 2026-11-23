@@ -165,7 +165,7 @@ public sealed class SettingsDocumentPersistenceTests : IDisposable
         var fileStore = new SettingsDocumentFileStore(_root);
         var service = new SettingsDocumentService(repository, fileStore);
         var revision = await service.SaveProjectAsync(project.ProjectId,
-            JObject.Parse("{\\"name\\":\\"must remain intact\\"}"));
+            JObject.Parse("""{"name":"must remain intact"}"""));
 
         var path = Path.Combine(_root, revision.RelativePath.Replace('/', Path.DirectorySeparatorChar));
         await File.WriteAllTextAsync(path, "{corrupt}");
