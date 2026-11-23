@@ -34,6 +34,40 @@ public sealed record FieldRevisionMetadata
     public required string TileHashAlgorithm { get; init; }
     public required int TileHashVersion { get; init; }
 
+    /// <summary>
+    /// Structural equality of the typed projection. The record's default value equality is
+    /// not sufficient here because Planes / CategoryCodes / Codecs are collection members
+    /// compared by reference; this method compares every semantic member element-wise with
+    /// ordinal string semantics, exactly the contract the persistence layer enforces between
+    /// a canonical manifest and the typed columns at publication.
+    /// </summary>
+    public bool StructurallyEquals(FieldRevisionMetadata? other)
+    {
+        if (other is null)
+            return false;
+        return string.Equals(FieldKey, other.FieldKey, StringComparison.Ordinal)
+            && DescriptorSchemaVersion == other.DescriptorSchemaVersion
+            && string.Equals(SemanticsId, other.SemanticsId, StringComparison.Ordinal)
+            && string.Equals(Unit, other.Unit, StringComparison.Ordinal)
+            && string.Equals(MapSpaceId, other.MapSpaceId, StringComparison.Ordinal)
+            && string.Equals(SpatialReferenceId, other.SpatialReferenceId, StringComparison.Ordinal)
+            && string.Equals(CoordinatePrecisionProfileId, other.CoordinatePrecisionProfileId, StringComparison.Ordinal)
+            && string.Equals(VerticalReferenceId, other.VerticalReferenceId, StringComparison.Ordinal)
+            && Grid == other.Grid
+            && Coverage == other.Coverage
+            && string.Equals(MapEdgeSemantics, other.MapEdgeSemantics, StringComparison.Ordinal)
+            && NoData == other.NoData
+            && string.Equals(ValueProfileId, other.ValueProfileId, StringComparison.Ordinal)
+            && string.Equals(ValueProfileScope, other.ValueProfileScope, StringComparison.Ordinal)
+            && Planes.SequenceEqual(other.Planes)
+            && CategoryCodes.Count == other.CategoryCodes.Count
+            && CategoryCodes.All(pair =>
+                other.CategoryCodes.TryGetValue(pair.Key, out var value) && value == pair.Value)
+            && Codecs.SequenceEqual(other.Codecs)
+            && string.Equals(TileHashAlgorithm, other.TileHashAlgorithm, StringComparison.Ordinal)
+            && TileHashVersion == other.TileHashVersion;
+    }
+
     /// <summary>Builds the typed projection after FieldDatasetService has validated the manifest.</summary>
     public static FieldRevisionMetadata FromValidatedManifest(string canonicalManifest)
     {

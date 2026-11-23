@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -24,6 +25,10 @@ public static class FieldPackageExportErrorCodes
     public const string PayloadLengthMismatch = "WVPK_EXPORT_PAYLOAD_LENGTH";
     /// <summary>The persisted manifest is not byte-identical RFC 8785 canonical UTF-8 (defect guard).</summary>
     public const string ManifestNotCanonical = "WVPK_EXPORT_MANIFEST_NOT_CANONICAL";
+    /// <summary>The persisted manifest no longer satisfies the publication authority's closed-world validation (defect guard).</summary>
+    public const string ManifestInvalid = "WVPK_EXPORT_MANIFEST_INVALID";
+    /// <summary>The persisted manifest disagrees with the authoritative typed metadata columns (defect guard).</summary>
+    public const string ManifestMetadataMismatch = "WVPK_EXPORT_MANIFEST_METADATA_MISMATCH";
 }
 
 /// <summary>One Field Package export request.</summary>
@@ -119,6 +124,17 @@ public sealed class FieldPackageExporter
         //    manifest bytes are written verbatim into the package.
         var manifestUtf8 = RequireCanonicalManifestUtf8(revision.ManifestJson);
 
+        // 4b. Publication-authority consistency: the persisted manifest must still pass the
+        //     same closed-world validation the publication path applies AND still agree with
+        //     the authoritative typed metadata columns. The database's immutability trigger is
+        //     the first-line defense against post-publication manifest tampering; this check is
+        //     the independent export-side guard for a defense that was bypassed (e.g. a
+        //     tampered backup restore or trigger loss), so a manifest that silently contradicts
+        //     the typed revision can never be repackaged into circulation. The manifest is
+        //     never rebuilt from typed metadata to mask tampering.
+        RequireManifestConsistentWithTypedMetadata(revision.ManifestJson, metadata);
+
+
         // 5. Canonical tile plan from the typed projection; the verified payload length must
         //    match it exactly before any output file is touched.
         var payloadPlan = FieldInternalPayloadPlan.FromMetadata(metadata.Grid, metadata.Planes);
@@ -205,6 +221,38 @@ public sealed class FieldPackageExporter
         }
 
         return manifestUtf8;
+    }
+
+    /// <summary>
+    /// Re-establishes the publication invariant between the persisted manifest bytes and the
+    /// typed metadata columns. The manifest is re-validated with the exact publication
+    /// authority (<see cref="FieldDatasetService.ValidateManifest"/>, which rebuilds the typed
+    /// projection from the manifest itself) and compared member-wise with the authoritative
+    /// columns. Any divergence — a semantically valid but different manifest, a numeric
+    /// re-spelling of codec parameters, a changed grid origin string — fails the export with a
+    /// typed error before any output file is touched.
+    /// </summary>
+    private static void RequireManifestConsistentWithTypedMetadata(string manifestJson, FieldRevisionMetadata metadata)
+    {
+        FieldRevisionMetadata manifestProjection;
+        try
+        {
+            manifestProjection = FieldDatasetService.ValidateManifest(
+                manifestJson, metadata.FieldKey, metadata.DescriptorSchemaVersion, metadata.SemanticsId);
+        }
+        catch (Exception ex) when (ex is CoreDomainConflictException or CoreDomainDataException or JsonException)
+        {
+            throw new FieldPackageValidationException(
+                FieldPackageExportErrorCodes.ManifestInvalid,
+                "Persisted Field Revision manifest no longer satisfies the publication authority's manifest validation; export fails closed.",
+                ex);
+        }
+
+        if (!manifestProjection.StructurallyEquals(metadata))
+            throw new FieldPackageValidationException(
+                FieldPackageExportErrorCodes.ManifestMetadataMismatch,
+                $"Persisted Field Revision manifest disagrees with its authoritative typed metadata " +
+                $"(descriptor {metadata.FieldKey}@{metadata.DescriptorSchemaVersion}); export fails closed instead of repackaging inconsistent data.");
     }
 
     private static FieldPackageValidationException Error(string code, string message) => new(code, message);

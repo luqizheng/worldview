@@ -465,4 +465,373 @@ public sealed class FieldPackageImportExportAuthorityTests : IDisposable
         });
         return revisionId;
     }
+
+    // ---- Manifest integrity: post-persistence tampering must fail export closed ----
+    //
+    // The published revision row is structurally immutable while the schema defenses are
+    // intact (trg_core_map_field_revision_immutable_update aborts every UPDATE). The tests
+    // below drop that trigger first, simulating the worst case in which the database-level
+    // defense is bypassed (e.g. a tampered backup restore or trigger loss) and manifest_json
+    // is modified directly underneath the application. Under that assumption export must
+    // still fail closed, must never rebuild the manifest from typed metadata to mask the
+    // tampering, and must leave the database and payload exactly as they were.
+
+    private SqliteConnectionAccess Access() => ((ISqliteConnectionProvider)_database).GetAccess();
+
+    private void DropRevisionImmutabilityTrigger() =>
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TRIGGER trg_core_map_field_revision_immutable_update;";
+            command.ExecuteNonQuery();
+        });
+
+    private string PersistedManifest(Guid projectId, Guid revisionId) =>
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT manifest_json FROM core_map_field_revision WHERE project_id = $p AND field_revision_id = $r;";
+            command.Parameters.AddWithValue("$p", projectId.ToString("D"));
+            command.Parameters.AddWithValue("$r", revisionId.ToString("D"));
+            return (string)command.ExecuteScalar()!;
+        });
+
+    private (string SpatialReferenceId, string GridOriginX) PersistedTypedSemanticColumns(Guid projectId, Guid revisionId) =>
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT spatial_reference_id, grid_origin_x FROM core_map_field_revision WHERE project_id = $p AND field_revision_id = $r;";
+            command.Parameters.AddWithValue("$p", projectId.ToString("D"));
+            command.Parameters.AddWithValue("$r", revisionId.ToString("D"));
+            using var reader = command.ExecuteReader();
+            reader.Read();
+            return (reader.GetString(0), reader.GetString(1));
+        });
+
+    private void WritePersistedManifest(Guid projectId, Guid revisionId, string manifestJson) =>
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_revision SET manifest_json = $m WHERE project_id = $p AND field_revision_id = $r;";
+            command.Parameters.AddWithValue("$m", manifestJson);
+            command.Parameters.AddWithValue("$p", projectId.ToString("D"));
+            command.Parameters.AddWithValue("$r", revisionId.ToString("D"));
+            command.ExecuteNonQuery();
+        });
+
+    private async Task<FieldPackageValidationException> ExportAndCaptureErrorAsync(
+        Guid projectId, Guid datasetId, Guid revisionId, FieldPackagePolicy? policy = null)
+    {
+        var exportPath = NewExportPath("tampered");
+        var exception = await Assert.ThrowsAsync<FieldPackageValidationException>(() =>
+            Exporter(policy ?? FixturePolicy()).ExportAsync(new ExportFieldPackagePlan
+            {
+                ProjectId = projectId,
+                FieldDatasetId = datasetId,
+                FieldRevisionId = revisionId,
+                DestinationPath = exportPath,
+            }));
+        Assert.False(File.Exists(exportPath));
+        Assert.Empty(Directory.EnumerateFiles(_root, "*.tmp"));
+        return exception;
+    }
+
+    /// <summary>Asserts the failed export left the persisted row, the payload and the Dataset
+    /// current pointer exactly as they were — the tampered manifest must not be repaired,
+    /// re-derived from typed metadata, or exported.</summary>
+    private void AssertDatabaseUntouchedByFailedExport(
+        SqliteCoreDomainDatabase core,
+        Guid projectId,
+        Guid mapId,
+        Guid datasetId,
+        Guid revisionId,
+        string expectedTamperedManifest,
+        string expectedSpatialReferenceId,
+        string expectedGridOriginX,
+        byte[] expectedPayloadBytes)
+    {
+        Assert.Equal(expectedTamperedManifest, PersistedManifest(projectId, revisionId));
+        Assert.Equal((expectedSpatialReferenceId, expectedGridOriginX),
+            PersistedTypedSemanticColumns(projectId, revisionId));
+        var dataset = core.FindFieldDataset(projectId, mapId, "elevation")!;
+        Assert.Equal(datasetId, dataset.FieldDatasetId);
+        Assert.Equal(revisionId, dataset.CurrentFieldRevisionId);
+        Assert.Equal(expectedPayloadBytes, core.ReadFieldPayloadBlob(projectId, revisionId));
+    }
+
+    [Fact]
+    public async Task Export_ManifestJsonUpdateThroughSqlIsBlockedByImmutabilityTrigger()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+
+        Assert.Throws<SqliteException>(() => Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_revision SET manifest_json = '{}' WHERE project_id = $p AND field_revision_id = $r;";
+            command.Parameters.AddWithValue("$p", projectId.ToString("D"));
+            command.Parameters.AddWithValue("$r", import.Revision.FieldRevisionId.ToString("D"));
+            command.ExecuteNonQuery();
+        }));
+
+        Assert.NotEqual("{}", PersistedManifest(projectId, import.Revision.FieldRevisionId));
+    }
+
+    [Fact]
+    public async Task Export_TamperedManifestToOtherValidCanonicalManifestFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var revisionId = import.Revision.FieldRevisionId;
+        var datasetId = import.Revision.FieldDatasetId;
+
+        // A different, schema-valid, canonical manifest whose tile layout still matches the
+        // payload — the exact case the canonical-bytes check and layout reconciliation cannot
+        // catch. Export must detect the disagreement with the typed columns.
+        var tampered = FieldManifestCanonicalizer.Canonicalize(TamperJson(
+            PersistedManifest(projectId, revisionId),
+            spatialReferenceId: "fixture:another-cartesian"));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestMetadataMismatch, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedManifestGridOriginDisagreeingWithTypedColumnsFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var revisionId = import.Revision.FieldRevisionId;
+        var datasetId = import.Revision.FieldDatasetId;
+
+        // The grid origin is a canonical decimal string with no effect on tile layout or
+        // payload length: the writer could package it without any structural failure. Only
+        // the publication-authority comparison against the typed columns can catch it.
+        var tampered = FieldManifestCanonicalizer.Canonicalize(TamperJson(
+            PersistedManifest(projectId, revisionId),
+            originX: "7"));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestMetadataMismatch, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedManifestViolatingPublicationValidationFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var revisionId = import.Revision.FieldRevisionId;
+        var datasetId = import.Revision.FieldDatasetId;
+
+        // Still canonical and schema-shaped, but no longer a manifest the publication
+        // authority would ever accept (valid_value is pinned to 0): export refuses it as
+        // invalid rather than repackaging whatever bytes happen to be persisted.
+        var tampered = FieldManifestCanonicalizer.Canonicalize(TamperJson(
+            PersistedManifest(projectId, revisionId),
+            validValue: 2));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestInvalid, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedManifestNonCanonicalSpellingFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var revisionId = import.Revision.FieldRevisionId;
+        var datasetId = import.Revision.FieldDatasetId;
+
+        var tampered = PersistedManifest(projectId, revisionId)
+            .Replace("\"coverage\":{\"mode\":\"full_grid\"}", "\"coverage\": {\"mode\":\"full_grid\"}");
+        Assert.NotEqual(tampered, PersistedManifest(projectId, revisionId));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestNotCanonical, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedManifestNotJsonAtAllFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var revisionId = import.Revision.FieldRevisionId;
+        var datasetId = import.Revision.FieldDatasetId;
+
+        const string tampered = "{\"byte_order\":";
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestNotCanonical, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedCodecParameterValueFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var manifest = ManifestWithQuantumCodec();
+        var revisionId = PublishRawRevision(
+            projectId, mapId, manifest, payloadBytes, FieldInternalPayloadFormat.PayloadFormat);
+        var dataset = Core().FindFieldDataset(projectId, mapId, "elevation")!;
+        var datasetId = dataset.FieldDatasetId;
+
+        // Different value, still canonical: only the publication-authority comparison of the
+        // codec parameters bytes against the typed codec rows can detect it.
+        var tampered = FieldManifestCanonicalizer.Canonicalize(TamperJson(
+            PersistedManifest(projectId, revisionId),
+            quantum: 2e-7));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestMetadataMismatch, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_TamperedCodecParameterNonCanonicalSpellingFailsTyped()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var payloadBytes = CanonicalPayloadOf(golden);
+        var manifest = ManifestWithQuantumCodec();
+        var revisionId = PublishRawRevision(
+            projectId, mapId, manifest, payloadBytes, FieldInternalPayloadFormat.PayloadFormat);
+        var datasetId = Core().FindFieldDataset(projectId, mapId, "elevation")!.FieldDatasetId;
+
+        // Same numeric value, different spelling: not byte-identical RFC 8785 canonical
+        // UTF-8, so the persisted snapshot itself is no longer the canonical contract form.
+        var tampered = PersistedManifest(projectId, revisionId)
+            .Replace("\"quantum\":1e-7", "\"quantum\":1E-7");
+        Assert.NotEqual(tampered, PersistedManifest(projectId, revisionId));
+
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, revisionId, tampered);
+
+        var exception = await ExportAndCaptureErrorAsync(projectId, datasetId, revisionId);
+        Assert.Equal(FieldPackageExportErrorCodes.ManifestNotCanonical, exception.Code);
+        AssertDatabaseUntouchedByFailedExport(Core(), projectId, mapId, datasetId, revisionId,
+            tampered, "fixture:local-cartesian-v1", "0", payloadBytes);
+    }
+
+    [Fact]
+    public async Task Export_UntamperedRevisionStillRoundTripsByteIdenticallyBesideTamperedOne()
+    {
+        var (projectId, mapId) = SeedMap();
+        var golden = ReadResource("minimal-elevation-2x2.wvfld");
+        var import = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(golden), ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var tamperedRevisionId = import.Revision.FieldRevisionId;
+
+        var tampered = FieldManifestCanonicalizer.Canonicalize(TamperJson(
+            PersistedManifest(projectId, tamperedRevisionId),
+            spatialReferenceId: "fixture:another-cartesian"));
+        DropRevisionImmutabilityTrigger();
+        WritePersistedManifest(projectId, tamperedRevisionId, tampered);
+        await ExportAndCaptureErrorAsync(projectId, import.Revision.FieldDatasetId, tamperedRevisionId);
+
+        // The consistency guard rejects the tampered revision without contaminating other
+        // revisions in the same database: a healthy revision (land_water on the same map —
+        // a separate Dataset keyed by field key) still exports byte-identically.
+        var second = await Importer(FixturePolicy()).ImportAsync(
+            new MemoryStream(ReadResource("land-water-4x2-two-tiles.wvfld")),
+            ImportPlan(projectId, mapId, FieldPayloadStorageKind.SqliteBlob));
+        var exportPath = NewExportPath("healthy");
+        await Exporter(FixturePolicy()).ExportAsync(new ExportFieldPackagePlan
+        {
+            ProjectId = projectId,
+            FieldDatasetId = second.Revision.FieldDatasetId,
+            FieldRevisionId = second.Revision.FieldRevisionId,
+            DestinationPath = exportPath,
+        });
+
+        Assert.Equal(
+            Sha256(ReadResource("land-water-4x2-two-tiles.wvfld")),
+            Sha256(await File.ReadAllBytesAsync(exportPath)));
+    }
+
+    /// <summary>Mutates specific members of a canonical manifest JSON string while leaving
+    /// everything else byte-identical, then re-canonicalizes.</summary>
+    private static string TamperJson(
+        string canonicalManifest,
+        string? spatialReferenceId = null,
+        string? originX = null,
+        int? validValue = null,
+        double? quantum = null)
+    {
+        var root = System.Text.Json.Nodes.JsonNode.Parse(canonicalManifest)!;
+        if (spatialReferenceId is not null)
+            root["spatial"]!["spatial_reference_id"] = spatialReferenceId;
+        if (originX is not null)
+            root["grid"]!["origin_x"] = originX;
+        if (validValue is not null)
+            root["no_data"]!["mask_plane"]!["valid_value"] = validValue;
+        if (quantum is not null)
+            root["codec_registry"]![1]!["parameters"]!["quantum"] = quantum;
+        return root.ToJsonString();
+    }
+
+    /// <summary>The golden minimal manifest with a second codec entry carrying a numeric
+    /// parameter, published raw because the golden packages themselves contain codec 0 only.</summary>
+    private static string ManifestWithQuantumCodec()
+    {
+        var root = System.Text.Json.Nodes.JsonNode.Parse(
+            Encoding.UTF8.GetString(ReadResource("minimal-elevation-2x2.manifest.json")))!;
+        ((System.Text.Json.Nodes.JsonArray)root["codec_registry"]!).Add(new System.Text.Json.Nodes.JsonObject
+        {
+            ["codec_id"] = 1,
+            ["codec_name"] = "quantum-test",
+            ["version"] = "1",
+            ["parameters"] = new System.Text.Json.Nodes.JsonObject { ["quantum"] = 1e-7 },
+        });
+        return FieldManifestCanonicalizer.Canonicalize(root.ToJsonString());
+    }
 }
