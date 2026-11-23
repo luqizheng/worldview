@@ -14,7 +14,7 @@ using WorldView.Infrastructure.Settings;
 
 namespace WorldView.Infrastructure.Tests.Settings;
 
-public sealed class SettingsDocumentPersistenceTests : IAsyncLifetime
+public sealed class SettingsDocumentPersistenceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"wv-settings-{Guid.NewGuid():N}");
     private readonly SqlitePackageDatabase _database;
@@ -31,11 +31,9 @@ public sealed class SettingsDocumentPersistenceTests : IAsyncLifetime
         _core = new SqliteCoreDomainDatabase(_database);
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public async Task DisposeAsync()
+    public void Dispose()
     {
-        await _database.DisposeAsync();
+        _database.DisposeAsync().AsTask().GetAwaiter().GetResult();
         try { Directory.Delete(_root, recursive: true); }
         catch (IOException) { }
     }
