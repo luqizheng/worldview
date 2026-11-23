@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using WorldView.Infrastructure.Persistence.CoreDomain.EfCore;
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 
