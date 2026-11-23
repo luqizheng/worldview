@@ -3,8 +3,8 @@
 **日期**：2026-11-23
 **分支**：`feat/field-package-reader-writer`（PR #17 head，stacked on PR #11）
 **性质**：完整性验证 + 1 处导出防线缺口的最小修复 + 架构规则固化（无 schema 变更、无迁移、无兼容层、无新数据库字段）
-**状态**：Windows Debug/Release 各 **632/632** 通过（608 基线 + 24 新增）；macOS 待 GitHub Actions（见 §9）
-**Commit**：修复 `7729e70`（fix(fields)），本报告 `4603802`（docs(local-progress)）
+**状态**：四平台 CI 全绿（run `45124453470`，head `6f91f6f`）；Windows 本地 Debug/Release 各 **632/632** 通过（608 基线 + 24 新增）
+**Commit**：修复 `7729e70`（fix(fields)），报告 `4603802`（docs(local-progress)），CI 验证回写见 §9
 
 ## 1. 任务范围与实际完成内容
 
@@ -162,17 +162,26 @@ dotnet test  WorldView.sln -c Release → 632/632 通过
 
 相对 006 基线（608）新增 24 个测试（§6）。
 
-## 9. macOS CI 状态：待验证（如实报告，不伪造）
+## 9. macOS CI 状态：已验证（2026-11-23 回写）
 
-**发现**：分支上最后一次成功 CI run 停留在 `4c9248d`（PR #20 临时 CI 验证 PR，head=master 基线，2026-11-23T04:06Z success）。此后 Task 005/006 的四个提交（`4f9427c`、`12e443d`、`0831f88`、`47e9159`）**没有任何 workflow run**（combined status 全部 pending）。
+**结果**：临时 CI 验证 PR #21（base=master、head=`feat/field-package-reader-writer` @ `6f91f6f`，body 注明勿合并）触发 run **`45124453470`**，四个 job 全部 success：
 
-**根因**：PR #17 的 base 是 `feat/efcore-v1-complete-model`（PR #11，未合并），而 `dotnet-ci.yml` 仅对 `pull_request: branches: [master]` 触发；PR #20（临时指向 master 的 CI 验证 PR）在 `4c9248d` 跑完已关闭。指向 PR #17 分支的推送不再触发 CI。
+| Job | 结果 |
+|---|---|
+| windows-latest / Debug | success |
+| windows-latest / Release | success |
+| macos-latest / Debug | success |
+| macos-latest / Release | success |
 
-**影响与本任务处理**：Task 005/006/007 的 macOS Debug/Release 均属"待验证"。本任务推送（`7729e70` + `4603802` → HEAD `4603802`）后已复查：**仍无新 workflow run**（新 HEAD combined status 为 pending），与根因分析一致。macOS 验证需按既有 PR #20 惯例新建临时 CI 验证 PR（body 注明勿合并、跑完关闭）或调整 workflow 触发条件——两者涉及对外操作/CI 配置变更，留待用户裁决。Windows 侧 Debug/Release 全量已在本地实证（§8）。
+Task 005/006/007 的 macOS Debug/Release 验证至此完成；Windows 侧另有本地全量实证（§8）。
+
+**根因（保留记录）**：PR #17 的 base 是 `feat/efcore-v1-complete-model`（PR #11，未合并），而 `dotnet-ci.yml` 仅对 `pull_request: branches: [master]` 与 `push: master` 触发。因此 Task 005/006 的四个提交（`4f9427c`、`12e443d`、`0831f88`、`47e9159`）以及 `7729e70`、`4603802` 均未产生 workflow run；本次通过临时 PR #21 恢复验证。
+
+**后续影响**：只要 PR #17 仍以 PR #11 分支为 base，任何新推送都不会自动触发 CI；后续任务需继续沿用临时 CI PR 或调整 workflow 触发条件（CI 配置变更留待用户裁决）。
 
 ## 10. 未解决问题与后续依赖
 
-1. **macOS CI 触发机制**（§9）：需要用户决策——临时 CI PR（既有惯例）或 workflow 触发条件调整（改 base 分支的 workflow 文件）。
+1. **macOS CI 触发机制**（§9）：Task 007 本身已通过临时 PR #21（run `45124453470`）验证；后续 stacked PR 的自动触发仍需要用户决策——继续使用临时 CI PR 或调整 workflow 触发条件。
 2. **读路径 manifest 密码学绑定**（Task 006 §4.3 遗留）：本任务继续未采纳 digest 列；威胁模型升级时另行提案。
 3. **Registry 演进规则的未来扩展**：新 schema_version 注册、展示元数据结构（若引入）均需按 ME-05-12 §8.3 走正式变更；当前无待办条目。
 4. 生产 profile/codec/精度决策（ME-05-12 §4 既有事项）不受本任务影响。
