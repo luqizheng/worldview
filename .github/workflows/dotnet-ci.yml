@@ -2,9 +2,11 @@ name: .NET CI
 
 on:
   push:
-    branches: [master]
+    # 功能分支直接 push 也运行四平台矩阵（stacked PR 的 base 不是 master）。
+    branches: [master, feat/efcore-v1-asset-geometry-invariants]
   pull_request:
-    branches: [master]
+    # master + stacked PR bases（新增功能分支以 PR #11 为 base，需要同样触发四平台矩阵）。
+    branches: [master, feat/efcore-v1-complete-model]
   workflow_dispatch:
 
 permissions:

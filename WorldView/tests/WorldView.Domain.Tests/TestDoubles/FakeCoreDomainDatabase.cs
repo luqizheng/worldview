@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using WorldView.Domain.Aggregates;
 using WorldView.Domain.Assets;
+using WorldView.Domain.Registry;
 using WorldView.Domain.Fields;
 using WorldView.Domain.Maps;
 using WorldView.Domain.Objects;
@@ -413,6 +416,115 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
+    public void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan)
+    {
+        var identity = Objects.FirstOrDefault(o =>
+                o.ProjectId == plan.ProjectId && o.ObjectIdentityId == plan.ObjectIdentityId)
+            ?? throw new CoreDomainConflictException("Object 不存在。");
+        if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+        {
+            throw new CoreDomainConflictException("仅 active Object 可发布 Geometry Definition。");
+        }
+
+        ObjectRules.ValidateDefinitionSchemaVersion(identity, plan.DefinitionSchemaVersion);
+        var typeKey = ObjectTypes.FirstOrDefault(t =>
+                t.ProjectId == plan.ProjectId && t.ObjectTypeId == identity.ObjectTypeId)?.TypeKey
+            ?? throw new CoreDomainDataException("Object Type 不存在。");
+
+        var current = Definitions.FirstOrDefault(d =>
+                d.ProjectId == plan.ProjectId && d.ObjectIdentityId == plan.ObjectIdentityId)
+            ?? throw new CoreDomainDataException("active Object 缺少定义行。");
+        if (!string.Equals(current.DefinitionHash, plan.ExpectedDefinitionHash, StringComparison.Ordinal))
+        {
+            throw new CoreDomainConflictException("定义 CAS 冲突。");
+        }
+
+        var (canonical, hash) = CanonicalJson.CanonicalizeAndHash(plan.DefinitionPayloadJson);
+        ObjectTypeRegistry.ValidateDefinition(typeKey, canonical);
+
+        var desired = ReadGeometryAssets(canonical);
+        foreach (var assetId in desired.Keys)
+        {
+            var asset = FindAsset(plan.ProjectId, assetId)
+                ?? throw new CoreDomainConflictException($"Asset {assetId} 不存在。");
+            if (asset.IntegrityState != AssetIntegrityState.Verified)
+            {
+                throw new CoreDomainConflictException($"Asset {assetId} 未验证，拒绝发布。");
+            }
+
+            if (!string.Equals(asset.ContentHash, desired[assetId], StringComparison.Ordinal))
+            {
+                throw new CoreDomainConflictException($"Asset {assetId} hash 不一致。");
+            }
+        }
+
+        var links = desired.Keys
+            .Select(assetId => (AssetId: assetId.ToString("D"), Role: "geometry_component"))
+            .ToArray();
+        var issues = BuildingCaveAggregateValidator.Validate(
+            typeKey,
+            canonical,
+            new AggregatePublicationContext
+            {
+                AssetLinks = links,
+                AssetCatalog = desired.Select(x => (x.Key.ToString("D"), x.Value)).ToArray(),
+            });
+        if (issues.Count > 0)
+        {
+            throw new CoreDomainConflictException(string.Join("; ", issues.Select(i => i.ErrorCode)));
+        }
+
+        DefinitionAssetLinks.RemoveAll(l =>
+            l.ProjectId == plan.ProjectId
+            && l.ObjectIdentityId == plan.ObjectIdentityId
+            && l.Role == "geometry_component");
+        foreach (var assetId in desired.Keys.OrderBy(id => id))
+        {
+            DefinitionAssetLinks.Add(new ObjectDefinitionAssetLinkRecord
+            {
+                ObjectDefinitionAssetId = Guid.NewGuid(),
+                ProjectId = plan.ProjectId,
+                ObjectIdentityId = plan.ObjectIdentityId,
+                AssetId = assetId,
+                Role = "geometry_component",
+                CreatedAtUtcMs = plan.NowUtcMs,
+            });
+        }
+
+        Definitions.Remove(current);
+        Definitions.Add(current with
+        {
+            DefinitionSchemaVersion = plan.DefinitionSchemaVersion,
+            DefinitionPayloadJson = canonical,
+            DefinitionHash = hash,
+            UpdatedAtUtcMs = plan.NowUtcMs,
+        });
+    }
+
+    private static Dictionary<Guid, string> ReadGeometryAssets(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        var assets = new Dictionary<Guid, string>();
+        if (!document.RootElement.TryGetProperty("geometry_components", out var components)
+            || components.ValueKind != JsonValueKind.Array)
+        {
+            return assets;
+        }
+
+        foreach (var component in components.EnumerateArray())
+        {
+            if (component.TryGetProperty("asset_id", out var assetElement)
+                && Guid.TryParseExact(assetElement.GetString(), "D", out var assetId)
+                && component.TryGetProperty("content_hash", out var hashElement)
+                && hashElement.GetString() is { } contentHash)
+            {
+                assets[assetId] = contentHash;
+            }
+        }
+
+        return assets;
+    }
+
     // ---- Map 注册 ----
 
     public MapObjectRefRecord? FindMapObjectRef(Guid projectId, Guid mapId, Guid objectIdentityId) =>
@@ -574,12 +686,33 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         return record;
     }
 
-    public void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
+    public void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs)
     {
+        if (integrityState is not (AssetIntegrityState.Corrupt or AssetIntegrityState.Missing))
+        {
+            throw new CoreDomainConflictException("完整性失败接口只接受 Corrupt 或 Missing。");
+        }
+
         var asset = FindAsset(projectId, assetId)
             ?? throw new CoreDomainConflictException("Asset 不存在。");
         Assets.Remove(asset);
         Assets.Add(asset with { IntegrityState = integrityState });
+    }
+
+    public void MarkAssetVerified(Guid projectId, Guid assetId, AssetByteDigest digest, long nowUtcMs)
+    {
+        ArgumentNullException.ThrowIfNull(digest);
+
+        var asset = FindAsset(projectId, assetId)
+            ?? throw new CoreDomainConflictException("Asset 不存在。");
+        if (!string.Equals(asset.ContentHash, digest.ContentHash, StringComparison.Ordinal)
+            || asset.ByteLength != digest.ByteLength)
+        {
+            throw new CoreDomainConflictException("Asset 实测字节摘要与当前元数据不匹配。");
+        }
+
+        Assets.Remove(asset);
+        Assets.Add(asset with { IntegrityState = AssetIntegrityState.Verified });
     }
 
     public IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId)

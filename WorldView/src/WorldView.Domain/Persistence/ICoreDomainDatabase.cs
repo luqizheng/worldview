@@ -128,6 +128,13 @@ public interface ICoreDomainDatabase
     /// </summary>
     void EditObjectDefinition(ObjectDefinitionEditPlan plan);
 
+    /// <summary>
+    /// 单一事务：原子发布 Definition 与从 payload 派生的完整 Geometry Asset typed link set。
+    /// 事务内重读 Object 生命周期、Definition CAS、core_asset hash 与 integrity state，
+    /// 并以完整集合一致性校验后才写入；失败整体回滚，不允许部分成功。
+    /// </summary>
+    void PublishObjectDefinitionWithGeometryAssets(ObjectDefinitionPublicationPlan plan);
+
     // ---- Map 注册（P2 存在层） ----
 
     /// <summary>查找注册行；不存在返回 null。</summary>
@@ -181,8 +188,19 @@ public interface ICoreDomainDatabase
     /// </summary>
     AssetRecord RegisterAsset(RegisterAssetPlan plan);
 
-    /// <summary>事务：更新完整性扫描状态（corrupt/missing 状态阻止新建正式引用）。</summary>
-    void UpdateAssetIntegrityState(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
+    /// <summary>记录字节扫描的失败结果；只允许 Corrupt/Missing，不能通过此接口写入 Verified。</summary>
+    void RecordAssetIntegrityFailure(Guid projectId, Guid assetId, AssetIntegrityState integrityState, long nowUtcMs);
+
+    /// <summary>
+    /// 事务：写入 Verified——仅接受经真实字节流测量得到的 <see cref="AssetByteDigest"/>
+    /// （不透明凭证：只能由 Domain 的 internal <see cref="AssetByteDigest.MeasureAsync"/>
+    /// 在完整读取字节后产生，创建能力经 InternalsVisibleTo 授权给 Application 验证
+    /// 路径（Task 002-B），普通调用方与任何 public 工厂均不可达；Task 002-A）。
+    /// 实现方必须在同一写事务内重读
+    /// 当前 Asset 元数据，要求 digest 的 hash 与 byte length 和当前 content_hash /
+    /// byte_length 完全一致（Asset 身份由 Project+Asset 键界定）；不一致抛冲突。
+    /// </summary>
+    void MarkAssetVerified(Guid projectId, Guid assetId, AssetByteDigest digest, long nowUtcMs);
 
     /// <summary>列出未被任何 typed link 引用的 Asset ID（孤儿对账；只读，不自动删除）。</summary>
     IReadOnlyList<Guid> FindOrphanAssetIds(Guid projectId);

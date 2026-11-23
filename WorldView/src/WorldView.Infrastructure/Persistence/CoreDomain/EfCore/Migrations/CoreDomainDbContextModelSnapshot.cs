@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122154650_FieldPayloadStorage";
+    public override string LastMigrationId => "20261123090000_ProjectMapSettingsDocuments";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -1236,6 +1236,116 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("ProjectId");
 
                 b.ToTable("core_project");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsRevisionEntity", b =>
+            {
+                b.Property<string>("ProjectSettingsRevisionId").HasColumnType("TEXT").HasColumnName("project_settings_revision_id");
+                b.Property<long>("ByteLength").HasColumnType("INTEGER").HasColumnName("byte_length");
+                b.Property<string>("ContentHash").IsRequired().HasColumnType("TEXT").HasColumnName("content_hash");
+                b.Property<long>("CreatedAtUtcMs").HasColumnType("INTEGER").HasColumnName("created_at_utc_ms");
+                b.Property<string>("HashAlgorithm").IsRequired().HasColumnType("TEXT").HasColumnName("hash_algorithm");
+                b.Property<string>("ProjectId").IsRequired().HasColumnType("TEXT").HasColumnName("project_id");
+                b.Property<string>("RelativePath").IsRequired().HasColumnType("TEXT").HasColumnName("relative_path");
+                b.Property<int>("SchemaVersion").HasColumnType("INTEGER").HasColumnName("schema_version");
+                b.Property<long>("Version").HasColumnType("INTEGER").HasColumnName("version");
+                b.HasKey("ProjectSettingsRevisionId");
+                b.HasAlternateKey("ProjectId", "ProjectSettingsRevisionId").HasName("AK_core_project_settings_revision_owner_revision");
+                b.HasIndex("ProjectId", "Version").IsUnique();
+                b.ToTable("core_project_settings_revision", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_project_settings_revision_version", "version >= 1");
+                        t.HasCheckConstraint("CK_core_project_settings_revision_schema", "schema_version >= 1");
+                        t.HasCheckConstraint("CK_core_project_settings_revision_hash_algorithm", "hash_algorithm = 'sha-256'");
+                        t.HasCheckConstraint("CK_core_project_settings_revision_hash", "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+                        t.HasCheckConstraint("CK_core_project_settings_revision_length", "byte_length > 0");
+                        t.HasCheckConstraint("CK_core_project_settings_revision_path", "relative_path GLOB 'Settings/sha256/*'");
+                    });
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsCurrentEntity", b =>
+            {
+                b.Property<string>("ProjectId").HasColumnType("TEXT").HasColumnName("project_id");
+                b.Property<string>("ProjectSettingsRevisionId").IsRequired().HasColumnType("TEXT").HasColumnName("project_settings_revision_id");
+                b.HasKey("ProjectId");
+                b.HasIndex("ProjectId", "ProjectSettingsRevisionId").HasDatabaseName("IX_core_project_settings_current_revision");
+                b.ToTable("core_project_settings_current");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", b =>
+            {
+                b.Property<string>("MapSettingsRevisionId").HasColumnType("TEXT").HasColumnName("map_settings_revision_id");
+                b.Property<long>("ByteLength").HasColumnType("INTEGER").HasColumnName("byte_length");
+                b.Property<string>("ContentHash").IsRequired().HasColumnType("TEXT").HasColumnName("content_hash");
+                b.Property<long>("CreatedAtUtcMs").HasColumnType("INTEGER").HasColumnName("created_at_utc_ms");
+                b.Property<string>("HashAlgorithm").IsRequired().HasColumnType("TEXT").HasColumnName("hash_algorithm");
+                b.Property<string>("MapId").IsRequired().HasColumnType("TEXT").HasColumnName("map_id");
+                b.Property<string>("ProjectId").IsRequired().HasColumnType("TEXT").HasColumnName("project_id");
+                b.Property<string>("RelativePath").IsRequired().HasColumnType("TEXT").HasColumnName("relative_path");
+                b.Property<int>("SchemaVersion").HasColumnType("INTEGER").HasColumnName("schema_version");
+                b.Property<long>("Version").HasColumnType("INTEGER").HasColumnName("version");
+                b.HasKey("MapSettingsRevisionId");
+                b.HasAlternateKey("ProjectId", "MapId", "MapSettingsRevisionId").HasName("AK_core_map_settings_revision_owner_map_revision");
+                b.HasIndex("ProjectId", "MapId", "Version").IsUnique();
+                b.ToTable("core_map_settings_revision", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_map_settings_revision_version", "version >= 1");
+                        t.HasCheckConstraint("CK_core_map_settings_revision_schema", "schema_version >= 1");
+                        t.HasCheckConstraint("CK_core_map_settings_revision_hash_algorithm", "hash_algorithm = 'sha-256'");
+                        t.HasCheckConstraint("CK_core_map_settings_revision_hash", "length(content_hash) = 64 AND content_hash NOT GLOB '*[^0-9a-f]*'");
+                        t.HasCheckConstraint("CK_core_map_settings_revision_length", "byte_length > 0");
+                        t.HasCheckConstraint("CK_core_map_settings_revision_path", "relative_path GLOB 'Settings/sha256/*'");
+                    });
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsCurrentEntity", b =>
+            {
+                b.Property<string>("MapId").HasColumnType("TEXT").HasColumnName("map_id");
+                b.Property<string>("MapSettingsRevisionId").IsRequired().HasColumnType("TEXT").HasColumnName("map_settings_revision_id");
+                b.Property<string>("ProjectId").HasColumnType("TEXT").HasColumnName("project_id");
+                b.HasKey("ProjectId", "MapId");
+                b.HasIndex("ProjectId", "MapId", "MapSettingsRevisionId").HasDatabaseName("IX_core_map_settings_current_revision");
+                b.ToTable("core_map_settings_current");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsCurrentEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
+                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_current_core_project_project_id");
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsRevisionEntity", null)
+                    .WithMany().HasForeignKey("ProjectId", "ProjectSettingsRevisionId")
+                    .HasPrincipalKey("ProjectId", "ProjectSettingsRevisionId")
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_current_project_settings_revision");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectSettingsRevisionEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreProjectEntity", null)
+                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_project_settings_revision_core_project_project_id");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsCurrentEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
+                    .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_current_core_map_project_map");
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", null)
+                    .WithMany().HasForeignKey("ProjectId", "MapId", "MapSettingsRevisionId")
+                    .HasPrincipalKey("ProjectId", "MapId", "MapSettingsRevisionId")
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_current_map_settings_revision");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapSettingsRevisionEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapEntity", null)
+                    .WithMany().HasForeignKey("ProjectId", "MapId").HasPrincipalKey("ProjectId", "MapId")
+                    .OnDelete(DeleteBehavior.NoAction).IsRequired()
+                    .HasConstraintName("FK_core_map_settings_revision_core_map_project_map");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreSpatialReferenceEntity", b =>

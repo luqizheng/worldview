@@ -86,7 +86,7 @@ public sealed partial class SqliteCoreDomainDatabase
         });
     }
 
-    public void UpdateAssetIntegrityState(
+    public void RecordAssetIntegrityFailure(
         Guid projectId,
         Guid assetId,
         AssetIntegrityState integrityState,
@@ -95,11 +95,10 @@ public sealed partial class SqliteCoreDomainDatabase
         _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
         var stateText = integrityState switch
         {
-            AssetIntegrityState.Verified => "verified",
-            AssetIntegrityState.Unverified => "unverified",
             AssetIntegrityState.Corrupt => "corrupt",
             AssetIntegrityState.Missing => "missing",
-            _ => throw new CoreDomainDataException($"integrity_state {integrityState} 不可识别。"),
+            _ => throw new CoreDomainConflictException(
+                "完整性失败接口只接受 Corrupt 或 Missing，Verified 必须通过字节验证证据写入。"),
         };
 
         _ef.Execute(db =>
@@ -112,10 +111,59 @@ public sealed partial class SqliteCoreDomainDatabase
                 if (entity is null)
                 {
                     throw new CoreDomainConflictException(
-                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法更新完整性状态。");
+                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法记录完整性失败。");
                 }
 
                 entity.IntegrityState = stateText;
+                SaveChangesOrThrowSqlite(db);
+                transaction.Commit();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqlite)
+            {
+                transaction.Rollback();
+                throw sqlite;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        });
+    }
+
+    public void MarkAssetVerified(
+        Guid projectId,
+        Guid assetId,
+        AssetByteDigest digest,
+        long nowUtcMs)
+    {
+        _ = nowUtcMs; // The V1 asset metadata schema intentionally has no updated_at column.
+        ArgumentNullException.ThrowIfNull(digest);
+
+        _ef.Execute(db =>
+        {
+            using var transaction = db.Database.BeginTransaction();
+            try
+            {
+                var entity = db.Assets.SingleOrDefault(x =>
+                    x.ProjectId == projectId && x.AssetId == assetId);
+                if (entity is null)
+                {
+                    throw new CoreDomainConflictException(
+                        $"Asset {assetId} 不存在或不属于项目 {projectId}，无法标记 Verified。");
+                }
+
+                // 写事务内重读当前元数据：只接受与当前 content_hash/byte_length 完全一致的
+                // 实测摘要（摘要本身只能来自真实字节流测量，无法凭空构造——Task 002-A）。
+                if (!string.Equals(entity.HashAlgorithm, "sha-256", StringComparison.Ordinal)
+                    || !string.Equals(entity.ContentHash, digest.ContentHash, StringComparison.Ordinal)
+                    || entity.ByteLength != digest.ByteLength)
+                {
+                    throw new CoreDomainConflictException(
+                        "Asset 实测字节摘要与当前元数据不匹配（metadata 已变化或摘要过期），拒绝写入 Verified。");
+                }
+
+                entity.IntegrityState = "verified";
                 SaveChangesOrThrowSqlite(db);
                 transaction.Commit();
             }

@@ -28,4 +28,16 @@
     <PackageReference Include="MackySoft.Json.Canonicalization" Version="0.1.0" />
   </ItemGroup>
 
+  <!--
+    Task 002-B：AssetByteDigest.MeasureAsync 为 internal，摘要创建能力只授予
+    真实字节验证路径（WorldView.Application 的 VerifyAssetIntegrityUseCase）。
+    两个测试程序集仅用于摘要行为与 API Surface 锁定测试，非生产入口；
+    本声明不产生工程引用，Domain 仍不依赖 Application/Infrastructure。
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="WorldView.Application" />
+    <InternalsVisibleTo Include="WorldView.Domain.Tests" />
+    <InternalsVisibleTo Include="WorldView.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>

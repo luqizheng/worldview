@@ -127,6 +127,25 @@ public sealed record ObjectDefinitionEditPlan
     public required long NowUtcMs { get; init; }
 }
 
+/// <summary>
+/// Building/Cave Definition 与完整 Geometry Asset link set 的原子发布计划。
+/// link set 从 canonical Definition payload 派生，不接受调用方提供的部分 link 清单。
+/// </summary>
+public sealed record ObjectDefinitionPublicationPlan
+{
+    public required Guid ProjectId { get; init; }
+
+    public required Guid ObjectIdentityId { get; init; }
+
+    public required string ExpectedDefinitionHash { get; init; }
+
+    public required string DefinitionPayloadJson { get; init; }
+
+    public required long DefinitionSchemaVersion { get; init; }
+
+    public required long NowUtcMs { get; init; }
+}
+
 /// <summary>Map 注册计划（单行写；scope 规则服务层 + 触发器双保险）。</summary>
 public sealed record MapObjectRegistrationPlan
 {
