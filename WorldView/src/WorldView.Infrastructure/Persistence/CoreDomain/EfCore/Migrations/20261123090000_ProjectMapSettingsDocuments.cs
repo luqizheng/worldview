@@ -103,7 +103,7 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
             });
 
         migrationBuilder.CreateIndex(
-            name: "IX_core_project_settings_current_project_id_project_settings_revision_id",
+            name: "IX_core_project_settings_current_revision",
             table: "core_project_settings_current",
             columns: new[] { "project_id", "project_settings_revision_id" });
 
@@ -128,7 +128,7 @@ public partial class _20261123090000_ProjectMapSettingsDocuments : Migration
                     onDelete: ReferentialAction.NoAction);
             });
         migrationBuilder.CreateIndex(
-            name: "IX_core_map_settings_current_project_id_map_id_map_settings_revision_id",
+            name: "IX_core_map_settings_current_revision",
             table: "core_map_settings_current",
             columns: new[] { "project_id", "map_id", "map_settings_revision_id" });
 
