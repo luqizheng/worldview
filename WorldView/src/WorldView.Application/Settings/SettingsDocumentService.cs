@@ -44,6 +44,8 @@ public sealed class SettingsDocumentService
     {
         var document = SettingsDocument.ForMap(projectId, mapId, settings);
         var bytes = document.ToUtf8Bytes();
+        if (bytes.Length > SettingsDocumentFormat.MaximumDocumentBytes)
+            throw new InvalidDataException("Settings document exceeds the V1 size limit.");
         using var input = new MemoryStream(bytes, writable: false);
         var file = await _fileStore.PutAsync(input, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
