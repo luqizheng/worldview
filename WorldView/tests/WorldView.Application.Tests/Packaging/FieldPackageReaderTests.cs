@@ -25,15 +25,18 @@ public sealed class FieldPackageReaderTests
     }
 
     [Theory]
-    [InlineData("minimal-elevation-2x2.wvfld", 1, 2)]
-    [InlineData("land-water-4x2-two-tiles.wvfld", 2, 4)]
-    [InlineData("edge-elevation-3x2.wvfld", 2, 3)]
-    public void OpenAndReadTiles_ValidatesCanonicalGoldenPackages(string packageName, int expectedTileCount, int expectedGridWidth)
+    [InlineData("minimal-elevation-2x2.wvfld", 1, 2, "856b2ddabb55c66fec374320a17db26bec3148e27790b83adcbc090ba643bca1")]
+    [InlineData("land-water-4x2-two-tiles.wvfld", 2, 4, "2587b03e0c68636b9f6056f80974a3a946d432a975a5410088b67d490e0c0d49")]
+    [InlineData("edge-elevation-3x2.wvfld", 2, 3, "92f239252f0f94ca2e1958333b814520bd53424f2a518ba5bf0ee712018aa440")]
+    public void OpenAndReadTiles_ValidatesCanonicalGoldenPackages(string packageName, int expectedTileCount, int expectedGridWidth, string expectedPackageSha256)
     {
         var packageBytes = ReadResource(packageName);
         using var package = new MemoryStream(packageBytes);
         using var reader = FieldPackageReader.Open(package, leaveOpen: true);
+        var manifestName = packageName.Replace(".wvfld", ".manifest.json", StringComparison.Ordinal);
 
+        Assert.Equal(ReadResource(manifestName), reader.ManifestUtf8.ToArray());
+        FieldPackageIntegrityVerifier.Verify(package, expectedPackageSha256);
         Assert.Equal(expectedGridWidth, reader.GridWidth);
         Assert.Equal(expectedTileCount, reader.TileCount);
         for (uint y = 0; y < 1; y++)
