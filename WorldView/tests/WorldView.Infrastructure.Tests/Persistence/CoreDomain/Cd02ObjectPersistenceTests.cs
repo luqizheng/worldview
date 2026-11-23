@@ -26,7 +26,7 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
 
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public Cd02ObjectPersistenceTests()
@@ -36,6 +36,7 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         _database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "project.sqlite"));
         _database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(_database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(_database);
     }
 
     public void Dispose()

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
+using WorldView.Application.Fields;
 using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
@@ -33,7 +34,7 @@ public class RealPackageFlowTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), $"wv-e2e-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_root);
-        _bootstrapper = new ApplicationBootstrapper(Array.Empty<IMigrationSource>());
+        _bootstrapper = new ApplicationBootstrapper();
     }
 
     public void Dispose()
@@ -86,14 +87,17 @@ public class RealPackageFlowTests : IDisposable
 
         // 2. 打开（身份读取以替身提供——正式 Core Domain 读取服务不存在）。
         var registry = new ProjectSessionRegistry();
+        var recovery = new FakeFieldPayloadRecovery();
         var open = new OpenProjectUseCase(
             _fileSystem, _databaseFactory, _bootstrapper, _assetStoreFactory, registry,
-            new FakeIdentityReader());
+            new FakeIdentityReader(), fieldPayloadRecovery: recovery);
         var opened = await open.ExecuteAsync(packageRoot);
         Assert.Equal(OpenProjectOutcome.Succeeded, opened.Outcome);
         var session = opened.Session!;
         Assert.True(session.IsReady);
         Assert.Equal("我的世界", session.ProjectDisplayName);
+        Assert.Equal(session.ProjectId, recovery.ProjectId);
+        Assert.Equal(packageRoot, recovery.PackageRoot);
 
         // 3. 地图列表与工作区（经 Core Domain 端口替身）。
         var maps = await FakeMapQuery.WithMaps("主地图", "南方边境").ListMapsAsync(session.ProjectId!.Value);
@@ -208,6 +212,30 @@ public class RealPackageFlowTests : IDisposable
 
         Assert.True(outcome.Report.HasFailures);
         Assert.Equal(PackageIssueCode.PackageSuffixMissing, outcome.Report.FirstFailureCode);
+    }
+
+    private sealed class FakeFieldPayloadRecovery : IProjectFieldPayloadRecovery
+    {
+        public Guid? ProjectId { get; private set; }
+        public string? PackageRoot { get; private set; }
+
+        public Task<FieldPayloadIntegrityReport> ReconcileAsync(
+            IPackageDatabase database,
+            string packageRoot,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ProjectId = projectId;
+            PackageRoot = packageRoot;
+            return Task.FromResult(new FieldPayloadIntegrityReport
+            {
+                MissingPayloadIds = Array.Empty<Guid>(),
+                CorruptPayloadIds = Array.Empty<Guid>(),
+                OrphanContentHashes = Array.Empty<string>(),
+                VerifiedPayloadCount = 0,
+            });
+        }
     }
 
     private sealed class FakeCreationService : IProjectCreationService

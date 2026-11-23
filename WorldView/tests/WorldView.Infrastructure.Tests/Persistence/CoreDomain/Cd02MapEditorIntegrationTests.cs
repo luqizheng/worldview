@@ -30,7 +30,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
 
     private readonly string _root;
     private readonly SqlitePackageDatabaseFactory _factory = new();
-    private readonly ApplicationBootstrapper _bootstrapper = new(new[] { new CoreDomainMigrationSource() });
+    private readonly ApplicationBootstrapper _bootstrapper = new();
     private readonly SqlitePackageDatabase _database;
 
     public Cd02MapEditorIntegrationTests()
@@ -40,6 +40,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         _database = (SqlitePackageDatabase)_factory.CreateForFile(Path.Combine(_root, "project.sqlite"));
         _database.OpenAsync().GetAwaiter().GetResult();
         _bootstrapper.InitializeNewDatabaseAsync(_database, DateTimeOffset.UtcNow).GetAwaiter().GetResult();
+        _ = new SqliteCoreDomainDatabase(_database);
     }
 
     public void Dispose()

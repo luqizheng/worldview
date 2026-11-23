@@ -27,14 +27,10 @@ public sealed class InMemoryFileSystem : IFileSystem
 
     private static string Normalize(string path)
     {
-        var full = System.IO.Path.GetFullPath(path)
-            .Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
-        var root = System.IO.Path.GetPathRoot(full) ?? string.Empty;
-
-        // Do not trim the filesystem root itself ("/" or "C:\\").
-        return full.Length > root.Length
-            ? full.TrimEnd(System.IO.Path.DirectorySeparatorChar)
-            : full;
+        var full = System.IO.Path.GetFullPath(path);
+        var normalized = full.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+        // Preserve the filesystem root ("/" or "C:\\") so absolute paths retain their leading root.
+        return System.IO.Path.TrimEndingDirectorySeparator(normalized);
     }
 
     public bool DirectoryExists(string path)
@@ -58,26 +54,10 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalized = Normalize(path);
         lock (_gate)
         {
-            // Preserve the leading root separator. Splitting an absolute Unix path
-            // and rebuilding from an empty string silently turns "/tmp/x" into "tmp/x".
-            var current = System.IO.Path.GetPathRoot(normalized) ?? string.Empty;
-            if (current.Length > 0)
-            {
-                if (!_nodes.TryGetValue(current, out var rootNode))
-                {
-                    _nodes[current] = new Node(IsDirectory: true);
-                }
-                else if (!rootNode.IsDirectory)
-                {
-                    throw new IOException($"路径已是文件：{current}");
-                }
-            }
-
-            var relative = normalized[current.Length..];
-            var segments = relative.Split(
-                System.IO.Path.DirectorySeparatorChar,
-                StringSplitOptions.RemoveEmptyEntries);
-            foreach (var segment in segments)
+            var root = System.IO.Path.GetPathRoot(normalized) ?? string.Empty;
+            var current = root;
+            var remainder = normalized[root.Length..];
+            foreach (var segment in remainder.Split(System.IO.Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
             {
                 current = System.IO.Path.Combine(current, segment);
                 if (!_nodes.TryGetValue(current, out var node))

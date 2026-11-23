@@ -51,7 +51,6 @@ public static class ProjectPackageStructure
     /// <summary>
     /// 判断 <paramref name="candidateRelativePath"/> 是否为安全的包内相对路径：
     /// 非空、非绝对、无 ".." 跨越、规范化后仍位于包根之内（拒绝符号化/遍历逃逸）。
-    /// 同时拒绝 Windows 根路径形式，确保 manifest 在 Windows/macOS 间可移植。
     /// </summary>
     public static bool IsRelativePathConfinedToPackage(string packageRoot, string candidateRelativePath)
     {
@@ -66,7 +65,7 @@ public static class ProjectPackageStructure
             return false;
         }
 
-        // 显式拒绝任何 ".." 段，再由规范化兜底。
+        // 显式拒绝任何 ".." 段与盘符/UNC 形式，再由规范化兜底。
         if (candidate.Contains("..", StringComparison.Ordinal))
         {
             return false;
@@ -85,15 +84,23 @@ public static class ProjectPackageStructure
         }
     }
 
+    // Path.IsPathRooted follows the host OS. Package manifests are portable, so reject
+    // Windows drive/UNC roots even when validation runs on Unix (and vice versa).
     private static bool IsWindowsRootedPath(string path)
     {
-        // Path.IsPathRooted follows the host OS. A Windows drive prefix or
-        // backslash-rooted/UNC path must also be rejected when validating on Unix.
-        if (path.Length >= 2 && char.IsAsciiLetter(path[0]) && path[1] == ':')
+        if (path.Length == 0)
+        {
+            return false;
+        }
+
+        if (path[0] is '\\' or '/')
         {
             return true;
         }
 
-        return path[0] == '\\' || path[0] == '/';
+        return path.Length >= 3
+            && char.IsAsciiLetter(path[0])
+            && path[1] == ':'
+            && path[2] is '\\' or '/';
     }
 }
