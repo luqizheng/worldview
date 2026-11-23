@@ -109,4 +109,4 @@ dotnet tests/WorldView.Application.Tests/bin/Debug/net11.0/WorldView.Application
 
 ## 8. Git commit SHA
 
-见本报告提交后的 `feat/field-package-reader-writer` 分支顶端（提交信息 `test(packaging): complete field package conformance fuzz and limits`）。
+commit d1a27cb（test(packaging): complete field package conformance fuzz and limits），已推送 origin/feat/field-package-reader-writer。

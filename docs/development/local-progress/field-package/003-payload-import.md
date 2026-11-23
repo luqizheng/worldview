@@ -91,7 +91,7 @@ dotnet tests/WorldView.Infrastructure.Tests/bin/Debug/net11.0/WorldView.Infrastr
 
 ## 10. Git commit SHA
 
-见本报告提交后的 `feat/field-package-reader-writer` 分支顶端（提交信息 `feat(fields): add field package import adapter`）。
+commit 0544238（feat(fields): add field package import adapter），已推送 origin/feat/field-package-reader-writer。
 
 ## 11. 与原设计不一致的地方
 
