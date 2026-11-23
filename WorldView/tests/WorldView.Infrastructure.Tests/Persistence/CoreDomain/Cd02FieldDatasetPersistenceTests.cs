@@ -170,6 +170,21 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         }));
     }
 
+    /// <summary>Appends a second (codec_id 1) registry entry with free-form strings/parameters
+    /// and returns the re-canonicalized manifest.</summary>
+    private static string ManifestWithExtraCodec(string codecName, string codecVersion, string parametersJson)
+    {
+        var root = JsonNode.Parse(BuildManifest("elevation", "world-view.field.elevation.v1"))!;
+        ((JsonArray)root["codec_registry"]!).Add(new JsonObject
+        {
+            ["codec_id"] = 1,
+            ["codec_name"] = codecName,
+            ["version"] = codecVersion,
+            ["parameters"] = JsonNode.Parse(parametersJson),
+        });
+        return FieldManifestCanonicalizer.Canonicalize(root.ToJsonString());
+    }
+
     private static PublishFieldRevisionPlan Plan(
         Guid projectId,
         Guid mapId,
@@ -377,6 +392,62 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var revision = FieldDatasetService.PublishRevision(core, plan);
 
         Assert.Contains(originX, revision.ManifestJson);
+    }
+
+    [Fact]
+    public void PublishRevision_AcceptsJcsCanonicalManifestWithJcsOnlyStringSpellings()
+    {
+        // Regression: the persistence fixed-point check once used the legacy CanonicalJson,
+        // whose string escaping (\"+\", HTML-sensitive, non-ASCII) differs from RFC 8785 JCS
+        // and therefore rejected perfectly valid canonical manifests at publication.
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        var manifest = ManifestWithExtraCodec("zstd+tuned", "1/中文", """{"note":"值+1"}""");
+        var plan = Plan(project.ProjectId, mapId, datasetId, revisionId,
+            null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest,
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
+        };
+
+        FieldDatasetService.PublishRevision(core, plan);
+        var stored = core.FindFieldRevision(project.ProjectId, datasetId, revisionId)!;
+
+        Assert.Contains("zstd+tuned", stored.ManifestJson);
+        Assert.Contains("值+1", stored.ManifestJson);
+        var codec = stored.Metadata!.Codecs.Single(c => c.CodecId == 1);
+        Assert.Equal("zstd+tuned", codec.CodecName);
+        Assert.Equal("1/中文", codec.Version);
+        Assert.Equal("""{"note":"值+1"}""", codec.ParametersJson);
+    }
+
+    [Fact]
+    public void PublishRevision_KeepsExponentFormCodecParametersByteIdenticalAndReadable()
+    {
+        // Regression: typed codec parameters were once stored via System.Text.Json raw-text
+        // re-serialization and re-checked with the legacy CanonicalJson, whose double spelling
+        // (1E-07) differs from the RFC 8785 form (1e-7), so a publishable revision became
+        // unreadable on the next load.
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        var manifest = ManifestWithExtraCodec("delta+z", "1", """{"quantum":1e-7}""");
+        var plan = Plan(project.ProjectId, mapId, datasetId, revisionId,
+            null, Fingerprint1, Now + 4) with
+        {
+            ManifestJson = manifest,
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(manifest),
+        };
+
+        FieldDatasetService.PublishRevision(core, plan);
+        var stored = core.FindFieldRevision(project.ProjectId, datasetId, revisionId)!;
+
+        var codec = stored.Metadata!.Codecs.Single(c => c.CodecId == 1);
+        Assert.Equal("""{"quantum":1e-7}""", codec.ParametersJson);
+        Assert.Contains("\"parameters\":{\"quantum\":1e-7},\"version\":\"1\"", stored.ManifestJson);
     }
 
     [Fact]
@@ -736,6 +807,151 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             command.ExecuteNonQuery();
         }));
         Assert.NotNull(core.FindFieldRevision(project.ProjectId, datasetId, revision.FieldRevisionId));
+    }
+
+    // ---- Descriptor Registry evolution rules (ME-05-12 §8) ----
+    //
+    // The registry itself is compiled code with no runtime mutation path; these tests pin the
+    // consequence for persisted data: every read re-derives the expected semantics_id from the
+    // registry and compares it with the persisted descriptor pins, so a pin that diverges from
+    // the registry (however it came to diverge) makes the row fail closed loudly instead of
+    // being silently reinterpreted, and the trigger-enforced dataset pin is the structural
+    // defense against in-place pin mutation.
+
+    private void DropTrigger(string triggerName) =>
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $"DROP TRIGGER {triggerName};";
+            command.ExecuteNonQuery();
+        });
+
+    [Fact]
+    public void FindFieldRevision_FailsClosedWhenPersistedSemanticsIdTampered()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revision = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
+
+        // Worst case: bypass the row immutability trigger and diverge the persisted pin from
+        // the registry mapping (world-view.field.elevation.v1). The read must refuse the row
+        // instead of reinterpreting it under a changed semantics identity.
+        DropTrigger("trg_core_map_field_revision_immutable_update");
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_revision SET semantics_id = 'world-view.field.elevation.experimental' WHERE field_revision_id = $id;";
+            command.Parameters.AddWithValue("$id", revision.FieldRevisionId.ToString("D"));
+            command.ExecuteNonQuery();
+        });
+
+        Assert.Throws<CoreDomainDataException>(() =>
+            core.FindFieldRevision(project.ProjectId, datasetId, revision.FieldRevisionId));
+    }
+
+    [Fact]
+    public void FindFieldRevision_FailsClosedWhenPersistedSchemaVersionTampered()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        var revision = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
+
+        // A schema_version the registry does not register is fail-closed at read, so a future
+        // version can never silently reformat how an existing revision is interpreted.
+        DropTrigger("trg_core_map_field_revision_immutable_update");
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_revision SET descriptor_schema_version = 2 WHERE field_revision_id = $id;";
+            command.Parameters.AddWithValue("$id", revision.FieldRevisionId.ToString("D"));
+            command.ExecuteNonQuery();
+        });
+
+        Assert.Throws<CoreDomainDataException>(() =>
+            core.FindFieldRevision(project.ProjectId, datasetId, revision.FieldRevisionId));
+    }
+
+    [Fact]
+    public void FindFieldDataset_FailsClosedWhenPersistedDescriptorPinTampered()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var datasetId = Guid.NewGuid();
+        _ = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, datasetId, Guid.NewGuid(), null, Fingerprint1, Now + 4));
+
+        DropTrigger("trg_core_map_field_dataset_pin_immutable");
+        Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_dataset SET semantics_id = 'world-view.field.elevation.experimental' WHERE field_dataset_id = $id;";
+            command.Parameters.AddWithValue("$id", datasetId.ToString("D"));
+            command.ExecuteNonQuery();
+        });
+
+        Assert.Throws<CoreDomainDataException>(() =>
+            core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void DatasetDescriptorPin_UpdateIsBlockedByDatabaseTrigger()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        _ = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(), null, Fingerprint1, Now + 4));
+
+        // First-line structural defense: the schema itself forbids in-place descriptor pin
+        // mutation (trg_core_map_field_dataset_pin_immutable).
+        Assert.Throws<SqliteException>(() => Access().Execute(connection =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "UPDATE core_map_field_dataset SET semantics_id = 'world-view.field.elevation.experimental' WHERE project_id = $p;";
+            command.Parameters.AddWithValue("$p", project.ProjectId.ToString("D"));
+            command.ExecuteNonQuery();
+        }));
+
+        Assert.NotNull(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
+    }
+
+    [Fact]
+    public void RegisteredDescriptors_CoexistAsIndependentDatasetsOnSameMap()
+    {
+        var (project, mapId) = SeedMap();
+        var core = Core();
+        var elevation = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(), null, Fingerprint1, Now + 4));
+        var landWater = FieldDatasetService.PublishRevision(core, Plan(
+            project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(), null, Fingerprint2, Now + 5) with
+        {
+            FieldKey = "land_water",
+            SemanticsId = "world-view.field.land_water.v1",
+            ManifestJson = BuildManifest("land_water", "world-view.field.land_water.v1"),
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(
+                BuildManifest("land_water", "world-view.field.land_water.v1")),
+        });
+
+        // Additive registry evolution: both registered descriptors resolve, publish and read
+        // back with their own pins; neither dataset's identity depends on the other.
+        var elevationDataset = core.FindFieldDataset(project.ProjectId, mapId, "elevation")!;
+        var landWaterDataset = core.FindFieldDataset(project.ProjectId, mapId, "land_water")!;
+        Assert.Equal(("elevation", 1, "world-view.field.elevation.v1"),
+            (elevationDataset.FieldKey, elevationDataset.DescriptorSchemaVersion, elevationDataset.SemanticsId));
+        Assert.Equal(("land_water", 1, "world-view.field.land_water.v1"),
+            (landWaterDataset.FieldKey, landWaterDataset.DescriptorSchemaVersion, landWaterDataset.SemanticsId));
+
+        Assert.Equal("world-view.field.elevation.v1",
+            core.FindFieldRevision(project.ProjectId, elevationDataset.FieldDatasetId, elevation.FieldRevisionId)!.Metadata!.SemanticsId);
+        Assert.Equal("world-view.field.land_water.v1",
+            core.FindFieldRevision(project.ProjectId, landWaterDataset.FieldDatasetId, landWater.FieldRevisionId)!.Metadata!.SemanticsId);
     }
 
     [Fact]

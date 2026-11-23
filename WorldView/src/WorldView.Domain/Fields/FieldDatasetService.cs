@@ -44,8 +44,7 @@ public static class FieldDatasetService
         // Raw package-byte equality (BOM/whitespace/trailing newline) remains the reader's responsibility.
 
         var provenance = CanonicalJson.Canonicalize(plan.ProvenanceJson);
-        ValidateManifestIdentity(manifest, plan);
-        var metadata = FieldRevisionMetadata.FromValidatedManifest(manifest);
+        var metadata = ValidateManifest(manifest, plan.FieldKey, plan.DescriptorSchemaVersion, plan.SemanticsId);
 
         var map = database.FindMap(plan.ProjectId, plan.MapId)
             ?? throw new CoreDomainConflictException($"Map {plan.MapId} 不存在或不属于项目 {plan.ProjectId}。");
@@ -98,10 +97,17 @@ public static class FieldDatasetService
         });
     }
 
-    private static void ValidateManifestIdentity(
+    public static FieldRevisionMetadata ValidateManifest(
         string canonicalManifest,
-        PublishFieldRevisionPlan plan)
+        string fieldKey,
+        int descriptorSchemaVersion,
+        string semanticsId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(canonicalManifest);
+        if (!FieldDescriptorRegistry.TryGetSemanticsId(fieldKey, descriptorSchemaVersion, out var expectedSemanticsId)
+            || !string.Equals(semanticsId, expectedSemanticsId, StringComparison.Ordinal))
+            throw new CoreDomainConflictException(
+                $"Field descriptor {fieldKey}@{descriptorSchemaVersion} is not registered with the supplied semantics ID.");
         using var document = JsonDocument.Parse(canonicalManifest);
         var root = document.RootElement;
         RequireObject(root, "manifest");
@@ -124,20 +130,20 @@ public static class FieldDatasetService
         RequireEqual(RequiredInt32(format, "minor"), 0, "format.minor");
 
         var field = RequiredObject(root, "field");
-        var fieldProperties = plan.FieldKey == "elevation"
+        var fieldProperties = fieldKey == "elevation"
             ? new[] { "field_key", "schema_version", "semantics_id", "unit" }
             : new[] { "field_key", "schema_version", "semantics_id" };
         RequireProperties(field, fieldProperties);
-        RequireEqual(RequiredString(field, "field_key"), plan.FieldKey, "field.field_key");
-        RequireEqual(RequiredInt32(field, "schema_version"), plan.DescriptorSchemaVersion, "field.schema_version");
+        RequireEqual(RequiredString(field, "field_key"), fieldKey, "field.field_key");
+        RequireEqual(RequiredInt32(field, "schema_version"), descriptorSchemaVersion, "field.schema_version");
         var manifestSemanticsId = RequiredString(field, "semantics_id");
         RequireLength(manifestSemanticsId, 1, 160, "field.semantics_id");
-        RequireEqual(manifestSemanticsId, plan.SemanticsId, "field.semantics_id");
-        if (plan.FieldKey == "elevation")
+        RequireEqual(manifestSemanticsId, semanticsId, "field.semantics_id");
+        if (fieldKey == "elevation")
             RequireOneOf(RequiredString(field, "unit"), "m", "ft");
 
         var spatial = RequiredObject(root, "spatial");
-        var spatialProperties = plan.FieldKey == "elevation"
+        var spatialProperties = fieldKey == "elevation"
             ? new[] { "map_space_id", "spatial_reference_id", "coordinate_precision_profile_id", "vertical_reference_id" }
             : new[] { "map_space_id", "spatial_reference_id", "coordinate_precision_profile_id" };
         RequireProperties(spatial, spatialProperties);
@@ -145,7 +151,7 @@ public static class FieldDatasetService
         RequireLength(RequiredString(spatial, "spatial_reference_id"), 1, 512, "spatial.spatial_reference_id");
         RequireLength(RequiredString(spatial, "coordinate_precision_profile_id"), 1, 160,
             "spatial.coordinate_precision_profile_id");
-        if (plan.FieldKey == "elevation")
+        if (fieldKey == "elevation")
             RequireLength(RequiredString(spatial, "vertical_reference_id"), 1, 512,
                 "spatial.vertical_reference_id");
 
@@ -193,7 +199,7 @@ public static class FieldDatasetService
         RequireEqual(RequiredInt32(mask, "invalid_value"), 1, "no_data.mask_plane.invalid_value");
 
         var encoding = RequiredObject(root, "value_encoding");
-        var allowedEncodingProperties = plan.FieldKey == "land_water"
+        var allowedEncodingProperties = fieldKey == "land_water"
             ? new[] { "profile_id", "profile_scope", "planes", "category_codes" }
             : new[] { "profile_id", "profile_scope", "planes" };
         RequireProperties(encoding, allowedEncodingProperties);
@@ -235,14 +241,14 @@ public static class FieldDatasetService
             && !planeFormats.ContainsKey(RequiredString(coverage, "mask_plane_name")))
             throw new CoreDomainConflictException("Field manifest coverage mask plane is not declared in value_encoding.planes.");
 
-        if (plan.FieldKey == "elevation")
+        if (fieldKey == "elevation")
         {
             if (!planeFormats.TryGetValue("samples", out var samples)
                 || samples.Format is "uint8" or "uint8_registered_category")
                 throw new CoreDomainConflictException("elevation requires a numeric samples plane.");
         }
 
-        if (plan.FieldKey == "land_water")
+        if (fieldKey == "land_water")
         {
             if (!planeFormats.TryGetValue("categories", out var categoryPlane)
                 || categoryPlane != ("uint8_registered_category", 1))
@@ -291,6 +297,7 @@ public static class FieldDatasetService
         RequireEqual(RequiredString(tileHash, "algorithm"), "SHA-256", "tile_hash.algorithm");
         RequireEqual(RequiredInt32(tileHash, "version"), 1, "tile_hash.version");
 
+        return FieldRevisionMetadata.FromValidatedManifest(canonicalManifest);
     }
 
     private static readonly Regex DecimalPattern = new(

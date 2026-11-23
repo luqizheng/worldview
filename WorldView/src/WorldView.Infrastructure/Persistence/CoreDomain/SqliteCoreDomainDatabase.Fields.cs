@@ -111,11 +111,15 @@ public sealed partial class SqliteCoreDomainDatabase
                 var spatialReferenceEntity = db.SpatialReferences.SingleOrDefault(x =>
                     x.ProjectId == plan.ProjectId && x.SpatialReferenceId == mapEntity.SpatialReferenceId)
                     ?? throw new CoreDomainConflictException("Map 的 Spatial Reference 定义不存在或不属于当前 Project。");
-                var canonicalManifest = CanonicalJson.Canonicalize(plan.ManifestJson);
+                // The Field Manifest authority is RFC 8785 JCS (FieldDatasetService). The legacy
+                // CanonicalJson has a different string-escaping contract (it escapes '+', HTML-
+                // sensitive and non-ASCII characters), so it rejects valid canonical manifests.
+                var canonicalManifest = FieldManifestCanonicalizer.Canonicalize(plan.ManifestJson);
                 if (!string.Equals(canonicalManifest, plan.ManifestJson, StringComparison.Ordinal))
-                    throw new CoreDomainDataException("Field Revision ManifestJson must be canonical before persistence.");
+                    throw new CoreDomainDataException(
+                        "Field Revision ManifestJson must be byte-identical RFC 8785 canonical UTF-8 before persistence.");
                 var manifestMetadata = FieldRevisionMetadata.FromValidatedManifest(canonicalManifest);
-                if (plan.Metadata is null || !MetadataEquals(manifestMetadata, plan.Metadata))
+                if (plan.Metadata is null || !manifestMetadata.StructurallyEquals(plan.Metadata))
                     throw new CoreDomainConflictException("Field Revision typed metadata does not match its canonical manifest.");
                 if (!string.Equals(manifestMetadata.FieldKey, plan.FieldKey, StringComparison.Ordinal)
                     || manifestMetadata.DescriptorSchemaVersion != plan.DescriptorSchemaVersion
@@ -367,7 +371,11 @@ public sealed partial class SqliteCoreDomainDatabase
 
         var codecs = codecRows.Select(row =>
         {
-            var parameters = CanonicalJson.Canonicalize(row.ParametersJson);
+            // ParametersJson is stored as the exact canonical-manifest bytes of the codec
+            // parameters object (see FieldRevisionMetadata); verify against the same RFC 8785
+            // authority rather than the legacy CanonicalJson, whose number spelling (1E-07)
+            // and out-of-Int64 collapse do not round-trip JCS output.
+            var parameters = FieldManifestCanonicalizer.Canonicalize(row.ParametersJson);
             if (!string.Equals(parameters, row.ParametersJson, StringComparison.Ordinal))
                 throw new CoreDomainDataException($"Field Revision {entity.FieldRevisionId:D} has non-canonical codec parameters.");
             return new FieldCodecMetadata(row.CodecId, row.CodecName, row.Version, parameters);
@@ -465,27 +473,4 @@ public sealed partial class SqliteCoreDomainDatabase
         };
         return FieldPayloadRules.Create(plan) with { IntegrityState = integrity };
     }
-
-    private static bool MetadataEquals(FieldRevisionMetadata left, FieldRevisionMetadata right) =>
-        string.Equals(left.FieldKey, right.FieldKey, StringComparison.Ordinal)
-        && left.DescriptorSchemaVersion == right.DescriptorSchemaVersion
-        && string.Equals(left.SemanticsId, right.SemanticsId, StringComparison.Ordinal)
-        && string.Equals(left.Unit, right.Unit, StringComparison.Ordinal)
-        && string.Equals(left.MapSpaceId, right.MapSpaceId, StringComparison.Ordinal)
-        && string.Equals(left.SpatialReferenceId, right.SpatialReferenceId, StringComparison.Ordinal)
-        && string.Equals(left.CoordinatePrecisionProfileId, right.CoordinatePrecisionProfileId, StringComparison.Ordinal)
-        && string.Equals(left.VerticalReferenceId, right.VerticalReferenceId, StringComparison.Ordinal)
-        && left.Grid == right.Grid
-        && left.Coverage == right.Coverage
-        && string.Equals(left.MapEdgeSemantics, right.MapEdgeSemantics, StringComparison.Ordinal)
-        && left.NoData == right.NoData
-        && string.Equals(left.ValueProfileId, right.ValueProfileId, StringComparison.Ordinal)
-        && string.Equals(left.ValueProfileScope, right.ValueProfileScope, StringComparison.Ordinal)
-        && left.Planes.SequenceEqual(right.Planes)
-        && left.CategoryCodes.Count == right.CategoryCodes.Count
-        && left.CategoryCodes.All(pair =>
-            right.CategoryCodes.TryGetValue(pair.Key, out var value) && value == pair.Value)
-        && left.Codecs.SequenceEqual(right.Codecs)
-        && string.Equals(left.TileHashAlgorithm, right.TileHashAlgorithm, StringComparison.Ordinal)
-        && left.TileHashVersion == right.TileHashVersion;
 }

@@ -25,4 +25,15 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="../../../docs/architecture/core-domain/fixtures/field-package-v1/*.manifest.json"
+                      Link="Fixtures/FieldPackageV1/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../../docs/architecture/core-domain/fixtures/field-package-v1/*.wvfld"
+                      Link="Fixtures/FieldPackageV1/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../../docs/architecture/core-domain/fixtures/field-package-v1/golden-fixtures.json"
+                      Link="Fixtures/FieldPackageV1/golden-fixtures.json" />
+    <EmbeddedResource Include="../../../docs/architecture/core-domain/p2-09-34-field-package-canonical-manifest-schema-v0.1.json"
+                      Link="Fixtures/FieldPackageV1/field-package-manifest.schema.json" />
+  </ItemGroup>
+
 </Project>

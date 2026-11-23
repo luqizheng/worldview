@@ -28,6 +28,27 @@
       Link="Conformance\p2-09-40-building-cave-aggregate-validation-vectors-v0.6.json" />
   </ItemGroup>
 
+  <!-- Field Package owner-context 校验使用规范 golden manifest（ME-05-09）作为嵌入资源。 -->
+  <ItemGroup>
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\minimal-elevation-2x2.manifest.json"
+      Link="Conformance\minimal-elevation-2x2.manifest.json" />
+  </ItemGroup>
+
+  <!-- Task 005 import/export authority round trip 使用全部 canonical golden fixtures 作为嵌入资源。 -->
+  <ItemGroup>
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\*.wvfld"
+      Link="Conformance\%(Filename)%(Extension)" />
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\edge-elevation-3x2.manifest.json"
+      Link="Conformance\edge-elevation-3x2.manifest.json" />
+    <EmbeddedResource
+      Include="..\..\..\docs\architecture\core-domain\fixtures\field-package-v1\golden-fixtures.json"
+      Link="Conformance\golden-fixtures.json" />
+  </ItemGroup>
+
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
