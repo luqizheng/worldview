@@ -4,6 +4,7 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
+- **修订**: R1（2026-11-24）— 抽出 Desktop 内部 `MapViewportBinding` 收窄控件职责；draw operation 入口增加关闭检查，明确"关闭后不再启动绘制"的保证边界。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **范围**: WP-30B Phase 2 架构裁决；不含任何渲染实现
 - **相关**: `ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-10`、`ADR-WP-30B-11`
@@ -42,10 +43,12 @@ WP-30A 已交付渲染宿主无关的 Presentation：不可变 `SceneSnapshot`�
 
 ### 方案 A — Avalonia Custom Control + Skia 自绘（选定，收窄为 ICustomDrawOperation）
 
-`MapViewportControl : Control` 承载布局、输入、焦点、生命周期与失效；`Render(DrawingContext)`
-提交一个短生命周期 `ICustomDrawOperation`；在该操作的 `Render(ImmediateDrawingContext)` 内
-通过 Skia lease 取得 `SKCanvas` 并完成绘制。真正的绘制逻辑放在 Desktop 内部一个无状态绘制
-对象（下称 Renderer），不暴露为公共接口。
+`MapViewportControl : Control` 只承载 Avalonia 本职：布局、输入/焦点路由、尺寸与 DPI 事件、
+失效与生命周期。`Render(DrawingContext)` 委托一个 Desktop 内部具体类 `MapViewportBinding`
+捕获不可变帧输入并提交一个短生命周期 `ICustomDrawOperation`；在该操作的
+`Render(ImmediateDrawingContext)` 内先检查关闭标志，再通过 Skia lease 取得 `SKCanvas` 并完成
+绘制。Runtime、generation、Renderer 与捕获逻辑归 `MapViewportBinding`，绘制逻辑归一个无状态
+绘制对象（下称 Renderer），两者都不暴露为公共接口。
 
 ### 方案 B — Avalonia Control + 独立 Skia 渲染层（有独立 Render API 与生命周期）
 
@@ -63,19 +66,22 @@ WP-30A 已交付渲染宿主无关的 Presentation：不可变 `SceneSnapshot`�
 具体形状：
 
 ```
-MapWorkspaceSession.ViewState（Application，可变、UI 线程独占）
-        │ UI 线程同步读取相机等标量
+Desktop 组合根：创建 MapViewportBinding（per workspace，内部具体类，非 Control / 非接口）
+        │ 持有：ViewportPresentationRuntime（publisher + coordinator + generation tracker）
+        │       + MapSceneRenderer（无公共接口、无 Skia 字段）+ volatile bool IsClosed
+        │ 提供：CaptureFrame() / OnViewportChanged() / RequestClose()
         ▼
 MapViewportControl : Control（Desktop）
-        │ 捕获 SceneSnapshot + 尺寸/DPI/相机/generation 为一个不可变帧输入（ADR-11）
-        │ Render(DrawingContext) → context.Custom(MapDrawOperation(frame))
+        │ 只做 Avalonia 本职：布局、输入/焦点、尺寸/DPI 事件、失效、生命周期转发
+        │ Render(DrawingContext)：frame = binding.CaptureFrame()（ADR-11，UI 线程同步）
+        │ → context.Custom(new MapDrawOperation(binding, frame))
         ▼
 MapDrawOperation : ICustomDrawOperation（每次渲染短生命周期）
-        │ Render(ImmediateDrawingContext)：TryGetFeature<ISkiaSharpApiLeaseFeature>
-        │ → using var lease = feature.Lease() → lease.SkCanvas（借用）
+        │ Render(ImmediateDrawingContext)：先 if (binding.IsClosed) return;
+        │ → TryGetFeature<ISkiaSharpApiLeaseFeature> → using var lease = feature.Lease()
+        │ → lease.SkCanvas（借用）
         ▼
-MapSceneRenderer（Desktop 内部，无公共接口、无长生命周期状态）
-        │ 仅用传入的 SKCanvas + 不可变帧输入发绘制命令
+MapSceneRenderer（binding 私有字段；仅用传入 canvas + 不可变帧输入发绘制命令）
         ▼
 Avalonia 渲染管线 → 屏幕
 ```
@@ -84,16 +90,27 @@ Avalonia 渲染管线 → 屏幕
 
 | # | 问题 | 裁决 |
 |---|---|---|
-| 1 | 控件的唯一职责 | `MapViewportControl` 是**视口宿主与输入边界**：参与布局、路由输入/焦点、观察尺寸与 DPI 变化、推进 generation、发起场景请求、调用 `InvalidateVisual()`、在视觉树分离时停止一切后续绘制。它不查询数据库、不装配场景、不直接创建 `SKCanvas`。 |
-| 2 | Renderer 的职责 | 只把"一个已捕获快照 + 一个不可变帧输入"翻译成针对**传入 canvas** 的绘制命令；解释 `builtin-neutral-background/v1` 到具体颜色；不读 Publisher、不读 ViewState、不做 IO/Domain 查询、不保留帧状态。 |
-| 3 | Camera 属于哪一层 | 视口局部呈现状态，**不是 Domain / Presentation 概念**。M1 不新增 Camera 类型：数值仍存于 `MapWorkspaceSession.ViewState`（Application 的瞬态编辑态），由 Desktop 视口适配器在 UI 线程读取并复制进不可变帧输入；Renderer 只见复制值。Pan/Zoom 属 WP-30C 范围，届时也不写 Map 数据、不改 Domain revision。 |
-| 4 | SceneSnapshot 如何传入 | 控件在 `Render(DrawingContext)` 时执行一次 `Publisher.Current`（可能为 null = 加载/空态），把它与帧输入一起存进 draw operation；operation 的 `Render` 只使用这份捕获引用。发布继续走 WP-30A 的原子交换，读者契约不变。 |
+| 1 | 控件的唯一职责 | `MapViewportControl` 是 **Avalonia 视口宿主**：参与布局、路由输入/焦点、把尺寸与 DPI 事件转发给 binding、调用 `InvalidateVisual()`、在视觉树分离时转发 `RequestClose()`。**不**持有 Runtime / Renderer、**不**读取 Publisher、**不**推进 generation、**不**组装帧输入、**不**创建 `SKCanvas`。 |
+| 2 | Renderer 的职责 | 只把"一个已捕获快照 + 一个不可变帧输入"翻译成针对**传入 canvas** 的绘制命令；解释 `builtin-neutral-background/v1` 到具体颜色；不读 Publisher、不读 ViewState、不做 IO/Domain 查询、不保留帧状态。Renderer 由 `MapViewportBinding` 持有（不归控件）。 |
+| 3 | Camera 属于哪一层 | 视口局部呈现状态，**不是 Domain / Presentation 概念**。M1 不新增 Camera 类型：数值仍存于 `MapWorkspaceSession.ViewState`（Application 的瞬态编辑态），由 `MapViewportBinding.CaptureFrame()` 在 UI 线程读取并复制进不可变帧输入；Renderer 只见复制值。Pan/Zoom 属 WP-30C 范围，届时也不写 Map 数据、不改 Domain revision。 |
+| 4 | SceneSnapshot 如何传入 | `MapViewportBinding.CaptureFrame()` 在 `Render(DrawingContext)` 调用栈中同步执行一次 `Publisher.Current`（可能为 null = 加载/空态），与视口标量一起构造不可变帧输入并放进 draw operation；operation 的 `Render` 只使用这份捕获引用。发布继续走 WP-30A 的原子交换，读者契约不变。 |
 | 5 | Renderer 是否持有快照 | **否**。Renderer 无 `SceneSnapshot` 字段；引用只存在于短生命周期 draw operation / 帧输入中，且仅在该帧内有效。 |
 | 6 | Renderer 是否持有 Skia 资源 | **M1 否**。不缓存 `SKPaint` / `SKPath` / `SKBitmap` / `SKSurface`；所有原生对象在回调内创建、回调内 `using` 释放。`SKCanvas` 是 lease 借出的对象，绝不 Dispose；绝不跨线程传递（详见 ADR-09）。 |
-| 7 | 是否需要单独的 MapViewportControl 公开 API | 只需组合根接线所需的最小面：控件类型本身 + 一个 `Attach(MapWorkspaceSession, ViewportPresentationRuntime)`（或在工厂内构造）。**不公开** Render/Draw/Snapshot/Camera 设置入口，不暴露 Skia 类型。 |
-| 8 | 是否需要独立 Renderer 接口 | **不需要**。仅一个 `internal sealed` 绘制对象；没有第二个后端、没有替换需求。若未来出现第二种后端，再由新 ADR 裁决接口，不为"可能"提前抽象。 |
-| 9 | Resize / DPI / 窗口重建 | 全部由 Avalonia 驱动：`Control.SizeChanged`、`TopLevel.ScalingChanged` / `RenderScaling`、`Visual.AttachedToVisualTree` / `DetachedFromVisualTree` 已在 12.1.6 核实存在。UI 线程收到变化 → 捕获新尺寸/缩放 → `ViewportGeneration.Advance()` → 重新发起请求 → `InvalidateVisual()`。draw operation 的 `Bounds` 用当前控件边界；**没有我方持有的 render target 需要重建**，lease 每次回调重新获取。窗口关闭不产生平台分支。 |
+| 7 | 是否需要单独的 MapViewportControl 公开 API | 只需组合根接线所需的最小面：控件类型本身 + 一个 `Attach(MapViewportBinding)`（或在工厂内构造）。`MapViewportBinding` 本身是 Desktop 内部具体类，不升格为公共 API；**不公开** Render/Draw/Snapshot/Camera 设置入口，不暴露 Skia 类型。 |
+| 8 | 是否需要独立 Renderer 接口 | **不需要**。仅一个 `internal sealed` 绘制对象，由 binding 私有持有；没有第二个后端、没有替换需求。`MapViewportBinding` 同样**不是接口**——它只是一个具体协作者，用来防止控件膨胀，不引入可替换后端或 DI 抽象。若未来出现第二种后端，再由新 ADR 裁决接口。 |
+| 9 | Resize / DPI / 窗口重建 | 全部由 Avalonia 驱动：`Control.SizeChanged`、`TopLevel.ScalingChanged` / `RenderScaling`、`Visual.AttachedToVisualTree` / `DetachedFromVisualTree` 已在 12.1.6 核实存在。控件观察到变化 → 转发 `binding.OnViewportChanged(size, scaling)` → binding 推进 `ViewportGeneration.Advance()` 并发起请求 → 控件 `InvalidateVisual()`。draw operation 的 `Bounds` 用当前控件边界；**没有我方持有的 render target 需要重建**，lease 每次回调重新获取。窗口关闭不产生平台分支。 |
 | 10 | 如何避免类型泄漏 | 工程引用层阻止：Avalonia/Skia 引用仅在 Desktop；`WorldView.Presentation.csproj` 仍只引用 Application；沿用 `PresentationBoundaryTests`（程序集引用 + 公共 API 反射）与新增的 Desktop-only 类型检查。Domain/Application/Presentation 均不出现 `SkiaSharp` / `Avalonia` using。 |
+
+### 控件 / Binding / Renderer 边界（R1）
+
+| 对象 | 允许做 | 禁止做 |
+|---|---|---|
+| `MapViewportControl` | Avalonia 布局、输入/焦点、尺寸/DPI 观察与转发、`InvalidateVisual()`、生命周期转发 | 持有 Runtime / Renderer、读 Publisher、推进 generation、组装帧输入、触碰 Skia |
+| `MapViewportBinding` | 持有 Runtime 与 Renderer、`CaptureFrame()`、`OnViewportChanged()`、`RequestClose()`、置 `volatile bool IsClosed`、编排显式关闭 | 创建 Avalonia 控件、执行 Skia 绘制、持有 `SKCanvas` / lease、把自身做成接口/DI 服务/全局单例 |
+| `MapSceneRenderer` | 用传入 canvas + 不可变帧输入发绘制命令 | 读 Publisher / ViewState / 控件、持有字段状态或 Skia 资源 |
+
+拆出 binding 的目的不是抽象，而是**让非 UI 职责可以脱离 Avalonia 窗口测试，并让关闭顺序只有
+一个执行者**（见 ADR-10）。控件只保留一个 `MapViewportBinding` 引用。
 
 ### 与 ICustomDrawOperation API 的实际适配
 
@@ -102,6 +119,8 @@ Avalonia 渲染管线 → 屏幕
 - `Equals` 需让 Avalonia 能判断操作是否变化；具体的相等定义在实现阶段确定（至少包含 generation / snapshot 版本 / 尺寸 / DPI），不得用常量 `false` 掩盖失效问题。
 - `TryGetFeature` 返回 null（例如无 Skia 后端/无头测试）时安静跳过绘制并记诊断；不得抛异常替代加载态。
 - `ISkiaSharpApiLease` 及其提供的 `SKCanvas` / `SKSurface` 只在 `Render` 调用栈内存活；释放由 `using` 完成，不交给 GC。
+- **关闭检查必须先是 `Render` 的第一件事**：`if (binding.IsClosed) return;`。`Closed` 为 C# `volatile bool`（语言特性，无锁、无新依赖），由 binding 在 UI 关闭命令中置位。置位后不获取 lease、不创建任何 `SKPaint`/`SKPath`、不发绘制命令。该保证的精确边界见 ADR-08 问题 9 / ADR-10 问题 9。
+- draw operation 在 `Equals` 中应包含 binding identity（或 generation），避免关闭后的旧 operation 与新 binding 混淆；精确字段仍为 Open Question。
 
 ## Consequences
 
@@ -111,6 +130,7 @@ Avalonia 渲染管线 → 屏幕
 - Windows / macOS 自动使用同一套 Avalonia Skia 后端；无原生互操作代码、无 RID/发布分支。
 - 无独立 Render Thread、无跨线程 Skia 共享，资源生命周期退化为"每帧获取 + 每帧释放"。
 - 控件仍是普通 Avalonia Control，可参与标准布局、样式、焦点与窗口生命周期。
+- R1 后控件只持有 binding 一个引用，Runtime / generation / Renderer 的职责可脱离窗口做单元测试；关闭顺序有单一执行者。
 
 **代价 / 约束**
 
@@ -148,6 +168,9 @@ surface/canvas 所有权与两套生命周期；控件与渲染层之间新增�
 4. 不实现 Pan/Zoom、不实现 Skia 绘制业务内容（本阶段只裁决）。
 5. 不触碰 `docs/map-editor/implementation/`。
 6. 渲染器的绘制入口应是纯函数式：相同帧输入 + 相同 canvas 状态 → 相同绘制命令序列。
+7. `MapViewportBinding` 必须是 Desktop 内部具体类：不实现接口、不注册 DI、不做全局单例；控件只持有它一个引用。
+8. `MapDrawOperation.Render` 的第一条语句必须是关闭标志检查；该检查先于任何 lease / Skia 资源获取。
+9. 控件不得在 `DetachedFromVisualTree` / `Closing` 中直接释放 Runtime 或关闭 Workspace，只转发 `RequestClose()`（ADR-10）。
 
 ## Open Questions
 
@@ -156,3 +179,5 @@ surface/canvas 所有权与两套生命周期；控件与渲染层之间新增�
 3. **macOS 实际运行验证**：Avalonia.Native/Skia 路径在 CI 仅构建、未做运行时绘制验证；需在实现阶段补真实窗口证据。
 4. **DPI 变化与 generation 的精确时序**：`TopLevel.ScalingChanged` 触发时是否总在布局之前、是否需要二次失效；实现期用真实窗口测量后确认，本文不假定。
 5. **背景 token 的颜色表**：`builtin-neutral-background/v1` 的具体 RGB 值在 Desktop 渲染后端定义，本阶段不落数值。
+6. **`MapViewportBinding` 的测试接缝**：保持具体类即可；若测试需要，可用内部构造函数注入 Publisher，但不升格为接口或工厂。
+7. **关闭标志与 draw operation 的可见性**：`volatile bool` 足以保证"不再启动新绘制"；是否需要更强的帧编号核对由实现期诊断决定，不改变本裁决。

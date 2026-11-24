@@ -4,6 +4,7 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
+- **修订**: R1（2026-11-24）— draw operation 入口增加 volatile 关闭检查；精确定义"关闭后不再启动绘制、在飞回调不中断"的保证边界。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`（宿主方案）、`ADR-WP-30B-09`（Skia 资源）、`ADR-WP-30B-10`（关闭顺序）、`ADR-WP-30B-11`（不可变帧输入）
 
@@ -42,17 +43,19 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 4. 不允许跨线程共享 Skia 原生对象；快照不含 Skia。
 5. UI 线程不得因为渲染而长时间阻塞；关闭时不得产生迟到绘制。
 6. 保留 WP-30A / WP-30B F-1 的关闭屏障语义，不在本阶段改写。
+7. 关闭后不得**启动**新的绘制命令；"已入回调的帧不可中断"是必须显式声明的客观边界，不能用含糊表述掩盖。
 
 ## Decision
 
 **不设独立 Render Thread；不设通用调度器；绘制只发生在 Avalonia 的 `ICustomDrawOperation.Render`
-回调内；所有控件与 ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Skia 对象绝不跨线程。**
+回调内，且入口先检查 `MapViewportBinding.IsClosed`（volatile），关闭后直接返回；所有控件与
+ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Skia 对象绝不跨线程。**
 
 ### UI Thread 负责
 
 | 操作 | 裁决 |
 |---|---|
-| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理；分离即关闭绘制入口（ADR-10）。 |
+| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理；分离即向 `MapViewportBinding` 转发 `RequestClose()`（ADR-10），不自行释放 Runtime。 |
 | 输入事件 | 指针/键盘/焦点由 Avalonia 控件路由；M1 不实现 Pan/Zoom，但未来的相机交互也必须落在 UI 线程。 |
 | Camera 交互 | 只在此线程修改 `WorkspaceViewState.CameraX/Y/Zoom`（现有可变类型）；不新增 Camera 写者。 |
 | ViewState 更新 | 单写者原则：`MapWorkspaceSession.ViewState` 的所有写入必须来自 UI 线程；渲染路径只读其**复制值**。 |
@@ -70,7 +73,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 | Skia Canvas 使用 | `ImmediateDrawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature))` → `feature.Lease()`；`lease.SkCanvas` 仅在本次 `Render` 调用栈内借用；lease 为 null 时跳过绘制。 |
 | SKSurface / SKBitmap / SKPaint 等资源 | 仅在本回调内创建、使用并 `using` 销毁；M1 不缓存、不提升到字段、不放静态变量（ADR-09）。 |
 | 资源释放 | 由回调内的 `using` 完成；不依赖 GC、不由 UI 线程"事后"释放回调内的对象。 |
-| 窗口关闭 / 渲染中断 | 控件分离时置 disposed 标志并停止新的 `InvalidateVisual()`；已在飞行中的回调允许用已捕获数据自然结束，不等待、不打断。 |
+| 窗口关闭 / 渲染中断 | 控件分离转发 `binding.RequestClose()`；binding 置 `IsClosed = true`（volatile）并停止新的请求与 `InvalidateVisual()`。draw operation 在 `Render` 入口检查该标志，置位后直接返回，不获取 lease、不发绘制命令。已进入回调的帧用已捕获数据自然结束，不等待、不打断。 |
 
 ### 十个必答题
 
@@ -84,7 +87,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 | 6 | SceneSnapshot 是否可跨线程共享 | **可以**（且只允许以此方式）：它真正不可变、无 Skia/Avalonia 引用；通过 `Volatile.Read` 捕获一次后可在回调线程安全读取。 |
 | 7 | WorkspaceViewState 是否必须不可变 | **本阶段不改动其类型**（禁止修改 Application 业务代码）。纪律上等价于不可变：UI 线程外禁止读写；Renderer 只接收 ADR-11 定义的不可变帧输入。未来若改为 immutable record，是独立 ADR。 |
 | 8 | 如何避免数据竞争 | 单写者（UI）+ 不可变帧输入 + 原子快照引用 + 无共享 Skia + 回调不读控件/ViewState。任何需要"当前相机"的绘制只能来自捕获值。 |
-| 9 | 如何避免关闭窗口时迟到绘制 | 双层：① UI 侧 disposed 标志在 `DetachedFromVisualTree` / window `Closing` 置位后不再入队新的 draw operation；② F-1 屏障保证关闭后无迟到发布（SNAPSHOT_LIFECYCLE §5.1）。已在飞行的帧可完成，但只使用本地捕获数据与本地资源，不触碰已释放对象。 |
+| 9 | 如何避免关闭窗口时迟到绘制 | **三层**：① UI 侧 disposed 标志在 `DetachedFromVisualTree` / window `Closing` 置位后不再入队新的 draw operation；② `MapViewportBinding.IsClosed`（volatile）由关闭命令置位，draw operation 的 `Render` 入口第一条语句检查它，置位后直接返回——**关闭后不再启动任何绘制命令、lease 获取或资源创建**；③ F-1 屏障保证关闭后无迟到发布（`SNAPSHOT_LIFECYCLE` §5.1）。**保证边界的精确定义**：关闭命令完成后，不会有新的帧开始绘制；已经进入 `Render` 回调的帧可能继续执行至自然结束——Avalonia 12.1.6 未公开取消在飞回调的契约，且 UI 线程不得等待渲染完成，因此本裁决**不承诺**打断已入回调的帧。该帧只消费本地捕获数据与局部资源，不触碰已释放对象。 |
 | 10 | 如何确保 UI 线程不等待后台渲染完成 | 没有"后台渲染"这一环节；请求完成是异步回调，`InvalidateVisual()` 是入队而非同步绘制；`DisposeAsync()` 只关闭 coordinator + 释放 publisher 并置标志，**不**等待某帧画完，也不在回调里 `Wait`/`Invoke`。 |
 
 ## Consequences
@@ -95,6 +98,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 - 渲染路径保持 WP-30A 的"零锁、零等待、零准备"读者契约。
 - Skia 原生资源不跨线程，消除释放后使用与双重释放的主要来源。
 - 不需要通用调度器、事件总线或全局状态。
+- R1 后"关闭后绘制"有了可验证的判定点：`Render` 入口的 volatile 检查，无需等待渲染排空。
 
 **代价 / 约束**
 
@@ -122,5 +126,6 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 
 1. Avalonia 12.1.6 在不同平台/配置下 `ICustomDrawOperation.Render` 的实际 OS 线程尚未实测；实现期需用运行日志确认，但**不得据此放宽**上述纪律。
 2. `InvalidateVisual()` 的合并时机与 generation 推进的对应关系需实测；若一次 UI 变化触发多次 render，帧输入必须仍然自洽。
-3. 关闭时"飞行中帧"的可观察性：是否需要诊断计数（例如 close 后完成帧数）由实现期决定。
+3. 关闭时"飞行中帧"的可观察性：是否需要诊断计数（例如 close 后完成帧数）由实现期决定；该计数只用于观测，不改变"不等待渲染"的契约。
+4. 若 Avalonia 未来公开回调取消或帧屏障 API，可重新裁决在飞帧的更强保证；在此之前以本 ADR 的边界定义为准。
 4. 无 Skia feature（如无头测试）时的绘制降级与诊断位置未定。

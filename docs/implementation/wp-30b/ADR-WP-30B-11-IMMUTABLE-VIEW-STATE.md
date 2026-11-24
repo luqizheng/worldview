@@ -4,6 +4,7 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
+- **修订**: R1（2026-11-24）— 捕获点明确为 `MapViewportBinding.CaptureFrame()`；控件 `Render` 只转发调用，不自行组装帧输入。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07` / `08` / `09` / `10`
 
@@ -46,8 +47,10 @@ generation（`Profile` §3.5），但相机数值不进入领域语义身份。
 ## Decision
 
 **保留 `WorkspaceViewState` 现有可变类型不动；在 Desktop 视口边界引入不可变 `ViewportFrameInput`
-（帧输入）作为唯一渲染输入。** 每次控件渲染时，在 UI 线程同步读取快照引用与视口标量，
-一次性构造帧输入；draw operation 与 Renderer 只读该帧输入。
+（帧输入）作为唯一渲染输入。** 捕获点固定为 `MapViewportBinding.CaptureFrame()`（ADR-07 R1）：
+控件 `Render(DrawingContext)` 在 UI 线程调用它，binding 同步读取快照引用与视口标量，一次性构造
+帧输入并返回；控件把结果交给 draw operation，Renderer 只读该帧输入。**控件自身不读 Publisher、
+不读 ViewState、不组装帧输入。**
 
 ### 五类对象与依赖方向
 
@@ -57,6 +60,8 @@ Core Domain 权威数据（不可变读模型）
 Application：ValidatedWorkspaceContext + WorkspaceViewState（可变，UI 单写者）
         ▼
 Presentation：PresentationContext / SceneSnapshot（不可变，后端中立）
+        ▼
+Desktop：MapViewportBinding（捕获点：持有 Runtime / Renderer；读 ViewState 与视口标量）
         ▼
 Desktop：ViewportFrameInput（不可变值：快照引用 + 尺寸 + DPI + 相机值 + generation）
         ▼
@@ -69,14 +74,21 @@ Skia 临时资源（回调内创建/释放；不属于以上任何一层）
 
 | 字段 | 来源 | 说明 |
 |---|---|---|
-| `SceneSnapshot? Snapshot` | `ViewportPresentationRuntime.Publisher.Current`（UI 线程一次 `Volatile.Read`） | 可能为 null = 加载/空态；只存引用，不深拷贝、不修改 |
-| `double Width` / `double Height` | 控件 `Bounds` / `SizeChanged`（Avalonia 12.1.6 已核实） | 逻辑像素尺寸；放进来是为了让绘制不回读控件 |
-| `double RenderScaling` | `TopLevel.RenderScaling`（12.1.6 已核实） | DPI 以数值表达，不传 Avalonia 对象 |
-| `double CameraX` / `CameraY` / `Zoom` | `WorkspaceViewState` 的标量复制 | M1 不新增 Camera 类型；复制值而非引用 |
-| `long ViewportGeneration` | `ViewportGenerationTracker.Current`（请求时捕获） | 用于诊断/一致性核对；请求仍由 PresentationContext 的 generation 参与指纹 |
+| `SceneSnapshot? Snapshot` | `MapViewportBinding` 从 `ViewportPresentationRuntime.Publisher.Current` 读取（UI 线程一次 `Volatile.Read`） | 可能为 null = 加载/空态；只存引用，不深拷贝、不修改 |
+| `double Width` / `double Height` | 控件 `Bounds` / `SizeChanged`（Avalonia 12.1.6 已核实）→ 经 `binding.OnViewportChanged()` 缓存 | 逻辑像素尺寸；放进来是为了让绘制不回读控件 |
+| `double RenderScaling` | `TopLevel.RenderScaling` / `ScalingChanged`（12.1.6 已核实）→ 同上 | DPI 以数值表达，不传 Avalonia 对象 |
+| `double CameraX` / `CameraY` / `Zoom` | `MapViewportBinding.CaptureFrame()` 从 `WorkspaceViewState` 复制标量 | M1 不新增 Camera 类型；复制值而非引用 |
+| `long ViewportGeneration` | `MapViewportBinding` 持有的 `ViewportGenerationTracker.Current`（请求时捕获） | 用于诊断/一致性核对；请求仍由 PresentationContext 的 generation 参与指纹 |
 
 该对象是 Desktop 内部不可变值（例如 `readonly record struct`）；不含 Avalonia 控件/绘图上下文、
 不含任何 Skia 对象、不含 session/ViewModel/可变集合。
+
+### 捕获点归 binding（R1）
+
+`CaptureFrame()` 只做一次同步值拷贝，不保存"当前帧"状态，也不复制场景内容。它返回后，
+`MapViewportControl` 只把帧输入交给 `MapDrawOperation`；Renderer 与 draw operation 都不回读
+Publisher、ViewState 或控件。`binding.IsClosed` 置位后 `CaptureFrame()` 仍可返回合法值，但
+draw operation 的 `Render` 入口会直接返回，不发绘制命令（ADR-08/ADR-10）。
 
 ### 十个必答题的裁决
 
@@ -86,10 +98,10 @@ Skia 临时资源（回调内创建/释放；不属于以上任何一层）
 | 2 | Camera 状态如何进入 ViewState | 沿用现有 `CameraX/CameraY/Zoom` setter，由 UI 线程（WP-30C 的 Pan/Zoom 交互）写入；本阶段不实现交互、不改类型。视口只在捕获点时读取这三个值。 |
 | 3 | Viewport 尺寸如何进入 ViewState | **不进入**。尺寸是视口属性而非工作区状态；在本阶段禁止修改 Application 类型的前提下，尺寸只进入 `ViewportFrameInput`。将来若产品要求跨视图共享尺寸，须另立 ADR。 |
 | 4 | DPI 如何表达 | `double RenderScaling`，从 `TopLevel.RenderScaling` / `ScalingChanged` 在 UI 线程读取，作为帧输入的数值字段；不传 `TopLevel` / `Window` / `Visual` 进绘制层。 |
-| 5 | SceneSnapshot 如何与 ViewState 组合 | 在 UI 线程的一次同步捕获中组合成 `ViewportFrameInput`：快照引用来自 Publisher，视口标量来自 ViewState/控件/TopLevel。两者都不被复制内容；组合只产生一个不可变值。 |
+| 5 | SceneSnapshot 如何与 ViewState 组合 | 由 `MapViewportBinding.CaptureFrame()` 在 UI 线程的一次同步捕获中组合成 `ViewportFrameInput`：快照引用来自 Publisher，视口标量来自 ViewState 与 binding 缓存的尺寸/DPI。两者都不被复制内容；组合只产生一个不可变值。控件只调用该方法，不自行组合。 |
 | 6 | 绘制过程中是否允许 ViewState 变化 | **允许**。UI 线程可以继续修改 ViewState（单写者），但当前帧只看已捕获的 `ViewportFrameInput`；下一帧才看到新值。渲染回调绝不回读可变对象。 |
 | 7 | UI 状态更新如何生成新 ViewState | M1 保持现有模式：UI 线程直接 set 现有对象的属性，随后生成**新的帧输入**并 `InvalidateVisual()`。本文所说的"不可变快照"指**帧输入**，不是声称 `WorkspaceViewState` 本身不可变。若将来要把它改为 immutable record，需独立 ADR（当前禁止修改 Application）。 |
-| 8 | 如何避免 Renderer 读取半更新状态 | ① ViewState 单写者 = UI 线程；② UI 线程同步读取全部标量到一个值拷贝，无 await 间隔；③ draw operation 与 Renderer 的字段只接受帧输入；④ 不放可变集合引用（`SelectedItemIds` 从不进入渲染路径）。 |
+| 8 | 如何避免 Renderer 读取半更新状态 | ① ViewState 单写者 = UI 线程；② `binding.CaptureFrame()` 同步读取全部标量到一个值拷贝，无 await 间隔；③ `CaptureFrame()` 是唯一捕获点，控件与 Renderer 都不直接读 Publisher/ViewState；④ draw operation 与 Renderer 的字段只接受帧输入；⑤ 不放可变集合引用（`SelectedItemIds` 从不进入渲染路径）。 |
 | 9 | 是否复制整个世界地图 / SceneSnapshot | **否**。`SceneSnapshot` 的图层由 `ImmutableArray` 私有持有（WP-30A 已测试锁定），这里只复制一个引用；不深拷贝、不重建场景、不复制地图数据。 |
 | 10 | 与 generation 的关系 | 相机/尺寸/DPI 变化由视口在 UI 线程调用 `ViewportGeneration.Advance()`，再用新 generation 构造 `PresentationContext` 发起请求（Profile §3.5）。generation 进入指纹 → 同语义刷新（不清空旧快照）；相机数值本身不进 Domain/Presentation 语义身份。 |
 
@@ -124,7 +136,8 @@ Skia 临时资源（回调内创建/释放；不属于以上任何一层）
 3. 捕获必须发生在 UI 线程且同步完成；禁止在捕获过程中 `await`。
 4. 帧输入不含 `HashSet`、事件订阅、委托闭包、`SKSurface` / `SKCanvas` 或 Avalonia 控件。
 5. 快照为 null 时仍生成合法帧输入（由渲染器外显示加载/空态），不得伪造空白场景数据。
-6. 相机/尺寸/DPI 变化后的 generation 推进与重发请求按 `Profile` §3.5，不在渲染回调中执行。
+6. 相机/尺寸/DPI 变化后的 generation 推进与重发请求按 `Profile` §3.5，由 binding 在 UI 线程执行，不在渲染回调中执行。
+7. `MapViewportBinding.CaptureFrame()` 是唯一捕获点：控件 `Render` 只转发调用；不得在控件、draw operation 或 Renderer 中再次读取 Publisher / ViewState 组装帧。
 
 ## Open Questions
 
