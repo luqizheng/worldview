@@ -38,7 +38,7 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
     public const int RecentOutcomeCapacity = 64;
 
     private readonly SceneSnapshotPublisher _publisher;
-    private readonly SceneAssembler _assembler;
+    private readonly ISceneAssembler _assembler;
     private readonly ScenePreparation? _preparationOverride;
     private readonly object _gate = new();
     private readonly CancellationTokenSource _closeCts = new();
@@ -60,9 +60,22 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
     private readonly PresentationRequestOutcome?[] _recentOutcomes = new PresentationRequestOutcome?[RecentOutcomeCapacity];
     private int _recentIndex;
 
+    /// <summary>生产构造路径（签名与 WP-30A 完全一致；委托内部构造器）。</summary>
     public PresentationRequestCoordinator(
         SceneSnapshotPublisher publisher,
         SceneAssembler assembler,
+        ScenePreparation? preparationOverride = null)
+        : this(publisher, (ISceneAssembler?)assembler, preparationOverride)
+    {
+    }
+
+    /// <summary>
+    /// 内部构造路径（WP-30B Phase 1 F-1 修订）：接受程序集内部装配抽象，
+    /// 供确定性交错测试注入门控装配替身。不构成公共扩展点。
+    /// </summary>
+    internal PresentationRequestCoordinator(
+        SceneSnapshotPublisher publisher,
+        ISceneAssembler? assembler,
         ScenePreparation? preparationOverride = null)
     {
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
@@ -286,16 +299,16 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
             };
         }
 
-        // 3. 装配（版本由发布器预分配）。
+        // 3. 装配（版本由发布器预分配；发布器关闭屏障/释放拒绝分配 → RejectedClosed）。
         request.TransitionTo(PresentationRequestState.Assembling);
         long candidateVersion;
         try
         {
             candidateVersion = _publisher.AllocateCandidateVersion();
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            return RejectedClosedOutcome(request.Sequence, request.Context, "发布器已释放：候选版本分配被拒绝。");
+            return RejectedClosedOutcome(request.Sequence, request.Context, $"候选版本分配被拒绝：{ex.Message}");
         }
 
         var assembly = _assembler.Assemble(
@@ -312,9 +325,19 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
         }
 
         // 4. 发布校验 + 原子交换（发布器是唯一发布权威）。
+        //    生命周期类拒绝（协调器关闭屏障/发布器已释放）按契约落定 RejectedClosed；
+        //    身份类拒绝（指纹/序号/版本）落定 RejectedStale。
         request.TransitionTo(PresentationRequestState.Ready);
         if (!_publisher.TryPublish(assembly.Snapshot, request.Sequence, out var published, out var rejectionReason))
         {
+            if (rejectionReason is SceneSnapshotPublisher.RejectCoordinatorClosed
+                or SceneSnapshotPublisher.RejectPublisherDisposed)
+            {
+                return RejectedClosedOutcome(
+                    request.Sequence, request.Context,
+                    $"发布被拒绝（{rejectionReason}）：关闭/停机生效后的最终发布决策一律不得发布。");
+            }
+
             return outcomeBase with
             {
                 State = PresentationRequestState.RejectedStale,
@@ -361,8 +384,11 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
     }
 
     /// <summary>
-    /// 关闭：停止接受新请求、协作取消未完成请求；其后的迟到完成一律 RejectedClosed。
-    /// 幂等。发布器释放归视口运行时（<see cref="ViewportPresentationRuntime"/>）所有。
+    /// 关闭：停止接受新请求、协作取消未完成请求、在发布器锁内置位关闭屏障
+    /// （<see cref="SceneSnapshotPublisher.MarkCoordinatorClosed"/>——此后一切
+    /// 最终发布决策一律拒绝，关闭与发布决策之间由发布器锁保证全序，F-1 修复）。
+    /// 其后的迟到完成一律 RejectedClosed。幂等。
+    /// 发布器释放归视口运行时（<see cref="ViewportPresentationRuntime"/>）所有。
     /// </summary>
     public Task CloseAsync()
     {
@@ -375,6 +401,9 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
 
             _closed = true;
             _activeRequest?.TryCancel();
+            // 线性化点：与 ActivateRequest 同向持锁（协调器 gate → 发布器 gate）。
+            // 本调用返回后，任何尚未完成最终发布决策的请求都必然得到 RejectedClosed。
+            _publisher.MarkCoordinatorClosed();
         }
 
         _closeCts.Cancel();

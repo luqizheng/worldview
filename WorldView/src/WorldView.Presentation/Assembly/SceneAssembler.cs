@@ -15,8 +15,11 @@ namespace WorldView.Presentation.Assembly;
 ///
 /// M1 只组装空白场景：背景图层（Order 0）+ 显式可选图层（按输入列表的
 /// 显式顺序依次编排序号；与完成顺序无关）。
+///
+/// 实现程序集内部装配抽象 <see cref="ISceneAssembler"/>（对程序集外不可见）；
+/// sealed 类——不提供公共继承/重写扩展点。
 /// </summary>
-public sealed class SceneAssembler
+public sealed class SceneAssembler : ISceneAssembler
 {
     /// <summary>本装配器支持的装配语义版本（与上下文 SceneAssemblerVersion 必须一致）。</summary>
     public const int SupportedSceneAssemblerVersion = PresentationAssemblerVersions.BlankScene;
