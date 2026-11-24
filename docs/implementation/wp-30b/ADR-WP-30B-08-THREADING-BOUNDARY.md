@@ -8,6 +8,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **修订**: R2（2026-11-24）— 修正过度表述：入口读到 true 才返回；已读到 false 的在飞帧可继续；不保证 Close 返回后零绘制调用。Detach 不置关闭标志。
 - **修订**: R3（2026-11-24）— 关闭标志的置位点按 ADR-10 的 B / C1 / C2 表述；`Window.Closed` 归 C2 并先关闭全部 Binding。
 - **修订**: R4（2026-11-24）— C2 的关闭动作只由单一编排入口发出（正常命令与 `Window.Closed` 汇聚）；线程与在飞帧边界不变。
+- **修订**: R5（2026-11-24）— 同步 ADR-10 的关闭完成责任裁决：窗口路径改为 `Closing` 取消-编排-重关；本 ADR 的线程边界与在飞帧保证不变。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`（宿主方案）、`ADR-WP-30B-09`（Skia 资源）、`ADR-WP-30B-10`（关闭顺序）、`ADR-WP-30B-11`（不可变帧输入）
 
@@ -59,7 +60,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 
 | 操作 | 裁决 |
 |---|---|
-| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理。**Detach 只停止失效，不关闭 Binding、不释放 Runtime**；永久销毁由拥有者的显式命令或 `Window.Closed` 触发（ADR-10）。 |
+| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理。**Detach 只停止失效，不关闭 Binding、不释放 Runtime**；永久销毁由拥有者的显式命令或项目窗口关闭流程触发（ADR-10 §7.2）。 |
 | 输入事件 | 指针/键盘/焦点由 Avalonia 控件路由；M1 不实现 Pan/Zoom，但未来的相机交互也必须落在 UI 线程。 |
 | Camera 交互 | 只在此线程修改 `WorkspaceViewState.CameraX/Y/Zoom`（现有可变类型）；不新增 Camera 写者。 |
 | ViewState 更新 | 单写者原则：`MapWorkspaceSession.ViewState` 的所有写入必须来自 UI 线程；渲染路径只读其**复制值**。 |
@@ -77,7 +78,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 | Skia Canvas 使用 | `ImmediateDrawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature))` → `feature.Lease()`；`lease.SkCanvas` 仅在本次 `Render` 调用栈内借用；lease 为 null 时跳过绘制。 |
 | SKSurface / SKBitmap / SKPaint 等资源 | 仅在本回调内创建、使用并 `using` 销毁；M1 不缓存、不提升到字段、不放静态变量（ADR-09）。 |
 | 资源释放 | 由回调内的 `using` 完成；不依赖 GC、不由 UI 线程"事后"释放回调内的对象。 |
-| 窗口关闭 / 渲染中断 | 只有 B / C1 / C2 才由拥有者置 `binding.IsClosed = true`（volatile）并停止新请求；Detach 不置位。C2 的全部 Binding 关闭只由单一编排入口 `CloseProjectLifetimeAsync()` 依序发出，`Window.Closed` 是它的重复调用而非第二套逻辑（ADR-10 §7.2）。draw operation 在 `Render` 入口读该标志：true 则立即返回（不取 lease、不发命令）；false 则继续，之后即使关闭置位也不被打断。在飞帧用已捕获数据自然结束，不等待、不打断。 |
+| 窗口关闭 / 渲染中断 | 只有 B / C1 / C2 才由拥有者置 `binding.IsClosed = true`（volatile）并停止新请求；Detach 不置位。C2 的全部 Binding 关闭只由单一编排入口 `CloseProjectLifetimeAsync()` 依序发出，窗口关闭经 `Closing` 取消-编排-重关接入同一编排（R5），是重复调用而非第二套逻辑（ADR-10 §7.2）。draw operation 在 `Render` 入口读该标志：true 则立即返回（不取 lease、不发命令）；false 则继续，之后即使关闭置位也不被打断。在飞帧用已捕获数据自然结束，不等待、不打断。 |
 
 ### 十个必答题
 

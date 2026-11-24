@@ -8,6 +8,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **修订**: R2（2026-11-24）— Detach 不再等于关闭；重新挂载恢复绘制；关闭保证改为"入口命中即返回，在飞帧可继续"，不再声称零 post-close 绘制。
 - **修订**: R3（2026-11-24）— 同步 ADR-10 的 C1/C2 关闭路径拆分：控件不区分两种关闭，只由拥有者决定；`Window.Closed` 归 C2。
 - **修订**: R4（2026-11-24）— C2 收敛为单一编排入口 `CloseProjectLifetimeAsync()`（正常命令与 `Window.Closed` 汇聚）；控件的职责与关闭检查不受影响。
+- **修订**: R5（2026-11-24）— 同步 ADR-10 的关闭完成责任裁决：窗口路径改为 `Closing` 取消-编排-重关；本 ADR 的控件职责、关闭检查与线程边界不受影响。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **范围**: WP-30B Phase 2 架构裁决；不含任何渲染实现
 - **相关**: `ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-10`、`ADR-WP-30B-11`
@@ -175,7 +176,7 @@ surface/canvas 所有权与两套生命周期；控件与渲染层之间新增�
 6. 渲染器的绘制入口应是纯函数式：相同帧输入 + 相同 canvas 状态 → 相同绘制命令序列。
 7. `MapViewportBinding` 必须是 Desktop 内部具体类：不实现接口、不注册 DI、不做全局单例；控件只持有它一个引用。
 8. `MapDrawOperation.Render` 的第一条语句必须是关闭标志检查；该检查先于任何 lease / Skia 资源获取。
-9. 控件不得在 `DetachedFromVisualTree` / `Window.Closing` 中释放 Runtime、关闭 Workspace 或调用 `RequestClose()`；Detach 只置自身挂载状态，永久销毁由拥有者的显式命令或 `Window.Closed` 触发（ADR-10）。
+9. 控件不得在 `DetachedFromVisualTree` / `Window.Closing` 中释放 Runtime、关闭 Workspace 或调用 `RequestClose()`；Detach 只置自身挂载状态，永久销毁由拥有者的显式命令或项目窗口关闭流程触发（ADR-10 §7.2；R5 后窗口路径为 `Closing` 取消-编排-重关）。
 10. 重新 Attach 已关闭 binding 必须失败并记诊断；不得通过重置 `IsClosed` 实现"重新打开"。
 
 ## Open Questions

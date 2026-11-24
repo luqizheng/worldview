@@ -197,7 +197,7 @@ R3 只说"`Window.Closed` 归 C2"，没有回答它与"关闭项目命令"如何
 
 | 维度 | C1 单个 Workspace 关闭 | C2 ProjectSession / ProjectWindow 关闭 |
 |---|---|---|
-| 触发 | 单工作区“关闭”命令 | “关闭项目”命令；窗口 `Closed` 兜底 |
+| 触发 | 单工作区“关闭”命令 | “关闭项目”命令；窗口关闭流程（R5：`Closing` 取消-编排-重关） |
 | 编排入口 | 无独立方法，在 `CloseWorkspaceAsync` 命令体内内联 | **唯一编排方法** `CloseProjectLifetimeAsync()`；两个触发点都只调它 |
 | 幂等单位 | 单个 `binding.CloseAsync()` + `CloseWorkspaceAsync` 自身 | **C2 整体最多启动一次**；单 Binding 幂等不足以替代 |
 | Binding 范围 | 仅该工作区对应的一个 | 该会话下**全部**存活 Binding，逐个关闭 |
@@ -217,16 +217,54 @@ R3 只说"`Window.Closed` 归 C2"，没有回答它与"关闭项目命令"如何
 | 单工作区关闭是否可能关闭兄弟工作区或整个会话 | ✅ 不会。C1 硬约束只允许 `CloseWorkspaceAsync(workspaceId)`，禁止出现 `CloseAsync()`。 |
 | 项目关闭是否先关闭它拥有的全部 Binding | ✅ 是。C2 步骤 1 显式遍历全部存活 Binding，之后才调用 `ProjectSession.CloseAsync()`。 |
 | C2 是否有唯一编排入口 | ✅ 是。`CloseProjectLifetimeAsync()`；不得在 `ProjectWindow` 或其它位置复制"关 Binding + 关会话"的组合。 |
-| 正常命令与 `Window.Closed` 是否汇聚到同一入口 | ✅ 是。两者都只调用该编排方法；`Closed` 不维护独立清理流程。 |
+| 正常命令与窗口关闭是否汇聚到同一入口 | ✅ 是。两者都只调用该编排方法；窗口路径经 `Closing` 取消-编排-重关接入（R5），不维护独立清理流程。 |
 | 幂等是否覆盖整条 C2（而非仅单个 Binding） | ✅ 契约明确：最多启动一次、重复调用等待首次、不重复关会话与释放资源。 |
 | 关闭顺序是否"先 presentation、后 Application" | ✅ 契约是；但现有 `CloseProjectAsync` 是反序（`Session.CloseAsync` 在前），**接线时必须改写**，已记为待办风险。 |
-| `Window.Closed` 归属是否正确 | ✅ 归 C2，不归 C1，也不归“单个 Tab 关闭”。 |
+| 窗口关闭事件归属是否正确 | ✅ 归 C2，不归 C1，也不归“单个 Tab 关闭”。R5 后编排接入点是 `Closing`；`Closing` 中不销毁资源。 |
 | Binding 创建者与销毁者是否唯一 | ✅ 创建者唯一（工厂）；销毁入口唯一（`CloseAsync`）。C2 是同一入口的多次调用，不是第二套逻辑。 |
 | Runtime 创建/销毁所有权 | ✅ Binding 构造时创建，`binding.CloseAsync()` 中销毁。 |
 | F-1 屏障是否保留 | ✅ `Coordinator.CloseAsync()` → `Publisher.Dispose()` 顺序在 C1/C2 均未改变。 |
 | 在飞帧是否可能访问已释放的共享资源 | ✅ 否。在飞帧只用局部 Skia 对象、不可变快照与无状态 Renderer。 |
 | 项目关闭时子工作区 CTS 是否已释放 | 🟡 **未释放**。`CloseAsync` 不调用 `DisposeAsync`，已记为既有缺口，本轮不改代码。 |
 | 六份文档对两条关闭路径的表述是否一致 | ✅ ADR-10 §1/§4/§6/§7/§8A/§8B 与本文 §3B/§3C 同口径；07/08/09 只引用 C2 的单一编排入口，11 不涉及路径选择，无冲突表述。 |
+
+## 3D. 关闭完成责任专项审查（R5）
+
+R4 留下了一个未答问题：`Closed` 兜底 fire-and-forget 调用 `CloseProjectLifetimeAsync()` 后，
+**谁保证异步关闭流程能完成**。R5 以真实代码 + Avalonia 12.1.6 反射核实后裁决。
+
+### 应用生命周期证据（全部来自仓库真实代码与本地包反射）
+
+| # | 事实 | 证据 | 结论 |
+|---|---|---|---|
+| 1 | 应用以 `StartWithClassicDesktopLifetime(args)` 启动，全仓库无任何 `ShutdownMode` 覆盖 | `Program.cs:39`；`ShutdownMode` 全源码 grep 零命中 | 使用框架默认停机模式 |
+| 2 | Avalonia 12.1.6 `ClassicDesktopStyleApplicationLifetime` 默认 `ShutdownMode` 为 `OnLastWindowClose`（枚举值 0）；存在 `HandleWindowClosed(Window)` / `Shutdown` / `TryShutdown` | 本地包反射：新建 lifetime 实例读取 `ShutdownMode` 属性 = `OnLastWindowClose` | **最后一个窗口 `Closed` 后立即停机、消息循环退出** |
+| 3 | 项目工作区以 `workspaceWindow.Show(this)` 打开，启动面保留（多项目并存 V1 语义） | `StartWindow.axaml.cs:31-39` | 常态下 `ProjectWindow` 不是最后一个窗口 |
+| 4 | `StartWindow` 无任何阻止先于 `ProjectWindow` 关闭的守卫；`App` 只设 `MainWindow` | `StartWindow.axaml.cs:15-29`、`App.axaml.cs:24-29` | 用户可先关启动面 → **`ProjectWindow` 可能是最后一个窗口** |
+| 5 | 消息循环退出后有进程级停机兜底：`registry.CloseAllAsync().GetAwaiter().GetResult()`，逐个直接调 `session.CloseAsync()` | `Program.cs:41-45`；`ProjectSessionRegistry.cs:71-79` | 兜底**绕过 C2 编排**（不先关 Binding）、等待的是另一条路径而非 C2 任务 |
+| 6 | fire-and-forget 编排的后续延续派发在 UI 线程上；消息循环退出后不再执行 | 由事实 1/2 推导 | 最后窗口场景下编排**死在第一个 await 后，永不完成** |
+
+### R5 裁决：方案 B（关闭前异步完成 C2）
+
+- **方案 A（应用生命周期保证等待）不成立**：不存在"在 `ProjectWindow` 关闭后仍存活、且负责
+  等待 C2 任务完成"的应用级所有者——`Program.Main` 只在消息循环退出后运行，且不等 C2 任务。
+- **方案 B**：窗口路径从 `Closed` 前移到 `Closing`——**取消本次同步关闭 → 启动/接入唯一编排
+  `CloseProjectLifetimeAsync()` → await 完成（异常就地观察，失败仍放行关闭）→ 再次关闭窗口**。
+  窗口在编排完成前保持打开，应用因此不会在 C2 结束前停机；重复关闭请求每次都等待同一操作，
+  C2 整体最多启动一次不变。
+- 既有裁决全部保持：唯一编排入口、汇聚同一方法、幂等契约、先关全部 Binding 再关会话、C1 不受
+  影响、Detach ≠ 关闭、F-1 顺序、在飞帧边界、子工作区 Dispose 缺口仍记 P2。
+- `Program.Main` 停机兜底不改写，如实记录其"绕过编排"的边界（ADR-10 §8B 第 30 条）；正常路径中
+  C2 已在窗口关闭前完成，兜底只剩异常退出场景。
+
+### R5 核查项
+
+| 检查项 | 结论 |
+|---|---|
+| 关闭完成责任是否仍是未决问题 | ✅ 否。命令路径由调用方 `await`；窗口路径由 `Closing` 处理器 `await`（ADR-10 §7.2、§8B 第 26 条） |
+| `Closing` 取消-重关是否违反"不在 Closing 销毁" | ✅ 否。`Closing` 中零资源释放；销毁只在编排方法内（§8B 第 28 条） |
+| 编排失败是否会卡死窗口 | ✅ 否。就地观察异常、记诊断、仍放行关闭；不留未观察异常（§8B 第 29 条） |
+| 其他 ADR 口径冲突 | ✅ ADR-07（修订注记 + 约束 9）与 ADR-08（修订注记 + 生命周期表 + 窗口关闭行）已同步为"项目窗口关闭流程（`Closing` 取消-编排-重关）"；ADR-09/11 不涉及窗口关闭入口，无需修改 |
 
 ## 4. 与既有文档的关系
 
@@ -250,7 +288,9 @@ R3 只说"`Window.Closed` 归 C2"，没有回答它与"关闭项目命令"如何
 | 🟢 P3 | M1 每帧新建 `SKPaint` 的分配成本无基准 | 未来大数据量可能成为瓶颈 | 实测后再决定是否重开缓存裁决（新 ADR） |
 | 🟢 P3 | M1 限定一个 Workspace 一个 Viewport | 多视口需求需重构相机归属 | 需求出现时先拆分每视口状态 |
 | 🟡 P2 | **既有缺口**：`ProjectSession.CloseAsync()` 不调用子工作区的 `DisposeAsync()` | C2 路径上 `MapWorkspaceSession._derivedWorkCts` 未被释放；文档不能声称已释放 | 非本轮引入。实现阶段单独裁决修复方式（循环内补 `DisposeAsync`，或让 `CloseAsync` 承担释放）并补幂等测试；补齐前文档保持“未释放”表述 |
-| 🟡 P2 | `ProjectWindow` 当前无 `Closing`/`Closed` 处理器；`CloseProjectAsync` 直接 `Session.CloseAsync()` → `ProjectClosed` → `Window.Close` | 用户直接点窗口 X 时无人关 Binding；接入 `Closed` 后若不汇聚则会有两套清理 | 接线时把 `Closed` 只接到 `CloseProjectLifetimeAsync()`，并改写命令体改为委托同一方法；不得接到 C1 |
+| 🟡 P2 | `ProjectWindow` 当前无 `Closing`/`Closed` 处理器；`CloseProjectAsync` 直接 `Session.CloseAsync()` → `ProjectClosed` → `Window.Close` | 用户直接点窗口 X 时无人关 Binding；接入窗口关闭流程后若不汇聚则会有两套清理 | 接线时按 R5 把 `Closing` 接到取消-编排-重关流程（同一 `CloseProjectLifetimeAsync()`），并改写命令体改为委托同一方法；不得接到 C1，不得在 `Closing` 中释放资源 |
+| 🟡 P2 | 窗口路径依赖 `Closing` 处理器的 `async void` + 取消-重关（R5 新增） | 处理器异常必须就地观察，否则留未观察异常或关不掉的窗口；`ProjectClosed → Window.Close()` 与处理器"再次关闭"的重入需防重 | ADR-10 §7.2 已定失败处理与行为契约；实现期补测试：连点 X、编排中重复关闭、编排抛异常三类场景 |
+| 🟢 P3 | R5 后窗口关闭被推迟到 C2 完成（取消-重关） | 用户点 X 到窗口消失之间有编排耗时，可能感知短暂延迟 | M1 编排为内存内操作，预期亚秒级；若实测可感知再做 UI"正在关闭"提示（产品决定） |
 | 🟡 P2 | 现有项目关闭顺序是"先关会话、后关窗口"，与 R4 要求的"先关 Binding、后关会话"相反 | 照现状接线会在 presentation 仍活动时释放 `AssetStore` / `Database` | 这是 R4 明确要求改变的一处顺序（仅 Desktop ViewModel 层）；实现时必须先插入 Binding 关闭再调 `CloseAsync` |
 | 🟡 P2 | C2 幂等只写了行为契约，未定实现类型 | 若各调用方自行判断"已关闭就返回"，可能提前结束而留下未完成关闭 | 实现用单个私有字段记忆首次调用；测试必须覆盖"命令与 `Closed` 连续触发只跑一套" |
 | 🟡 P2 | C1 / C2 共用前段（Binding 关闭）但末段不同，实现时容易误接 | 误接一步即“关标签页 = 关项目”或“项目关闭漏关视口” | 以 ADR-10 §7.1/§7.2 的步骤编号逐一对照实现；用测试锁定 C1 不影响兄弟工作区 |
@@ -259,7 +299,7 @@ R3 只说"`Window.Closed` 归 C2"，没有回答它与"关闭项目命令"如何
 
 | 项 | 结果 |
 |---|---|
-| 新增文档 | `ADR-WP-30B-07` / `08` / `09` / `10` / `11` + 本文件（共 6 份）；R1–R4 仅修订这 6 份，无新增文件 |
+| 新增文档 | `ADR-WP-30B-07` / `08` / `09` / `10` / `11` + 本文件（共 6 份）；R1–R5 仅修订这 6 份，无新增文件 |
 | 源代码变更 | **无**（`git diff` 空） |
 | 新增依赖 / NuGet | **无** |
 | 公共 API 变更 | **无** |
@@ -283,9 +323,15 @@ C1 禁止出现 `ProjectSession.CloseAsync()`，C2 必须先遍历关闭全部 B
 只把它标为后续待处理项，未在文档中虚构为已完成。
 
 R4 后，C2 的两个触发点收敛为一个入口：`CloseProjectLifetimeAsync()` 是唯一业务关闭方法，
-`CloseProjectAsync` 与 `Window.Closed` 都只调它；关闭顺序被明确固定为
+`CloseProjectAsync` 与窗口关闭都只调它；关闭顺序被明确固定为
 "关闭全部 Binding → `ProjectSession.CloseAsync` → 清理视图集合 → 通知窗口"，并指出这与当前
 `CloseProjectAsync` 的实际顺序相反，接线时必须改写该命令体。幂等契约写在行为层（最多启动一次、
 重复调用等待首次、不重复释放），不引入锁、调度器或生命周期管理器。
+
+R5 后，C2 的关闭完成责任不再未决：核实应用停机模式为默认 `OnLastWindowClose`（反射证据）且
+`ProjectWindow` 可能是最后一个窗口，`Closed` fire-and-forget 模型在该场景下编排延续永不执行，
+方案 A（应用生命周期保证等待）不成立。窗口路径改为 `Closing` 取消-编排-重关：编排完成前窗口
+（进而应用）保持存活，完成责任由 `Closing` 处理器承担；失败就地观察、仍放行关闭。唯一编排入口、
+幂等契约、关闭顺序、C1/Detach/F-1/在飞帧等既有裁决全部不变。
 
 **状态：READY_FOR_REVIEW**。等待独立架构审查；本阶段不宣布架构验收通过，不解锁实现。
