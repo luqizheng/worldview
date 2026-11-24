@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    PRA-01 / WP-30A：渲染宿主无关的 Presentation 基础设施。
+    依赖边界（PRA-01 契约 §1.2）：本工程不得引用 Avalonia、SkiaSharp、数据库/ORM、
+    ViewModel 或 UI 调度器；只消费 WorldView.Application 提供的、经 Core Domain
+    校验的上下文与数据，不得绕过 Application 直查持久化。
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorldView.Application\WorldView.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Canonical 序列化器为 internal；测试程序集验证字节级稳定性（Profile §3.6）。 -->
+    <InternalsVisibleTo Include="WorldView.Presentation.Tests" />
+  </ItemGroup>
+
+</Project>

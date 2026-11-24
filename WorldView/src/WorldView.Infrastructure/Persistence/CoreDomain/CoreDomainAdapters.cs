@@ -255,11 +255,14 @@ public sealed class CoreDomainWorkspaceContextResolver : IWorkspaceContextResolv
             return Task.FromResult(WorkspaceContextResolution.Failed(error ?? "Workspace 上下文解析失败。"));
         }
 
+        // WP-30A（PRA-01 M1 Profile §4.1）：边界映射完整保留权威解析结果——
+        // RootHistoryId 与 typed HistoricalTime 不再在适配层被丢弃。
         return Task.FromResult(WorkspaceContextResolution.Ok(new ValidatedWorkspaceContext
         {
             MapId = context.MapId,
             BranchId = context.BranchId,
-            CanonicalHistoricalTime = context.Time.Canonical(),
+            RootHistoryId = context.RootHistoryId,
+            HistoricalTime = context.Time,
         }));
     }
 }
