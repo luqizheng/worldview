@@ -15,8 +15,13 @@ namespace WorldView.Presentation.Assembly;
 ///
 /// M1 只组装空白场景：背景图层（Order 0）+ 显式可选图层（按输入列表的
 /// 显式顺序依次编排序号；与完成顺序无关）。
+///
+/// 未 sealed、<see cref="Assemble"/> 为 virtual：装配步骤位于协调器完成门
+/// 之后、发布决策之前，是确定性交错测试（如 F-1 关闭竞态）在请求中段的
+/// 唯一可注入观察点——与 <see cref="Publication.ScenePreparation"/> 注入缝
+/// 同一模式。子类必须先委托基类校验/装配语义，不得绕过整体拒绝契约。
 /// </summary>
-public sealed class SceneAssembler
+public class SceneAssembler
 {
     /// <summary>本装配器支持的装配语义版本（与上下文 SceneAssemblerVersion 必须一致）。</summary>
     public const int SupportedSceneAssemblerVersion = PresentationAssemblerVersions.BlankScene;
@@ -29,7 +34,7 @@ public sealed class SceneAssembler
     /// <param name="explicitlyOptionalLayers">显式声明为可选的图层结果；null = 显式缺省（合法）。
     /// 出现的元素仍必须完整、同指纹、schema 受支持——可选豁免的是缺失，不是损坏。</param>
     /// <param name="candidateSnapshotVersion">发布器预分配的候选快照版本（≥ 1）。</param>
-    public SceneAssemblyResult Assemble(
+    public virtual SceneAssemblyResult Assemble(
         PresentationContext context,
         PresentationResult<BlankSceneContent> requiredBlankScene,
         IReadOnlyList<PresentationResult<SceneLayerDescriptor>>? explicitlyOptionalLayers,

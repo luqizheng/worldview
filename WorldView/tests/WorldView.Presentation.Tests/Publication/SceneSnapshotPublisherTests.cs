@@ -272,4 +272,68 @@ public sealed class SceneSnapshotPublisherTests
         Assert.Equal(0, readerMismatches);
         Assert.True(publisher.PublishedCount >= 1);
     }
+
+    [Fact]
+    public void MarkCoordinatorClosed_RejectsPublicationAndVersionAllocation()
+    {
+        // WP-30B-01（F-1 修复）：关闭屏障置位后，发布决策与候选版本分配一律拒绝。
+        var publisher = new SceneSnapshotPublisher();
+        var context = TestContexts.Create();
+        publisher.ActivateRequest(1, context.Fingerprint, context.SemanticIdentity);
+        var candidate = AssembleSnapshot(context, publisher.AllocateCandidateVersion());
+
+        Assert.False(publisher.IsCoordinatorClosed);
+        publisher.MarkCoordinatorClosed();
+
+        Assert.True(publisher.IsCoordinatorClosed);
+        Assert.False(publisher.TryPublish(candidate, requestSequence: 1, out var published, out var reason));
+        Assert.Equal(SceneSnapshotPublisher.RejectCoordinatorClosed, reason);
+        Assert.Null(published);
+        Assert.Null(publisher.Current);
+        Assert.Equal(1, publisher.RejectedPublicationCount);
+
+        // 关闭屏障后候选版本分配同样被拒（协调器归类 RejectedClosed）。
+        Assert.Throws<InvalidOperationException>(() => publisher.AllocateCandidateVersion());
+        // 已发布过？未发布——Current 仍为 null；屏障不影响可读语义。
+        Assert.Null(publisher.Current);
+    }
+
+    [Fact]
+    public void CoordinatorClosedThenDisposed_RejectionReportsDisposedFirst()
+    {
+        // 关闭 + 释放两级屏障并存时，诊断报告最外层屏障（释放优先于关闭）。
+        var publisher = new SceneSnapshotPublisher();
+        var context = TestContexts.Create();
+        publisher.ActivateRequest(1, context.Fingerprint, context.SemanticIdentity);
+        var candidate = AssembleSnapshot(context, publisher.AllocateCandidateVersion());
+
+        publisher.MarkCoordinatorClosed();
+        publisher.Dispose();
+
+        Assert.True(publisher.IsCoordinatorClosed);
+        Assert.True(publisher.IsDisposed);
+        Assert.False(publisher.TryPublish(candidate, requestSequence: 1, out _, out var reason));
+        Assert.Equal(SceneSnapshotPublisher.RejectPublisherDisposed, reason);
+        Assert.Null(publisher.Current);
+    }
+
+    [Fact]
+    public void PublishedBeforeCoordinatorClose_CurrentReadable_SubsequentPublicationRejected()
+    {
+        // 关闭前合法发布的 last-known-good 保持可读；关闭后的一切候选拒绝。
+        var publisher = new SceneSnapshotPublisher();
+        var context = TestContexts.Create();
+        publisher.ActivateRequest(1, context.Fingerprint, context.SemanticIdentity);
+        var v1 = AssembleSnapshot(context, publisher.AllocateCandidateVersion());
+        Assert.True(publisher.TryPublish(v1, requestSequence: 1, out _, out _));
+
+        var v2 = AssembleSnapshot(context, publisher.AllocateCandidateVersion());
+        publisher.MarkCoordinatorClosed();
+
+        Assert.False(publisher.TryPublish(v2, requestSequence: 1, out _, out var reason));
+        Assert.Equal(SceneSnapshotPublisher.RejectCoordinatorClosed, reason);
+        Assert.Same(v1, publisher.Current);   // last-known-good 不被拒绝路径破坏
+        Assert.Equal(1, publisher.PublishedVersion);
+        Assert.Equal(1, publisher.PublishedCount);
+    }
 }
