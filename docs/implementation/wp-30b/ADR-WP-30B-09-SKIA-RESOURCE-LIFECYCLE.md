@@ -6,6 +6,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
 - **修订**: R1（2026-11-24）— Renderer 归 `MapViewportBinding` 持有；`Render` 入口读到关闭标志时阻止新资源创建。
 - **修订**: R2（2026-11-24）— Detach 不释放、不置关闭；在飞帧可继续创建/使用局部资源；不声称 Close 返回后零资源创建。
+- **修订**: R3（2026-11-24）— 资源释放编排按 ADR-10 的 C1（单工作区）与 C2（项目关闭，先关全部 Binding）表述。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`（租约入口）、`ADR-WP-30B-08`（线程边界）、`ADR-WP-30B-10`（关闭顺序）
 
@@ -73,7 +74,7 @@ Win32 / macOS / Linux 原生资产随包就位（`FRAMEWORK_AND_PACKAGE_MATRIX.m
 | 5 | 哪些只能一次绘制使用 | lease、`SKCanvas`、`SKPaint`、`SKPath` 以及任何从 lease 取得的平台图形对象，全部只在一次 `Render(ImmediateDrawingContext)` 调用栈内有效；draw operation 的字段只允许放值类型和快照引用。 |
 | 6 | DPI 变化后哪些需要重建 | M1 我方无需重建任何 Skia 资源；DPI 值由 `TopLevel.RenderScaling` / `ScalingChanged` 捕获进帧输入，Avalonia 自行重建其 render target。若未来引入缓存资源，它们必须按 backend/DPI generation 整体失效。 |
 | 7 | Resize 后哪些需要重建 | 同 DPI：我方无持久资源；draw operation 的 `Bounds` 由控件当前尺寸给出，lease 每次重新获取。不缓存与尺寸相关的 Skia 对象。 |
-| 8 | Workspace 关闭后如何释放 | 由拥有者显式关闭（或 `Window.Closed`）→ binding 置 `IsClosed` → `ViewportPresentationRuntime.DisposeAsync()`（coordinator → publisher，F-1 屏障保持）→ binding 调 `Renderer.Dispose()`（幂等空操作）。**Detach 不触发任何释放**；暂时脱离时无绘制、无新资源，Binding/Runtime 保留。回调内资源已由 `using` 自行释放；没有长期 Skia 对象需要"额外"释放。全序见 ADR-10 §3/§7。 |
+| 8 | Workspace 关闭后如何释放 | 由拥有者在 C1（单工作区，关该视口一个 Binding）或 C2（项目关闭，先遍历关闭全部 Binding）中显式关闭 → binding 置 `IsClosed` → `ViewportPresentationRuntime.DisposeAsync()`（coordinator → publisher，F-1 屏障保持）→ binding 调 `Renderer.Dispose()`（幂等空操作）。**Detach 不触发任何释放**；暂时脱离时无绘制、无新资源，Binding/Runtime 保留。回调内资源已由 `using` 自行释放；没有长期 Skia 对象需要"额外"释放。全序见 ADR-10 §3/§7.1/§7.2。 |
 | 9 | Renderer Dispose 是否幂等 | **是**。M1 Renderer 无字段资源，重复 `Dispose()` 不抛异常、不产生副作用；重复释放 Viewport Runtime 的既有语义保持不变。 |
 | 10 | 是否可能出现资源释放后仍被绘制使用 | M1 不会：绘制代码不读共享 Skia 字段；`Render` 入口读到 `IsClosed == true` 时直接返回、不创建原生资源；已通过入口检查的在飞帧只用自己的局部对象与已捕获的不可变快照（均不依赖已释放的 Binding 资源），自然结束后由 `using` 释放；Renderer 的 `Dispose()` 不释放它不拥有的对象。**注意**：Close 返回后，在飞帧仍可能创建/使用自己的局部 Skia 对象（ADR-08 问题 9），这不构成"使用已释放共享资源"。M1 的 Renderer 无字段、`Dispose()` 为空操作，因此即使 Close 已调用 `Renderer.Dispose()`，在飞帧调用其绘制方法也不会触碰已释放资源；若未来 Renderer 持有缓存资源，必须同时解决"在飞帧 vs 已释放 Renderer"（延迟释放/引用计数等），并先修订本 ADR。 |
 | 11 | 如何避免 native resource leak | 每个原生对象只有一个 `using` 作用域；不写静态 Skia 字段；不把原生对象放入 draw operation 字段/快照；不依赖 GC；不双重拥有；不使用资源池。边界测试反射检查类型引用。 |

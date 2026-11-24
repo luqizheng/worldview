@@ -6,6 +6,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
 - **修订**: R1（2026-11-24）— 抽出 Desktop 内部 `MapViewportBinding` 收窄控件职责；draw operation 入口增加关闭检查。
 - **修订**: R2（2026-11-24）— Detach 不再等于关闭；重新挂载恢复绘制；关闭保证改为"入口命中即返回，在飞帧可继续"，不再声称零 post-close 绘制。
+- **修订**: R3（2026-11-24）— 同步 ADR-10 的 C1/C2 关闭路径拆分：控件不区分两种关闭，只由拥有者决定；`Window.Closed` 归 C2。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **范围**: WP-30B Phase 2 架构裁决；不含任何渲染实现
 - **相关**: `ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-10`、`ADR-WP-30B-11`
@@ -91,7 +92,7 @@ Avalonia 渲染管线 → 屏幕
 
 | # | 问题 | 裁决 |
 |---|---|---|
-| 1 | 控件的唯一职责 | `MapViewportControl` 是 **Avalonia 视口宿主**：参与布局、路由输入/焦点、把尺寸与 DPI 事件转发给 binding、调用 `InvalidateVisual()`、在 Attach/Detach 时切换自身挂载状态。Detach **只**停止失效与绘制机会，**不**关闭 Binding、**不**转发 `RequestClose()`；永久销毁由拥有者的显式命令或 `Window.Closed` 决定（ADR-10）。**不**持有 Runtime / Renderer、**不**读取 Publisher、**不**推进 generation、**不**组装帧输入、**不**创建 `SKCanvas`。 |
+| 1 | 控件的唯一职责 | `MapViewportControl` 是 **Avalonia 视口宿主**：参与布局、路由输入/焦点、把尺寸与 DPI 事件转发给 binding、调用 `InvalidateVisual()`、在 Attach/Detach 时切换自身挂载状态。Detach **只**停止失效与绘制机会，**不**关闭 Binding、**不**转发 `RequestClose()`；永久销毁（B）由拥有者的显式命令决定，工作区/项目关闭（C1/C2）由拥有者在自身流程前先关闭对应 Binding（ADR-10 §1）。**不**持有 Runtime / Renderer、**不**读取 Publisher、**不**推进 generation、**不**组装帧输入、**不**创建 `SKCanvas`。 |
 | 2 | Renderer 的职责 | 只把"一个已捕获快照 + 一个不可变帧输入"翻译成针对**传入 canvas** 的绘制命令；解释 `builtin-neutral-background/v1` 到具体颜色；不读 Publisher、不读 ViewState、不做 IO/Domain 查询、不保留帧状态。Renderer 由 `MapViewportBinding` 持有（不归控件）。 |
 | 3 | Camera 属于哪一层 | 视口局部呈现状态，**不是 Domain / Presentation 概念**。M1 不新增 Camera 类型：数值仍存于 `MapWorkspaceSession.ViewState`（Application 的瞬态编辑态），由 `MapViewportBinding.CaptureFrame()` 在 UI 线程读取并复制进不可变帧输入；Renderer 只见复制值。Pan/Zoom 属 WP-30C 范围，届时也不写 Map 数据、不改 Domain revision。 |
 | 4 | SceneSnapshot 如何传入 | `MapViewportBinding.CaptureFrame()` 在 `Render(DrawingContext)` 调用栈中同步执行一次 `Publisher.Current`（可能为 null = 加载/空态），与视口标量一起构造不可变帧输入并放进 draw operation；operation 的 `Render` 只使用这份捕获引用。发布继续走 WP-30A 的原子交换，读者契约不变。 |
@@ -120,7 +121,7 @@ Avalonia 渲染管线 → 屏幕
 - `Equals` 需让 Avalonia 能判断操作是否变化；具体的相等定义在实现阶段确定（至少包含 generation / snapshot 版本 / 尺寸 / DPI），不得用常量 `false` 掩盖失效问题。
 - `TryGetFeature` 返回 null（例如无 Skia 后端/无头测试）时安静跳过绘制并记诊断；不得抛异常替代加载态。
 - `ISkiaSharpApiLease` 及其提供的 `SKCanvas` / `SKSurface` 只在 `Render` 调用栈内存活；释放由 `using` 完成，不交给 GC。
-- **关闭检查必须先是 `Render` 的第一件事**：`if (binding.IsClosed) return;`。`IsClosed` 为 C# `volatile bool`（语言特性，无锁、无新依赖），由 binding 在永久销毁/工作区关闭命令中置位。**读到 true 时**不获取 lease、不创建 `SKPaint`/`SKPath`、不发绘制命令；**已在置位前读到 false 的在飞帧允许继续**，可能在 `Close` 返回后仍创建资源并发命令。精确时序与 7 条保证见 ADR-08 问题 9 / ADR-10 §5。
+- **关闭检查必须先是 `Render` 的第一件事**：`if (binding.IsClosed) return;`。`IsClosed` 为 C# `volatile bool`（语言特性，无锁、无新依赖），由 binding 在 B / C1 / C2 的关闭命令中置位（ADR-10 §7）。**读到 true 时**不获取 lease、不创建 `SKPaint`/`SKPath`、不发绘制命令；**已在置位前读到 false 的在飞帧允许继续**，可能在 `Close` 返回后仍创建资源并发命令。精确时序与 7 条保证见 ADR-08 问题 9 / ADR-10 §5。
 - **暂时 Detach 不得改写 `IsClosed`**：Detach 只停止控件失效；重新 Attach 时若 binding 仍未关闭，可恢复绘制。`IsClosed` 是终态，不可重置。
 - draw operation 在 `Equals` 中应包含 binding identity（或 generation），避免关闭后的旧 operation 与新 binding 混淆；精确字段仍为 Open Question。
 
