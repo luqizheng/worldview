@@ -20,33 +20,45 @@ namespace WorldView.Presentation.Tests.Publication;
 /// 关闭先至（拒绝 coordinator_closed，落定 RejectedClosed）与发布先至
 /// （合法发布，close 后保持可读且不再接受后续发布）。
 /// 全部使用 TaskCompletionSource 门控与程序序锚点制造确定性交错——绝无
-/// Thread.Sleep、随机延迟或调度运气。
+/// Thread.Sleep、随机延迟或调度运气；所有等待带超时保护（仅真失败时触发，
+/// 防止测试永久挂起）。装配替身经程序集内部抽象 ISceneAssembler 注入
+/// （内部构造器），不依赖任何公共继承扩展点。
 /// </summary>
 public sealed class CoordinatorClosePublicationRaceTests
 {
+    /// <summary>确定性等待上限：只在真实失败（交错未按锚点发生）时触发。</summary>
+    private static readonly TimeSpan GateTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>
-    /// 可门控装配器替身：进入 Assemble 时发信号并阻塞到放行。
-    /// 程序序锚点——Assemble 只在协调器完成门之后被调用，测试观察到信号
-    /// 即证明该请求已通过完成门（F-1 竞态的"关闭前通过完成门"一侧由此
-    /// 代码顺序保证，而非时序运气）。
+    /// 可门控装配替身（实现程序集内部抽象 ISceneAssembler）：进入 Assemble
+    /// 时发信号并在放行前阻塞，随后**委托真实 SceneAssembler** 完成装配——
+    /// 生产校验/装配语义不被替身绕过。程序序锚点——Assemble 只在协调器
+    /// 完成门之后被调用，测试观察到信号即证明该请求已通过完成门（F-1 竞态
+    /// 的"关闭前通过完成门"一侧由此代码顺序保证，而非时序运气）。
     /// </summary>
-    private sealed class GateAssemblingSceneAssembler : SceneAssembler
+    private sealed class GatedSceneAssembler : ISceneAssembler
     {
+        private readonly SceneAssembler _inner = new();
         private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task Entered => _entered.Task;
         public void Release() => _release.TrySetResult();
 
-        public override SceneAssemblyResult Assemble(
+        public SceneAssemblyResult Assemble(
             PresentationContext context,
             PresentationResult<BlankSceneContent> requiredBlankScene,
             IReadOnlyList<PresentationResult<SceneLayerDescriptor>>? explicitlyOptionalLayers,
             long candidateSnapshotVersion)
         {
             _entered.TrySetResult();
-            _release.Task.Wait();
-            return base.Assemble(context, requiredBlankScene, explicitlyOptionalLayers, candidateSnapshotVersion);
+            if (!_release.Task.Wait(GateTimeout))
+            {
+                // 超时 = 确定性交错未按锚点发生（测试失败），不得静默继续装配。
+                throw new TimeoutException("装配门未在超时内放行——确定性交错锚点未满足。");
+            }
+
+            return _inner.Assemble(context, requiredBlankScene, explicitlyOptionalLayers, candidateSnapshotVersion);
         }
     }
 
@@ -92,7 +104,7 @@ public sealed class CoordinatorClosePublicationRaceTests
             }
 
             gate.Entered.TrySetResult();
-            await gate.Release.Task.ConfigureAwait(false);
+            await gate.Release.Task.WaitAsync(GateTimeout).ConfigureAwait(false);
             return CompleteNormally(request);
         }
 
@@ -141,12 +153,12 @@ public sealed class CoordinatorClosePublicationRaceTests
         // F-1 时序的确定性重建：请求通过完成门（程序序锚点证明）→ 协调器关闭
         // （发布器尚未释放——即原竞态窗口）→ 最终发布决策 → 必须 RejectedClosed。
         var publisher = new SceneSnapshotPublisher();
-        var assembler = new GateAssemblingSceneAssembler();
+        var assembler = new GatedSceneAssembler();
         var coordinator = new PresentationRequestCoordinator(publisher, assembler, YieldThenCompleteAsync);
         var context = TestContexts.Create(viewportGeneration: 1);
 
         var task = coordinator.RequestSceneAsync(context);   // 在准备让出处返回
-        await assembler.Entered;   // 已挂起在 Assemble 内 ⇒ 完成门已在 open 状态下通过
+        await assembler.Entered.WaitAsync(GateTimeout);   // 已挂起在 Assemble 内 ⇒ 完成门已在 open 状态下通过
 
         Assert.False(publisher.IsDisposed);        // 原竞态窗口前提：发布器未释放
         Assert.True(publisher.VersionsAllocated >= 1);   // 版本已在关闭前分配（原 F-1 步骤）
@@ -215,7 +227,7 @@ public sealed class CoordinatorClosePublicationRaceTests
 
         var gate2 = preparation.GateFor(2);
         var task2 = runtime.RequestSceneAsync(TestContexts.Create(viewportGeneration: 2));
-        await gate2.Entered.Task;
+        await gate2.Entered.Task.WaitAsync(GateTimeout);
 
         await runtime.Coordinator.CloseAsync();
         await runtime.Coordinator.CloseAsync();   // 重复关闭必须安全（幂等）
@@ -245,7 +257,7 @@ public sealed class CoordinatorClosePublicationRaceTests
 
         var gate1 = preparation.GateFor(1);
         var task1 = runtime.RequestSceneAsync(context);
-        await gate1.Entered.Task;
+        await gate1.Entered.Task.WaitAsync(GateTimeout);
 
         await runtime.DisposeAsync();
         await runtime.DisposeAsync();   // 重复 DisposeAsync 必须安全（幂等）

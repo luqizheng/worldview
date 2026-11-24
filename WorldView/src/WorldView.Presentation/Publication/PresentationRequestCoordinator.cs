@@ -38,7 +38,7 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
     public const int RecentOutcomeCapacity = 64;
 
     private readonly SceneSnapshotPublisher _publisher;
-    private readonly SceneAssembler _assembler;
+    private readonly ISceneAssembler _assembler;
     private readonly ScenePreparation? _preparationOverride;
     private readonly object _gate = new();
     private readonly CancellationTokenSource _closeCts = new();
@@ -60,9 +60,22 @@ public sealed class PresentationRequestCoordinator : IAsyncDisposable
     private readonly PresentationRequestOutcome?[] _recentOutcomes = new PresentationRequestOutcome?[RecentOutcomeCapacity];
     private int _recentIndex;
 
+    /// <summary>生产构造路径（签名与 WP-30A 完全一致；委托内部构造器）。</summary>
     public PresentationRequestCoordinator(
         SceneSnapshotPublisher publisher,
         SceneAssembler assembler,
+        ScenePreparation? preparationOverride = null)
+        : this(publisher, (ISceneAssembler?)assembler, preparationOverride)
+    {
+    }
+
+    /// <summary>
+    /// 内部构造路径（WP-30B Phase 1 F-1 修订）：接受程序集内部装配抽象，
+    /// 供确定性交错测试注入门控装配替身。不构成公共扩展点。
+    /// </summary>
+    internal PresentationRequestCoordinator(
+        SceneSnapshotPublisher publisher,
+        ISceneAssembler? assembler,
         ScenePreparation? preparationOverride = null)
     {
         _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));

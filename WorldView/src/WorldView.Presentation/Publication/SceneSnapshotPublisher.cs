@@ -55,8 +55,10 @@ public sealed class SceneSnapshotPublisher : IDisposable
     /// 协调器是否已关闭（关闭屏障置位后拒绝一切后续发布与候选版本分配）。
     /// 与 <see cref="IsDisposed"/> 区分：关闭 ≠ 释放——已发布快照仍保持可读，
     /// 诊断上可分辨"协调器关闭"与"发布器已释放"两级拒绝。
+    /// internal：仅程序集内（含测试程序集，经 InternalsVisibleTo）可见，
+    /// 不构成公共 API（WP-30B Phase 1 F-1 修订 WP30B-F1-R1）。
     /// </summary>
-    public bool IsCoordinatorClosed
+    internal bool IsCoordinatorClosed
     {
         get { lock (_gate) { return _coordinatorClosed; } }
     }

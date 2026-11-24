@@ -1,8 +1,24 @@
 using System;
 using WorldView.Presentation.Identity;
+using WorldView.Presentation.Results;
 using WorldView.Presentation.Scene;
 
 namespace WorldView.Presentation.Assembly;
+
+/// <summary>
+/// 程序集内部装配抽象：协调器对装配步骤的依赖面（WP-30B Phase 1 F-1 修订）。
+/// internal——对程序集外不可见，不构成公共扩展点；生产实现为
+/// <see cref="SceneAssembler"/>（sealed），测试以内部替身实现本接口做确定性交错。
+/// </summary>
+internal interface ISceneAssembler
+{
+    /// <summary>装配场景快照（语义与 <see cref="SceneAssembler.Assemble"/> 完全一致）。</summary>
+    SceneAssemblyResult Assemble(
+        PresentationContext context,
+        PresentationResult<BlankSceneContent> requiredBlankScene,
+        IReadOnlyList<PresentationResult<SceneLayerDescriptor>>? explicitlyOptionalLayers,
+        long candidateSnapshotVersion);
+}
 
 /// <summary>呈现子系统名（M1 唯一子系统：空白场景）。</summary>
 public static class PresentationSubsystems

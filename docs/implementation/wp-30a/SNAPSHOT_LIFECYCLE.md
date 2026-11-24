@@ -94,9 +94,11 @@ WP-30A 曾存在窄竞态（WP-30A 审查 F-1，P2）：完成门检查与最终
 因此**关闭一旦生效（`CloseAsync` 返回后），任何尚未完成最终发布决策的请求
 必然得到 RejectedClosed**。完成门预检查保留为快速路径；正确性不再依赖它。
 发布器释放（`publisher_disposed`）仍是最外层屏障（诊断上两级可分辨）。
-确定性测试：`CoordinatorClosePublicationRaceTests`（程序序锚点：可注入装配器
-在完成门之后阻塞，证明"关闭前已过完成门"一侧；另锁定发布先至分支、重复
-关闭/释放幂等）与 `SceneSnapshotPublisherTests` 的屏障级测试。
+确定性测试：`CoordinatorClosePublicationRaceTests`（程序序锚点：经**程序集内部**
+装配抽象 `ISceneAssembler` 与协调器**内部构造器**注入的门控装配替身——生产类
+`SceneAssembler` 保持 sealed、非 virtual，无公共扩展点——在完成门之后阻塞，
+证明"关闭前已过完成门"一侧；另锁定发布先至分支、重复关闭/释放幂等）与
+`SceneSnapshotPublisherTests` 的屏障级测试。
 
 ## 6. Last-known-good（M1 presentation policy）
 
