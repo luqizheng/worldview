@@ -9,7 +9,9 @@
 
 ## 1. 最终 HEAD SHA
 
-提交后回填（见 §10 提交信息）：本次实施为**单一提交**，分支 HEAD 即交付物。
+- **实现提交**: `2cd2122` — `feat(wp-30b): phase 3A viewport control, binding and lifecycle wiring`（16 文件，+1770/−9）
+- **文档回填提交**: 本节与 §7 的 CI 结果由其后一个 docs-only 提交写入（见分支最新提交）
+- **基线**: master `d2dee0a`；**PR**: https://github.com/luqizheng/worldview/pull/31（未合并）
 
 ## 2. 变更文件清单
 
@@ -107,7 +109,14 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 ## 7. CI 结果
 
-push 后于 GitHub Actions 四矩阵（Windows/macOS × Debug/Release）验证——结果在提交后回填本报告与最终答复。
+GitHub Actions run `45372890662`（head `2cd2122`，四矩阵全绿，输出仅既有 CTJ001 分析器警告）：
+
+| Job | 结果 |
+|---|---|
+| windows-latest / Debug | ✅ success |
+| windows-latest / Release | ✅ success |
+| macos-latest / Debug | ✅ success |
+| macos-latest / Release | ✅ success |
 
 ## 8. 已知问题与后续工作
 
