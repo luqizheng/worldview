@@ -255,7 +255,11 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         return completion.Task;
     }
 
-    /// <summary>C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。</summary>
+    /// <summary>
+    /// C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。
+    /// 日志纪律（DEF-03）：本方法内的所有日志都是 best-effort——日志实现自身的
+    /// 异常绝不参与生命周期收尾的控制流，原始生命周期异常优先传递给等待者。
+    /// </summary>
     private async Task ExecuteProjectCloseLifetimeAsync(TaskCompletionSource completion)
     {
         Exception? failure = null;
@@ -271,10 +275,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 }
                 catch (Exception ex)
                 {
-                    _log?.Warn(
-                        "ProjectWorkspace",
-                        $"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。",
-                        ex);
+                    // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
+                    WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
                 }
             }
 
@@ -294,8 +296,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _log?.Warn("ProjectWorkspace", "项目生命周期关闭失败。", ex);
+            // DEF-03：先保存原始生命周期异常，再做 best-effort 日志——日志失败
+            // 既不覆盖原始异常，也不会让下方 Finished / SetException 收尾被跳过。
             failure = ex;
+            WarnBestEffort("项目生命周期关闭失败。", ex);
         }
 
         // DEF-02：先置 Finished（volatile 写）再完成任务。完成顺序不可交换——
@@ -309,6 +313,23 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         else
         {
             completion.SetResult();
+        }
+    }
+
+    /// <summary>
+    /// best-effort 警告日志（DEF-03）：日志实现的异常就地吞掉、不向外传播——
+    /// 只限 C2 编排路径使用；日志失败不改变任何关闭决策。
+    /// </summary>
+    private void WarnBestEffort(string message, Exception exception)
+    {
+        try
+        {
+            _log?.Warn("ProjectWorkspace", message, exception);
+        }
+        catch
+        {
+            // 日志失败本身不可恢复也不可观察（再记一次日志只会级联失败）；
+            // 生命周期收尾（Finished / SetException）不依赖本调用。
         }
     }
 }

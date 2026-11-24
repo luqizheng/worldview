@@ -29,8 +29,9 @@ public class ProjectCloseOrchestrationTests
             ProjectSession session,
             IMapQueryService? mapQuery,
             IWorkspaceContextResolver? contextResolver,
-            CreateMapUseCase createMap)
-            : base(session, mapQuery, contextResolver, createMap)
+            CreateMapUseCase createMap,
+            IAppLog? log = null)
+            : base(session, mapQuery, contextResolver, createMap, log)
         {
         }
 
@@ -67,6 +68,9 @@ public class ProjectCloseOrchestrationTests
 
         public void ReleaseDispose() => _releaseSource?.TrySetResult();
 
+        /// <summary>Dispose 故障注入（DEF-01/DEF-03：验证关闭失败经共享 Task 传播且不阻断编排）。</summary>
+        public Exception? DisposeFailure { get; set; }
+
         public override void Dispose()
         {
             DisposeCount++;
@@ -77,12 +81,17 @@ public class ProjectCloseOrchestrationTests
                 throw new TimeoutException("renderer dispose gate 未在超时内放行。");
             }
 
+            if (DisposeFailure is { } failure)
+            {
+                throw failure;
+            }
+
             base.Dispose();
         }
     }
 
     private static (TestViewModel Vm, FakeMapQueryService Query, StubPackageDatabase Database, StubAssetStore Assets, ProjectSession Session)
-    CreateVm()
+        CreateVm(FakeAppLog? log = null)
     {
         var query = new FakeMapQueryService();
         query.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
@@ -91,7 +100,8 @@ public class ProjectCloseOrchestrationTests
             session,
             query,
             new FakeWorkspaceContextResolver(),
-            new CreateMapUseCase(session, new FakeMapCreationService(query)));
+            new CreateMapUseCase(session, new FakeMapCreationService(query)),
+            log);
         return (vm, query, (StubPackageDatabase)session.Database, (StubAssetStore)session.AssetStore, session);
     }
 
@@ -345,6 +355,71 @@ public class ProjectCloseOrchestrationTests
         Assert.True(vm.IsProjectCloseLifetimeFinished);
         await vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout);
         Assert.Equal(ProjectSessionState.Closed, session.State);
+    }
+
+    // ---- DEF-03：日志异常不得破坏生命周期收尾 ----
+
+    [Fact]
+    public async Task C2_BindingCloseFails_WithFailingLog_StillClosesSession_AndCompletes()
+    {
+        // 内层：Binding 关闭失败 + Warn 日志自身抛异常 → 编排必须继续关闭其余
+        // Binding 与 ProjectSession，C2 Task 正常完成（内层失败不外溢）。
+        var log = new FakeAppLog { WarnFailure = new InvalidOperationException("日志实现故障（测试注入）。") };
+        var (vm, query, database, _, session) = CreateVm(log);
+        vm.TestBindingFactory = ws => new MapViewportBinding(
+            ws.ViewState,
+            renderer: new ProbeRenderer(gate: false) { DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。") });
+        await OpenWorkspacesAsync(vm, query, 2);
+
+        var projectClosedCount = 0;
+        vm.ProjectClosed += () => projectClosedCount++;
+
+        var task = vm.CloseProjectLifetimeAsync();
+        await task.WaitAsync(GateTimeout); // C2 正常完成：日志异常未破坏收尾
+
+        Assert.True(vm.IsProjectCloseLifetimeFinished);
+        Assert.Equal(ProjectSessionState.Closed, session.State); // 步骤 2 照常执行
+        Assert.True(database.IsDisposed);
+        Assert.Equal(1, projectClosedCount);
+        Assert.True(log.WarnCount >= 2);   // 每个 Binding 的失败都尝试过记日志（且都失败）
+        Assert.Empty(vm.Workspaces);       // 步骤 3 集合清理未被打断
+
+        // 幂等契约不变：重复调用返回同一 C2 Task。
+        Assert.Same(task, vm.CloseProjectLifetimeAsync());
+    }
+
+    [Fact]
+    public async Task C2_SessionCloseFails_WithFailingLog_WaiterObservesOriginalException()
+    {
+        // 外层：Session.CloseAsync 失败 + Warn 日志自身抛异常 → 原始生命周期异常
+        // 传递给等待者（不被日志异常覆盖），Finished 置位，收尾不被跳过。
+        var log = new FakeAppLog { WarnFailure = new InvalidOperationException("日志实现故障（测试注入）。") };
+        var (vm, query, database, _, session) = CreateVm(log);
+        vm.TestBindingFactory = ws => new MapViewportBinding(ws.ViewState);
+        await OpenWorkspacesAsync(vm, query, 1);
+
+        var projectClosedCount = 0;
+        vm.ProjectClosed += () => projectClosedCount++;
+
+        var originalFailure = new InvalidOperationException("数据库释放失败（测试注入）。");
+        database.DisposeFailure = originalFailure;
+
+        var task = vm.CloseProjectLifetimeAsync();
+        var observed = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => task.WaitAsync(GateTimeout));
+
+        Assert.Same(originalFailure, observed);   // 原始异常实例，而非日志异常
+        Assert.NotSame(log.WarnFailure, observed);
+        Assert.True(vm.IsProjectCloseLifetimeFinished); // 日志异常未绕过收尾
+        Assert.Equal(0, projectClosedCount);            // 失败路径不通知窗口（语义不变）
+        Assert.Equal(1, database.DisposeCount);
+
+        // 幂等契约不变：重复调用返回同一 C2 Task，并观察到同一原始异常。
+        var repeat = vm.CloseProjectLifetimeAsync();
+        Assert.Same(task, repeat);
+        var observedAgain = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => repeat.WaitAsync(GateTimeout));
+        Assert.Same(originalFailure, observedAgain);
     }
 
     [Fact]

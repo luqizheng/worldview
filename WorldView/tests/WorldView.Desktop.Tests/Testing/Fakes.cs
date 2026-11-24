@@ -178,3 +178,35 @@ public sealed class FakeWorkspaceContextResolver : IWorkspaceContextResolver
         }));
     }
 }
+
+/// <summary>
+/// 可注入故障的日志替身（DEF-03）：Warn 可被配置为主动抛异常，
+/// 用于验证 C2 编排路径的日志异常不参与生命周期收尾的控制流。
+/// </summary>
+public sealed class FakeAppLog : IAppLog
+{
+    public int WarnCount { get; private set; }
+
+    public List<string> WarnMessages { get; } = new();
+
+    /// <summary>非 null 时 Warn 调用抛出该异常（模拟日志实现自身故障）。</summary>
+    public Exception? WarnFailure { get; set; }
+
+    public void Info(string category, string message)
+    {
+    }
+
+    public void Warn(string category, string message, Exception? exception = null)
+    {
+        WarnCount++;
+        WarnMessages.Add(message);
+        if (WarnFailure is { } failure)
+        {
+            throw failure;
+        }
+    }
+
+    public void Error(string category, string message, Exception? exception = null)
+    {
+    }
+}

@@ -88,7 +88,7 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 ## 6. 测试覆盖与结果
 
-**新增 19 项**（Desktop.Tests 17 + Application.Tests 2），全部验证真实调用顺序（程序序锚点 / TCS 门控，无 Sleep / 轮询）；独立复审后追加 5 项 DEF 修复测试（§10），Desktop.Tests 合计 35 项：
+**新增 19 项**（Desktop.Tests 17 + Application.Tests 2），全部验证真实调用顺序（程序序锚点 / TCS 门控，无 Sleep / 轮询）；独立复审后追加 7 项 DEF 修复测试（§10），Desktop.Tests 合计 37 项：
 
 - Binding：创建/Attach、Bind 拒绝已关闭、Detach 零释放、Detach→Reattach 复用同一 Binding、关闭阶段顺序（`is_closed → coordinator_closed → publisher_disposed → renderer_disposed` + Dispose 入口探针）、重复 Close 幂等、终态不可重用、CaptureFrame 组合、代推进。
 - C1：Binding 先于工作区关闭的顺序证明（门控锚点时刻会话仍 Ready + 工作区未关闭）、兄弟工作区/会话/AssetStore/Database 不受影响、工作区 CTS 释放。
@@ -99,7 +99,7 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 | 项目 | 结果 |
 |---|---|
-| WorldView.Desktop.Tests | **35/35 通过**（含 §10 的 5 项 DEF 修复测试） |
+| WorldView.Desktop.Tests | **37/37 通过**（含 §10 的 7 项 DEF 修复测试） |
 | WorldView.Presentation.Tests | **111/111 通过** |
 | WorldView.Domain.Tests | **266/266 通过** |
 | WorldView.Application.Tests | 生命周期测试全部通过；**10 个 FieldPackage 测试因沙箱拒绝写 `%TEMP%` 失败（UnauthorizedAccessException），与本次变更无关** |
@@ -178,3 +178,20 @@ GitHub Actions run `45391911222`（head `01aeefc`——DEF-01/DEF-02 修复提�
 | WorldView.Application.Tests | 生命周期测试全部通过；10 个 FieldPackage 失败仍为沙箱 `%TEMP%` 拒写（环境性，与 DEF 修复无关） |
 
 CI 结果见 §7（run `45391911222`，修复提交 `01aeefc` 四矩阵全绿）。
+
+### DEF-03：日志异常不得破坏生命周期收尾
+
+- **缺陷**：`ExecuteProjectCloseLifetimeAsync` 中两处日志调用直接使用 `_log?.Warn`——①内层 Binding 失败的 catch 里日志抛异常会中断循环（跳过其余 Binding）；②外层 catch 中日志在保存 `failure` **之前**调用，日志抛异常会使异常逃出编排体，`completion.SetResult/SetException` 永不执行，C2 共享 Task **永久挂起**，`_projectCloseLifetimeFinished` 也永不置位。
+- **修复**（`ProjectWorkspaceViewModel.cs`，最小改动）：
+  1. 新增 `WarnBestEffort(message, exception)` 私有助手：try/catch 吞掉日志实现自身的异常，不向外传播、不参与任何关闭决策；仅限 C2 编排路径使用。
+  2. 内层 Binding 失败的 catch 改用 `WarnBestEffort`——即使 Warn 失败也继续关闭其余 Binding（要求 2）。
+  3. 外层 catch 重排：**先 `failure = ex` 保存原始异常，再 best-effort 日志**（要求 3）；日志异常不可能覆盖原始异常，也不可能跳过下方 `_projectCloseLifetimeFinished = true` 与 `SetException(failure)` 收尾（要求 4/5/6）。
+- **保持不变**：DEF-01 共享关闭 Task 语义、DEF-02 Finished 先于任务完成顺序、R5 窗口关闭流程、`ProjectClosed` 失败路径不触发语义、TCS + CAS 幂等契约。未触碰 `IAppLog` 接口与 `FileAppLog` 实现（调用点隔离，而非修改日志实现）。
+
+新增测试（`ProjectCloseOrchestrationTests.cs` + `Fakes.cs`，确定性、无 Sleep/轮询）：
+
+1. `Fakes.cs` 新增 `FakeAppLog`：`WarnFailure` 注入使 Warn 主动抛异常，`WarnCount`/`WarnMessages` 记录调用痕迹。
+2. `C2_BindingCloseFails_WithFailingLog_StillClosesSession_AndCompletes`——2 个 Binding 关闭失败（注入 renderer Dispose 故障）+ Warn 每次抛异常：C2 仍继续关闭全部 Binding 与 ProjectSession（`session.State == Closed`、`database.IsDisposed`、`ProjectClosed == 1`），C2 Task 正常完成，Finished 为 true，日志异常未被外溢（等待者无异常）。
+3. `C2_SessionCloseFails_WithFailingLog_WaiterObservesOriginalException`——`Session.CloseAsync` 失败 + Warn 抛异常：等待者观察到**原始异常实例**（`Assert.Same(originalFailure, observed)`，且非日志异常），Finished 为 true，`ProjectClosed` 不触发；重复调用返回同一 C2 Task（`Assert.Same`）并观察到同一原始异常。
+
+修复后测试结果（DEF-03 后）：Desktop.Tests **37/37**（35 + 2 项 DEF-03 测试）；Presentation 111/111、Domain 266/266 通过；Application 10 个 FieldPackage 失败仍为沙箱环境性失败。
