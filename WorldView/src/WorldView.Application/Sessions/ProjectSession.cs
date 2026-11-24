@@ -236,6 +236,10 @@ public sealed class ProjectSession : IAsyncDisposable
             }
 
             await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
+            // WP-30B Phase 3A（P2 缺口修复）：关闭后释放派生工作取消源。
+            // CTS.Dispose 幂等；先 Close（取消派生工作）后 Dispose 的次序不可交换
+            // （ADR-10 §3C 核验第 6 项）。
+            await workspace.DisposeAsync().ConfigureAwait(false);
         }
 
         // 2. 逆序释放资源：Asset Store → 数据库。

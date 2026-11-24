@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
+using WorldView.Desktop.Rendering;
 
 namespace WorldView.Desktop.ViewModels;
 
@@ -14,12 +18,29 @@ namespace WorldView.Desktop.ViewModels;
 /// 地图数据只经 Core Domain 查询端口获取；端口未实现时如实显示依赖门槛，
 /// 绝不以占位数据冒充真实地图（AF-02 §4.6）。
 /// 地图创建经会话绑定的 CreateMapUseCase（正式 Core Domain 路径，WP-20a）。
+///
+/// 视口生命周期（WP-30B ADR-10）：
+/// - 每个工作区一个 <see cref="MapViewportBinding"/>（工作区打开时创建，创建者唯一）；
+/// - C1（<see cref="CloseWorkspaceCommand"/>）：先关目标 Binding → 关工作区 → 移除集合 → Dispose；
+/// - C2（<see cref="CloseProjectLifetimeAsync"/>）：唯一业务编排入口——先关全部存活
+///   Binding → 关会话 → 清集合 → ProjectClosed 一次；整体最多启动一次，重复调用
+///   等待首次操作（幂等契约）。
 /// </summary>
 public partial class ProjectWorkspaceViewModel : ObservableObject
 {
     private readonly IMapQueryService? _mapQuery;
     private readonly IWorkspaceContextResolver? _contextResolver;
     private readonly IAppLog? _log;
+
+    /// <summary>存活视口 Binding（workspaceId → binding）。仅用于枚举的私有小集合：
+    /// 不是全局注册表、不注册 DI、不拥有释放权（释放归 binding 自身的幂等关闭，ADR-10 §8B 第 25 条）。</summary>
+    private readonly Dictionary<Guid, MapViewportBinding> _viewportBindings = new();
+
+    /// <summary>C2 唯一编排任务（首次调用创建；非 null 即"已启动"）。幂等契约的实现载体。</summary>
+    private Task? _projectCloseLifetimeTask;
+
+    /// <summary>C2 编排是否已结束（成功或失败均算结束；窗口 Closing 处理器据此放行关闭）。</summary>
+    private volatile bool _projectCloseLifetimeFinished;
 
     public ProjectWorkspaceViewModel(
         ProjectSession session,
@@ -35,7 +56,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         _log = log;
     }
 
-    /// <summary>项目会话关闭事件（窗口层据此返回启动面）。</summary>
+    /// <summary>项目会话关闭事件（窗口层据此返回启动面）。C2 编排全程只触发一次。</summary>
     public event Action? ProjectClosed;
 
     public ProjectSession Session { get; }
@@ -57,6 +78,9 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
     /// <summary>已打开的工作区。</summary>
     public ObservableCollection<MapWorkspaceSession> Workspaces { get; } = new();
+
+    /// <summary>C2 编排是否已结束（成功或失败）。窗口 Closing 处理器据此放行最终关闭。</summary>
+    public bool IsProjectCloseLifetimeFinished => _projectCloseLifetimeFinished;
 
     /// <summary>地图列表状态说明。</summary>
     [ObservableProperty]
@@ -96,7 +120,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
     }
 
-    /// <summary>为选定地图打开独立工作区会话。</summary>
+    /// <summary>为选定地图打开独立工作区会话（同时创建该工作区唯一的视口 Binding）。</summary>
     [RelayCommand]
     private async Task OpenWorkspaceAsync(CancellationToken cancellationToken)
     {
@@ -119,6 +143,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 cancellationToken).ConfigureAwait(true);
 
             Workspaces.Add(workspace);
+            _viewportBindings.Add(workspace.WorkspaceId, CreateViewportBinding(workspace));
             WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N}[{workspace.Context.MapId}] 已打开。";
         }
         catch (Exception ex)
@@ -128,7 +153,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
     }
 
-    /// <summary>关闭选定工作区（不影响兄弟工作区与项目会话）。</summary>
+    /// <summary>关闭选定工作区（C1：先关 Binding → 关工作区 → 移除集合 → Dispose；
+    /// 不影响兄弟工作区与项目会话，ADR-10 §7.1）。</summary>
     [RelayCommand]
     private async Task CloseWorkspaceAsync(CancellationToken cancellationToken)
     {
@@ -138,20 +164,144 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
 
         var workspace = SelectedWorkspace;
+
+        // 步骤 1：先关闭该工作区对应的视口 Binding（presentation 先于 Application，ADR-10 §7.1）。
+        if (_viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding))
+        {
+            await binding.RequestClose().ConfigureAwait(true);
+        }
+
+        // 步骤 2–3：Application 侧关闭 + 本地集合移除（次序不可交换）。
         await Session.CloseWorkspaceAsync(workspace.WorkspaceId, cancellationToken).ConfigureAwait(true);
         Workspaces.Remove(workspace);
+
+        // 步骤 4：释放派生工作资源；同步移除 Binding 登记。
         await workspace.DisposeAsync().ConfigureAwait(true);
+        _viewportBindings.Remove(workspace.WorkspaceId);
+
         WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N} 已关闭。";
     }
 
     [ObservableProperty]
     private MapWorkspaceSession? _selectedWorkspace;
 
-    /// <summary>关闭项目会话（先关子工作区再释放资源；不删除包）。</summary>
+    /// <summary>取工作区对应的存活 Binding（窗口层宿主视口控件用；无或已关闭则 null）。</summary>
+    internal MapViewportBinding? GetViewportBinding(MapWorkspaceSession workspace)
+        => _viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding) && !binding.IsClosed
+            ? binding
+            : null;
+
+    /// <summary>视口 Binding 工厂（创建者唯一：工作区打开时创建，每工作区一个，M1 1:1）。</summary>
+    internal virtual MapViewportBinding CreateViewportBinding(MapWorkspaceSession workspace)
+        => new(workspace.ViewState);
+
+    /// <summary>
+    /// 关闭项目会话命令：只委托唯一编排方法（ADR-10 §7.2；不得保留旧的
+    /// "先 Session.CloseAsync 再 ProjectClosed"顺序）。
+    /// </summary>
     [RelayCommand]
     private async Task CloseProjectAsync(CancellationToken cancellationToken)
     {
-        await Session.CloseAsync(cancellationToken).ConfigureAwait(true);
-        ProjectClosed?.Invoke();
+        try
+        {
+            await CloseProjectLifetimeAsync(cancellationToken).ConfigureAwait(true);
+            WorkspaceStatusText = "项目会话已关闭。";
+        }
+        catch (Exception ex)
+        {
+            // 异常已在编排内记录；此处保证命令路径也观察到异常（不留未观察异常），
+            // 并如实呈现失败。窗口关闭策略见 ADR-10 §7.2 流程裁决 4。
+            _log?.Warn("ProjectWorkspace", "项目关闭失败。", ex);
+            WorkspaceStatusText = $"项目关闭失败：{ex.Message}（详见日志）。";
+        }
+    }
+
+    /// <summary>
+    /// C2 唯一业务编排入口（ADR-10 §7.2）：关闭该会话下全部存活 Binding → 关闭
+    /// ProjectSession → 清理视图集合 → ProjectClosed 一次。
+    ///
+    /// 幂等契约（行为级）：整体最多启动一次；重复调用（含"关闭项目"命令与
+    /// Window.Closing 的并发触发）返回并等待首次操作，不并行、不跳过、不重复释放。
+    /// 实现约定：先把"已启动"任务写入共享字段，编排体才开始执行——即使编排体在当前
+    /// 调用栈内同步完成（ProjectClosed → Window.Close → Closing 重入链），重入也只会
+    /// 看到已启动并等待同一任务，不会第二次执行。
+    /// </summary>
+    public Task CloseProjectLifetimeAsync(CancellationToken cancellationToken = default)
+    {
+        // 取消令牌只用于启动前的拒绝（ADR-10 幂等契约 6：启动后跑到结束，不中途放弃）。
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        var existing = Volatile.Read(ref _projectCloseLifetimeTask);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        // RunContinuationsAsynchronously：等待者（窗口 Closing 处理器）不得在编排体
+        // 执行栈内同步恢复，避免重入链上的任何同步等待自旋。
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var raced = Interlocked.CompareExchange(ref _projectCloseLifetimeTask, completion.Task, null);
+        if (raced is not null)
+        {
+            return raced;
+        }
+
+        // 编排体的返回 Task 永不 fault（全部异常路由进 completion，由等待者观察），
+        // 因此丢弃安全：不留未观察的后台任务。
+        _ = ExecuteProjectCloseLifetimeAsync(completion);
+        return completion.Task;
+    }
+
+    /// <summary>C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。</summary>
+    private async Task ExecuteProjectCloseLifetimeAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            // 步骤 1：关闭全部存活 Binding（每个执行 B 子序；单个失败记诊断后继续，
+            // 否则会留下"部分视口已关、会话仍 Ready"的更危险状态——ADR-10 §7.2）。
+            foreach (var binding in _viewportBindings.Values.ToArray())
+            {
+                try
+                {
+                    await binding.RequestClose().ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    _log?.Warn(
+                        "ProjectWorkspace",
+                        $"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。",
+                        ex);
+                }
+            }
+
+            // 步骤 2：关闭 ProjectSession（以 None 跑到结束——中途取消会留下
+            // "Binding 已关、会话未关"的半关闭状态）。
+            await Session.CloseAsync(CancellationToken.None).ConfigureAwait(true);
+
+            // 步骤 3：清理视图集合（Session.CloseAsync 只清 Application 的 _workspaces，
+            // 不会清 ViewModel 的 ObservableCollection）。
+            _viewportBindings.Clear();
+            Workspaces.Clear();
+
+            // 步骤 4：通知窗口（ProjectClosed → Window.Close()）。真实窗口的 Closing
+            // 处理器会在本任务尚未完成时取消该次 Close 并等待本任务完成后收尾重关
+            // （ADR-10 §7.2 窗口关闭流程，R5）。
+            ProjectClosed?.Invoke();
+
+            completion.SetResult();
+        }
+        catch (Exception ex)
+        {
+            _log?.Warn("ProjectWorkspace", "项目生命周期关闭失败。", ex);
+            completion.SetException(ex);
+        }
+        finally
+        {
+            // 编排结束（成功或失败）：窗口 Closing 处理器此后一律放行关闭。
+            _projectCloseLifetimeFinished = true;
+        }
     }
 }
