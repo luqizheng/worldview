@@ -31,10 +31,16 @@
 
 - Workflow：`.github/workflows/dotnet-ci.yml`（windows-latest / macos-latest × Debug / Release，
   sln 级 build + `dotnet test`，自动发现新工程与新测试项目）。
-- 触发：本分支 push 不触发（CI 仅对 master push / PR 目标 master 等触发）；以 **PR 目标 master**
-  触发完整四 job 矩阵。
-- 结果：**CI run 记录见 PR 页面 Checks**；四 job（Windows×2、macOS×2）全部绿为验收条件，
-  见 IMPLEMENTATION_SUMMARY.md §1 中记录的 run 链接。
+- 触发：PR #27（`feat/wp-30a-presentation-foundation` → master）。
+- **结果：CI run [45309401459](https://github.com/luqizheng/worldview/actions/runs/45309401459)
+  四 job 全部通过：**
+
+| Job | 结果 | 用时 |
+|---|---|---|
+| macos-latest / Debug | ✅ pass | 1m19s |
+| macos-latest / Release | ✅ pass | 1m35s |
+| windows-latest / Debug | ✅ pass | 3m45s |
+| windows-latest / Release | ✅ pass | 4m43s |
 
 ## 3. CI 与真实 GUI 验证的边界（不得混淆）
 

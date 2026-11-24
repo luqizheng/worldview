@@ -17,7 +17,7 @@
 | 全量测试 | Debug 836/836、Release 836/836（基线 728） |
 | 本机平台 | Windows（SDK 11.0.100；Avalonia 12.1.6 未动；无任何包版本变化） |
 | macOS | 仅 CI 四平台矩阵覆盖（无本机 GUI 验证，见 PLATFORM_VALIDATION §3） |
-| CI | PR → master 触发 `dotnet-ci.yml` 四 job（win/macos × Debug/Release） |
+| CI | PR #27 → run [45309401459](https://github.com/luqizheng/worldview/actions/runs/45309401459) 四 job 全绿（win/macos × Debug/Release） |
 
 ## 2. WP-30A Definition of Done 逐项对照（Profile §9）
 
