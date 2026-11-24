@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using WorldView.Domain.Time;
 
 namespace WorldView.Application.Abstractions;
 
@@ -81,14 +82,28 @@ public sealed class WorkspaceContextResolution
     };
 }
 
-/// <summary>经 Core Domain 校验的工作区上下文（不透明占位；正式类型随领域实现落地）。</summary>
+/// <summary>
+/// 经 Core Domain 校验的工作区上下文。WP-30A（PRA-01 M1 Profile §4.1）起，Application
+/// 边界完整保留权威解析结果：MapId、BranchId、RootHistoryId 与 typed 规范历史时间
+/// （不再降级为不透明字符串）。身份/时间语义规则仍由 Core Domain 独占；
+/// 本类型只承载已校验的不可变值，不引入第二事实来源。
+/// </summary>
 public sealed record ValidatedWorkspaceContext
 {
     public required Guid MapId { get; init; }
 
-    /// <summary>解析后的 Branch ID；null 表示默认/主历史。</summary>
+    /// <summary>解析后的 Branch ID；null 表示默认/主历史（根历史）。</summary>
     public Guid? BranchId { get; init; }
 
-    /// <summary>规范历史时间（不透明占位）。</summary>
-    public string? CanonicalHistoricalTime { get; init; }
+    /// <summary>Map 根历史 ID（Core Domain 权威解析；缺失即数据损坏，不会出现在成功结果中）。</summary>
+    public required Guid RootHistoryId { get; init; }
+
+    /// <summary>
+    /// typed 规范历史时间（Core Domain <see cref="HistoricalTime"/>；权威解析时
+    /// null 输入已解析为纪元，永不为 null）。保留 day/offset 全精度。
+    /// </summary>
+    public required HistoricalTime HistoricalTime { get; init; }
+
+    /// <summary>规范历史时间的规范文本（由 typed 值计算，无第二事实来源）。</summary>
+    public string CanonicalHistoricalTime => HistoricalTime.Canonical();
 }

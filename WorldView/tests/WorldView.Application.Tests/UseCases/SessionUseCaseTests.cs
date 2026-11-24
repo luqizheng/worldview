@@ -8,7 +8,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
-using Xunit;
+using WorldView.Domain.Time;
 using Xunit;
 
 namespace WorldView.Application.Tests.UseCases;
@@ -550,16 +550,22 @@ public sealed class FakeMapQuery : IMapQueryService
 
 public sealed class FakeResolver : IWorkspaceContextResolver
 {
+    /// <summary>默认 RootHistoryId（固定值；供身份保持断言使用）。</summary>
+    public static readonly Guid DefaultRootHistoryId = new("0F4A9C2E-5B71-4D63-8EA2-C31D90B7A554");
+
     private readonly SemaphoreSlim? _startedSignal;
     private readonly Task? _blockOnTask;
+    private readonly Guid _rootHistoryId;
 
-    private FakeResolver(SemaphoreSlim? startedSignal = null, Task? blockOnTask = null)
+    private FakeResolver(SemaphoreSlim? startedSignal = null, Task? blockOnTask = null, Guid? rootHistoryId = null)
     {
         _startedSignal = startedSignal;
         _blockOnTask = blockOnTask;
+        _rootHistoryId = rootHistoryId ?? DefaultRootHistoryId;
     }
 
-    public static FakeResolver Success() => new();
+    /// <summary>成功解析（RootHistoryId 可覆盖，默认 <see cref="DefaultRootHistoryId"/>）。</summary>
+    public static FakeResolver Success(Guid? rootHistoryId = null) => new(rootHistoryId: rootHistoryId);
 
     /// <summary>通知“解析已到达返回点”后暂停，直到放行任务完成——用于晚到达保护的确定性测试。</summary>
     public static FakeResolver GatedAndPaused(SemaphoreSlim startedSignal, Task blockOnTask) => new(startedSignal, blockOnTask);
@@ -577,11 +583,25 @@ public sealed class FakeResolver : IWorkspaceContextResolver
             await _blockOnTask;
         }
 
+        // 与真实 Domain 语义一致：null 输入解析为纪元；非法输入拒绝（不伪造 typed 值）。
+        HistoricalTime time = HistoricalTime.Epoch;
+        if (historicalTimeInput is not null)
+        {
+            if (!HistoricalTime.TryParse(historicalTimeInput, out var parsed) || parsed is null)
+            {
+                return WorkspaceContextResolution.Failed(
+                    $"历史时间输入 \"{historicalTimeInput}\" 不是合法的规范格式 \"day:offset\"。");
+            }
+
+            time = parsed;
+        }
+
         return WorkspaceContextResolution.Ok(new ValidatedWorkspaceContext
         {
             MapId = mapId,
             BranchId = branchId,
-            CanonicalHistoricalTime = historicalTimeInput,
+            RootHistoryId = _rootHistoryId,
+            HistoricalTime = time,
         });
     }
 }

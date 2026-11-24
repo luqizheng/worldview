@@ -98,6 +98,10 @@ public sealed class Cd01EndToEndTests : IDisposable
         Assert.Equal(map.Map.MapId, workspace.Context.MapId);
         Assert.Equal(branch.Branch.BranchId, workspace.Context.BranchId);
         Assert.Equal("1300:43200", workspace.Context.CanonicalHistoricalTime);
+        // WP-30A（PRA-01 M1 Profile §4.1）：权威解析的 RootHistoryId 与 typed 时间
+        // 在 Application 边界完整保留（不降级为字符串、不丢失身份字段）。
+        Assert.Equal(map.RootHistory.HistoryId, workspace.Context.RootHistoryId);
+        Assert.Equal(new HistoricalTime(1300, 43200), workspace.Context.HistoricalTime);
 
         // 6. 关闭会话（释放数据库资源）→ 重开同一包：身份一致。
         await session.CloseAsync();
