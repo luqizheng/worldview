@@ -109,7 +109,7 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 ## 7. CI 结果
 
-GitHub Actions run `45372890662`（head `2cd2122`，四矩阵全绿，输出仅既有 CTJ001 分析器警告）：
+GitHub Actions run `45391911222`（head `01aeefc`——DEF-01/DEF-02 修复提交，四矩阵全绿，输出仅既有 CTJ001 分析器警告）：
 
 | Job | 结果 |
 |---|---|
@@ -117,6 +117,8 @@ GitHub Actions run `45372890662`（head `2cd2122`，四矩阵全绿，输出仅�
 | windows-latest / Release | ✅ success |
 | macos-latest / Debug | ✅ success |
 | macos-latest / Release | ✅ success |
+
+（初始实施提交 `2cd2122` / 文档回填 `07ba290` 的 run `45372890662` 同为四 job 全绿。）
 
 ## 8. 已知问题与后续工作
 
@@ -175,4 +177,4 @@ GitHub Actions run `45372890662`（head `2cd2122`，四矩阵全绿，输出仅�
 | WorldView.Domain.Tests | **266/266 通过** |
 | WorldView.Application.Tests | 生命周期测试全部通过；10 个 FieldPackage 失败仍为沙箱 `%TEMP%` 拒写（环境性，与 DEF 修复无关） |
 
-CI 结果见 §7（修复提交后更新）。
+CI 结果见 §7（run `45391911222`，修复提交 `01aeefc` 四矩阵全绿）。
