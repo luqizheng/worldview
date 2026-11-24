@@ -228,6 +228,15 @@ Scope:
 
 **Goal:** display an empty but real Map workspace in a functioning viewport.
 
+**M1 implementation profile:** [PRA-01 M1 Implementation Profile V1](../map-engine/PRA-01_M1_IMPLEMENTATION_PROFILE_v1.md) defines the approved M1-specific context states, immutable snapshot boundary, in-process publication model and WP-30A/B/C handoff. It specializes PRA-01 V0.1 for M1 without replacing the parent renderer architecture.
+
+Implementation sequence:
+1. **WP-30A / PRA-01:** renderer-host-independent Presentation Context, immutable blank-scene snapshot, assembly, per-viewport publication, lifecycle and tests.
+2. **WP-30B / PRA-02:** Avalonia viewport host, `ICustomDrawOperation` and Skia drawing of the blank scene.
+3. **WP-30C:** Pan/Zoom/Resize/DPI transforms and Windows/macOS viewport verification.
+
+Do not start WP-30B before WP-30A passes its definition of done and review. Do not expand M1 into real Map Object rendering or Map Authoring.
+
 Scope:
 - Complete or verify PRA-01 Presentation Context and immutable Scene Snapshot foundation.
 - Implement the Avalonia viewport host and the initial Skia drawing path according to the approved framework/package matrix.
@@ -378,18 +387,13 @@ The old ME-08 WP-00 through WP-09 sequence is a **specialist Map Authoring imple
 
 ## 10. Immediate next action
 
-Start with **WP-00 — Whole-product implementation inventory**.
+WP-00 inventory and WP-20a Map creation are complete. The WP-30 PRE-FLIGHT audit was recorded in `docs/implementation/wp-30-preflight/` against code baseline `28897fc6c96a0e448a377950392f403956af0357`; its documentation was pushed in commit `a814b7cfa4f554415d286bdf9e7b5cb3942b8f73`.
 
-The inventory must inspect the current source tree, tests, project configuration and Windows/macOS evidence. It must specifically reconcile:
-- AF-02's historical report against later Core Domain implementation records;
-- the current Project/Map create/list/open/close path;
-- PRA-01 implementation state and the PRA-01 audit findings;
-- whether an Avalonia viewport and Skia renderer actually exist and run;
-- the actual .NET SDK/TFM/Avalonia/Skia package matrix;
-- existing authoring UI and which tools have formally adopted write paths;
-- current CI and local platform verification gaps.
+The M1-specific PRA-01 implementation profile is now recorded at [PRA-01_M1_IMPLEMENTATION_PROFILE_v1.md](../map-engine/PRA-01_M1_IMPLEMENTATION_PROFILE_v1.md).
 
-After WP-00, issue one implementation task for the highest-value M1 gap. Do not start specialist authoring merely because its design package is complete.
+**Next implementation task: WP-30A / PRA-01.** Issue one bounded implementation task from the approved profile. Do not begin WP-30B (Avalonia/Skia drawing) until WP-30A's definition of done and implementation report have been reviewed. Do not begin WP-30C platform viewport acceptance until the real blank viewport exists. Preserve the official twelve M1 acceptance items and their numbering.
+
+The next task must inspect the latest source baseline before coding, because the pre-flight audit describes the code at `28897fc` while later commits may have changed documentation or source. Do not assume the old audit SHA is the current implementation base.
 
 ---
 
