@@ -88,7 +88,7 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 ## 6. 测试覆盖与结果
 
-**新增 19 项**（Desktop.Tests 17 + Application.Tests 2），全部验证真实调用顺序（程序序锚点 / TCS 门控，无 Sleep / 轮询）：
+**新增 19 项**（Desktop.Tests 17 + Application.Tests 2），全部验证真实调用顺序（程序序锚点 / TCS 门控，无 Sleep / 轮询）；独立复审后追加 5 项 DEF 修复测试（§10），Desktop.Tests 合计 35 项：
 
 - Binding：创建/Attach、Bind 拒绝已关闭、Detach 零释放、Detach→Reattach 复用同一 Binding、关闭阶段顺序（`is_closed → coordinator_closed → publisher_disposed → renderer_disposed` + Dispose 入口探针）、重复 Close 幂等、终态不可重用、CaptureFrame 组合、代推进。
 - C1：Binding 先于工作区关闭的顺序证明（门控锚点时刻会话仍 Ready + 工作区未关闭）、兄弟工作区/会话/AssetStore/Database 不受影响、工作区 CTS 释放。
@@ -99,7 +99,7 @@ finally: IsProjectCloseLifetimeFinished = true  ← 窗口 Closing 处理器此�
 
 | 项目 | 结果 |
 |---|---|
-| WorldView.Desktop.Tests | **30/30 通过** |
+| WorldView.Desktop.Tests | **35/35 通过**（含 §10 的 5 项 DEF 修复测试） |
 | WorldView.Presentation.Tests | **111/111 通过** |
 | WorldView.Domain.Tests | **266/266 通过** |
 | WorldView.Application.Tests | 生命周期测试全部通过；**10 个 FieldPackage 测试因沙箱拒绝写 `%TEMP%` 失败（UnauthorizedAccessException），与本次变更无关** |
@@ -135,3 +135,44 @@ GitHub Actions run `45372890662`（head `2cd2122`，四矩阵全绿，输出仅�
 | ADR-09 | M1 零长期 Skia 资源；lease 回调内 using；Renderer 无状态 | ✅ Renderer 零字段；`using var lease` 就地释放 |
 | ADR-10 | 四分生命周期、B/C1/C2 关闭顺序、C2 唯一编排+幂等、R5 取消-编排-重关、停机兜底不改写 | ✅ §4/§5 的顺序与测试一一对应；子工作区 Dispose 缺口按批准修复（原 P2 关闭） |
 | ADR-11 | WorkspaceViewState 不动；唯一捕获点；帧输入不可变、不含可变集合 | ✅ Application 的 ViewState 类型零修改；`readonly record struct` |
+
+## 10. 独立复审修复记录（DEF-01 / DEF-02）
+
+复审发现两个生命周期缺陷，已在分支上做最小修复（只动生产代码两处 + 测试，零架构变更）。
+
+### DEF-01：`MapViewportBinding.RequestClose` 不共享进行中的关闭 Task
+
+- **缺陷**：`IsClosed` 置位后重复调用直接返回 `Task.CompletedTask`——只证明"已启动"，不证明 Coordinator → Publisher → Renderer 子序已完成；首次关闭失败也被伪装成成功。
+- **修复**（`MapViewportBinding.cs`）：新增 `_closeTask` 字段缓存唯一关闭 Task。第一次调用在 `_closeGate` 锁内创建并缓存；后续调用（进行中或已完成）返回同一 Task，只追加 `already_closed` 诊断。所有调用者等待相同结果，首次失败的异常经同一 faulted Task 原样传播。
+- **锁内执行同步段的规避**：流水线经 `CloseDeferredStartAsync` 包装——`await Task.Yield()` 先把同步段（含门控测试中可阻塞的 `Renderer.Dispose`）调度出 `_closeGate`，并发调用者拿到同一 Task 而不会被卡在锁上（这一点由进行中交错测试锁定）。
+- **保持不变**：`IsClosed` volatile 终态语义、B 子序顺序、F-1 屏障、`CloseStageLog`。
+
+新增测试（`MapViewportBindingTests.cs`，均无 Sleep/轮询）：
+
+1. `Close_InProgress_RepeatCallReturnsSameTask_AndWaitsForFirstCompletion`——门控 `Renderer.Dispose` 制造确定性交错；第二次调用在关闭进行中拿到同一 Task、`IsCompleted == false`，放行后两个等待者共同完成，`DisposeCount == 1`、`is_closed`/`renderer_disposed` 各恰好一条。
+2. `Close_Failure_RepeatCallsObserveSameException_NotMaskedAsSuccess`——注入 Dispose 故障；两个调用者观察到**同一异常实例**（`Assert.Same`），`DisposeCount == 1`，终态不变。
+3. `Close_InProgressFailure_RepeatCallSharesFaultedTask`——失败发生在门控放行后：进行中接入的重复调用者同样观察到原始异常。
+4. 原 `Close_IsIdempotent_SecondCallRecordsAlreadyClosed` 增强：三次调用断言 `Assert.Same` 共享任务 + 各自可 await。
+
+### DEF-02：C2 Task 完成早于 Finished 标志
+
+- **缺陷**：`ExecuteProjectCloseLifetimeAsync` 中 `completion.SetResult/SetException` 在 `finally` 置 `_projectCloseLifetimeFinished = true` **之前**执行——Task 的异步等待者可能在 Finished 置位前恢复，导致窗口 Closing 再次取消最终关闭。
+- **修复**（`ProjectWorkspaceViewModel.cs`）：重构完成路径——编排体不再在 try/catch 内完成任务，而是把异常存入 `failure` 局部量；**先写 volatile `_projectCloseLifetimeFinished = true`，再 `SetException(failure)` / `SetResult()`**。成功与失败同序。volatile 写先于 SetResult 的发布顺序，保证任何从 `completion.Task` 恢复的等待者必然读到 `Finished == true`。
+- **保持不变**：TCS + CAS 唯一任务语义（`CloseProjectLifetimeAsync` 未动）、`ProjectClosed` 业务语义（仍在步骤 4、任务完成前触发）、现有 R5 测试全部保留且通过。
+
+新增测试（`ProjectCloseOrchestrationTests.cs`）：
+
+1. `C2_Success_FinishedFlagSet_BeforeTaskCompletion`——`ContinueWith(ExecuteSynchronously)` 观察者在任务完成时刻（最早观察点，经 TCS 确认观察者已运行后断言）读到 `Finished == true`。
+2. `C2_Failure_FinishedFlagSet_BeforeTaskCompletion`——失败路径同序：异常观察者同样读到 `Finished == true`。
+3. 现有 `C2_ProjectClosedFires_BeforeOrchestrationTaskCompletes_R5WindowContract` 继续锁定"ProjectClosed 时任务未完成 + Finished 为 false"（该断言要求 Finished 置位**晚于** ProjectClosed，与新不变量不矛盾：顺序是 ProjectClosed → Finished → SetResult）。
+
+### 修复后测试结果
+
+| 项目 | 结果 |
+|---|---|
+| WorldView.Desktop.Tests | **35/35 通过**（30 + 5 项 DEF 测试） |
+| WorldView.Presentation.Tests | **111/111 通过** |
+| WorldView.Domain.Tests | **266/266 通过** |
+| WorldView.Application.Tests | 生命周期测试全部通过；10 个 FieldPackage 失败仍为沙箱 `%TEMP%` 拒写（环境性，与 DEF 修复无关） |
+
+CI 结果见 §7（修复提交后更新）。

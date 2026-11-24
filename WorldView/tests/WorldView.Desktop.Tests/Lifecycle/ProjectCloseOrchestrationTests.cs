@@ -254,6 +254,68 @@ public class ProjectCloseOrchestrationTests
         Assert.Equal(1, gated.DisposeCount); // C2 整体只执行一次
     }
 
+    // ---- DEF-02：Finished 标志先于 C2 任务完成 ----
+
+    [Fact]
+    public async Task C2_Success_FinishedFlagSet_BeforeTaskCompletion()
+    {
+        // 不变量：任何观察者从 completion.Task 恢复（哪怕在 SetResult 调用栈内同步
+        // 恢复——ExecuteSynchronously 是最早观察点）时，Finished 必须已为 true，
+        // 窗口 Closing 收尾才不会再次取消最终关闭。
+        var (vm, query, _, _, session) = CreateVm();
+        vm.TestBindingFactory = ws => new MapViewportBinding(ws.ViewState);
+        await OpenWorkspacesAsync(vm, query, 1);
+
+        // 观察者经 TCS 确认已运行（RunContinuationsAsynchronously 会把
+        // ExecuteSynchronously 续延也排队，必须显式等待观察点执行后再断言）。
+        var observerRan = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishedSeenByCompletionObserver = false;
+        var task = vm.CloseProjectLifetimeAsync();
+        task.ContinueWith(
+            _ =>
+            {
+                finishedSeenByCompletionObserver = vm.IsProjectCloseLifetimeFinished;
+                observerRan.SetResult();
+            },
+            TaskContinuationOptions.ExecuteSynchronously);
+
+        await task;
+        await observerRan.Task.WaitAsync(GateTimeout);
+
+        Assert.True(finishedSeenByCompletionObserver); // 完成时刻（最早观察点）Finished 已为 true
+        Assert.True(vm.IsProjectCloseLifetimeFinished);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+    }
+
+    [Fact]
+    public async Task C2_Failure_FinishedFlagSet_BeforeTaskCompletion()
+    {
+        // 失败路径同序：SetException 之前 Finished 必须已为 true。
+        var (vm, query, database, _, _) = CreateVm();
+        vm.TestBindingFactory = ws => new MapViewportBinding(ws.ViewState);
+        await OpenWorkspacesAsync(vm, query, 1);
+        database.DisposeFailure = new InvalidOperationException("数据库释放失败（测试注入）。");
+
+        var observerRan = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishedSeenByCompletionObserver = false;
+        var task = vm.CloseProjectLifetimeAsync();
+        task.ContinueWith(
+            _ =>
+            {
+                finishedSeenByCompletionObserver = vm.IsProjectCloseLifetimeFinished;
+                observerRan.SetResult();
+            },
+            TaskContinuationOptions.ExecuteSynchronously);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => task.WaitAsync(GateTimeout));
+        await observerRan.Task.WaitAsync(GateTimeout);
+
+        Assert.Equal("数据库释放失败（测试注入）。", ex.Message);
+        Assert.True(finishedSeenByCompletionObserver); // 失败完成时刻 Finished 已为 true
+        Assert.True(vm.IsProjectCloseLifetimeFinished);
+    }
+
     [Fact]
     public async Task C2_ProjectClosedFires_BeforeOrchestrationTaskCompletes_R5WindowContract()
     {

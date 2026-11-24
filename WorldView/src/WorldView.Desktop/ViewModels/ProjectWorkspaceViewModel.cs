@@ -258,6 +258,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。</summary>
     private async Task ExecuteProjectCloseLifetimeAsync(TaskCompletionSource completion)
     {
+        Exception? failure = null;
         try
         {
             // 步骤 1：关闭全部存活 Binding（每个执行 B 子序；单个失败记诊断后继续，
@@ -290,18 +291,24 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             // 处理器会在本任务尚未完成时取消该次 Close 并等待本任务完成后收尾重关
             // （ADR-10 §7.2 窗口关闭流程，R5）。
             ProjectClosed?.Invoke();
-
-            completion.SetResult();
         }
         catch (Exception ex)
         {
             _log?.Warn("ProjectWorkspace", "项目生命周期关闭失败。", ex);
-            completion.SetException(ex);
+            failure = ex;
         }
-        finally
+
+        // DEF-02：先置 Finished（volatile 写）再完成任务。完成顺序不可交换——
+        // 从 completion.Task 恢复的等待者（窗口 Closing 收尾重关）在观察到任务完成时，
+        // 必然已经能读到 Finished == true，不会再取消最终关闭。成功与失败同序。
+        _projectCloseLifetimeFinished = true;
+        if (failure is not null)
         {
-            // 编排结束（成功或失败）：窗口 Closing 处理器此后一律放行关闭。
-            _projectCloseLifetimeFinished = true;
+            completion.SetException(failure);
+        }
+        else
+        {
+            completion.SetResult();
         }
     }
 }

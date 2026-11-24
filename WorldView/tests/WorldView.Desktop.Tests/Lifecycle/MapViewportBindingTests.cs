@@ -17,6 +17,8 @@ namespace WorldView.Desktop.Tests.Lifecycle;
 /// </summary>
 public class MapViewportBindingTests
 {
+    private static readonly TimeSpan _gateTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>可观测 / 可门控的渲染器替身（记录 Dispose 次数与入口时刻的探针状态）。</summary>
     private sealed class ProbeRenderer : MapSceneRenderer
     {
@@ -28,6 +30,9 @@ public class MapViewportBindingTests
         public Task DisposeEntered => _disposeEnteredSource?.Task ?? Task.CompletedTask;
 
         public void ReleaseDispose() => _releaseSource?.TrySetResult();
+
+        /// <summary>Dispose 故障注入（DEF-01：验证首次关闭失败经共享 Task 原样传播）。</summary>
+        public Exception? DisposeFailure { get; set; }
 
         /// <summary>Dispose 入口时刻的探针（由测试在构造 binding 后装配）。</summary>
         public Func<bool>? BindingClosedAtDisposeEntry { get; set; }
@@ -66,6 +71,11 @@ public class MapViewportBindingTests
             {
                 // 门未放行 = 确定性交错锚点未满足，必须失败而不是挂死测试。
                 throw new TimeoutException("renderer dispose gate 未在超时内放行。");
+            }
+
+            if (DisposeFailure is { } failure)
+            {
+                throw failure;
             }
 
             base.Dispose();
@@ -193,15 +203,91 @@ public class MapViewportBindingTests
     {
         var (binding, renderer) = CreateBinding();
 
-        await binding.RequestClose();
-        await binding.RequestClose();
-        await binding.RequestClose();
+        var first = binding.RequestClose();
+        await first;
+        var second = binding.RequestClose();
+        var third = binding.RequestClose();
 
+        // DEF-01：所有调用者共享同一关闭 Task（含已完成状态）。
+        Assert.Same(first, second);
+        Assert.Same(first, third);
+        await second;
+        await third;
         Assert.True(binding.IsClosed);
         Assert.Equal(1, renderer.DisposeCount); // 资源关闭只执行一次
         Assert.True(binding.Runtime.Coordinator.IsClosed);
         Assert.True(binding.Runtime.Publisher.IsDisposed);
         Assert.Equal(2, binding.CloseStageLog.Count(s => s == "already_closed"));
+    }
+
+    // ---- DEF-01：进行中的关闭共享同一 Task ----
+
+    [Fact]
+    public async Task Close_InProgress_RepeatCallReturnsSameTask_AndWaitsForFirstCompletion()
+    {
+        var (binding, renderer) = CreateBinding(gate: true);
+
+        // 第一次调用：关闭启动并挂起在 renderer.Dispose 门控内。
+        var first = binding.RequestClose();
+        await renderer.DisposeEntered.WaitAsync(_gateTimeout);
+
+        // 第二次调用在关闭进行中到达：立即拿到同一 Task（不阻塞、不重复执行），
+        // 等待它即等待第一次关闭完成。
+        var second = binding.RequestClose();
+        Assert.Same(first, second);
+        Assert.False(second.IsCompleted); // 首次关闭未完成 → 共享任务仍未完成
+        Assert.True(binding.IsClosed);    // 终态已置，但子序仍在进行
+
+        renderer.ReleaseDispose();
+        await Task.WhenAll(first, second).WaitAsync(_gateTimeout);
+
+        // 资源关闭只执行一次；两个等待者观察到同一完成结果。
+        Assert.Equal(1, renderer.DisposeCount);
+        Assert.Equal(1, binding.CloseStageLog.Count(s => s == "is_closed"));
+        Assert.Equal(1, binding.CloseStageLog.Count(s => s == "renderer_disposed"));
+    }
+
+    [Fact]
+    public async Task Close_Failure_RepeatCallsObserveSameException_NotMaskedAsSuccess()
+    {
+        var (binding, renderer) = CreateBinding();
+        renderer.DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。");
+
+        // 第一次关闭失败：异常经共享 Task 传播给首个调用者。
+        var first = binding.RequestClose();
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => first.WaitAsync(_gateTimeout));
+
+        // 后续调用返回同一 faulted Task：观察到同一异常，不被伪装为成功。
+        var second = binding.RequestClose();
+        Assert.Same(first, second);
+        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => second.WaitAsync(_gateTimeout));
+        Assert.Same(ex, ex2);
+
+        Assert.Equal(1, renderer.DisposeCount); // 不重复执行
+        Assert.True(binding.IsClosed);          // 终态语义不变
+    }
+
+    [Fact]
+    public async Task Close_InProgressFailure_RepeatCallSharesFaultedTask()
+    {
+        // 失败发生在门控放行后：关闭"进行中"的重复调用者在失败后同样观察到原始异常。
+        var (binding, renderer) = CreateBinding(gate: true);
+        renderer.DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。");
+
+        var first = binding.RequestClose();
+        await renderer.DisposeEntered.WaitAsync(_gateTimeout);
+
+        var second = binding.RequestClose();
+        Assert.Same(first, second);
+
+        renderer.ReleaseDispose();
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Task.WhenAll(first, second).WaitAsync(_gateTimeout));
+
+        Assert.Contains("renderer 释放失败", ex.Message);
+        Assert.Equal(1, renderer.DisposeCount);
     }
 
     [Fact]

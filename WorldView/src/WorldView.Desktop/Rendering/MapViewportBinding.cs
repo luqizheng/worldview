@@ -41,6 +41,11 @@ internal sealed class MapViewportBinding
     // volatile：Render 回调入口的关闭检查必须无锁（ADR-08 Q9）。
     private volatile bool _isClosed;
 
+    // DEF-01：唯一关闭 Task。第一次 RequestClose 创建并缓存；后续调用（无论进行中
+    // 还是已完成）都返回同一 Task——所有调用者等待相同的关闭结果，第一次关闭的
+    // 失败也通过同一 faulted Task 原样传播，不会被伪装成成功。
+    private Task? _closeTask;
+
     // 视口标量缓存：UI 线程单写者（控件 SizeChanged / ScalingChanged / Attach 时写入），
     // CaptureFrame 在 UI 线程读取——无 await 间隔的同步值拷贝（ADR-11 问题 8）。
     private double _width;
@@ -78,27 +83,44 @@ internal sealed class MapViewportBinding
     }
 
     /// <summary>
-    /// 永久关闭当前视口的呈现资源（B / C1 / C2 共用子序）。幂等：重复调用只记录
-    /// already_closed，不重复执行任何资源关闭。不关闭 Workspace / ProjectSession
-    /// （那是拥有者 C1 / C2 编排的职责）。
+    /// 永久关闭当前视口的呈现资源（B / C1 / C2 共用子序）。幂等且<strong>共享关闭结果</strong>：
+    /// 第一次调用创建唯一关闭 Task，后续调用返回同一 Task 并等待首次操作完成
+    /// （DEF-01）——不仅"已启动"，而是共享进行中的进度与最终结果；首次关闭失败时，
+    /// 后续调用者观察到同一异常。不关闭 Workspace / ProjectSession（那是拥有者
+    /// C1 / C2 编排的职责）。
     /// </summary>
     public Task RequestClose()
     {
         lock (_closeGate)
         {
-            if (_isClosed)
+            if (_closeTask is not null)
             {
+                // 关闭已启动（进行中或已完成）：返回同一 Task，等待者共享结果。
+                // 重复调用只记录 already_closed 诊断，不重复执行任何资源关闭。
                 _closeStageLog.Add("already_closed");
-                return Task.CompletedTask;
+                return _closeTask;
             }
 
             // 1a. 置终态（volatile 写；此后 Render 入口立即拒绝新帧）。
             _isClosed = true;
             _closeStageLog.Add("is_closed");
             _attachedControl = null;
-        }
 
-        return ClosePipelineAsync();
+            // 创建并缓存唯一关闭 Task。CloseDeferredStartAsync 先 Task.Yield 把
+            // 流水线的同步段（Coordinator.CloseAsync → Publisher.Dispose → Renderer.Dispose）
+            // 调度出当前锁范围：并发调用者不会在 _closeGate 上被门控阻塞的
+            // Renderer.Dispose 卡住，而是立即拿到同一 Task 等待首次结果。
+            var task = CloseDeferredStartAsync();
+            _closeTask = task;
+            return task;
+        }
+    }
+
+    /// <summary>延迟启动包装（DEF-01）：见 <see cref="RequestClose"/> 内注释——锁内创建、锁外执行同步段。</summary>
+    private async Task CloseDeferredStartAsync()
+    {
+        await Task.Yield();
+        await ClosePipelineAsync();
     }
 
     /// <summary>步骤 1b–1d（ADR-10 §7.1）：屏障 → 发布器 → 渲染器，顺序不可重排。</summary>
