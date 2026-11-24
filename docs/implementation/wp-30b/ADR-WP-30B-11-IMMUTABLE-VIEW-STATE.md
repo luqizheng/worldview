@@ -5,6 +5,7 @@
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
 - **修订**: R1（2026-11-24）— 捕获点明确为 `MapViewportBinding.CaptureFrame()`；控件 `Render` 只转发调用，不自行组装帧输入。
+- **修订**: R2（2026-11-24）— Detach 不改变捕获点与快照引用；重新挂载后捕获最新快照；关闭标志的保证边界按 ADR-08/10 表述。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07` / `08` / `09` / `10`
 
@@ -87,8 +88,10 @@ Skia 临时资源（回调内创建/释放；不属于以上任何一层）
 
 `CaptureFrame()` 只做一次同步值拷贝，不保存"当前帧"状态，也不复制场景内容。它返回后，
 `MapViewportControl` 只把帧输入交给 `MapDrawOperation`；Renderer 与 draw operation 都不回读
-Publisher、ViewState 或控件。`binding.IsClosed` 置位后 `CaptureFrame()` 仍可返回合法值，但
-draw operation 的 `Render` 入口会直接返回，不发绘制命令（ADR-08/ADR-10）。
+Publisher、ViewState 或控件。暂时 Detach 期间不调用 `CaptureFrame()`；重新 Attach 后下一帧
+读取 `Publisher.Current` 的**最新**快照，无需重放中间帧。`binding.IsClosed` 置位后，
+**新进入** draw operation 的 `Render` 若读到 true 会立即返回；已通过入口检查的在飞帧可继续
+（精确边界见 ADR-08 问题 9 / ADR-10 §5）。`IsClosed` 是终态，不可重置。
 
 ### 十个必答题的裁决
 

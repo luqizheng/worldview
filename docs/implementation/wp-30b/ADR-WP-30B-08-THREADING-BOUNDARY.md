@@ -4,7 +4,8 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
-- **修订**: R1（2026-11-24）— draw operation 入口增加 volatile 关闭检查；精确定义"关闭后不再启动绘制、在飞回调不中断"的保证边界。
+- **修订**: R1（2026-11-24）— draw operation 入口增加 volatile 关闭检查；明确新进入的绘制被抑制、在飞回调不中断。
+- **修订**: R2（2026-11-24）— 修正过度表述：入口读到 true 才返回；已读到 false 的在飞帧可继续；不保证 Close 返回后零绘制调用。Detach 不置关闭标志。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`（宿主方案）、`ADR-WP-30B-09`（Skia 资源）、`ADR-WP-30B-10`（关闭顺序）、`ADR-WP-30B-11`（不可变帧输入）
 
@@ -41,28 +42,29 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 2. 不为理论性能问题引入通用 Render Scheduler / Render Thread。
 3. 渲染回调必须短、只读、无等待：PRA-01 §6.4/§6.5、§8。
 4. 不允许跨线程共享 Skia 原生对象；快照不含 Skia。
-5. UI 线程不得因为渲染而长时间阻塞；关闭时不得产生迟到绘制。
+5. UI 线程不得因为渲染而长时间阻塞；关闭要抑制**新进入**的绘制，但不等待、不承诺中断在飞帧。
 6. 保留 WP-30A / WP-30B F-1 的关闭屏障语义，不在本阶段改写。
-7. 关闭后不得**启动**新的绘制命令；"已入回调的帧不可中断"是必须显式声明的客观边界，不能用含糊表述掩盖。
+7. "关闭保证"必须按真实时序表述：入口命中 `IsClosed` 才返回，已通过入口检查的帧可继续；禁止使用暗示"零 post-close 绘制"的措辞。
 
 ## Decision
 
 **不设独立 Render Thread；不设通用调度器；绘制只发生在 Avalonia 的 `ICustomDrawOperation.Render`
-回调内，且入口先检查 `MapViewportBinding.IsClosed`（volatile），关闭后直接返回；所有控件与
-ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Skia 对象绝不跨线程。**
+回调内，且入口先检查 `MapViewportBinding.IsClosed`（volatile）：读到 true 立即返回；读到 false
+的帧允许继续（即使随后关闭置位）。所有控件与 ViewState 写入只在 UI 线程；快照用不可变引用
+跨线程共享；Skia 对象绝不跨线程。**
 
 ### UI Thread 负责
 
 | 操作 | 裁决 |
 |---|---|
-| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理；分离即向 `MapViewportBinding` 转发 `RequestClose()`（ADR-10），不自行释放 Runtime。 |
+| 控件生命周期 | `AttachedToVisualTree` / `DetachedFromVisualTree`、`Loaded` / `Unloaded` 全部在 UI 线程处理。**Detach 只停止失效，不关闭 Binding、不释放 Runtime**；永久销毁由拥有者的显式命令或 `Window.Closed` 触发（ADR-10）。 |
 | 输入事件 | 指针/键盘/焦点由 Avalonia 控件路由；M1 不实现 Pan/Zoom，但未来的相机交互也必须落在 UI 线程。 |
 | Camera 交互 | 只在此线程修改 `WorkspaceViewState.CameraX/Y/Zoom`（现有可变类型）；不新增 Camera 写者。 |
 | ViewState 更新 | 单写者原则：`MapWorkspaceSession.ViewState` 的所有写入必须来自 UI 线程；渲染路径只读其**复制值**。 |
 | 控件尺寸变化 | `Control.SizeChanged` → UI 线程捕获新尺寸 → `ViewportGeneration.Advance()` + 重发请求 + `InvalidateVisual()`。 |
 | DPI 变化 | `TopLevel.ScalingChanged` / `RenderScaling`（12.1.6 已核实）→ 同上；DPI 值进入不可变帧输入，不让 Renderer 回读控件。 |
 | UI 状态更新 | 加载/空态指示在 Renderer 之外（ViewModel/控件状态），更新在 UI 线程。 |
-| 快照捕获 | **在 UI 线程的 `Control.Render(DrawingContext)` 内**执行一次 `Publisher.Current`，与帧输入一起构造 draw operation；回调内不再回读 Publisher。 |
+| 快照捕获 | 在 UI 线程的 `Control.Render(DrawingContext)` 内调用 `binding.CaptureFrame()`；由 Binding 执行一次 `Publisher.Current` 并构造不可变帧输入；回调内不再回读 Publisher。 |
 
 ### Render Execution 负责
 
@@ -73,7 +75,7 @@ ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Ski
 | Skia Canvas 使用 | `ImmediateDrawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature))` → `feature.Lease()`；`lease.SkCanvas` 仅在本次 `Render` 调用栈内借用；lease 为 null 时跳过绘制。 |
 | SKSurface / SKBitmap / SKPaint 等资源 | 仅在本回调内创建、使用并 `using` 销毁；M1 不缓存、不提升到字段、不放静态变量（ADR-09）。 |
 | 资源释放 | 由回调内的 `using` 完成；不依赖 GC、不由 UI 线程"事后"释放回调内的对象。 |
-| 窗口关闭 / 渲染中断 | 控件分离转发 `binding.RequestClose()`；binding 置 `IsClosed = true`（volatile）并停止新的请求与 `InvalidateVisual()`。draw operation 在 `Render` 入口检查该标志，置位后直接返回，不获取 lease、不发绘制命令。已进入回调的帧用已捕获数据自然结束，不等待、不打断。 |
+| 窗口关闭 / 渲染中断 | 只有永久销毁/工作区关闭才由拥有者置 `binding.IsClosed = true`（volatile）并停止新请求；Detach 不置位。draw operation 在 `Render` 入口读该标志：true 则立即返回（不取 lease、不发命令）；false 则继续，之后即使关闭置位也不被打断。在飞帧用已捕获数据自然结束，不等待、不打断。 |
 
 ### 十个必答题
 
@@ -87,7 +89,7 @@ ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Ski
 | 6 | SceneSnapshot 是否可跨线程共享 | **可以**（且只允许以此方式）：它真正不可变、无 Skia/Avalonia 引用；通过 `Volatile.Read` 捕获一次后可在回调线程安全读取。 |
 | 7 | WorkspaceViewState 是否必须不可变 | **本阶段不改动其类型**（禁止修改 Application 业务代码）。纪律上等价于不可变：UI 线程外禁止读写；Renderer 只接收 ADR-11 定义的不可变帧输入。未来若改为 immutable record，是独立 ADR。 |
 | 8 | 如何避免数据竞争 | 单写者（UI）+ 不可变帧输入 + 原子快照引用 + 无共享 Skia + 回调不读控件/ViewState。任何需要"当前相机"的绘制只能来自捕获值。 |
-| 9 | 如何避免关闭窗口时迟到绘制 | **三层**：① UI 侧 disposed 标志在 `DetachedFromVisualTree` / window `Closing` 置位后不再入队新的 draw operation；② `MapViewportBinding.IsClosed`（volatile）由关闭命令置位，draw operation 的 `Render` 入口第一条语句检查它，置位后直接返回——**关闭后不再启动任何绘制命令、lease 获取或资源创建**；③ F-1 屏障保证关闭后无迟到发布（`SNAPSHOT_LIFECYCLE` §5.1）。**保证边界的精确定义**：关闭命令完成后，不会有新的帧开始绘制；已经进入 `Render` 回调的帧可能继续执行至自然结束——Avalonia 12.1.6 未公开取消在飞回调的契约，且 UI 线程不得等待渲染完成，因此本裁决**不承诺**打断已入回调的帧。该帧只消费本地捕获数据与局部资源，不触碰已释放对象。 |
+| 9 | 如何避免关闭窗口时迟到绘制 | 允许的交错：`Render enters → reads IsClosed == false → Close sets IsClosed = true → Close returns → 已进入的 Render 可继续`。保证：① 入口读到 true 时立即返回（不取 lease、不建 Skia 资源、不发命令）；② 置位前已读到 false 的在飞帧允许自然完成；③ **不保证** Close 返回后绝对没有绘制调用；④ **不保证**中断已进入的回调；⑤ 不等待在飞帧；⑥ UI 线程不等待渲染；⑦ 不加锁、不加信号量、不加帧屏障、不建独立 Render Thread。Detach 只停失效、不置 IsClosed；F-1 屏障另挡关闭后的发布（`SNAPSHOT_LIFECYCLE` §5.1）。完整边界见 ADR-10 §5。 |
 | 10 | 如何确保 UI 线程不等待后台渲染完成 | 没有"后台渲染"这一环节；请求完成是异步回调，`InvalidateVisual()` 是入队而非同步绘制；`DisposeAsync()` 只关闭 coordinator + 释放 publisher 并置标志，**不**等待某帧画完，也不在回调里 `Wait`/`Invoke`。 |
 
 ## Consequences
@@ -98,7 +100,8 @@ ViewState 写入只在 UI 线程；快照用不可变引用跨线程共享；Ski
 - 渲染路径保持 WP-30A 的"零锁、零等待、零准备"读者契约。
 - Skia 原生资源不跨线程，消除释放后使用与双重释放的主要来源。
 - 不需要通用调度器、事件总线或全局状态。
-- R1 后"关闭后绘制"有了可验证的判定点：`Render` 入口的 volatile 检查，无需等待渲染排空。
+- "关闭后绘制"有了可验证判定点：`Render` 入口的 volatile 检查，无需等待渲染排空。
+- 保证边界与真实时序一致：不把"新帧被抑制"误写成"在飞帧被中断"，也不承诺零 post-close 调用。
 
 **代价 / 约束**
 

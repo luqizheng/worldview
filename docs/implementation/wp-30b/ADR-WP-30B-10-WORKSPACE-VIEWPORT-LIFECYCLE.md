@@ -4,7 +4,8 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
-- **修订**: R1（2026-11-24）— `MapViewportBinding` 成为 Runtime / Renderer / 关闭标志的唯一持有者与关闭命令执行者；控件只转发信号。关闭后不再启动新绘制。
+- **修订**: R1（2026-11-24）— `MapViewportBinding` 成为 Runtime / Renderer 的唯一持有者与关闭入口；控件只持有引用。
+- **修订**: R2（2026-11-24）— 区分「暂时脱离视觉树」「视口永久销毁」「工作区显式关闭」三种生命周期；Detach 不再等同于关闭；修正"关闭后零绘制"的过度表述。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`、`ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-11`
 
@@ -20,135 +21,227 @@ Proposed（待独立架构审查；本阶段不实现）
 - `ProjectWorkspaceViewModel` 持有 `Workspaces` 集合，`CloseWorkspaceAsync` 命令依次为
   `Session.CloseWorkspaceAsync` → `Workspaces.Remove` → `workspace.DisposeAsync()`
   （`ProjectWorkspaceViewModel.cs:131-145`）。
-- WP-30A 交接要求：在组合根的 workspace 工厂内为每个 `MapWorkspaceSession` 创建
-  `ViewportPresentationRuntime`，关闭时 `DisposeAsync`（`IMPLEMENTATION_SUMMARY.md` §7）。
+- WP-30A 交接要求：每个 `MapWorkspaceSession` 对应一个 `ViewportPresentationRuntime`，关闭时
+  `DisposeAsync`（`IMPLEMENTATION_SUMMARY.md` §7）。
 - `ViewportPresentationRuntime.DisposeAsync()` **先** `Coordinator.DisposeAsync()`（其中
   `CloseAsync()` 在发布器锁内置位 F-1 屏障），**后** `Publisher.Dispose()`；顺序即契约
   （`ViewportPresentationRuntime.cs:56-60`；`PresentationRequestCoordinator.cs:393-418`；
   `SNAPSHOT_LIFECYCLE.md` §5.1/§7）。
 
-ADR-07 R1 进一步引入 Desktop 内部具体类 `MapViewportBinding`：由组合根每工作区创建，持有
-Runtime、Renderer、generation 与 `volatile bool IsClosed`，并作为**唯一的关闭命令执行者**；
-`MapViewportControl` 只持有它的一个引用并转发 UI 生命周期信号。
+R1 引入 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime、Renderer、generation 与
+`volatile bool IsClosed`，是唯一的关闭入口。
 
-本 ADR 只规定这些对象之间"谁创建谁、谁持有谁、按什么顺序释放"，不实现接线。
+**R2 修正的生命周期矛盾**：R1 文本把 `DetachedFromVisualTree` 当作关闭信号。Avalonia 12.1.6 的
+`DetachedFromVisualTree` 只表示控件脱离 rooted visual tree（重新挂载、切换标签页、模板重建、
+移出布局等**都可能**触发，具体取决于外壳实现），并不表示用户永久关闭视口。若在 Detach 时置
+`IsClosed`，同一个控件重新挂载后将永远无法恢复绘制，且可能误关工作区。因此必须把
+「暂时脱离」与「永久销毁」分开。
+
+本 ADR 只规定对象之间"谁创建谁、谁持有谁、按什么顺序释放"，不实现接线。
 
 ## Decision Drivers
 
-1. 保留 WP-30A 的每次视口独立 runtime 与 F-1 关闭屏障，不为视口销毁改写 Publisher 语义。
+1. 保留 WP-30A 的每视口独立 runtime 与 F-1 关闭屏障，不改写 Publisher 语义。
 2. 工作区（Application 会话）与视口（Desktop 控件）是不同生命周期，不能互相隐式销毁。
-3. 关闭顺序必须有明确依据，不能依赖 `Dispose` 偶然调用顺序。
-4. 不引入全局注册表、事件总线或跨视口协调服务。
-5. 单写者 UI 线程 + 不可变帧输入保证绘制期间 ViewState 一致（ADR-08/ADR-11）。
+3. **视觉树挂载状态不能决定业务生命周期**：Detach 既不是销毁，也不是工作区关闭。
+4. Binding / Runtime 必须有唯一的创建者与唯一的销毁入口，不依赖控件析构。
+5. 暂时脱离后重新挂载必须能恢复绘制；永久销毁后必须创建新的 Binding / Runtime，绝不复用已关闭对象。
+6. 不引入通用生命周期管理器、事件总线、全局注册表或跨视口协调服务。
+7. 关闭顺序必须有明确依据；关闭保证的措辞不得暗示"零 post-close 绘制"。
 
 ## Decision
 
-### 对象创建 / 持有 / 释放总表
+### 1. 三种生命周期（不可混用）
 
-| 对象 | 创建者 | 持有者 | 释放触发 | 依据 |
+| 事件 | 典型触发 | Binding / Runtime | Workspace | 绘制 |
+|---|---|---|---|---|
+| **A. Viewport 暂时脱离视觉树** | 可能由标签页切换、重新挂载（reparent）、模板重建、控件暂时移出布局等触发；具体外壳需实测 | **原样保留**，不置 `IsClosed`、不 Dispose | 不受影响 | 自然停止（不在树中，Avalonia 不再调用 `Render`）；重新挂载后恢复 |
+| **B. Viewport 永久销毁** | 关闭该视口/标签/窗口；拥有者显式调用 `binding.CloseAsync()` | `IsClosed = true`（终态）；Coordinator → Publisher → Renderer 依次释放；Runtime 销毁 | **不自动关闭** | 关闭入口之后新进入的 `Render` 立即返回；已进入的在飞帧按 §5 边界处理 |
+| **C. Workspace 显式关闭** | "关闭工作区 / 关闭项目"命令；宿主窗口 `Closed` | 先执行 B 的 binding 关闭 | 随后 `MapWorkspaceSession.CloseAsync` → `ProjectSession` 按需继续 | 同 B |
+
+**判定规则**：`DetachedFromVisualTree` **只**对应 A，永远不触发 B 或 C。B 由视口宿主拥有者的
+显式命令决定；C 由工作区/项目命令或窗口 `Closed` 决定。控件自身没有权限销毁 Binding。
+
+### 2. Avalonia 12.1.6 生命周期事实（已核实）
+
+| API | 12.1.6 语义 | 证据 |
+|---|---|---|
+| `Visual.AttachedToVisualTree` | "Raised when the control is attached to a **rooted visual tree**"；同一控件可多次触发 | `avalonia/12.1.6/lib/net10.0/Avalonia.Base.xml` `E:Avalonia.Visual.AttachedToVisualTree` |
+| `Visual.DetachedFromVisualTree` | "Raised when the control is detached from a **rooted visual tree**"；未声明"永久"或"窗口关闭"，可再次 Attach | 同上 `E:Avalonia.Visual.DetachedFromVisualTree` |
+| `Window.Closing` | "Fired **before** a window is closed"；`WindowClosingEventArgs` 继承 `System.ComponentModel.CancelEventArgs`，可用 `Cancel` 否决关闭；另有 `IsProgrammatic` / `CloseReason` | `Avalonia.Controls.xml` `E:Avalonia.Controls.Window.Closing`、`T:Avalonia.Controls.WindowClosingEventArgs`；反射确认基类与 `Cancel` 属性 |
+| `Window.Closed` | 窗口关闭完成后触发（`EventHandler`，无取消参数） | `Avalonia.Controls.xml` `E:Avalonia.Controls.Window.Closed`；反射确认事件签名 |
+| `Visual.IsAttachedToVisualTree` | 12.1.6 中为 **internal**，不作为公开契约使用 | 反射：`Avalonia.Visual` 上属性 `public=False` |
+
+**结论**：不能把 `DetachedFromVisualTree` 当作永久关闭；也不能在 `Window.Closing` 里执行不可逆
+销毁——其他处理器可能随后 `Cancel`。可靠的窗口级销毁点是 `Window.Closed`（已不可取消）。
+`Window.Closing` 仅可用于诊断/提示，不做资源释放。
+
+### 3. 暂时脱离与重新挂载（A 的具体方案）
+
+**本 ADR 明确选择保留 Binding 与 Runtime**，不创建新对象、不改 `IsClosed`；不存在"Detach 时释放
+Runtime"的分支（那等同于 §4 的永久销毁，必须由拥有者显式决定）。
+
+1. **Detach 时**：控件置自身 `_isAttached = false`（仅控制是否入队失效），**不**调用
+   `binding.RequestClose()`、不 Dispose Runtime、不关闭 Workspace、不停止已在活动的请求。
+   已提交的请求可以继续完成并发布；此时没有控件绘制，发布是无害的。
+2. **Attach 时**：控件置 `_isAttached = true`；若 `binding.IsClosed` 为 true，则**拒绝恢复绘制**
+   并记录诊断——这是终态，拥有者必须创建新的 Binding 与控件，不能复用旧对象。
+3. **正常恢复**：Attach 时不假定 `Bounds` 已有效。若当前尺寸 > 0，则 `binding.OnViewportChanged`
+   推进 generation 并重发一次请求（重新挂载视为呈现状态变更，避免显示 Detach 期间的陈旧快照）；
+   若尺寸仍为 0，则等待首个有效 `SizeChanged` 再请求，避免以 0 尺寸发起请求。随后
+   `InvalidateVisual()`。
+4. **下一帧**：`Render` 调用 `binding.CaptureFrame()`，读取 `Publisher.Current` 的**最新**快照与
+   当前相机值；无需重放 Detach 期间的中间帧。
+5. **不引入**生命周期管理器/事件总线：恢复只依赖控件自身的 `AttachedToVisualTree` 与
+   `Render`，以及 binding 的两个方法。
+
+**不变量**：一个控件实例只能绑定一个未关闭的 Binding；同一 Workspace 在 M1 至多有一个未关闭
+Binding（工厂负责断言）；Binding 一旦 `IsClosed` 即为终态，不可"重开"。永久销毁必须同时丢弃
+控件；新视口由工厂创建新的 Binding + Runtime。**临时 Detach 路径不会产生已关闭 Binding**；
+若 Attach 时发现已关闭，说明拥有者在永久销毁后错误复用了控件，必须 fail-fast 并新建，
+不得静默留下"无法恢复绘制"的状态。
+
+### 4. 视口永久销毁（B 的具体方案）
+
+- **谁判定**：Binding 的拥有者（视口宿主：窗口/工作区视图层），不是控件、不是可视树事件。
+- **触发命令**：
+  - 关闭视口/标签/承载窗口的显式命令；
+  - 宿主窗口 `Closed`（非 `Closing`，避免被取消）；
+  - 工作区关闭（C，先执行 B）。
+- **顺序**：`binding.CloseAsync()`（内部**先**置 `IsClosed`，再 Coordinator → Publisher →
+  Renderer）→ 控件停止失效并丢弃引用。置标志先于任何释放，与 §7 一致。
+- **Workspace 保留**：B 不调用 `ProjectSession.CloseWorkspaceAsync`；工作区继续存活，可由新视口
+  重新挂载（新 Binding + 新 Runtime）。
+- **不可复用**：已关闭 Binding 不得再次 Attach；拥有者若需重新显示，必须走工厂创建。
+
+### 5. 关闭保证的准确边界（B/C 共用）
+
+允许的时序：
+
+```text
+Render enters
+  ↓
+Reads IsClosed == false
+  ↓
+Close sets IsClosed = true
+  ↓
+Close returns
+  ↓
+Already-entered Render may continue
+```
+
+准确保证：
+
+1. `Render` 在入口观察到 `IsClosed == true` 时立即返回：不获取 lease、不创建 Skia 资源、不发绘制命令。
+2. 在关闭置位前已经观察到 `IsClosed == false` 的在飞帧，允许自然完成，可能继续创建资源并发命令；它只使用已捕获帧输入、局部 Skia 对象与 M1 无状态 Renderer，不读已释放的 Runtime / Publisher。
+3. **不保证**关闭命令返回后绝对没有绘制调用——在飞帧可能仍在执行。
+4. **不保证**中断已经进入的回调；Avalonia 12.1.6 未公开取消契约。
+5. 不等待在飞帧结束。
+6. UI 线程不等待渲染完成。
+7. 不引入锁、信号量、帧屏障或独立 Render Thread。
+
+### 6. 对象创建 / 持有 / 释放总表
+
+| 对象 | 创建者（唯一） | 持有者 / 所有者 | 销毁入口（唯一） | 依据 |
 |---|---|---|---|---|
 | `ProjectSession` | `OpenProjectUseCase`（组合根注册） | `ProjectSessionRegistry` + `ProjectWorkspaceViewModel` | `CloseAsync` / `DisposeAsync`（Program 生命周期结束后统一编排） | `Program.cs:37-45`；`ProjectSession.cs:208-264` |
-| `MapWorkspaceSession` | `ProjectSession.OpenWorkspaceAsync` | `ProjectSession._workspaces` + `ViewModel.Workspaces` | `ProjectSession.CloseWorkspaceAsync` → `MapWorkspaceSession.CloseAsync` → `DisposeAsync` | `ProjectSession.cs:168-179,183-202`；`ProjectWorkspaceViewModel.cs:131-145` |
+| `MapWorkspaceSession` | `ProjectSession.OpenWorkspaceAsync` | `ProjectSession._workspaces` + `ViewModel.Workspaces` | `ProjectSession.CloseWorkspaceAsync` → `CloseAsync` → `DisposeAsync` | `ProjectSession.cs:168-179,183-202`；`ProjectWorkspaceViewModel.cs:131-145` |
 | `WorkspaceViewState` | `MapWorkspaceSession` 构造函数 | `MapWorkspaceSession.ViewState` | 随工作区结束（无独立 Dispose） | `MapWorkspaceSession.cs:25,38,109-125` |
-| `ViewportPresentationRuntime` | Desktop 组合根的 workspace 工厂（`ViewportPresentationRuntime.Create()`） | `MapViewportBinding`（per workspace 私有字段） | binding 在显式关闭命令中 `DisposeAsync()` | `IMPLEMENTATION_SUMMARY.md` §7；`ViewportPresentationRuntime.cs:30-35`；ADR-07 R1 |
-| `MapViewportBinding` | Desktop 组合根的 workspace 工厂（与 Runtime 同时创建） | 控件只持有**一个引用**；binding 自身生命周期由显式关闭命令管理，不归可视树 | 显式关闭命令中 `RequestClose()` → 全序释放 | ADR-07 R1；本 ADR §关闭顺序 |
-| `MapViewportControl` | Desktop 窗口/视图层（工作区与 binding 已存在后创建） | 所在 `Window` 的可视树 | `DetachedFromVisualTree` / window `Closing` → 只转发 `RequestClose()` | ADR-07；Avalonia 12.1.6 `Visual.DetachedFromVisualTree`、`Window.Closing` |
-| `Renderer`（Desktop 内部绘制对象） | `MapViewportBinding` 构造时 new，`internal sealed` | `MapViewportBinding` 私有字段（**不是控件字段**） | binding 在 Publisher 释放后调 `Dispose()`（M1 幂等空操作） | ADR-07 R1；ADR-09 §8/§9；本 ADR §关闭顺序 |
+| `MapViewportBinding` | Desktop 组合根的 workspace 工厂（单一工厂方法） | **视口宿主拥有者**（窗口/工作区视图层）；控件只持一个引用 | 拥有者调用 `binding.CloseAsync()`（单一入口）；`Window.Closed` 仅是该拥有者的兜底调用点 | ADR-07 R1/R2；本 ADR §3/§4 |
+| `ViewportPresentationRuntime` | `MapViewportBinding` 构造函数（`ViewportPresentationRuntime.Create()`） | `MapViewportBinding` 私有字段 | `binding.CloseAsync()` 内 `DisposeAsync()` | `IMPLEMENTATION_SUMMARY.md` §7；`ViewportPresentationRuntime.cs:30-35` |
+| `Renderer`（Desktop 内部绘制对象） | `MapViewportBinding` 构造函数，`internal sealed` | `MapViewportBinding` 私有字段 | `binding.CloseAsync()` 内、Publisher 释放后 `Dispose()` | ADR-07；ADR-09 §8/§9；本 ADR §7 |
+| `MapViewportControl` | Desktop 窗口/视图层（Binding 已存在后创建） | 所在 `Window` 的可视树 | 随可视树/窗口销毁；**Detach 不销毁、不关闭** | ADR-07；Avalonia 12.1.6 `Visual.*VisualTree` |
 | `Camera`（M1 无独立类型） | 数值由 `WorkspaceViewState` 初始化 | `WorkspaceViewState`（Application 瞬态） | 随工作区；视口只持有不可变复制值 | ADR-07 问题 3；ADR-11 |
 | Skia 资源 | draw 回调内（除 Avalonia 借出的 canvas/surface） | 本次回调 | 本次回调 `using` | ADR-09 |
 
-### Workspace 与 Viewport 的关系
+**唯一性说明**：Binding 只由工厂方法创建；Runtime 与 Renderer 只由该 Binding 创建并销毁；
+控件从不创建或销毁三者。`Window.Closed` 是**事件**而非销毁者：它只调用拥有者的同一清理方法
+（最终仍是 `binding.CloseAsync()`），不构成第二个销毁入口，且必须幂等。
 
-- **M1 采用 1:1**：一个 `MapWorkspaceSession` 至多挂载一个 `MapViewportControl`，因此也只有一个
-  `MapViewportBinding` / `ViewportPresentationRuntime` / generation 空间 / 帧相机复制。
-- 原因：现有 `WorkspaceViewState` 属于**工作区**而非视口（相机、工具、选择都挂在它上面）；
-  若允许多个视口共享同一工作区，就会共享相机状态并产生互相覆盖。这不是永久禁令：若将来需要
-  多视口，必须先把每视口相机/工具状态从 `WorkspaceViewState` 拆出，再用新 ADR 修订本条。
-- `ViewportGeneration`、`PresentationRequestSequence`、`SnapshotVersion` 都随 runtime 私有，
-  绝不跨视口共享（`SNAPSHOT_LIFECYCLE.md` §8）。
+### 7. 关闭顺序（C：Workspace 显式关闭）
 
-### 关闭顺序（有依据的全序）
-
-```
-UI 线程：单一显式命令（window Closing / "关闭工作区"）
-  1. 控件 Detach/Closing → 转发 binding.RequestClose()
-       → binding 置 IsClosed = true（volatile）
-       → 控件停止新的 InvalidateVisual()；binding 停止新的请求
-       → draw operation 的 Render 入口检查该标志：关闭后不再启动绘制命令（ADR-08）
-  2. binding.CloseAsync()
-       2a. Coordinator.DisposeAsync()
-             - CloseAsync：停新请求、取消活动请求
-             - 在 publisher gate 内置位关闭屏障（F-1 线性化点）
-       2b. Publisher.Dispose()：拒绝一切发布与版本分配；Current 不清空
-       2c. Renderer.Dispose()（幂等空操作；不触碰飞行中帧的局部资源）
-  3. ProjectSession.CloseWorkspaceAsync(workspaceId)
-       → MapWorkspaceSession.CloseAsync()：取消 _derivedWorkCts
-       → 从 ProjectSession._workspaces 移除
-  4. MapWorkspaceSession.DisposeAsync()（释放 _derivedWorkCts）
-  5. ProjectSession.CloseAsync()：关闭其余工作区 → AssetStore → Database
+```text
+0. 触发：显式"关闭工作区/项目"命令，或宿主 Window.Closed（非 Closing）
+1. binding.IsClosed = true（volatile）
+2. Coordinator.CloseAsync()：停新请求、取消活动请求，在 publisher gate 内置位 F-1 屏障
+3. Publisher.Dispose()：拒绝一切发布与版本分配；Current 不清空
+4. Renderer.Dispose()（M1 幂等空操作）
+5. MapWorkspaceSession.CloseAsync()：取消 _derivedWorkCts
+6. ProjectSession.CloseAsync()：关闭其余工作区 → AssetStore → Database（按需继续）
 ```
 
 **依据说明**：
-- 置 `IsClosed`（步骤 1）必须最早：它先于任何资源释放，使关闭后到达的 `Render` 调用在获取
-  lease 之前返回；这是"关闭后不再启动绘制"的可验证判定点（ADR-08 问题 9）。
-- 屏障必须先于 publisher 释放（步骤 2a→2b）是 WP-30A/Phase 1 的既有契约。
-- Runtime 必须先于 workspace 关闭（步骤 2→3）是因为 presentation 请求的取消/迟到拒绝由
-  coordinator 独立完成，不能依赖 workspace 的 `_derivedWorkCts` 来"顺带"保证正确性。
-- Renderer 由 binding 持有，因此由 binding 在同一次显式关闭命令中释放（步骤 2c），且晚于
-  Publisher（步骤 2b）——M1 没有需要抢在 publisher 之前释放的 Skia 资源（ADR-09）。
-  控件析构**不**触发上述任何释放。
+- 步骤 1 先于任何释放：新进入的 `Render` 会在获取 lease 前返回；但不承诺在飞帧被中断（§5）。
+- 步骤 2→3 是 WP-30A/Phase 1 的既有契约：F-1 屏障必须先于 Publisher 释放。
+- 步骤 3→4：Renderer 无抢在 Publisher 之前释放的资源（ADR-09）。
+- 步骤 2→5：presentation 请求的取消/迟到拒绝由 Coordinator 独立完成，不能依赖 workspace 的
+  `_derivedWorkCts`"顺带"保证正确性。
+- 步骤 5→6：工作区先于项目级资源释放，与现有 `ProjectSession` 顺序一致。
+- 控件析构、`DetachedFromVisualTree`、`Window.Closing` 都**不**触发上述序列。
 
-### 十个必答题
+### 8. 十个必答题
 
 | # | 问题 | 裁决 |
 |---|---|---|
 | 1 | 谁创建 Workspace | `ProjectSession.OpenWorkspaceAsync`（Application），经 Core Domain 解析上下文后构造；Desktop 不自行 new。 |
-| 2 | 谁创建 MapViewportControl | Desktop 窗口/视图层，在工作区与 `MapViewportBinding` 均已由组合根创建后创建；构造/Attach 时接收 binding（binding 内部再引用 session 与 runtime）。控件不创建 binding。 |
-| 3 | 谁创建 Renderer | `MapViewportBinding` 构造时创建 `internal sealed` 绘制对象作为私有字段；不注册 DI、不暴露接口、不归控件持有。 |
-| 4 | Workspace 和 Viewport 是什么关系 | 组合关系：Viewport 是 Workspace 的**可视宿主**；binding 引用的上下文与 ViewState 来自 Workspace，Workspace 不依赖 Viewport 的存在（会话可无视图存活）。M1 为 1:1。 |
-| 5 | 一个 Workspace 是否允许多个 Viewport | **M1 不允许**（理由见上）；将来拆分每视口状态后可重新裁决。多个工作区/窗口仍可并存且 runtime 彼此隔离。 |
-| 6 | Viewport 销毁是否意味着 Workspace 销毁 | **否**。控件分离只关闭呈现管线；工作区会话仍归 Application 生命周期管理，由显式的"关闭工作区 / 关闭项目"命令结束。 |
+| 2 | 谁创建 MapViewportControl | Desktop 窗口/视图层，在 Workspace 与 Binding 均已存在后创建；构造/Attach 时接收 Binding。控件不创建 Binding。 |
+| 3 | 谁创建 Renderer | `MapViewportBinding` 构造函数创建 `internal sealed` 绘制对象作为私有字段；不注册 DI、不暴露接口、不归控件持有。 |
+| 4 | Workspace 和 Viewport 是什么关系 | 组合关系：Viewport 是 Workspace 的可视宿主；Binding 引用的上下文与 ViewState 来自 Workspace，Workspace 不依赖 Viewport 的存在（会话可无视图存活）。M1 为 1:1。 |
+| 5 | 一个 Workspace 是否允许多个 Viewport | **M1 不允许**（相机/工具状态仍在工作区级）；将来拆分每视口状态后可重新裁决。多个工作区/窗口仍可并存且 runtime 彼此隔离。 |
+| 6 | Viewport 销毁是否意味着 Workspace 销毁 | **否**。暂时 Detach 什么都不销毁；永久销毁只关闭该视口的 presentation（Binding/Runtime/Renderer），Workspace 仍归 Application 生命周期。 |
 | 7 | Workspace 关闭时如何处理未完成 Presentation Request | `Coordinator.CloseAsync()` 停新请求、取消活动请求、在 publisher 锁内置屏障；其后任何完成路径（包括发布器未释放窗口内的迟到完成）一律 `RejectedClosed`。workspace 的 `_derivedWorkCts` 取消是额外一层，不承担正确性。 |
-| 8 | Renderer 释放早于或晚于 Publisher | M1 Renderer 无资源，`Dispose()` 幂等空操作；由 binding 在同一次显式关闭命令中、在 publisher 释放**之后**调用（步骤 2b→2c）。不允许把 Skia 资源放进 Renderer 以改变这一顺序（ADR-09）。 |
-| 9 | 如何保证关闭之后没有迟到绘制 | **三层，且保证边界必须明说**：① 控件 disposed 标志置位后不再有新的 `InvalidateVisual()` / draw operation；② `binding.IsClosed`（volatile）置位后，draw operation 的 `Render` 入口直接返回——**关闭后不再启动绘制命令、lease 获取或资源创建**；③ F-1 屏障拒绝关闭后的发布。**不承诺**打断已进入回调的帧：Avalonia 12.1.6 无公开取消契约，且 UI 不得等待渲染。该帧只消费已捕获的快照与局部资源，不读已释放对象。 |
-| 10 | 如何保证绘制过程中 ViewState 一致 | 只有 UI 线程写 `WorkspaceViewState`（ADR-08）；控件 `Render(DrawingContext)` 调用 `binding.CaptureFrame()`，由 binding 同步读取并复制成不可变帧输入（ADR-11）；Renderer 与 draw operation 都不回读可变对象或控件；正式快照由 publisher 原子交换，一帧一引用。 |
+| 8 | Renderer 释放早于或晚于 Publisher | M1 Renderer 无资源，`Dispose()` 幂等空操作；由 Binding 在 Publisher 释放**之后**调用（步骤 3→4）。不允许把 Skia 资源放进 Renderer 改变这一顺序（ADR-09）。 |
+| 9 | 如何保证关闭之后没有迟到绘制 | 精确边界见 §5：入口读到 `IsClosed == true` 立即返回；此前已读到 `false` 的在飞帧允许完成；不保证关闭返回后零绘制调用、不保证中断在飞回调、不等待。另由 F-1 屏障拒绝关闭后的发布。 |
+| 10 | 如何保证绘制过程中 ViewState 一致 | 只有 UI 线程写 `WorkspaceViewState`（ADR-08）；控件 `Render` 调用 `binding.CaptureFrame()`，由 Binding 同步复制成不可变帧输入（ADR-11）；Renderer 与 draw operation 不回读可变对象或控件；快照由 publisher 原子交换。 |
 
 ## Consequences
 
 **正面**
 
-- 关闭全序来自现有代码与 F-1 契约，不依赖偶然的 GC/Dispose 顺序；R1 后由 binding 单一执行。
-- 视口的销毁不会误伤工作区/项目会话；兄弟工作区继续独立运行。
-- 控件不再持有 Runtime / Renderer，非 UI 职责可脱离窗口测试；关闭后启动绘制被入口检查挡住。
-- 每视口私有 runtime 保持 WP-30A 的隔离语义与诊断计数。
-- 飞行中帧无共享资源，关闭时无需等待渲染完成。
+- Detach 与销毁解耦：标签切换/重新挂载不会误关 Binding 或 Workspace，重新挂载可恢复绘制。
+- 永久销毁只影响该视口，工作区可继续存活并由新 Binding 重新挂载。
+- Binding 创建者唯一、销毁入口唯一；不依赖控件析构或可视树事件的偶然顺序。
+- F-1 屏障与 WP-30A 读者契约保持不变。
+- 关闭保证措辞与真实时序一致，不再暗示"零 post-close 绘制"。
 
 **代价 / 约束**
 
-- M1 不能在一个工作区开多个地图视口；这是显式限制，需在 UI 上避免提供该入口。
-- 视图层关闭与工作区关闭必须由同一 UI 命令编排，不能分散到控件析构中隐式执行。
-- 组合根需要在 workspace 工厂里创建 runtime 并把它交给视口；这属于实现期的接线工作。
+- 拥有者必须显式调用 `binding.CloseAsync()`；窗口级销毁只能放在 `Closed`，不能放在可取消的
+  `Closing`。这是有意的：`Closing` 被取消时不能留下已销毁的视口。
+- 暂时 Detach 期间 Runtime、Publisher 与最后快照继续驻留；这是恢复绘制的代价，M1 可接受。
+- 已关闭 Binding 不可复用；重新显示必须新建 Binding + Runtime，旧控件必须丢弃。
+- M1 不能在一个工作区开多个地图视口；UI 不应提供该入口。
+- 组合根需提供可对同一 Workspace 再次调用的 Binding 工厂方法（旧 Binding 关闭后）。
 
 ## Rejected Alternatives
 
-- **让 `MapViewportControl.Dispose()` 直接 `MapWorkspaceSession.CloseAsync()` 或直接 `DisposeAsync()` Runtime / Renderer**：视口关闭会误关工作区，破坏 Application 生命周期；且资源释放改成由可视树析构偶发触发，失去单一执行者与确定全序。控件只转发 `RequestClose()`。
-- **把 runtime 做成 DI Singleton / 全局注册表**：直接违反每视口私有与"无全局状态"纪律。
-- **先释放 Publisher 再关 Coordinator**：颠倒既有契约；F-1 屏障必须先置位。
-- **等待所有在飞帧完成后再关闭**：会让 UI 线程等待渲染，且 Avalonia 未提供该同步契约。
-- **多视口共享一个 runtime 或共享相机**：generation/序号/快照会互相覆盖，且 ViewState 是工作区级可变状态。
+- **Detach 即关闭（R1 原方案）**：同一控件重新挂载后 Binding 已终态，无法恢复绘制；还会把标签切换误判为销毁。已废弃。
+- **Detach 时释放 Runtime，Attach 时新建**：同一视口出现两套 generation/publisher 生命周期，切换标签即丢失请求连续性；所有权在控件与拥有者之间摇摆。
+- **在 `Window.Closing` 执行销毁**：`Closing` 可被其他处理器 `Cancel`，会留下已销毁但窗口仍开的状态。销毁放 `Closed`。
+- **只靠 `Window.Closed`，不提供显式关闭视口命令**：无法支持"关视口但保留工作区"（B）；B 必须可由拥有者显式触发。
+- **让 `MapViewportControl.Dispose()` 关闭 Workspace 或 Dispose Binding**：视口销毁会误关工作区；且把资源释放交给可视树析构的偶然顺序。
+- **通用生命周期管理器 / 事件总线**：把两个事件与一个显式命令能解决的事抽象成框架，违反最小机制。
+- **等待所有在飞帧完成后再关闭**：UI 线程等待渲染，且 Avalonia 未提供该同步契约。
+- **把 runtime 做成 DI Singleton / 全局注册表**：违反每视口私有与"无全局状态"。
+- **先释放 Publisher 再关 Coordinator**：颠倒 F-1 契约。
+- **多视口共享 runtime 或相机**：generation/序号/快照互相覆盖，ViewState 是工作区级可变状态。
 
 ## Implementation Constraints
 
-1. 不修改 `ProjectSession`、`MapWorkspaceSession`、`ProjectWorkspaceViewModel`、`ViewportPresentationRuntime`、
-   `PresentationRequestCoordinator`、`SceneSnapshotPublisher` 的既有公共 API 与语义。
+1. 不修改 `ProjectSession`、`MapWorkspaceSession`、`ProjectWorkspaceViewModel`、`ViewportPresentationRuntime`、`PresentationRequestCoordinator`、`SceneSnapshotPublisher` 的既有公共 API 与语义。
 2. 不删除/放宽既有测试（含 `CoordinatorClosePublicationRaceTests`）。
-3. `binding.RequestClose()` / `CloseAsync()` 只在显式 UI 生命周期命令中调用一次；幂等性由既有实现保证，不另加重置逻辑。控件 `Detach` 只转发信号。
-4. 视口控件必须在 `DetachedFromVisualTree` / `Closing` 上置自身 disposed 标志并转发给 binding；不从渲染回调调用关闭逻辑。binding 必须最先置 `volatile bool IsClosed`，且 draw operation 在 `Render` 入口检查它后再取 lease。
-5. 不触碰 `docs/map-editor/implementation/`；本阶段只写文档。
+3. `DetachedFromVisualTree` **不得**调用 `RequestClose()` / `CloseAsync()` / `DisposeAsync()`；只置控件自身 `_isAttached`。
+4. `AttachedToVisualTree` 必须检查 `binding.IsClosed`：为 true 时拒绝绘制并报诊断，不得静默重开。
+5. `binding.CloseAsync()` 只由拥有者在 B/C 命令中调用；必须幂等；`Window.Closed` 可作兜底但不得成为第二套逻辑。
+6. 不在 `Window.Closing` 释放任何资源；`Closing` 仅可用于诊断/状态提示。
+7. Binding 构造时创建 Runtime 与 Renderer；工厂只创建 Binding。禁止其他代码创建/替换 Runtime。
+8. `MapDrawOperation.Render` 入口先检查 `IsClosed`，再获取 lease；保证边界按 §5，不得写成"零 post-close 绘制"。
+9. 不触碰 `docs/map-editor/implementation/`；本阶段只写文档。
 
 ## Open Questions
 
-1. 组合根中 `MapViewportBinding` 的具体持有位置（工厂闭包变量 vs ViewModel 字段）在实现期确定；本 ADR 只要求 per-workspace 唯一、由它持有 runtime/renderer、并只把一个引用交给控件。
-2. 用户直接点击窗口关闭按钮（而非"关闭工作区"命令）时的会话关闭入口尚未接线；实现期需明确由 window `Closing` 触发同一全序，而不是只关窗口。
-3. 多视口需求是否会在 WP-30C 之前出现；若出现必须先处理每视口相机状态拆分。
-4. 飞行中帧的诊断计数（close 后完成帧数）是否具名记录未定。
+1. 当前 Desktop 外壳是否真的会在标签切换时触发 Detach/Attach，需在实现期用真实窗口验证；若某些布局不触发，A 仍按"保留"处理，不影响契约。
+2. 窗口 `Closed` 与 ViewModel 工作区清理命令的先后顺序需在接线时确认；两者都调用同一个 `CloseAsync()`，但需保证只执行一次。
+3. 暂时 Detach 期间是否需要在 UI 上显示"已暂停"状态，属产品决定；不影响 Binding 保留策略。
+4. 多视口需求若出现，必须先拆分每视口相机状态并另立 ADR；本条不预先设计。
+5. 在飞帧的诊断计数（close 后完成帧数）是否具名记录未定；仅观测，不改变 §5 边界。

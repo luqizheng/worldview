@@ -4,7 +4,8 @@
 
 Proposed（待独立架构审查；本阶段不实现）
 - **Date**: 2026-11-24
-- **修订**: R1（2026-11-24）— 抽出 Desktop 内部 `MapViewportBinding` 收窄控件职责；draw operation 入口增加关闭检查，明确"关闭后不再启动绘制"的保证边界。
+- **修订**: R1（2026-11-24）— 抽出 Desktop 内部 `MapViewportBinding` 收窄控件职责；draw operation 入口增加关闭检查。
+- **修订**: R2（2026-11-24）— Detach 不再等于关闭；重新挂载恢复绘制；关闭保证改为"入口命中即返回，在飞帧可继续"，不再声称零 post-close 绘制。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **范围**: WP-30B Phase 2 架构裁决；不含任何渲染实现
 - **相关**: `ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-10`、`ADR-WP-30B-11`
@@ -90,15 +91,15 @@ Avalonia 渲染管线 → 屏幕
 
 | # | 问题 | 裁决 |
 |---|---|---|
-| 1 | 控件的唯一职责 | `MapViewportControl` 是 **Avalonia 视口宿主**：参与布局、路由输入/焦点、把尺寸与 DPI 事件转发给 binding、调用 `InvalidateVisual()`、在视觉树分离时转发 `RequestClose()`。**不**持有 Runtime / Renderer、**不**读取 Publisher、**不**推进 generation、**不**组装帧输入、**不**创建 `SKCanvas`。 |
+| 1 | 控件的唯一职责 | `MapViewportControl` 是 **Avalonia 视口宿主**：参与布局、路由输入/焦点、把尺寸与 DPI 事件转发给 binding、调用 `InvalidateVisual()`、在 Attach/Detach 时切换自身挂载状态。Detach **只**停止失效与绘制机会，**不**关闭 Binding、**不**转发 `RequestClose()`；永久销毁由拥有者的显式命令或 `Window.Closed` 决定（ADR-10）。**不**持有 Runtime / Renderer、**不**读取 Publisher、**不**推进 generation、**不**组装帧输入、**不**创建 `SKCanvas`。 |
 | 2 | Renderer 的职责 | 只把"一个已捕获快照 + 一个不可变帧输入"翻译成针对**传入 canvas** 的绘制命令；解释 `builtin-neutral-background/v1` 到具体颜色；不读 Publisher、不读 ViewState、不做 IO/Domain 查询、不保留帧状态。Renderer 由 `MapViewportBinding` 持有（不归控件）。 |
 | 3 | Camera 属于哪一层 | 视口局部呈现状态，**不是 Domain / Presentation 概念**。M1 不新增 Camera 类型：数值仍存于 `MapWorkspaceSession.ViewState`（Application 的瞬态编辑态），由 `MapViewportBinding.CaptureFrame()` 在 UI 线程读取并复制进不可变帧输入；Renderer 只见复制值。Pan/Zoom 属 WP-30C 范围，届时也不写 Map 数据、不改 Domain revision。 |
 | 4 | SceneSnapshot 如何传入 | `MapViewportBinding.CaptureFrame()` 在 `Render(DrawingContext)` 调用栈中同步执行一次 `Publisher.Current`（可能为 null = 加载/空态），与视口标量一起构造不可变帧输入并放进 draw operation；operation 的 `Render` 只使用这份捕获引用。发布继续走 WP-30A 的原子交换，读者契约不变。 |
 | 5 | Renderer 是否持有快照 | **否**。Renderer 无 `SceneSnapshot` 字段；引用只存在于短生命周期 draw operation / 帧输入中，且仅在该帧内有效。 |
 | 6 | Renderer 是否持有 Skia 资源 | **M1 否**。不缓存 `SKPaint` / `SKPath` / `SKBitmap` / `SKSurface`；所有原生对象在回调内创建、回调内 `using` 释放。`SKCanvas` 是 lease 借出的对象，绝不 Dispose；绝不跨线程传递（详见 ADR-09）。 |
-| 7 | 是否需要单独的 MapViewportControl 公开 API | 只需组合根接线所需的最小面：控件类型本身 + 一个 `Attach(MapViewportBinding)`（或在工厂内构造）。`MapViewportBinding` 本身是 Desktop 内部具体类，不升格为公共 API；**不公开** Render/Draw/Snapshot/Camera 设置入口，不暴露 Skia 类型。 |
+| 7 | 是否需要单独的 MapViewportControl 公开 API | 只需组合根接线所需的最小面：控件类型本身 + 一个 `Attach(MapViewportBinding)`（或在工厂内构造）。`Attach` 必须拒绝已 `IsClosed` 的 binding（终态，需新建 Binding + Runtime），因此同一控件可在暂时 Detach 后重新 Attach 未关闭的 binding。`MapViewportBinding` 不升格为公共 API；**不公开** Render/Draw/Snapshot/Camera 设置入口，不暴露 Skia 类型。 |
 | 8 | 是否需要独立 Renderer 接口 | **不需要**。仅一个 `internal sealed` 绘制对象，由 binding 私有持有；没有第二个后端、没有替换需求。`MapViewportBinding` 同样**不是接口**——它只是一个具体协作者，用来防止控件膨胀，不引入可替换后端或 DI 抽象。若未来出现第二种后端，再由新 ADR 裁决接口。 |
-| 9 | Resize / DPI / 窗口重建 | 全部由 Avalonia 驱动：`Control.SizeChanged`、`TopLevel.ScalingChanged` / `RenderScaling`、`Visual.AttachedToVisualTree` / `DetachedFromVisualTree` 已在 12.1.6 核实存在。控件观察到变化 → 转发 `binding.OnViewportChanged(size, scaling)` → binding 推进 `ViewportGeneration.Advance()` 并发起请求 → 控件 `InvalidateVisual()`。draw operation 的 `Bounds` 用当前控件边界；**没有我方持有的 render target 需要重建**，lease 每次回调重新获取。窗口关闭不产生平台分支。 |
+| 9 | Resize / DPI / 窗口重建 | 全部由 Avalonia 驱动：`Control.SizeChanged`、`TopLevel.ScalingChanged` / `RenderScaling`、`Visual.AttachedToVisualTree` / `DetachedFromVisualTree` 已在 12.1.6 核实存在。控件观察到变化 → 转发 `binding.OnViewportChanged(size, scaling)` → binding 推进 `ViewportGeneration.Advance()` 并发起请求 → 控件 `InvalidateVisual()`。暂时 Detach 后重新 Attach：binding 未关闭则复用；尺寸 > 0 时推进 generation 并重发一次请求（避免 Detach 期间的陈旧快照），尺寸为 0 时等待首个有效 `SizeChanged`；随后 `InvalidateVisual()`，下一帧读取最新快照。draw operation 的 `Bounds` 用当前控件边界；**没有我方持有的 render target 需要重建**，lease 每次回调重新获取。窗口关闭不产生平台分支。 |
 | 10 | 如何避免类型泄漏 | 工程引用层阻止：Avalonia/Skia 引用仅在 Desktop；`WorldView.Presentation.csproj` 仍只引用 Application；沿用 `PresentationBoundaryTests`（程序集引用 + 公共 API 反射）与新增的 Desktop-only 类型检查。Domain/Application/Presentation 均不出现 `SkiaSharp` / `Avalonia` using。 |
 
 ### 控件 / Binding / Renderer 边界（R1）
@@ -119,7 +120,8 @@ Avalonia 渲染管线 → 屏幕
 - `Equals` 需让 Avalonia 能判断操作是否变化；具体的相等定义在实现阶段确定（至少包含 generation / snapshot 版本 / 尺寸 / DPI），不得用常量 `false` 掩盖失效问题。
 - `TryGetFeature` 返回 null（例如无 Skia 后端/无头测试）时安静跳过绘制并记诊断；不得抛异常替代加载态。
 - `ISkiaSharpApiLease` 及其提供的 `SKCanvas` / `SKSurface` 只在 `Render` 调用栈内存活；释放由 `using` 完成，不交给 GC。
-- **关闭检查必须先是 `Render` 的第一件事**：`if (binding.IsClosed) return;`。`Closed` 为 C# `volatile bool`（语言特性，无锁、无新依赖），由 binding 在 UI 关闭命令中置位。置位后不获取 lease、不创建任何 `SKPaint`/`SKPath`、不发绘制命令。该保证的精确边界见 ADR-08 问题 9 / ADR-10 问题 9。
+- **关闭检查必须先是 `Render` 的第一件事**：`if (binding.IsClosed) return;`。`IsClosed` 为 C# `volatile bool`（语言特性，无锁、无新依赖），由 binding 在永久销毁/工作区关闭命令中置位。**读到 true 时**不获取 lease、不创建 `SKPaint`/`SKPath`、不发绘制命令；**已在置位前读到 false 的在飞帧允许继续**，可能在 `Close` 返回后仍创建资源并发命令。精确时序与 7 条保证见 ADR-08 问题 9 / ADR-10 §5。
+- **暂时 Detach 不得改写 `IsClosed`**：Detach 只停止控件失效；重新 Attach 时若 binding 仍未关闭，可恢复绘制。`IsClosed` 是终态，不可重置。
 - draw operation 在 `Equals` 中应包含 binding identity（或 generation），避免关闭后的旧 operation 与新 binding 混淆；精确字段仍为 Open Question。
 
 ## Consequences
@@ -170,7 +172,8 @@ surface/canvas 所有权与两套生命周期；控件与渲染层之间新增�
 6. 渲染器的绘制入口应是纯函数式：相同帧输入 + 相同 canvas 状态 → 相同绘制命令序列。
 7. `MapViewportBinding` 必须是 Desktop 内部具体类：不实现接口、不注册 DI、不做全局单例；控件只持有它一个引用。
 8. `MapDrawOperation.Render` 的第一条语句必须是关闭标志检查；该检查先于任何 lease / Skia 资源获取。
-9. 控件不得在 `DetachedFromVisualTree` / `Closing` 中直接释放 Runtime 或关闭 Workspace，只转发 `RequestClose()`（ADR-10）。
+9. 控件不得在 `DetachedFromVisualTree` / `Window.Closing` 中释放 Runtime、关闭 Workspace 或调用 `RequestClose()`；Detach 只置自身挂载状态，永久销毁由拥有者的显式命令或 `Window.Closed` 触发（ADR-10）。
+10. 重新 Attach 已关闭 binding 必须失败并记诊断；不得通过重置 `IsClosed` 实现"重新打开"。
 
 ## Open Questions
 
@@ -180,4 +183,4 @@ surface/canvas 所有权与两套生命周期；控件与渲染层之间新增�
 4. **DPI 变化与 generation 的精确时序**：`TopLevel.ScalingChanged` 触发时是否总在布局之前、是否需要二次失效；实现期用真实窗口测量后确认，本文不假定。
 5. **背景 token 的颜色表**：`builtin-neutral-background/v1` 的具体 RGB 值在 Desktop 渲染后端定义，本阶段不落数值。
 6. **`MapViewportBinding` 的测试接缝**：保持具体类即可；若测试需要，可用内部构造函数注入 Publisher，但不升格为接口或工厂。
-7. **关闭标志与 draw operation 的可见性**：`volatile bool` 足以保证"不再启动新绘制"；是否需要更强的帧编号核对由实现期诊断决定，不改变本裁决。
+7. **关闭标志与 draw operation 的可见性**：`volatile bool` 足以保证"新进入 `Render` 的调用读到 true 后立即返回"；是否需要更强的帧编号核对由实现期诊断决定，不改变本裁决。

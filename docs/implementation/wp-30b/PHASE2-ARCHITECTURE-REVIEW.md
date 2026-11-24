@@ -2,6 +2,7 @@
 
 - **Date**: 2026-11-24
 - **修订**: R1（2026-11-24）— 针对实现成本的三项关注点做二次审查，补强控件边界与关闭后绘制语义，并同步 07/08/09/10/11。
+- **修订**: R2（2026-11-24）— 区分 Detach / Viewport Destroy / Workspace Close；修正关闭保证的过度表述；补充重新挂载与所有权唯一性核查。
 - **Status**: READY_FOR_REVIEW（待独立架构审查；**不宣布架构验收通过**）
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **分支**: `feat/wp-30b-presentation-rendering`
@@ -20,6 +21,7 @@
 | 查阅 Avalonia 官方文档（Threading model / Architecture / Native interop / ICustomDrawOperation / Custom-drawn controls） | 核实 UI 线程模型与 lease 回调内释放模式；不虚构组合器内部线程 |
 | `grep` 依赖引用与 Skia/Avalonia 标识符；`git diff --stat` | 无跨层引用；本次变更仅新增 5 份 ADR + 本审查文档 |
 | R1 二次审查：按"实现成本"三项关注点逐条核对 ADR-07/08/10/11 与既有代码 | 第 1 项已满足；第 2、3 项补强并同步五份 ADR（见 §3A） |
+| R2 生命周期审查：核对 Avalonia 12.1.6 视觉树/窗口事件语义与 ADR-10 的 Detach 处理 | 确认 Detach 不等于永久关闭；改为三分生命周期并补重新挂载方案（见 §3B） |
 
 `docs/implementation/wp-30b/WP-30B_READINESS.md` **不存在**；仓库实际文件为
 `docs/implementation/wp-30a-review/WP-30B_READINESS.md`。按要求以实际路径为准读取，未新建替身文件。
@@ -33,9 +35,9 @@
 | 3 | Application 是否引用 Avalonia / SkiaSharp | ✅ 否 | `WorldView.Application` 源码与 csproj 零命中（仅注释提及边界）。`WorkspaceViewState` 仍只有 double/string/HashSet。 |
 | 4 | SceneSnapshot 是否包含 Skia 对象 | ✅ 否 | `SceneSnapshot.cs` 字段仅 `ContextFingerprint` / `PresentationContext` / `long` / `ImmutableArray<SceneLayer>` / 诊断；既有反射测试锁定。ADR-09 明令禁止。 |
 | 5 | Renderer 是否有明确资源所有权 | ✅ 有 | ADR-09 所有权表：lease 与自建 `SKPaint`/`SKPath` 归本次回调；canvas/surface 归 Avalonia 且只借用；Renderer 无 Skia 字段；M1 零缓存。 |
-| 6 | UI 与 Render Execution 线程边界是否一致 | ✅ 一致 | ADR-07/08/10/11 同口径：UI 线程写 ViewState、由 `binding.CaptureFrame()` 捕获帧输入、入队失效；绘制只在 Avalonia `ICustomDrawOperation.Render` 回调，入口先检查 `binding.IsClosed`；回调不回读控件/ViewModel/Publisher。 |
-| 7 | Workspace 关闭是否与 F-1 关闭屏障兼容 | ✅ 兼容 | ADR-10 关闭全序复用 `Coordinator.CloseAsync` → `MarkCoordinatorClosed()`（publisher gate 线性化点）→ `Publisher.Dispose()`；不修改 `ViewportPresentationRuntime` 既有顺序。 |
-| 8 | Viewport 关闭是否会错误关闭整个 Workspace | ✅ 不会 | ADR-10 明确：控件分离只停呈现管线；工作区由 `ProjectSession.CloseWorkspaceAsync` / `CloseAsync` 单独结束；拒绝"控件 Dispose 直接关会话"方案。 |
+| 6 | UI 与 Render Execution 线程边界是否一致 | ✅ 一致 | ADR-07/08/10/11 同口径：UI 线程写 ViewState、由 `binding.CaptureFrame()` 捕获帧输入、入队失效；绘制只在 Avalonia `ICustomDrawOperation.Render` 回调，入口检查 `binding.IsClosed`；回调不回读控件/ViewModel/Publisher。Detach 只停失效，不跨线程、不置关闭。 |
+| 7 | Workspace 关闭是否与 F-1 关闭屏障兼容 | ✅ 兼容 | ADR-10 §7 关闭全序复用 `Coordinator.CloseAsync` → `MarkCoordinatorClosed()`（publisher gate 线性化点）→ `Publisher.Dispose()`；触发点排除可取消的 `Window.Closing`，改用 `Window.Closed` 或显式命令。 |
+| 8 | Viewport 关闭是否会错误关闭整个 Workspace | ✅ 不会 | ADR-10 §1 三分：Detach 不销毁任何对象；永久销毁只关该视口的 Binding/Runtime/Renderer；Workspace 由 `CloseWorkspaceAsync` / `CloseAsync` 单独结束。拒绝"控件 Dispose 直接关会话"。 |
 | 9 | 是否重复实现 Camera 或 Snapshot 生命周期 | ✅ 无 | 不新增 Camera 类型，相机仍是 ViewState 三个标量 + 帧输入复制值；快照仍只有一套 publisher/coordinator 生命周期；Renderer 不持有快照。 |
 | 10 | 是否出现不必要接口 / 抽象工厂 / 事件总线 / 调度器 | ✅ 无 | 仅用框架接口 `ICustomDrawOperation` 与 `ISkiaSharpApiLeaseFeature`；Renderer 与 `MapViewportBinding` 均为 `internal sealed` **具体类**（binding 只为拆分职责，不是可替换后端/DI 抽象）；无事件总线、无队列、无调度器、无资源池。 |
 | 11 | 是否与现有 WP-30A 公共 API 冲突 | ✅ 无冲突 | `git diff` 中无源文件变更；五份 ADR 仅描述未来接线；既有 `PresentationBoundaryTests` / `CoordinatorClosePublicationRaceTests` 未删除或放宽。 |
@@ -45,14 +47,14 @@
 
 | 主题 | ADR-07 | ADR-08 | ADR-09 | ADR-10 | ADR-11 | 一致性 |
 |---|---|---|---|---|---|---|
-| 绘制入口 | `ICustomDrawOperation` | 只在 Avalonia 回调 | lease 在回调内 | 关闭时停止入队 | 帧输入驱动 | ✅ |
-| 快照引用 | 控件 `Render` 捕获一次 | 同一引用全程复用 | 快照无 Skia | publisher 不清空 Current | 引用放入帧输入，不深拷贝 | ✅ |
+| 绘制入口 | `ICustomDrawOperation` | 只在 Avalonia 回调；入口检查关闭标志 | lease 在回调内 | 永久销毁后入口返回；Detach 只停失效 | 帧输入驱动 | ✅ |
+| 快照引用 | `binding.CaptureFrame()` 捕获一次 | 同一引用全程复用 | 快照无 Skia | publisher 不清空 Current；重新挂载读最新 | 引用放入帧输入，不深拷贝 | ✅ |
 | Skia 资源 | lease 借用 canvas | 不跨线程 | 单所有者 / using | Renderer 空操作 Dispose | 不进帧输入 | ✅ |
 | Camera | ViewState 标量 + 视口复制 | UI 单写者 | 不适用 | 随工作区结束 | 进入帧输入的复制值 | ✅ |
-| 关闭 | 控件 Detach 停绘制 | 不开新帧 | 局部资源自释放 | 屏障 → publisher → workspace | 捕获点停止更新 | ✅ |
+| 关闭 | Detach 不关闭；永久销毁才置标志 | 仅新进入的 Render 被抑制；在飞帧可继续 | 局部资源自释放；在飞帧用局部对象 | 屏障 → publisher → workspace | 未关闭时捕获点持续可用 | ✅ |
 | Renderer 公开面 | internal sealed，无接口 | 无状态 | 无 Skia 字段 | Dispose 幂等 | 只读帧输入 | ✅ |
 
-**原始五项裁决之间未发现相互冲突**，因此无需互相回改；R1 的实现成本补强见 §3A。
+**原始五项裁决之间未发现相互冲突**，因此无需互相回改；R1/R2 的补强见 §3A/§3B。
 以下两项是"刻意保留的开放点"，不是冲突：
 - ADR-07 允许实现期决定 draw operation 的 `Equals` 字段；ADR-11 的帧输入提供候选字段。
 - ADR-09 的资源账本测试手段在实现期选择，不改变所有权裁决。
@@ -65,16 +67,33 @@
 |---|---|---|---|---|
 | 1 | 是否提前建独立渲染线程 | ✅ 已满足 | 无改动：无 Render Thread、无调度器、绘制只用 Avalonia 回调 | 08 |
 | 2 | 控件是否变成巨型对象 | 🟡 控件虽不"拥有"Camera/Snapshot/Skia，但同时持有 Runtime + Renderer，并负责 generation、请求、捕获，是唯一 wire point | 抽出 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime / Renderer / generation / 捕获 / 关闭标志；控件只保留 Avalonia 本职，并只持有一个 binding 引用 | 07 / 10 / 11 |
-| 3 | 关闭后是否仍会绘制 | 🟡 文档写"在飞帧允许自然完成"，未定义"关闭后不再启动绘制" | draw operation `Render` 第一条语句检查 `volatile bool IsClosed`；置位后不取 lease、不建资源、不发命令；并显式声明在飞帧不可中断的边界 | 07 / 08 / 09 / 10 |
+| 3 | 关闭后绘制保证是否准确 | 🟡 文档写"在飞帧允许自然完成"，且 R1 的"关闭后不再启动命令"易被读成零 post-close 绘制 | draw operation `Render` 入口检查 `volatile bool IsClosed`：读到 true 立即返回；已读到 false 的在飞帧允许继续；明确不保证 Close 返回后零绘制调用 | 07 / 08 / 09 / 10 |
 
 ### 关闭后绘制的保证边界（精确定义）
 
+允许的交错（R2 修正）：
+
+```text
+Render enters
+  ↓
+Reads IsClosed == false
+  ↓
+Close sets IsClosed = true
+  ↓
+Close returns
+  ↓
+Already-entered Render may continue
+```
+
 | 项 | 结论 |
 |---|---|
-| **保证** | 关闭命令置位 `IsClosed` 后，不再有新的绘制命令被启动：不获取 lease、不创建 `SKPaint`/`SKPath`、不向 canvas 发任何绘制调用。 |
-| **不保证** | 已经进入 `Render(ImmediateDrawingContext)` 的回调被中断或回滚。Avalonia 12.1.6 未公开取消在飞回调的契约；ADR-08 又禁止 UI 等待渲染完成。该帧只使用已捕获的不可变帧输入与局部资源，自然结束后自行 `using` 释放。 |
-| **判定点** | `MapDrawOperation.Render` 入口的 `if (binding.IsClosed) return;`。`volatile bool` 为 C# 语言特性，不引入依赖、不加锁。 |
-| **与 F-1 的关系** | 两层互不替代：入口检查挡"关闭后启动绘制"；F-1 屏障挡"关闭后发布快照"。两者都保留。 |
+| **保证 1** | `Render` 在入口读到 `IsClosed == true` 时立即返回：不取 lease、不建 Skia 资源、不发绘制命令。 |
+| **保证 2** | 关闭置位前已读到 `IsClosed == false` 的在飞帧允许自然完成，可能继续创建资源并发命令。 |
+| **不保证 1** | 关闭命令返回后绝对没有绘制调用——在飞帧可能仍在执行。 |
+| **不保证 2** | 中断已经进入的回调或回滚其绘制。Avalonia 12.1.6 未公开取消契约。 |
+| **不等待** | 不等待在飞帧结束；UI 线程不等待渲染完成。 |
+| **不引入** | 锁、信号量、帧屏障、独立 Render Thread。 |
+| **与 F-1 的关系** | 两层互不替代：入口检查抑制新进入的绘制；F-1 屏障拒绝关闭后的快照发布。 |
 
 ### R1 专项一致性核查
 
@@ -82,8 +101,60 @@
 |---|---|
 | `MapViewportBinding` 是否成为不必要抽象 | ✅ 否。具体类、无接口、无 DI、无事件；仅把非 Avalonia 职责移出控件，并为关闭顺序提供单一执行者。 |
 | 控件是否仍持有 Runtime / Renderer / Skia 资源 | ✅ 否。控件只持有一个 binding 引用；binding 持有 Runtime/Renderer；Skia 仍在回调内。 |
-| 关闭后是否可能启动新绘制 | ✅ 否。入口检查先于任何 lease/资源获取；在飞帧边界已在 ADR-08/10 明示。 |
+| 关闭置位后新进入的绘制是否被抑制 | ✅ 是。入口读到 true 即返回，先于任何 lease/资源获取；已通过入口检查的在飞帧可继续（ADR-08/10 已明示）。 |
 | 是否与 ADR-09 的所有权冲突 | ✅ 无。Renderer 仍无 Skia 字段；binding 只是其持有者，不是第二所有者。 |
+
+## 3B. 生命周期专项审查（R2）
+
+### 三种生命周期（最终裁决）
+
+| 事件 | 触发 | Binding / Runtime | Workspace | 绘制 |
+|---|---|---|---|---|
+| **A. 暂时脱离** | `DetachedFromVisualTree`（可能由标签切换、reparent、模板重建、移出布局触发；外壳需实测） | 原样保留；不置 `IsClosed`、不 Dispose | 不受影响 | 停止（不在树中）；重新 Attach 后恢复 |
+| **B. 永久销毁** | 拥有者显式命令；宿主窗口 `Closed` | `IsClosed=true` 终态；Runtime / Renderer 释放 | 不自动关闭 | 关闭后新进入的 `Render` 返回；在飞帧按 §3A 边界 |
+| **C. Workspace 关闭** | "关闭工作区/项目"命令；窗口 `Closed` | 先执行 B | 随后 `CloseWorkspaceAsync` / `CloseAsync` | 同 B |
+
+**Detach 不再被等同于 Workspace.Close，也不再被等同于永久销毁。**
+
+### Avalonia 12.1.6 语义核验
+
+| API | 语义 | 对方案的含义 |
+|---|---|---|
+| `AttachedToVisualTree` | 控件附着到 rooted visual tree，可多次触发 | 重新挂载是正常路径，不是异常 |
+| `DetachedFromVisualTree` | 控件脱离 rooted visual tree，未声明永久性 | 不能据此销毁 Binding 或关闭 Workspace |
+| `Window.Closing` | 关闭前触发，`WindowClosingEventArgs : CancelEventArgs`，可 `Cancel` | 不可在此做不可逆销毁 |
+| `Window.Closed` | 关闭完成后触发，`EventHandler` 无取消参数 | 窗口级销毁的可靠触发点 |
+
+`Visual.IsAttachedToVisualTree` 在 12.1.6 为 internal，未作为公开契约使用。
+
+### 重新挂载方案
+
+1. Detach：控件只置 `_isAttached=false`，不调用关闭、不释放 Runtime。
+2. Attach：若 `binding.IsClosed` 为 true → 拒绝绘制并报诊断（终态，需新建 Binding）；否则复用原 Binding。
+3. 恢复：尺寸 > 0 时推进 generation 并重发一次请求（Detach 期间可能错过数据变化）；尺寸为 0 时等首个有效 `SizeChanged`；随后 `InvalidateVisual()`。
+4. 下一帧：`CaptureFrame()` 读取 `Publisher.Current` 最新快照；不重放中间帧。
+5. 永久销毁后要重新显示：工厂创建**新的** Binding + Runtime；旧控件与旧 Binding 丢弃，绝不复用。
+
+### 所有权唯一性
+
+| 对象 | 唯一创建者 | 唯一销毁入口 |
+|---|---|---|
+| `MapViewportBinding` | Desktop 组合根 workspace 工厂 | 拥有者 `binding.CloseAsync()`；`Window.Closed` 仅兜底调用同一入口 |
+| `ViewportPresentationRuntime` | Binding 构造函数 | `binding.CloseAsync()` |
+| `Renderer` | Binding 构造函数 | `binding.CloseAsync()`（Publisher 之后） |
+| `MapViewportControl` | Desktop 视图层 | 随可视树/窗口销毁；Detach 不销毁 |
+
+### R2 专项一致性核查
+
+| 检查项 | 结论 |
+|---|---|
+| Detach 是否仍被等同于 Workspace.Close | ✅ 否。Detach 不调用 `CloseWorkspaceAsync`，不置 `IsClosed`，不 Dispose Runtime。 |
+| 重新挂载是否有明确方案 | ✅ 有。保留 Binding/Runtime；Attach 检查终态；`InvalidateVisual()` 后读最新快照。 |
+| Binding 的创建者与销毁者是否唯一 | ✅ 创建者唯一（工厂）；销毁入口唯一（`CloseAsync`），`Window.Closed` 不是第二套逻辑。 |
+| Runtime 创建/销毁是否有明确所有权 | ✅ Binding 构造时创建，`CloseAsync` 中销毁。 |
+| Workspace 关闭是否保留 F-1 屏障 | ✅ 保留：`Coordinator.CloseAsync()` → `Publisher.Dispose()` 顺序未变。 |
+| 在飞帧是否可能访问已释放的共享资源 | ✅ 否。在飞帧只用局部 Skia 对象与不可变快照，不读 Runtime/Publisher 状态；M1 Renderer 无状态且 `Dispose()` 空操作，调用其绘制方法安全。 |
+| 六份文档对关闭保证是否一致 | ✅ 07/08/09/10/11 与本文均按 §3A 的时序与 7 条边界表述。 |
 
 ## 4. 与既有文档的关系
 
@@ -102,7 +173,8 @@
 | 🟡 P2 | macOS 上真实窗口绘制/DPI/关闭尚未运行验证（CI 仅构建） | 跨平台承诺目前只有包级证据 | 实现阶段补 macOS 运行时证据，未完成前不得宣称跨平台验收通过 |
 | 🟡 P2 | DPI 变化与 generation 推进的精确时序未实测 | 可能出现重复失效或滞后一帧 | 用 `TopLevel.ScalingChanged` + 真实窗口测量后确认 |
 | 🟡 P2 | draw operation `Equals` 与失效策略未定 | 错误定义会导致不重绘或每帧重绘 | 实现期以测试锁定；候选字段见 ADR-11 帧输入 |
-| 🟡 P2 | Avalonia 是否会对同一 draw operation 重复调用 `Render` 未实测 | 若重复调用，入口关闭检查仍会直接返回、不产生绘制命令；但无法从外部证明"零次调用" | 实现期记录 `Render` 调用次数与关闭标志命中数，仅作观测 |
+| 🟡 P2 | 关闭命令返回后仍可能有在飞帧的绘制调用（已声明为不保证） | 不是缺陷，但需产品/测试接受"不是零 post-close 调用" | 用 `Render` 调用计数与关闭标志命中数观测；不得据此改成等待渲染 |
+| 🟢 P3 | 暂时 Detach 期间 Runtime / Publisher / 最后快照继续驻留 | 长期隐藏的视口会持有内存与快照 | M1 可接受；若出现大量长期隐藏视口，再评估显式 Suspend（需新 ADR） |
 | 🟢 P3 | M1 每帧新建 `SKPaint` 的分配成本无基准 | 未来大数据量可能成为瓶颈 | 实测后再决定是否重开缓存裁决（新 ADR） |
 | 🟢 P3 | M1 限定一个 Workspace 一个 Viewport | 多视口需求需重构相机归属 | 需求出现时先拆分每视口状态 |
 
@@ -110,7 +182,7 @@
 
 | 项 | 结果 |
 |---|---|
-| 新增文档 | `ADR-WP-30B-07` / `08` / `09` / `10` / `11` + 本文件（共 6 份）；R1 仅修订这 6 份，无新增文件 |
+| 新增文档 | `ADR-WP-30B-07` / `08` / `09` / `10` / `11` + 本文件（共 6 份）；R1 / R2 仅修订这 6 份，无新增文件 |
 | 源代码变更 | **无**（`git diff` 空） |
 | 新增依赖 / NuGet | **无** |
 | 公共 API 变更 | **无** |
@@ -123,8 +195,9 @@
 五份 ADR 与既有 WP-30A / F-1 契约之间没有发现冲突；方案在接口与包级证据上支持 Windows 与 macOS。
 线程、DPI 时序与 `Equals` 失效策略属于实现期必须补证据的开放点，已逐项记录在风险表。
 
-R1 后，控件边界与关闭后绘制语义已收敛：控件只保留 Avalonia 职责并持有单个 binding；
-Runtime/Renderer/关闭标志由 binding 单一持有；关闭后不再启动新绘制，在飞回调不可中断的边界
-已在 ADR-08 / ADR-10 明确定义。未新增接口、依赖、调度器或源代码变更。
+R1/R2 后，控件边界与生命周期语义已收敛：控件只保留 Avalonia 职责并持有单个 binding；
+Runtime/Renderer/关闭标志由 binding 单一持有；Detach 与永久销毁、Workspace 关闭分离，
+重新挂载可恢复绘制；关闭保证按"入口命中即返回、在飞帧可继续"的真实时序定义，
+不再声称零 post-close 绘制。未新增接口、依赖、调度器或源代码变更。
 
 **状态：READY_FOR_REVIEW**。等待独立架构审查；本阶段不宣布架构验收通过，不解锁实现。
