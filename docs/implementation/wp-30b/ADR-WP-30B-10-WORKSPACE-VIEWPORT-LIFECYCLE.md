@@ -7,6 +7,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **修订**: R1（2026-11-24）— `MapViewportBinding` 成为 Runtime / Renderer 的唯一持有者与关闭入口；控件只持有引用。
 - **修订**: R2（2026-11-24）— 区分「暂时脱离视觉树」「视口永久销毁」「工作区显式关闭」三种生命周期；Detach 不再等同于关闭；修正"关闭后零绘制"的过度表述。
 - **修订**: R3（2026-11-24）— 把原「C. Workspace 显式关闭」拆为 **C1 单 Workspace 关闭** 与 **C2 整个 ProjectSession / ProjectWindow 关闭** 两条独立路径；单工作区关闭不再误用 `ProjectSession.CloseAsync()`。
+- **修订**: R4（2026-11-24）— C2 收敛为**唯一编排入口** `CloseProjectLifetimeAsync()`：正常命令与 `Window.Closed` 兜底汇聚到同一方法，先关全部 Binding 再关会话，并给出单次启动的幂等契约。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`、`ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-11`
 
@@ -32,7 +33,8 @@ Proposed（待独立架构审查；本阶段不实现）
 - `ProjectWorkspaceViewModel.CloseWorkspaceAsync`（单工作区）依次为
   `Session.CloseWorkspaceAsync` → `Workspaces.Remove` → `workspace.DisposeAsync()`
   （`ProjectWorkspaceViewModel.cs:131-145`）；`CloseProjectAsync`（整项目）只调用
-  `Session.CloseAsync()` 并触发 `ProjectClosed`（`ProjectWorkspaceViewModel.cs:150-156`）。
+  `Session.CloseAsync()` 并触发 `ProjectClosed`（`ProjectWorkspaceViewModel.cs:150-156`）——
+  R4 指出这个"先关会话、后关窗口"的顺序在接入视口后必须反转（见下）。
 - WP-30A 交接要求：每个 `MapWorkspaceSession` 对应一个 `ViewportPresentationRuntime`，关闭时
   `DisposeAsync`（`IMPLEMENTATION_SUMMARY.md` §7）。
 - `ViewportPresentationRuntime.DisposeAsync()` **先** `Coordinator.DisposeAsync()`（其中
@@ -63,6 +65,20 @@ R1 引入 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime、Render
 这次 Dispose。本 ADR 如实记录该缺口为**既有生命周期待核实项**，不在本轮修复（本轮只改文档），
 也不在文档中把它写成"已释放"。
 
+**R4 修正的 C2 双入口问题**（已逐行核实当前调用链）：`ProjectWorkspaceViewModel.CloseProjectAsync`
+当前是 `await Session.CloseAsync(ct)` → `ProjectClosed?.Invoke()`
+（`ProjectWorkspaceViewModel.cs:150-156`）；`ProjectWindow` 用 `fresh.ProjectClosed += Close`
+把该事件接到 `Window.Close()`（`ProjectWindow.axaml.cs:26-29`）。也就是说，今天的顺序是
+**先关 `ProjectSession`（含 Asset Store / Database），再关窗口**，而 `ProjectWindow` 目前
+**没有任何** `Closing` / `Closed` 处理器（`ProjectWindow.axaml.cs:9-40`）。
+
+一旦接入视口，这个顺序就是错的：会话资源已释放时，Binding / Coordinator / Publisher 仍在活动。
+同时，R3 只写了"`Window.Closed` 归 C2"，没说清楚它与"关闭项目命令"这两条入口如何不重复、
+不互相绕过——`binding.CloseAsync()` 的幂等性只覆盖单个 Binding，**不能**替代"C2 整体只跑一次"。
+
+因此 R4 在 ADR 层面定一个**唯一编排方法** `CloseProjectLifetimeAsync()`，两条入口都只调它；
+不新增接口、事件总线、通用生命周期管理器或全局注册表。
+
 本 ADR 只规定对象之间"谁创建谁、谁持有谁、按什么顺序释放"，不实现接线。
 
 ## Decision Drivers
@@ -78,6 +94,9 @@ R1 引入 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime、Render
    `ProjectSession.CloseAsync()`，后者必须先关闭其拥有的全部 Viewport Binding。
 9. 只描述代码已有的释放行为；未完成的释放（如项目关闭时子工作区的 `DisposeAsync`）如实记为
    待核实项，不在文档中虚构。
+10. **一条业务关闭路径只能有一个编排入口**：正常命令与窗口事件是同一件事的两个触发点，必须汇聚到
+    同一个方法；否则两套清理逻辑必然产生"重复释放"或"漏关视口"。
+11. **先 presentation、后 Application**：关闭顺序由依赖方向决定，不由触发点的调用顺序决定。
 
 ## Decision
 
@@ -88,7 +107,7 @@ R1 引入 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime、Render
 | **A. Viewport 暂时脱离视觉树** | 可能由标签页切换、重新挂载（reparent）、模板重建、控件暂时移出布局等触发；具体外壳需实测 | **原样保留**，不置 `IsClosed`、不 Dispose | 不受影响 | 自然停止（不在树中，Avalonia 不再调用 `Render`）；重新挂载后恢复 |
 | **B. Viewport 永久销毁** | 关闭该视口/标签；拥有者显式调用 `binding.CloseAsync()` | `IsClosed = true`（终态）；Coordinator → Publisher → Renderer 依次释放；Runtime 销毁 | **不自动关闭** | 关闭入口之后新进入的 `Render` 立即返回；已进入的在飞帧按 §5 边界处理 |
 | **C1. 关闭单个 Workspace** | 单工作区的"关闭"命令（`ProjectWorkspaceViewModel.CloseWorkspaceAsync`）；该工作区的视口随之永久销毁 | 先执行 B（只关这一个视口） | `ProjectSession.CloseWorkspaceAsync(workspaceId)` 关闭并移除**该**工作区 → ViewModel 从 `Workspaces` 移除 → `workspace.DisposeAsync()`。**不得**调用 `ProjectSession.CloseAsync()` | 同 B |
-| **C2. 关闭整个 ProjectSession / ProjectWindow** | "关闭项目"命令（`CloseProjectAsync`）；项目窗口 `Closed` 作为兜底 | 先关闭该会话下**所有**仍存活的 Binding（各自走 B） | 全部 Binding 关闭后调用 `ProjectSession.CloseAsync()`：关闭全部子工作区 → `AssetStore` → `Database` | 同 B |
+| **C2. 关闭整个 ProjectSession / ProjectWindow** | **唯一编排入口** `CloseProjectLifetimeAsync()`，只由两个触发点调用：①"关闭项目"命令（`CloseProjectAsync`）；②项目窗口 `Closed` 兜底 | 先关闭该会话下**所有**仍存活的 Binding（各自走 B） | 全部 Binding 关闭后调用 `ProjectSession.CloseAsync()`：关闭全部子工作区 → `AssetStore` → `Database` | 同 B |
 
 **判定规则**：
 
@@ -99,6 +118,9 @@ R1 引入 Desktop 内部具体类 `MapViewportBinding`，持有 Runtime、Render
    `ProjectSession.CloseAsync()`（必须先关全部 Binding）。
 4. `Window.Closed` 归属 **C2**，不归属 C1，也不归属"单个 Workspace Tab 关闭"。若某个窗口确实只
    承载一个 Workspace，仍按该窗口的真实宿主所有权描述（该特例不得推广为通用规则）。
+5. **C2 的两个触发点不是两条路径**：`CloseProjectAsync` 与 `Window.Closed` 都只调用
+   `CloseProjectLifetimeAsync()`，清理逻辑只有一份（§7.2）。任何"在 `Closed` 里再写一遍释放"
+   的做法都被拒绝（见 Rejected Alternatives）。
 
 ### 2. Avalonia 12.1.6 生命周期事实（已核实）
 
@@ -183,10 +205,11 @@ Already-entered Render may continue
 
 | 对象 | 创建者（唯一） | 持有者 / 所有者 | 销毁入口（唯一） | 依据 |
 |---|---|---|---|---|
-| `ProjectSession` | `OpenProjectUseCase`（组合根注册） | `ProjectSessionRegistry` + `ProjectWorkspaceViewModel` | **仅 C2**：`CloseAsync` / `DisposeAsync`（`Program` 生命周期结束后统一编排）。C1 **不得**调用 | `Program.cs:37-45`；`ProjectSession.cs:204-264` |
+| `ProjectSession` | `OpenProjectUseCase`（组合根注册） | `ProjectSessionRegistry` + `ProjectWorkspaceViewModel` | **仅 C2 的编排方法**（`CloseProjectLifetimeAsync`）在关闭全部 Binding **之后**调用 `CloseAsync` / `DisposeAsync`（`Program` 生命周期结束后同样经该编排）。C1 **不得**调用 | `Program.cs:37-45`；`ProjectSession.cs:204-264` |
 | `MapWorkspaceSession` | `ProjectSession.OpenWorkspaceAsync` | `ProjectSession._workspaces` + `ViewModel.Workspaces` | **C1**：`ProjectSession.CloseWorkspaceAsync(workspaceId)`（内部 `CloseAsync`）→ `Workspaces.Remove` → `workspace.DisposeAsync()`；**C2**：`ProjectSession.CloseAsync()` 内部逐个 `CloseAsync`，**不调用** `DisposeAsync`（缺口见 Open Questions 第 6 条） | `ProjectSession.cs:182-202,223-239`；`ProjectWorkspaceViewModel.cs:131-145` |
 | `WorkspaceViewState` | `MapWorkspaceSession` 构造函数 | `MapWorkspaceSession.ViewState` | 随工作区结束（无独立 Dispose） | `MapWorkspaceSession.cs:25,38,109-125` |
-| `MapViewportBinding` | Desktop 组合根的 workspace 工厂（单一工厂方法） | **视口宿主拥有者**（工作区视图层）；控件只持一个引用 | 拥有者调用 `binding.CloseAsync()`（单一入口）：C1 关闭该工作区的一个，C2 遍历关闭全部；`Window.Closed` 只触发 C2 | ADR-07 R1/R2/R3；本 ADR §3/§4/§7 |
+| `MapViewportBinding` | Desktop 组合根的 workspace 工厂（单一工厂方法） | **视口宿主拥有者**（工作区视图层）；控件只持一个引用；项目级维护一个仅用于枚举的存活引用集合（不拥有关闭权） | 拥有者调用 `binding.CloseAsync()`（单一入口）：C1 关闭该工作区的一个；C2 由 `CloseProjectLifetimeAsync()` 遍历全部 | ADR-07 R1/R2/R3；本 ADR §3/§4/§7 |
+| **C2 编排**（`CloseProjectLifetimeAsync`，`ProjectWorkspaceViewModel` 上的方法） | `ProjectWorkspaceViewModel` 自身（实例方法，无独立对象、无接口） | `ProjectWorkspaceViewModel` | 不单独销毁；其幂等状态随 ViewModel 一起消亡 | 本 ADR §7.2；`ProjectWorkspaceViewModel.cs:150-156` |
 | `ViewportPresentationRuntime` | `MapViewportBinding` 构造函数（`ViewportPresentationRuntime.Create()`） | `MapViewportBinding` 私有字段 | `binding.CloseAsync()` 内 `DisposeAsync()` | `IMPLEMENTATION_SUMMARY.md` §7；`ViewportPresentationRuntime.cs:30-35` |
 | `Renderer`（Desktop 内部绘制对象） | `MapViewportBinding` 构造函数，`internal sealed` | `MapViewportBinding` 私有字段 | `binding.CloseAsync()` 内、Publisher 释放后 `Dispose()` | ADR-07；ADR-09 §8/§9；本 ADR §7 |
 | `MapViewportControl` | Desktop 窗口/视图层（Binding 已存在后创建） | 所在 `Window` 的可视树 | 随可视树/窗口销毁；**Detach 不销毁、不关闭** | ADR-07；Avalonia 12.1.6 `Visual.*VisualTree` |
@@ -199,8 +222,13 @@ Already-entered Render may continue
 - M1 中 Binding 与 Workspace 是 1:1 且**同属一个拥有者**（工作区视图层）。因此 C1 只需要关闭
   该工作区对应的那一个 Binding；C2 必须遍历该会话下**全部**存活 Binding 并逐个 `CloseAsync()`，
   再调用 `ProjectSession.CloseAsync()`。
-- `Window.Closed` 是**事件**而非销毁者：它只触发 C2 的同一清理方法（最终仍是逐个
-  `binding.CloseAsync()`），不构成第二个销毁入口，且必须幂等。
+- `Window.Closed` 是**事件**而非销毁者：它只调用 C2 的唯一编排方法 `CloseProjectLifetimeAsync()`
+  （内部仍是逐个 `binding.CloseAsync()`），不构成第二个销毁入口，也**不得**自带一套清理逻辑。
+- C2 编排方法本身是 `ProjectWorkspaceViewModel` 上的实例方法，不是新类型、不是接口、不是服务；
+  它的幂等状态可以用一个私有字段表达，不需要 DI、注册表或调度器。
+- **存活 Binding 集合是"观察"而非"所有权"**：项目级只保留一个用于 C2 枚举的引用集合
+  （M1 与 `Workspaces` 1:1，可用 `Dictionary<Guid, MapViewportBinding>` 或等价具体集合），
+  它不负责创建、不负责释放；真正的创建者仍是工厂，释放者仍是 `binding.CloseAsync()`。
 - 任何路径都不得跳过 Binding 直接调用 `ProjectSession.CloseAsync()`：那会在 presentation 管线
   仍活动时释放包级资源。
 
@@ -236,29 +264,69 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
 
 #### 7.2 C2 — 关闭整个 ProjectSession / ProjectWindow
 
+**唯一编排入口**：`ProjectWorkspaceViewModel.CloseProjectLifetimeAsync()`。它是 C2 唯一的业务关闭
+方法，不是新类型、不是接口、不是服务、不注册 DI。两个触发点都只调它一次：
+
+| 入口 | 触发时机 | 行为 |
+|---|---|---|
+| **正常入口** `CloseProjectAsync()`（命令） | 用户点"关闭项目" | **只** `await CloseProjectLifetimeAsync()`；方法内部完成"关 Binding → 关会话 → 通知窗口"。**不得**保留现有"先 `Session.CloseAsync()` 再 `ProjectClosed`"的顺序 |
+| **兜底入口** `Window.Closed` | 窗口被外部直接关闭（用户点 X、系统关闭、`Window.Close()` 完成） | **只**调用同一个 `CloseProjectLifetimeAsync()`，不等待、不写第二套清理 |
+
+编排步骤（按依赖方向，不可重排）：
+
 ```text
-0. 触发：关闭项目命令（ProjectWorkspaceViewModel.CloseProjectAsync）；
-        项目窗口 Closed 作为兜底（非 Closing，避免被 Cancel 后留下已关闭视口）
+CloseProjectLifetimeAsync()
+0. 单次启动保证：若已启动过，直接等待/返回到那次操作，不重复执行（见 §7.2 幂等契约）
 1. 关闭该 ProjectSession 下所有仍存活的 Viewport Binding
      对每个 Binding 执行与 §7.1 步骤 1（1a–1d）完全相同的子序
-     —— 相同顺序、相同屏障、相同幂等要求；不并行、不跳过
+     —— IsClosed → Coordinator（F-1 屏障）→ Publisher → Renderer
+     —— 相同顺序、相同屏障、相同幂等要求；串行、不跳过、不并行
 2. 全部 Binding 关闭完成后，调用 ProjectSession.CloseAsync()
      2a. 置 Closing：拒绝新工作区
      2b. 循环关闭全部子工作区（MapWorkspaceSession.CloseAsync，逐个从集合移除）
      2c. AssetStore.DisposeAsync()
      2d. Database.DisposeAsync()
      2e. 置 Closed → 触发 SessionClosed
-3. 窗口/ViewModel 清理：ProjectClosed → 关闭项目窗口
+3. ViewModel 视图侧清理：清空存活 Binding 集合与 Workspaces 集合
+     （`ProjectSession.CloseAsync` 只清 Application 的 `_workspaces`，不会清 ViewModel 的
+       ObservableCollection；该集合在窗口销毁前必须显式清空，避免悬空引用）
+4. 通知窗口：触发 ProjectClosed 一次 → 正常入口路径下 Window.Close()
+5. 窗口已由兜底入口关闭时（步骤 4 之前窗口已 Closed）：跳过第 4 步的关闭调用，只保留事件不重复触发
 ```
+
+**幂等契约（行为级，不规定实现类型）**
+
+1. **C2 最多启动一次**：第一次调用建立"已启动"状态，之后的调用一律视为同一次操作。
+2. **重复调用不得重复关闭**：不得再次遍历 Binding、不得再次调用 `ProjectSession.CloseAsync()`、
+   不得再次释放 `AssetStore` / `Database`。
+3. **不得绕过进行中的第一次调用**：若第一次尚未完成，后续调用必须**等待它**，而不是并行跑一遍，
+   也不是直接返回"已完成"。
+4. **正常入口与 `Closed` 连续触发时，最终只执行一套 C2 顺序**：两者汇聚到同一方法、同一状态。
+5. **`binding.CloseAsync()` 的幂等性不能替代 C2 的幂等性**：前者只保证单个视口重复关闭无害，
+   不能阻止第二次调用再去跑 `ProjectSession.CloseAsync()` 或再释放包级资源。
+6. **一旦启动就跑到结束**：命令的 `CancellationToken` 只用于启动前的拒绝（例如会话尚未 Ready），
+   不用于中途放弃。中途取消会留下"Binding 已关、会话未关"的半关闭状态，因此启动后以
+   `CancellationToken.None` 继续。
+7. 实现只需要一个私有字段记忆首次调用的完成状态（或等价的最小手段）；不引入锁服务、
+   调度器、事件总线或通用生命周期管理器。
 
 **作用域边界（硬约束）**：
 
 - 步骤 1 必须先于步骤 2：在 presentation 管线仍活动时释放 `AssetStore` / `Database` 是无效顺序。
-- 步骤 1 必须覆盖**全部**存活 Binding，不能只关当前选中的那一个。
+- 步骤 1 必须覆盖**全部**存活 Binding，不能只关当前选中的那一个；遍历依据是该会话的存活
+  Binding 集合（M1 与 `Workspaces` 1:1），不是 `SelectedWorkspace`。
 - 步骤 2b 当前**只**调用 `CloseAsync()`，**不**调用子工作区的 `DisposeAsync()`（见 Open Questions 第 6 条）；
   本文档不声称这些 CTS 已被释放。
 - `Window.Closed` 归 C2；若某窗口只承载一个 Workspace，按其真实宿主所有权仍走 C2 的"先关全部
   Binding 再关会话"，不得因此把该特例当作 C1 的通用规则。
+- **禁止**在 `Closed` 处理器里直接调用 `Session.CloseAsync()` 或自行 Dispose Binding；那会绕开
+  步骤 1 的顺序，并制造第二个销毁入口。
+- **单个 Binding 关闭异常不终止编排**：记诊断后继续关闭其余 Binding，并仍然走到
+  `ProjectSession.CloseAsync()`；否则会留下"部分视口已关、会话仍 Ready"的半关闭状态，比直接
+  完成关闭更危险。
+- **Binding 不依赖控件存活**：按 ADR-07，引用方向是单向的（控件 → Binding），Binding 不持有
+  控件、不创建控件。因此 `Window.Closed` 触发时即使可视树已拆，从 ViewModel 持有的集合里
+  逐个关闭 Binding 仍然安全；此时控件已不可能再发起 `Render`，关闭只剩"停请求 + 屏障 + 释放"。
 
 #### 7.3 两条路径的共同依据
 
@@ -272,6 +340,14 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
   `_derivedWorkCts`"顺带"保证正确性。
 - **Application 内部按现有逆序**：子工作区先于 `AssetStore` / `Database`，与
   `ProjectSession.CloseAsync` 现有实现一致。
+- **顺序由依赖方向决定，不由触发点决定**：现有 `CloseProjectAsync` 是
+  `Session.CloseAsync()` → `ProjectClosed` → `Window.Close()`，即"先 Application、后窗口"。
+  R4 要求在它前面插入"先关闭全部 Binding"，因此接线时必须改写该命令体——这是本轮唯一
+  被**要求改变**的既有调用顺序，且只发生在 Desktop 的 ViewModel 层（不改 Application 代码）。
+- **窗口关闭是最后一步，不是第一步**：`ProjectClosed` → `Window.Close()` 仍然保留为收尾通知；
+  但 `Window.Closed` 触发时若编排已启动，只能作为同一个操作的重复调用被吸收（§7.2 幂等契约）。
+- **关闭期间不再接受新视口**：步骤 2a 置 `Closing` 后 `OpenWorkspaceAsync` 会拒绝新工作区；
+  步骤 1 与 2 之间不允许再创建 Binding（组合根工厂在会话非 Ready 时拒绝创建）。
 
 ### 8. 十个必答题
 
@@ -300,6 +376,19 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
 | 16 | 两条路径中 Binding 的关闭子序是否相同 | **相同**：`IsClosed` → Coordinator（F-1 屏障）→ Publisher → Renderer。C1 执行一次，C2 对每个 Binding 各执行一次；无第二套顺序。 |
 | 17 | 一个 Workspace 对应几个 Binding（M1） | 一个。Binding 与 Workspace 1:1 且同属一个拥有者，因此 C1 无需遍历、C2 需要遍历。 |
 
+### 8B. C2 编排补充裁决（R4）
+
+| # | 问题 | 裁决 |
+|---|---|---|
+| 18 | C2 是否有唯一业务关闭入口 | **有**：`ProjectWorkspaceViewModel.CloseProjectLifetimeAsync()`。它是实例方法，不新增类型/接口/服务。除它以外，任何代码不得自行编排"关 Binding + 关会话"的组合。 |
+| 19 | `CloseProjectAsync` 与 `Window.Closed` 是什么关系 | **同一个方法的两个触发点**，不是两条路径。正常入口只 `await CloseProjectLifetimeAsync()`；兜底入口只调用同一方法。禁止在 `Closed` 里再实现一套清理。 |
+| 20 | 当前"先 `Session.CloseAsync()` 再 `ProjectClosed`"能否保留 | **不能**。必须改为"关全部 Binding → `ProjectSession.CloseAsync()` → 清理视图集合 → 通知窗口"。旧顺序会在 presentation 仍活动时释放包级资源。 |
+| 21 | C2 的幂等如何表达 | 行为契约：最多启动一次；重复调用等待首次操作而非并行重跑；不重复关会话、不重复释放资源。实现只需一个私有字段记忆首次调用，不引入锁服务或调度器。 |
+| 22 | `binding.CloseAsync()` 幂等是否足以保证 C2 幂等 | **不足**。单个 Binding 重复关闭无害，但无法阻止第二次调用继续执行 `ProjectSession.CloseAsync()` 与包级资源释放；C2 必须有自己的"已启动"状态。 |
+| 23 | `Closed` 在首次编排尚未完成时触发怎么办 | 必须**等待**首次操作完成（或直接返回到同一个进行中的操作），不得并行执行、不得跳过等待后自行返回。 |
+| 24 | 项目关闭命令被取消（`CancellationToken`）时能否中途放弃 | **不能**。令牌只用于启动前的拒绝；一旦开始关闭 Binding，就以 `CancellationToken.None` 跑到结束，否则会留下"Binding 已关、会话未关"的半关闭状态。 |
+| 25 | 存活 Binding 集合由谁维护、是否算注册表 | 由项目级 ViewModel 维护一个**仅用于枚举**的具体集合（M1 与 `Workspaces` 1:1）。它不是全局注册表、不是 DI、不拥有释放权；创建仍归工厂，释放仍归 `binding.CloseAsync()`。 |
+
 ## Consequences
 
 **正面**
@@ -311,6 +400,10 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
 - 关闭保证措辞与真实时序一致，不再暗示"零 post-close 绘制"。
 - **C1 / C2 分离**：关闭一个工作区不会再连带关闭兄弟工作区、会话或包级资源；项目关闭则明确要求
   先关全部 Binding，避免在 presentation 仍活动时释放 `AssetStore` / `Database`。
+- **C2 单一编排入口**：正常命令与 `Window.Closed` 汇聚到同一方法，清理逻辑只有一份；不会出现
+  "命令路径关了一半、事件路径又关一遍"或两条路径互相绕过的情形。
+- **关闭顺序由依赖方向固定**：presentation → Application → 窗口，与"谁依赖谁"一致，而不是由
+  触发点的调用先后偶然决定。
 
 **代价 / 约束**
 
@@ -325,6 +418,14 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
   显式步骤，不能依赖选中项。
 - **既有缺口带入实现期**：项目关闭时子工作区的 `DisposeAsync()` 未被调用（Open Questions 第 6 条）。在本 ADR
   约束下，接线只能如实反映现状；补齐该缺口属 Application 代码变更，需另开实现任务。
+- **C2 编排需要一个状态位与一个存活集合**：`CloseProjectLifetimeAsync` 必须记住"已启动"（否则
+  `Closed` 与命令会各跑一遍），项目级还要维护可枚举的存活 Binding 集合。两者都是最小具体实现，
+  但不是零成本——它们属于 Phase 3 接线范围。
+- **现有命令体必须改写**：`CloseProjectAsync` 目前是 `Session.CloseAsync()` 后才 `ProjectClosed`，
+  R4 要求在它前面插入 Binding 关闭并把它改为委托给编排方法。这是 ADR 明确要求改变的一处既有顺序
+  （仅 Desktop ViewModel 层，不改 Application）。
+- **`Closed` 兜底是 fire-and-forget**：Avalonia 的事件处理器无法 await 关闭流程，因此兜底入口只能
+  启动/接入同一个操作；这进一步要求编排方法本身可安全重复调用，而不能依赖事件顺序。
 
 ## Rejected Alternatives
 
@@ -345,10 +446,22 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
   包级资源已被释放，造成在飞请求访问已释放对象。必须先遍历关闭全部 Binding。
 - **在 ADR 中假定项目关闭已释放子工作区 CTS**：当前 `ProjectSession.CloseAsync` 不调用子工作区
   `DisposeAsync`。把它写成"已释放"是虚构；正确做法是记录缺口并留给实现阶段。
+- **在 `Window.Closed` 里写第二套清理逻辑（直接 `Session.CloseAsync()` + Dispose Binding）**：
+  绕开"先关全部 Binding"的顺序，且与命令路径重复释放；两条路径必然漂移。
+- **保留现有顺序（先 `Session.CloseAsync()`，再关窗口/视口）**：接入视口后等于在 presentation
+  仍活动时释放包级资源；`Closed` 再补关 Binding 只会更晚，且会读到已释放的 Publisher。
+- **只用 `binding.CloseAsync()` 的幂等性来"保证" C2 幂等**：单个 Binding 幂等不等于整条编排幂等，
+  第二次调用仍会重跑 `ProjectSession.CloseAsync()` 与资源释放。
+- **用一个"已关闭"布尔量让后续调用直接 return**：首次尚未完成时直接返回会让 `Closed` 路径提前
+  结束，调用方以为项目已关闭；必须等待首次操作而不是跳过。
+- **为幂等引入异步锁 / SemaphoreSlim / 通用关闭服务 / 调度器**：一个私有字段记忆首次调用即可满足
+  契约，额外同步原语违反最小机制，且会诱使 UI 线程等待。
+- **让 `Closed` 处理器 `async void` 里 `await` 完整编排再"确认"关闭**：Avalonia 不等待事件处理器，
+  `async void` 的完成无法被观察；正确做法是编排方法可重复调用、由首个调用者负责完成。
 
 ## Implementation Constraints
 
-1. 不修改 `ProjectSession`、`MapWorkspaceSession`、`ProjectWorkspaceViewModel`、`ViewportPresentationRuntime`、`PresentationRequestCoordinator`、`SceneSnapshotPublisher` 的既有公共 API 与语义。
+1. 不修改 `ProjectSession`、`MapWorkspaceSession`、`ProjectWorkspaceViewModel`、`ViewportPresentationRuntime`、`PresentationRequestCoordinator`、`SceneSnapshotPublisher` 的既有公共 API 与语义。**唯一例外**：按第 14 条改写 `ProjectWorkspaceViewModel.CloseProjectAsync` 的**方法体**（委托给 `CloseProjectLifetimeAsync`），命令名、签名与对外可观察结果（项目被关闭、窗口关闭）不变。
 2. 不删除/放宽既有测试（含 `CoordinatorClosePublicationRaceTests`）。
 3. `DetachedFromVisualTree` **不得**调用 `RequestClose()` / `CloseAsync()` / `DisposeAsync()`；只置控件自身 `_isAttached`。
 4. `AttachedToVisualTree` 必须检查 `binding.IsClosed`：为 true 时拒绝绘制并报诊断，不得静默重开。
@@ -365,12 +478,25 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
 11. `Window.Closed` 只接入 C2 的清理方法；不得把它接到 C1，也不得在单工作区 Tab 关闭时触发。
 12. 不得在文档或实现中把"项目关闭时子工作区 `DisposeAsync` 已调用"当作既有事实；该缺口
     （Open Questions 第 6 条）在补齐前必须如实标注。
-13. 不触碰 `docs/map-editor/implementation/`；本阶段只写文档。
+13. **C2 唯一的编排方法是 `ProjectWorkspaceViewModel.CloseProjectLifetimeAsync()`**：不得在
+    `ProjectWindow` 或其它位置再实现一份"关 Binding + 关会话"的组合；`CloseProjectAsync` 与
+    `Window.Closed` 都只调用它。
+14. `CloseProjectAsync` 的命令体必须改为委托给编排方法；**不得**保留 `Session.CloseAsync()` 在
+    Binding 关闭之前执行的顺序（这是 R4 要求改变的唯一既有顺序）。
+15. `Window.Closed` 只允许 `_ = vm.CloseProjectLifetimeAsync()` 形式的接入；不得在处理器内
+    先 `await` 再自行释放资源，不得解码/复制关闭逻辑。
+16. 编排方法必须可安全重复调用：第二次调用等待首次操作的完成状态，不并行、不跳过；实现用
+    最小手段（私有字段）即可，禁止为此引入锁服务、异步锁、调度器或生命周期管理器。
+17. 项目级存活 Binding 集合只用于 C2 枚举；不得把它做成全局注册表、DI Singleton 或公共 API，
+    也不得让它承担创建/释放职责。
+18. 启动后不得中途放弃：`CancellationToken` 只用于启动前拒绝，Binding 关闭阶段使用
+    `CancellationToken.None`；不得出现"Binding 已关、会话未关"的半关闭状态。
+19. 不触碰 `docs/map-editor/implementation/`；本阶段只写文档。
 
 ## Open Questions
 
 1. 当前 Desktop 外壳是否真的会在标签切换时触发 Detach/Attach，需在实现期用真实窗口验证；若某些布局不触发，A 仍按"保留"处理，不影响契约。
-2. 窗口 `Closed` 与 ViewModel 工作区清理命令的先后顺序需在接线时确认；两者都调用同一个 `CloseAsync()`，但需保证只执行一次。
+2. `Window.Closed` 与关闭项目命令的完成归属：两者都进入同一编排方法后，"谁在等最终完成"仍需在接线时确认——命令调用方可 await 整个操作；`Closed` 处理器只能启动/接入，不能等待。不影响 §7.2 的幂等契约，但影响 UI 是否显示"正在关闭"。
 3. 暂时 Detach 期间是否需要在 UI 上显示"已暂停"状态，属产品决定；不影响 Binding 保留策略。
 4. 多视口需求若出现，必须先拆分每视口相机状态并另立 ADR；本条不预先设计。
 5. 在飞帧的诊断计数（close 后完成帧数）是否具名记录未定；仅观测，不改变 §5 边界。
@@ -381,7 +507,12 @@ R2 曾把两者写成一条链，末段接 `ProjectSession.CloseAsync()`，导�
    `CloseAsync` 的子工作区循环里追加 `DisposeAsync`，或让 `MapWorkspaceSession.CloseAsync`
    自身承担释放），属实现阶段任务，须单独裁决并补测试（重复关闭、关闭后 Dispose 的幂等性）。
 7. `ProjectWindow` 当前**没有** `Closing` / `Closed` 处理器，会话关闭由 `CloseProjectAsync`
-   → `ProjectClosed` → `Window.Close` 驱动。引入 `Closed` 兜底后，与 ViewModel 命令的先后顺序
-   必须保证只执行一次（与问题 2 同源）。
+   → `ProjectClosed` → `Window.Close` 驱动（`ProjectWindow.axaml.cs:9-40`）。R4 之后 `Closed`
+   只接入同一个编排方法；剩下的是接线细节：订阅应放在构造函数（随 `DataContext` 变化重新挂接，
+   与现有 `ProjectClosed` 的订阅方式一致），还是放在 View 的固定生命周期点上，需在实现期确认。
 8. 若未来出现"一个窗口只承载一个 Workspace"的外壳，其关闭仍按 C2 处理（先关全部 Binding 再关
    会话）；是否需要为该特例引入更短的路径，需新 ADR，不得在本 ADR 中推广为通用规则。
+9. 单个 Binding 关闭失败时的诊断呈现方式未定（日志 / 状态文本 / 汇总）；契约只要求"不终止编排"，
+   呈现形式属实现期决定。
+10. 关闭编排期间是否需要在 UI 上禁用"关闭项目"命令（避免用户重复点击造成困惑），属产品决定；
+    幂等契约已保证重复点击不会重复释放。

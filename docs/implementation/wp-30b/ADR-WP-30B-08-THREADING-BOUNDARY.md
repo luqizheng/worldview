@@ -7,6 +7,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **修订**: R1（2026-11-24）— draw operation 入口增加 volatile 关闭检查；明确新进入的绘制被抑制、在飞回调不中断。
 - **修订**: R2（2026-11-24）— 修正过度表述：入口读到 true 才返回；已读到 false 的在飞帧可继续；不保证 Close 返回后零绘制调用。Detach 不置关闭标志。
 - **修订**: R3（2026-11-24）— 关闭标志的置位点按 ADR-10 的 B / C1 / C2 表述；`Window.Closed` 归 C2 并先关闭全部 Binding。
+- **修订**: R4（2026-11-24）— C2 的关闭动作只由单一编排入口发出（正常命令与 `Window.Closed` 汇聚）；线程与在飞帧边界不变。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`
 - **相关**: `ADR-WP-30B-07`（宿主方案）、`ADR-WP-30B-09`（Skia 资源）、`ADR-WP-30B-10`（关闭顺序）、`ADR-WP-30B-11`（不可变帧输入）
 
@@ -76,7 +77,7 @@ Render Thread"，而是把绘制回调视为**Avalonia 拥有的执行上下文*
 | Skia Canvas 使用 | `ImmediateDrawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature))` → `feature.Lease()`；`lease.SkCanvas` 仅在本次 `Render` 调用栈内借用；lease 为 null 时跳过绘制。 |
 | SKSurface / SKBitmap / SKPaint 等资源 | 仅在本回调内创建、使用并 `using` 销毁；M1 不缓存、不提升到字段、不放静态变量（ADR-09）。 |
 | 资源释放 | 由回调内的 `using` 完成；不依赖 GC、不由 UI 线程"事后"释放回调内的对象。 |
-| 窗口关闭 / 渲染中断 | 只有 B / C1 / C2 才由拥有者置 `binding.IsClosed = true`（volatile）并停止新请求；Detach 不置位。`Window.Closed` 归 C2：先关闭该会话下全部 Binding，再关闭会话（ADR-10 §7.2）。draw operation 在 `Render` 入口读该标志：true 则立即返回（不取 lease、不发命令）；false 则继续，之后即使关闭置位也不被打断。在飞帧用已捕获数据自然结束，不等待、不打断。 |
+| 窗口关闭 / 渲染中断 | 只有 B / C1 / C2 才由拥有者置 `binding.IsClosed = true`（volatile）并停止新请求；Detach 不置位。C2 的全部 Binding 关闭只由单一编排入口 `CloseProjectLifetimeAsync()` 依序发出，`Window.Closed` 是它的重复调用而非第二套逻辑（ADR-10 §7.2）。draw operation 在 `Render` 入口读该标志：true 则立即返回（不取 lease、不发命令）；false 则继续，之后即使关闭置位也不被打断。在飞帧用已捕获数据自然结束，不等待、不打断。 |
 
 ### 十个必答题
 

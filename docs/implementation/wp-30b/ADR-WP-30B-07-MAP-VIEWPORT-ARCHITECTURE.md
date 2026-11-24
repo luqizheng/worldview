@@ -7,6 +7,7 @@ Proposed（待独立架构审查；本阶段不实现）
 - **修订**: R1（2026-11-24）— 抽出 Desktop 内部 `MapViewportBinding` 收窄控件职责；draw operation 入口增加关闭检查。
 - **修订**: R2（2026-11-24）— Detach 不再等于关闭；重新挂载恢复绘制；关闭保证改为"入口命中即返回，在飞帧可继续"，不再声称零 post-close 绘制。
 - **修订**: R3（2026-11-24）— 同步 ADR-10 的 C1/C2 关闭路径拆分：控件不区分两种关闭，只由拥有者决定；`Window.Closed` 归 C2。
+- **修订**: R4（2026-11-24）— C2 收敛为单一编排入口 `CloseProjectLifetimeAsync()`（正常命令与 `Window.Closed` 汇聚）；控件的职责与关闭检查不受影响。
 - **基线**: master `6879608785e5d23eb014e6f38235b739a92c978d`（PR #29 合并提交）
 - **范围**: WP-30B Phase 2 架构裁决；不含任何渲染实现
 - **相关**: `ADR-WP-30B-08`、`ADR-WP-30B-09`、`ADR-WP-30B-10`、`ADR-WP-30B-11`
@@ -112,7 +113,8 @@ Avalonia 渲染管线 → 屏幕
 | `MapSceneRenderer` | 用传入 canvas + 不可变帧输入发绘制命令 | 读 Publisher / ViewState / 控件、持有字段状态或 Skia 资源 |
 
 拆出 binding 的目的不是抽象，而是**让非 UI 职责可以脱离 Avalonia 窗口测试，并让关闭顺序只有
-一个执行者**（见 ADR-10）。控件只保留一个 `MapViewportBinding` 引用。
+一个执行者**（见 ADR-10）。控件只保留一个 `MapViewportBinding` 引用，引用方向是单向的
+（控件 → binding），binding 不持有控件——因此窗口销毁后仍可从 ViewModel 侧安全关闭 binding。
 
 ### 与 ICustomDrawOperation API 的实际适配
 
