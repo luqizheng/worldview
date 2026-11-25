@@ -5,6 +5,14 @@
 `FakeAssetStore` / `FakeMapQuery` / `FakeResolver` 模式与
 `WorldView.Desktop.Tests` 的 ViewModel 测试模式。
 
+> **WP-UI-04B 执行结果（2026-11-25）**：A-1 / A-2 / A-3(Session 部分) / A-5 / A-6 /
+> A-7 / A-8 / A-9 / A-10 / A-11 已自动化通过。A-4（窗口注册表去重/激活）与
+> A-3 的注册表部分、A-12~A-15 属 04C 范围（本阶段禁止实现窗口/Registry）。
+> 测试文件映射：`MapWorkspaceSessionLifecycleTests`（状态机与守卫）、
+> `ProjectSessionWorkspaceLifecycleTests`（去重/原子关闭/项目关闭）、
+> `ProjectWorkspaceViewModelWorkspaceTests`（VM 消费与 UI/Session 不分叉）。
+> 全量 895/895 通过（基线 859 + 新增 36）。
+
 ## A. 自动化测试（Session / VM 层）
 
 窗口对象生命周期不做无头测试（PR #34 既定裁定），窗口行为经 VM/Registry 抽象覆盖。

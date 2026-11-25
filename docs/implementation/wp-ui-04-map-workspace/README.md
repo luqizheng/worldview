@@ -18,7 +18,9 @@
 | PR #34 合并确认 | ✅ `8bdbad1` 已在 master 历史中（本阶段基线即最新 master） |
 | 代码审查 | ✅ 完成，见 `architecture.md` §2 与 §10 |
 | 目标架构 / 窗口管理 / 生命周期状态机 / UI / 实施计划 / 验收 / 开放问题 | ✅ 本目录八份文档 |
-| 业务代码实现 | ⛔ 本阶段禁止（WP-UI-04B 起） |
+| 业务代码实现（04A） | ⛔ 本阶段禁止（已遵守） |
+| **WP-UI-04B Session 层实现** | ✅ 完成（PR：`feat/wp-ui-04b-map-session-lifecycle`；B1-B5 全部落地，895/895 测试通过） |
+| WP-UI-04C 窗口层实现 | ⛔ 未开始 |
 
 ## 3. 核心决策（已确认，本阶段不再重议）
 
@@ -54,7 +56,8 @@
 
 ## 5. 后续阶段
 
-- **WP-UI-04B**：Session 层增强（生命周期枚举、地图显示名、同图去重、关闭原子化）+ 单元测试。
+- **WP-UI-04B**：✅ 已完成——Session 层增强（生命周期状态机、地图显示名、同图去重、关闭原子化）
+  + 单元测试；实现细节与设计差异见 `lifecycle-state-machine.md` §7 与 `implementation-plan.md`。
 - **WP-UI-04C**：窗口层（MapWorkspaceViewModel / MapWorkspaceWindow / 窗口注册表 / 打开入口改造）。
 - **WP-UI-04D**：项目关闭与窗口联动、诊断打磨、验收执行。
 - 更远：Map Editor 宿主接入（见 `architecture.md` §10-Q10），地图绘制能力另立工作包。

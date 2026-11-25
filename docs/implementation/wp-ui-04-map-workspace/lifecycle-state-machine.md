@@ -120,3 +120,60 @@ Session 级别的资源**没有**独立于 Close 流程的第二释放入口—�
 本阶段唯一新增约束：**`Closed` 前提除"子工作区全部成功释放"外，隐含"对应窗口全部
 销毁"**——由不变量 2/3 推导（Session 全部释放 ⇒ VM 全部收到关闭结果 ⇒ 窗口全部关闭），
 无需项目层感知窗口。
+
+## 7. WP-UI-04B 实现记录（与设计的差异及最终结构）
+
+基线：master `7b03057`（merge PR #35）。本节为 04B 落盘后的实际实现记录，优先于上文描述。
+
+### 7.1 状态集与命名
+
+- 枚举名定为 **`MapWorkspaceState`**（04A 实施计划曾写作 `MapWorkspaceLifecycle`）——
+  对齐既有 `ProjectSessionState` 命名约定。状态集 `Created/Opening/Ready/Closing/CloseFailed/Closed`
+  与 §1 完全一致。
+- **Created 可观察**：构造函数置 `Created`；`ProjectSession.OpenWorkspaceAsync` 挂载
+  `_workspaces` 后调用内部 `MarkReady()` 进入 `Ready`（OQ-7 的"构造即就绪"语义不变，
+  但保留了 Created 状态的可测试窗口）。`Opening` 定义但不进入（不过早实现）。
+
+### 7.2 关闭与释放的最终结构（B4/G3 修复）
+
+- `MapWorkspaceSession` 以 `_closeCompleted` / `_disposeCompleted` 两个独立完成标记
+  记录释放进度（替换原 `_closed`/`_disposed` 布尔）。`CloseAsync` 驱动固定顺序
+  ① 派生工作取消 → ② 编辑器资源释放（未来）→ ③ 会话资源释放（CTS Dispose），
+  每步成功才置位；任一步异常 → `CloseFailed` + `CloseFailureDiagnostic`，进度保留。
+- **"Close 成功、Dispose 失败"是可表达、可重试的一等状态**：重试（`CloseAsync` 或
+  `DisposeAsync`）跳过已置位步骤，仅执行剩余步骤，不重复执行已成功的关闭。
+- `DisposeAsync` 为**续段语义**（对齐 `ProjectSession.DisposeAsync` 模式）：
+  Closed/Closing 幂等返回；CloseFailed 继续释放剩余资源；**Created/Ready 明确拒绝**
+  （"必须先经 CloseAsync"）——释放责任唯一归属关闭流程，VM/Window 不得再直接释放
+  （原 VM 自做 `DisposeAsync` 已删除）。
+- **注册移除规则已按 §4 不变量落地**：`ProjectSession.CloseWorkspaceAsync` 改为
+  Close → Dispose → 双成功才 `_workspaces.Remove`；任意阶段失败返回 `false`、
+  Session 保留在列表（CloseFailed）可重试。签名保持 `Task<bool>`（04A 计划曾建议
+  `(bool, string?)` 元组）：诊断经 `workspace.CloseFailureDiagnostic` 获取，避免无谓
+  API 重构；失败返回 `false` 是窗口关闭时序（window-management.md §3 `PS→VM: false
+  + 诊断`）定义的业务分支，非吞异常。
+- **B3 去重**：`OpenWorkspaceAsync` 双重检查——早检查（有可复用工作区时跳过地图查询
+  与上下文解析）+ 挂载锁内权威复查（晚到达保护内）。Ready 复用既有 Session 并返回；
+  Closing/CloseFailed 拒绝（抛出明确异常，不得绕开失败状态另建）；Closed 不复用
+  （移除后允许重开为新 Session）。不引入全局 Registry。
+- **B2 MapName**：构造函数强制校验（`ArgumentException.ThrowIfNullOrWhiteSpace`）；
+  `OpenWorkspaceAsync` 对 `map.DisplayName` 为空抛出明确异常（不静默降级）；
+  `MapName` 只来自真实地图数据。
+- **测试注入点**：新增 internal `DisposeFailureHookForTests`（真实 CTS Dispose 执行后
+  可注入释放失败异常），沿用 `FakeAssetStore.FailureHook` 注入模式——CTS 无自然失败
+  路径，此为验证 mandated "Close 成功、Dispose 失败"重试语义的最小接缝，生产代码不设置。
+- **`IsClosed` 兼容语义**：Closing/CloseFailed/Closed（对齐替换前 `_closed` 布尔在
+  关闭发起即置位的行为）。
+
+### 7.3 ViewModel 消费（B4.9/B4.10）
+
+`ProjectWorkspaceViewModel.CloseWorkspaceAsync`：消费 `CloseWorkspaceAsync` 的 bool 结果，
+仅成功才从 `Workspaces` 集合移除；失败保留集合项并写状态文本（含诊断）。
+`OpenWorkspaceAsync`：Session 层去重返回既有 Session 时 UI 集合不重复添加（镜像不分叉）。
+
+### 7.4 测试映射
+
+`MapWorkspaceSessionLifecycleTests`（Session 状态机/守卫）、
+`ProjectSessionWorkspaceLifecycleTests`（去重/原子关闭/项目级关闭兼容性，
+覆盖 A-1/A-2/A-3(Session 部分)/A-6~A-11）、`ProjectWorkspaceViewModelWorkspaceTests`
+（A-5 + UI/Session 不分叉）。详见 `acceptance-criteria.md` §A 注记。
