@@ -88,7 +88,7 @@
                 </Grid>
 
                 <Border Grid.Row="1" Classes="surface-card">
-                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Classes="section-title" Text="已打开的工作区" />
                             <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
@@ -120,20 +120,6 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <StackPanel IsHitTestVisible="False" HorizontalAlignment="Center"
-                                        VerticalAlignment="Center" Spacing="8">
-                                <Border Width="64" Height="64" CornerRadius="16"
-                                        Background="{DynamicResource SubtleSurfaceBrush}">
-                                    <TextBlock Text="▦" FontSize="30"
-                                               Foreground="{DynamicResource MutedTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <TextBlock Text="还没有打开地图工作区" FontWeight="SemiBold"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="从左侧选择地图并创建工作区，或使用右上角按钮。"
-                                           FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
-                                           HorizontalAlignment="Center" TextWrapping="Wrap" />
-                            </StackPanel>
                         </Grid>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                             <Button Content="关闭所选工作区" Command="{Binding CloseWorkspaceCommand}" />
