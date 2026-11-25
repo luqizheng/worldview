@@ -214,7 +214,12 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     private async Task DiscardOrphanWorkspaceAsync(MapWorkspaceSession workspace)
     {
         WorkspaceStatusText = "项目正在关闭：本次打开的工作区已被拦截并就地关闭。";
-        _log?.Warn("ProjectWorkspace", $"C2 启动后完成的工作区打开 {workspace.WorkspaceId:N} 已被拦截，就地关闭。");
+
+        // P2-01：本方法内的一切日志必须走 best-effort——日志实现自身抛异常时
+        // 绝不允许提前退出，否则 CloseWorkspaceAsync / DisposeAsync 都不会执行，
+        // 孤儿工作区清理被日志故障阻断（违反 DEF-03 纪律：日志不参与生命周期
+        // 收尾的控制流）。
+        WarnBestEffort($"C2 启动后完成的工作区打开 {workspace.WorkspaceId:N} 已被拦截，就地关闭。");
 
         try
         {
@@ -449,8 +454,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>
     /// best-effort 警告日志（DEF-03）：日志实现的异常就地吞掉、不向外传播——
     /// 只限 C2 编排路径使用；日志失败不改变任何关闭决策。
+    /// P2-01：<paramref name="exception"/> 可省略（无异常上下文的诊断日志同样
+    /// 经此调用，保证孤儿工作区回收路径上的任何日志都不可能阻断清理流程）。
     /// </summary>
-    private void WarnBestEffort(string message, Exception exception)
+    private void WarnBestEffort(string message, Exception? exception = null)
     {
         try
         {

@@ -655,6 +655,81 @@ public class ProjectCloseOrchestrationTests
     }
 
     [Fact]
+    public async Task C2_InFlightOpenWorkspace_SalvagePath_WithFailingLog_StillCleansUpOrphan()
+    {
+        // P2-01：孤儿回收路径上的日志必须 best-effort——日志实现的 Warn 抛异常时，
+        // 绝不允许提前退出，否则 Session.CloseWorkspaceAsync / workspace.DisposeAsync
+        // 都不会执行，孤儿工作区清理被日志故障阻断（同 DEF-03 日志纪律）。
+        // 交错方式与 C2_InFlightOpenWorkspace_StartedBeforeClose 测试一致：
+        // 打开停在 GetMapAsync 门控 → C2 启动并挂在 Binding 关闭门控 → 放行打开，
+        // 全程 TaskCompletionSource 门控，无 Sleep / 轮询 / 调度运气。
+        var log = new FakeAppLog { WarnFailure = new InvalidOperationException("日志实现故障（测试注入）。") };
+        var gatedQuery = new GatedMapQueryService();
+        gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        var session = TestSessions.CreateReadySession();
+        var vm = new TestViewModel(
+            session,
+            gatedQuery,
+            new FakeWorkspaceContextResolver(),
+            new CreateMapUseCase(session, new FakeMapCreationService()),
+            log);
+        var gated = new ProbeRenderer(gate: true);
+        var factoryCalls = 0;
+        vm.TestBindingFactory = ws =>
+        {
+            factoryCalls++;
+            return new MapViewportBinding(ws.ViewState, renderer: gated);
+        };
+
+        // 先打开一个常规工作区（C2 需要一个存活 Binding 才会挂起在关闭门控内）。
+        vm.SelectedMap = gatedQuery.Maps[0];
+        await vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        Assert.Single(vm.Workspaces);
+        Assert.Single(session.Workspaces);
+
+        // 第二次打开：停在 GetMapAsync 门控内（打开已开始、尚未完成）。
+        gatedQuery.GateEnabled = true;
+        vm.SelectedMap = gatedQuery.Maps[0];
+        var openTask = vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        await gatedQuery.GetMapEntered.WaitAsync(GateTimeout);
+
+        // 打开仍在途时启动 C2：编排挂在第一个 Binding 的 renderer.Dispose 门控内。
+        var closeTask = Task.Run(() => vm.CloseProjectLifetimeAsync());
+        await gated.DisposeEntered.WaitAsync(GateTimeout);
+        Assert.True(vm.IsProjectCloseLifetimeStarted);
+
+        // 放行在途打开：回收路径执行，且日志异常不得使其中途退出。
+        gatedQuery.ReleaseGetMap();
+        await openTask.WaitAsync(GateTimeout); // 若日志异常外溢，此命令任务将 fault，测试即失败
+
+        // 日志确实被调用并确实抛出了异常（best-effort 吞掉，而非未调用或未抛出）。
+        Assert.Equal(1, log.WarnCount);
+        Assert.Contains("已被拦截，就地关闭", log.WarnMessages[0]);
+
+        // 回收路径未因日志异常提前退出：状态为拦截文案而非"打开工作区失败"。
+        Assert.Contains("拦截", vm.WorkspaceStatusText);
+        Assert.DoesNotContain("打开工作区失败", vm.WorkspaceStatusText);
+
+        // Session.CloseWorkspaceAsync 仍然被执行的确定性证据：C2 仍挂在 Binding 关闭
+        // 门控内（其 Session.CloseAsync 尚未到达），孤儿工作区已被从 Application 会话
+        // 移除——若回收被日志异常阻断，此刻 session.Workspaces 将是 2 而不是 1。
+        Assert.Single(session.Workspaces); // 只剩第一个工作区，孤儿已被就地关闭并移除
+        Assert.Single(vm.Workspaces);
+
+        // 放行 C2：编排正常完成，全项目关闭，无任何孤儿资源泄漏
+        // （回收方法为直线流程：验证 CloseWorkspaceAsync 已执行后，DisposeAsync 是
+        // 剩余唯一收尾步骤，两者之间无任何可提前退出的代码路径）。
+        gated.ReleaseDispose();
+        await closeTask.WaitAsync(GateTimeout);
+
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Empty(vm.Workspaces);
+        Assert.Empty(session.Workspaces);   // 无孤儿残留
+        Assert.Equal(1, factoryCalls);      // 孤儿未创建 Binding
+        Assert.Equal(1, log.WarnCount);     // 日志异常未引发连锁失败
+    }
+
+    [Fact]
     public async Task C2_CommandPath_CatchesFailure_StatusObservable()
     {
         var (vm, query, database, _, _) = CreateVm();
