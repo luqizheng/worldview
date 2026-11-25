@@ -8,6 +8,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
+using WorldView.Domain.Time;
 
 namespace WorldView.Desktop.Tests.Testing;
 
@@ -146,4 +147,18 @@ public sealed class FakeMapQueryService : IMapQueryService
 
     public Task<MapSummary?> GetMapAsync(Guid projectId, Guid mapId, CancellationToken cancellationToken = default)
         => Task.FromResult<MapSummary?>(Maps.FirstOrDefault(m => m.MapId == mapId));
+}
+
+/// <summary>固定成功的上下文解析替身（WP-UI-04B：VM 打开工作区路径测试用）。</summary>
+public sealed class StubContextResolver : IWorkspaceContextResolver
+{
+    public Task<WorkspaceContextResolution> ResolveAsync(
+        Guid projectId, Guid mapId, Guid? branchId, string? historicalTimeInput, CancellationToken cancellationToken = default)
+        => Task.FromResult(WorkspaceContextResolution.Ok(new ValidatedWorkspaceContext
+        {
+            MapId = mapId,
+            BranchId = branchId,
+            RootHistoryId = Guid.NewGuid(),
+            HistoricalTime = HistoricalTime.Epoch,
+        }));
 }

@@ -119,8 +119,16 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                     "Core Domain Branch/历史时间解析服务尚未实现，无法打开工作区。"),
                 cancellationToken).ConfigureAwait(true);
 
-            Workspaces.Add(workspace);
-            WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N}[{workspace.Context.MapId}] 已打开。";
+            // Session 层同图去重可能返回既有工作区：UI 集合只镜像一次，不重复添加（B4.10）。
+            var isExisting = Workspaces.Contains(workspace);
+            if (!isExisting)
+            {
+                Workspaces.Add(workspace);
+            }
+
+            WorkspaceStatusText = isExisting
+                ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
+                : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。";
         }
         catch (Exception ex)
         {
@@ -129,7 +137,12 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
     }
 
-    /// <summary>关闭选定工作区（不影响兄弟工作区与项目会话）。</summary>
+    /// <summary>
+    /// 关闭选定工作区（不影响兄弟工作区与项目会话）。
+    /// 生命周期责任唯一归属 ProjectSession（Close → Dispose → 双成功才移除）：
+    /// 仅在关闭结果为成功时才从 UI 集合移除（B4.9/B4.10）；失败保留集合项与诊断，可重试。
+    /// ViewModel 不调用 DisposeAsync（释放不是 UI 的责任）。
+    /// </summary>
     [RelayCommand]
     private async Task CloseWorkspaceAsync(CancellationToken cancellationToken)
     {
@@ -139,10 +152,17 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
 
         var workspace = SelectedWorkspace;
-        await Session.CloseWorkspaceAsync(workspace.WorkspaceId, cancellationToken).ConfigureAwait(true);
+        var closed = await Session.CloseWorkspaceAsync(workspace.WorkspaceId, cancellationToken).ConfigureAwait(true);
+        if (!closed)
+        {
+            // 关闭失败：工作区保留在 Session 列表（CloseFailed）与 UI 集合中，可再次尝试。
+            var diagnostic = workspace.CloseFailureDiagnostic is { Length: > 0 } detail ? $"：{detail}" : string.Empty;
+            WorkspaceStatusText = $"关闭工作区失败{diagnostic}";
+            return;
+        }
+
         Workspaces.Remove(workspace);
-        await workspace.DisposeAsync().ConfigureAwait(true);
-        WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N} 已关闭。";
+        WorkspaceStatusText = $"工作区「{workspace.MapName}」已关闭。";
     }
 
     [ObservableProperty]
