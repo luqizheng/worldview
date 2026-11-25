@@ -3,10 +3,10 @@ name: .NET CI
 on:
   push:
     # 功能分支直接 push 也运行四平台矩阵（stacked PR 的 base 不是 master）。
-    branches: [master, feat/efcore-v1-asset-geometry-invariants]
+    branches: [master, feat/efcore-v1-asset-geometry-invariants, feat/wp-30b-phase3a-lifecycle, feat/wp-30b-phase3a-debug-fault]
   pull_request:
-    # Include the UI foundation branch because follow-up work is reviewed as a stacked PR.
-    branches: [master, feat/efcore-v1-complete-model, feat/ui-foundation-shell]
+    # Include stacked-PR base branches so lifecycle follow-up work receives the full matrix.
+    branches: [master, feat/efcore-v1-complete-model, feat/ui-foundation-shell, feat/wp-30b-phase3a-lifecycle]
   workflow_dispatch:
 
 permissions:
