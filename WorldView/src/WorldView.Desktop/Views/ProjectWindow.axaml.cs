@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Avalonia.Controls;
 using WorldView.Desktop.ViewModels;
 
@@ -37,12 +38,16 @@ public partial class ProjectWindow : Window
             _closeInProgress = true;
             try
             {
-                await vm.CloseProjectCommand.ExecuteAsync(null);
+                await vm.CloseProjectCommand.ExecuteAsync(CancellationToken.None);
             }
             catch (Exception ex)
             {
-                _closeInProgress = false;
                 vm.WorkspaceStatusText = $"关闭项目失败：{ex.Message}";
+            }
+            finally
+            {
+                // 成功后 ProjectClosed 会关闭窗口；若实现路径未触发事件也允许再次尝试关闭。
+                _closeInProgress = false;
             }
         };
 
@@ -62,6 +67,15 @@ public partial class ProjectWindow : Window
             if (e.NewValue is ProjectWorkspaceViewModel fresh)
             {
                 fresh.ProjectClosed += OnProjectClosed;
+            }
+        };
+
+        // 窗口销毁时解除对 ViewModel 的事件订阅，避免长生命周期 VM 持有已关闭窗口。
+        Closed += (_, _) =>
+        {
+            if (DataContext is ProjectWorkspaceViewModel closed)
+            {
+                closed.ProjectClosed -= OnProjectClosed;
             }
         };
 

@@ -11,6 +11,7 @@ namespace WorldView.Desktop.Views;
 public partial class StartWindow : Window
 {
     private readonly Func<ProjectSession, ProjectWorkspaceViewModel> _workspaceViewModelFactory;
+    private ProjectWindow? _workspaceWindow;
 
     public StartWindow()
     {
@@ -31,15 +32,28 @@ public partial class StartWindow : Window
     /// <summary>项目会话就绪：隐藏项目首页并显示唯一的项目工作区窗口。</summary>
     private void OnProjectOpened(ProjectSession session)
     {
+        // 同一会话的 DuplicateOpen 或重复点击不能创建第二个工作区窗口。
+        if (_workspaceWindow is { IsVisible: true } existing)
+        {
+            existing.Activate();
+            return;
+        }
+
         var workspaceWindow = new ProjectWindow
         {
             DataContext = _workspaceViewModelFactory(session),
         };
+        _workspaceWindow = workspaceWindow;
 
         // StartWindow 是应用 MainWindow，不能 Close；隐藏它可避免触发应用级退出。
         // 工作区关闭（包括标题栏关闭按钮）后再恢复首页。
         workspaceWindow.Closed += (_, _) =>
         {
+            if (ReferenceEquals(_workspaceWindow, workspaceWindow))
+            {
+                _workspaceWindow = null;
+            }
+
             Show();
             Activate();
         };
