@@ -13,6 +13,16 @@
 > `ProjectWorkspaceViewModelWorkspaceTests`（VM 消费与 UI/Session 不分叉）。
 > 全量 895/895 通过（基线 859 + 新增 36）。
 
+> **WP-UI-04B-R1 最终修正（2026-11-25）**：最终审查两项 P2 已修复——P2-01（`CloseAsync`
+> 取消只作用于进入 Closing 前；进入 Closing 后释放执行到底，不再接受取消）与
+> P2-02（`DisposeFailureHookForTests` 移至真实 CTS Dispose 之前，完成标志与真实资源
+> 状态一致；`MapWorkspaceSession` 移除公开 `IAsyncDisposable`，`DisposeAsync` 收为
+> internal，ProjectSession 生命周期唯一所有者）。R1 新增 5 个测试
+> （`MapWorkspaceSessionLifecycleTests` 4 个：Ready 前取消 / CloseFailed 重试入口取消 /
+> Closing 中取消完整释放 / 释放标志与真实状态一致性；`ProjectSessionWorkspaceLifecycleTests`
+> 1 个：项目级关闭前取消保留工作区可重试）。重新执行全量测试 **900/900 通过**（04B
+> 基线 895 保持不变）。A-4 / A-3 注册表部分 / A-12~A-15 仍属 04C，**尚未开始**。
+
 ## A. 自动化测试（Session / VM 层）
 
 窗口对象生命周期不做无头测试（PR #34 既定裁定），窗口行为经 VM/Registry 抽象覆盖。

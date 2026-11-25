@@ -8,6 +8,11 @@
 > `MapWorkspaceState`、`CloseWorkspaceAsync` 保持 `Task<bool>` 签名、`OpenWorkspaceAsync`
 > 保持返回 Session 而非结果对象——去重命中可经 VM 集合成员资格观察）见
 > `lifecycle-state-machine.md` §7。04B 未触碰窗口/Registry/Editor（按禁止范围）。
+>
+> **04B-R1 最终修正（2026-11-25）**：最终审查 P2-01/P2-02 已修复（关闭取消语义、
+> 释放接缝一致性 + `DisposeAsync` 收为 internal），新增 5 测试，重新执行全量
+> **900/900** 通过（04B 基线 895 不变）。**WP-UI-04C（窗口层）尚未开始**，
+> 下表 04C/04D 各项均未实施。
 
 ## WP-UI-04B：Session 层增强（无 UI 改动）——✅ 已完成
 
