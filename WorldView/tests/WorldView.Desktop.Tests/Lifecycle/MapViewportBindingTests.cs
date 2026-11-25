@@ -98,6 +98,49 @@ public class MapViewportBindingTests
         return (binding, renderer);
     }
 
+    /// <summary>
+    /// 阶段故障注入 Binding（P1-02）：覆写 Coordinator / Publisher 阶段调用缝注入失败
+    /// （Renderer 故障经构造注入 ProbeRenderer 即可）。记录各阶段尝试次数，
+    /// 用于断言"失败后仍执行后续阶段"与"重复关闭不重复释放"。
+    /// </summary>
+    private sealed class FaultInjectingBinding : MapViewportBinding
+    {
+        public Exception? CoordinatorFailure { get; set; }
+
+        public Exception? PublisherFailure { get; set; }
+
+        public int CoordinatorAttempts { get; private set; }
+
+        public int PublisherAttempts { get; private set; }
+
+        public FaultInjectingBinding(WorkspaceViewState viewState, MapSceneRenderer? renderer = null)
+            : base(viewState, renderer: renderer)
+        {
+        }
+
+        internal override async ValueTask CloseCoordinatorStepAsync()
+        {
+            CoordinatorAttempts++;
+            if (CoordinatorFailure is { } failure)
+            {
+                throw failure;
+            }
+
+            await base.CloseCoordinatorStepAsync();
+        }
+
+        internal override void DisposePublisherStep()
+        {
+            PublisherAttempts++;
+            if (PublisherFailure is { } failure)
+            {
+                throw failure;
+            }
+
+            base.DisposePublisherStep();
+        }
+    }
+
     // ---- 创建 / Attach ----
 
     [Fact]
@@ -317,6 +360,130 @@ public class MapViewportBindingTests
 
         Assert.True(binding.IsClosed);
         Assert.False(binding.HasAttachedControl); // 关闭解除登记
+    }
+
+    // ---- P1-02：故障注入——单阶段失败仍执行后续释放阶段 ----
+
+    [Fact]
+    public async Task Close_CoordinatorFails_PublisherAndRendererStillDisposed_OriginalExceptionPropagates()
+    {
+        var renderer = new ProbeRenderer(gate: false);
+        var binding = new FaultInjectingBinding(new WorkspaceViewState(), renderer: renderer);
+        var coordinatorFailure = new InvalidOperationException("coordinator 释放失败（测试注入）。");
+        binding.CoordinatorFailure = coordinatorFailure;
+
+        var closeTask = binding.RequestClose();
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => closeTask.WaitAsync(_gateTimeout));
+
+        // 单个异常：原始异常实例原样传播，不被包装、不被吞掉。
+        Assert.Same(coordinatorFailure, ex);
+
+        // 后续阶段仍被执行：真实 Publisher 已释放、Renderer 已 Dispose（各恰好一次）。
+        Assert.True(binding.Runtime.Publisher.IsDisposed);
+        Assert.Equal(1, renderer.DisposeCount);
+        Assert.Equal(1, binding.PublisherAttempts);
+
+        // 顺序证据：is_closed → coordinator_failed → publisher_disposed → renderer_disposed。
+        Assert.Equal(
+            new[] { "is_closed", "coordinator_failed", "publisher_disposed", "renderer_disposed" },
+            binding.CloseStageLog);
+
+        // 重复 RequestClose：同一 Task、原始异常原样再现，不重复执行任何阶段。
+        var repeat = binding.RequestClose();
+        Assert.Same(closeTask, repeat);
+        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(() => repeat.WaitAsync(_gateTimeout));
+        Assert.Same(coordinatorFailure, ex2);
+        Assert.Equal(1, binding.PublisherAttempts);
+        Assert.Equal(1, renderer.DisposeCount);
+    }
+
+    [Fact]
+    public async Task Close_PublisherFails_RendererStillDisposed_OriginalExceptionPropagates()
+    {
+        var renderer = new ProbeRenderer(gate: false);
+        var binding = new FaultInjectingBinding(new WorkspaceViewState(), renderer: renderer);
+        var publisherFailure = new InvalidOperationException("publisher 释放失败（测试注入）。");
+        binding.PublisherFailure = publisherFailure;
+
+        var closeTask = binding.RequestClose();
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => closeTask.WaitAsync(_gateTimeout));
+
+        Assert.Same(publisherFailure, ex);
+
+        // 前序阶段成功（真实 Coordinator 已关闭）、后续阶段仍执行（Renderer 已释放）。
+        Assert.True(binding.Runtime.Coordinator.IsClosed);
+        Assert.Equal(1, renderer.DisposeCount);
+
+        Assert.Equal(
+            new[] { "is_closed", "coordinator_closed", "publisher_failed", "renderer_disposed" },
+            binding.CloseStageLog);
+
+        var repeat = binding.RequestClose();
+        Assert.Same(closeTask, repeat);
+        Assert.Equal(1, binding.PublisherAttempts); // 不重复释放
+        Assert.Equal(1, renderer.DisposeCount);
+    }
+
+    [Fact]
+    public async Task Close_RendererFails_CoordinatorAndPublisherStillDisposed()
+    {
+        var (binding, renderer) = CreateBinding();
+        renderer.DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => binding.RequestClose().WaitAsync(_gateTimeout));
+
+        // Renderer 是最后一阶段：前序两个真实资源仍必须已释放。
+        Assert.True(binding.Runtime.Coordinator.IsClosed);
+        Assert.True(binding.Runtime.Publisher.IsDisposed);
+        Assert.Equal(1, renderer.DisposeCount);
+
+        Assert.Equal(
+            new[] { "is_closed", "coordinator_closed", "publisher_disposed", "renderer_failed" },
+            binding.CloseStageLog);
+    }
+
+    [Fact]
+    public async Task Close_AllStagesFail_AllStagesAttempted_AggregateExceptionInStageOrder()
+    {
+        var renderer = new ProbeRenderer(gate: false);
+        var binding = new FaultInjectingBinding(new WorkspaceViewState(), renderer: renderer);
+        var coordinatorFailure = new InvalidOperationException("coordinator 释放失败（测试注入）。");
+        var publisherFailure = new InvalidOperationException("publisher 释放失败（测试注入）。");
+        var rendererFailure = new InvalidOperationException("renderer 释放失败（测试注入）。");
+        binding.CoordinatorFailure = coordinatorFailure;
+        binding.PublisherFailure = publisherFailure;
+        renderer.DisposeFailure = rendererFailure;
+
+        var closeTask = binding.RequestClose();
+        var aggregate = await Assert.ThrowsAsync<AggregateException>(
+            () => closeTask.WaitAsync(_gateTimeout));
+
+        // 多个异常：按阶段顺序聚合，InnerExceptions 保留原始异常实例。
+        Assert.Equal(3, aggregate.InnerExceptions.Count);
+        Assert.Same(coordinatorFailure, aggregate.InnerExceptions[0]);
+        Assert.Same(publisherFailure, aggregate.InnerExceptions[1]);
+        Assert.Same(rendererFailure, aggregate.InnerExceptions[2]);
+
+        // 三个阶段都被尝试，且各恰好一次。
+        Assert.Equal(1, binding.CoordinatorAttempts);
+        Assert.Equal(1, binding.PublisherAttempts);
+        Assert.Equal(1, renderer.DisposeCount);
+
+        Assert.Equal(
+            new[] { "is_closed", "coordinator_failed", "publisher_failed", "renderer_failed" },
+            binding.CloseStageLog);
+
+        // 重复 RequestClose：共享同一 faulted Task 与同一聚合异常，不重复释放。
+        var repeat = binding.RequestClose();
+        Assert.Same(closeTask, repeat);
+        var aggregate2 = await Assert.ThrowsAsync<AggregateException>(() => repeat.WaitAsync(_gateTimeout));
+        Assert.Same(aggregate, aggregate2);
+        Assert.Equal(1, binding.CoordinatorAttempts);
+        Assert.Equal(1, binding.PublisherAttempts);
+        Assert.Equal(1, renderer.DisposeCount);
     }
 
     [Fact]

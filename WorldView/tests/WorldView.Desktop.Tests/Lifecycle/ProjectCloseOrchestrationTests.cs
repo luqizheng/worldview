@@ -22,6 +22,7 @@ public class ProjectCloseOrchestrationTests
 {
     private static readonly TimeSpan GateTimeout = TimeSpan.FromSeconds(10);
 
+
     /// <summary>可注入 Binding 工厂的 VM（门控 renderer 经工厂注入；测试程序集经 IvT 覆写 internal virtual）。</summary>
     private sealed class TestViewModel : ProjectWorkspaceViewModel
     {
@@ -116,6 +117,45 @@ public class ProjectCloseOrchestrationTests
         }
 
         return opened;
+    }
+
+    /// <summary>
+    /// GetMapAsync 可门控的查询替身（P1-01）：把"打开工作区"确定性停在 Application
+    /// 调用中途（进入 GetMapAsync 即挂起，直到测试放行），用于构造"C2 启动前已开始、
+    /// 尚未完成的 OpenWorkspace"的真实交错——以 TaskCompletionSource 控制顺序，
+    /// 绝无 Sleep / 轮询 / 调度运气。
+    /// </summary>
+    private sealed class GatedMapQueryService : IMapQueryService
+    {
+        private readonly FakeMapQueryService _inner = new();
+        private readonly TaskCompletionSource _getMapEntered =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseGetMap =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public List<MapSummary> Maps => _inner.Maps;
+
+        /// <summary>门控开关：false 时 GetMapAsync 直通（首次常规打开用）；true 时挂起待放行。</summary>
+        public bool GateEnabled { get; set; }
+
+        public Task GetMapEntered => _getMapEntered.Task;
+
+        public void ReleaseGetMap() => _releaseGetMap.TrySetResult();
+
+        public async Task<MapSummary?> GetMapAsync(Guid projectId, Guid mapId, CancellationToken cancellationToken = default)
+        {
+            if (!GateEnabled)
+            {
+                return await _inner.GetMapAsync(projectId, mapId, cancellationToken);
+            }
+
+            _getMapEntered.TrySetResult();
+            await _releaseGetMap.Task.WaitAsync(cancellationToken);
+            return await _inner.GetMapAsync(projectId, mapId, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<MapSummary>> ListMapsAsync(Guid projectId, CancellationToken cancellationToken = default)
+            => _inner.ListMapsAsync(projectId, cancellationToken);
     }
 
     // ---- C1：单工作区关闭 ----
@@ -468,6 +508,150 @@ public class ProjectCloseOrchestrationTests
         Assert.Equal(ProjectSessionState.Ready, session.State); // 启动前拒绝：未开始任何关闭
         Assert.False(database.IsDisposed);
         Assert.False(vm.IsProjectCloseLifetimeFinished);
+        Assert.False(vm.IsProjectCloseLifetimeStarted); // P1-01：启动前取消不算"已启动"，打开不被拒绝
+    }
+
+    // ---- P1-01：关闭期间禁止创建工作区 ----
+
+    [Fact]
+    public async Task C2_InProgress_NewOpenWorkspaceRejected_ImmediatelyAndWithoutSideEffects()
+    {
+        var (vm, query, _, _, session) = CreateVm();
+        var gated = new ProbeRenderer(gate: true);
+        var factoryCalls = 0;
+        vm.TestBindingFactory = ws =>
+        {
+            factoryCalls++;
+            return new MapViewportBinding(ws.ViewState, renderer: gated);
+        };
+        await OpenWorkspacesAsync(vm, query, 1);
+
+        // C2 启动并挂起在 Binding 的 renderer.Dispose 门控内（关闭进行中、未结束）。
+        var closeTask = Task.Run(() => vm.CloseProjectLifetimeAsync());
+        await gated.DisposeEntered.WaitAsync(GateTimeout);
+
+        // 线性化点已过：C2 一启动即不可逆关闭状态（即使编排体尚未跑完）。
+        Assert.True(vm.IsProjectCloseLifetimeStarted);
+        Assert.False(vm.IsProjectCloseLifetimeFinished);
+
+        // 此刻发起新的打开：必须被立即拒绝，且无任何副作用（不触达 Application、
+        // 不创建 Binding、不登记集合）。
+        vm.SelectedMap = query.Maps[0];
+        await vm.OpenWorkspaceCommand.ExecuteAsync(null);
+
+        Assert.Contains("无法打开", vm.WorkspaceStatusText);
+        Assert.Equal(1, factoryCalls);                          // 未创建新 Binding
+        Assert.Single(vm.Workspaces);                           // 未登记新工作区
+        Assert.Single(session.Workspaces);                      // Application 侧无新挂载
+
+        gated.ReleaseDispose();
+        await closeTask;
+
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Empty(vm.Workspaces);
+    }
+
+    [Fact]
+    public async Task C2_InFlightOpenWorkspace_StartedBeforeClose_IsSalvagedAndNotRegistered()
+    {
+        // 在途打开的确定性交错：OpenWorkspace 停在 GetMapAsync 门控内 → C2 启动并
+        // 挂起在 Binding 关闭门控内（会话仍 Ready）→ 放行打开：Application 侧创建
+        // 成功，但 VM 注册前复查发现 C2 已启动 → 就地关闭该工作区，不登记、不展示。
+        var gatedQuery = new GatedMapQueryService();
+        gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        var session = TestSessions.CreateReadySession();
+        var vm = new TestViewModel(
+            session,
+            gatedQuery,
+            new FakeWorkspaceContextResolver(),
+            new CreateMapUseCase(session, new FakeMapCreationService()));
+        var gated = new ProbeRenderer(gate: true);
+        var factoryCalls = 0;
+        vm.TestBindingFactory = ws =>
+        {
+            factoryCalls++;
+            return new MapViewportBinding(ws.ViewState, renderer: gated);
+        };
+
+        // 先打开一个常规工作区（VM 集合与 Application 会话各 1 个）。
+        vm.SelectedMap = gatedQuery.Maps[0];
+        await vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        Assert.Single(vm.Workspaces);
+        Assert.Single(session.Workspaces);
+        var firstWorkspace = vm.Workspaces[0];
+
+        // 第二次打开：停在 GetMapAsync 门控内（打开已开始、尚未完成）。
+        gatedQuery.GateEnabled = true;
+        vm.SelectedMap = gatedQuery.Maps[0];
+        var openTask = vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        await gatedQuery.GetMapEntered.WaitAsync(GateTimeout);
+
+        // 打开仍在途时启动 C2：编排挂在第一个 Binding 的 renderer.Dispose 门控内，
+        // 会话尚未关闭（步骤 2 未到达）→ 在途打开仍能创建工作区（真实交错窗口）。
+        var closeTask = Task.Run(() => vm.CloseProjectLifetimeAsync());
+        await gated.DisposeEntered.WaitAsync(GateTimeout);
+
+        // 放行在途打开：Application 侧创建成功，但注册前复查发现 C2 已启动 → 就地回收。
+        gatedQuery.ReleaseGetMap();
+        await openTask.WaitAsync(GateTimeout);
+
+        Assert.Contains("拦截", vm.WorkspaceStatusText);
+        Assert.Equal(1, factoryCalls);               // 孤儿工作区未创建 Binding
+        Assert.Single(vm.Workspaces);                // 未登记进 VM 集合
+        Assert.Single(session.Workspaces);           // 已从 Application 会话侧移除（就地关闭）
+        var orphan = session.Workspaces.SingleOrDefault(w => !vm.Workspaces.Contains(w));
+        Assert.Null(orphan);
+
+        // 放行 C2：排空既有 Binding → 关会话 → 清集合，编排正常完成。
+        gated.ReleaseDispose();
+        await closeTask.WaitAsync(GateTimeout);
+
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Empty(vm.Workspaces);
+        Assert.Empty(session.Workspaces);
+        Assert.Null(vm.GetViewportBinding(firstWorkspace)); // 关闭后 Binding 不再可用
+    }
+
+    [Fact]
+    public async Task C2_CompletedDuringInFlightOpen_OpenFailsGracefullyWithNoLeak()
+    {
+        // 更晚到达的变体：C2 在在途打开完成前已整体结束（会话 Closed）→
+        // Application 晚到达保护拒绝挂载 → 命令路径捕获并如实呈现，无任何泄漏。
+        var gatedQuery = new GatedMapQueryService();
+        gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        var session = TestSessions.CreateReadySession();
+        var vm = new TestViewModel(
+            session,
+            gatedQuery,
+            new FakeWorkspaceContextResolver(),
+            new CreateMapUseCase(session, new FakeMapCreationService()));
+        var factoryCalls = 0;
+        vm.TestBindingFactory = ws =>
+        {
+            factoryCalls++;
+            return new MapViewportBinding(ws.ViewState);
+        };
+
+        // 打开停在 GetMapAsync 门控内；此时项目内还没有任何工作区。
+        gatedQuery.GateEnabled = true;
+        vm.SelectedMap = gatedQuery.Maps[0];
+        var openTask = vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        await gatedQuery.GetMapEntered.WaitAsync(GateTimeout);
+
+        // C2 无门控整体跑完：会话 Closed。
+        var closeTask = Task.Run(() => vm.CloseProjectLifetimeAsync());
+        await closeTask.WaitAsync(GateTimeout);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.True(vm.IsProjectCloseLifetimeStarted);
+
+        // 放行在途打开：晚到达保护抛出 → 被命令路径捕获，不崩溃、不登记。
+        gatedQuery.ReleaseGetMap();
+        await openTask.WaitAsync(GateTimeout);
+
+        Assert.Contains("打开工作区失败", vm.WorkspaceStatusText);
+        Assert.Equal(0, factoryCalls);               // 未创建任何 Binding
+        Assert.Empty(vm.Workspaces);
+        Assert.Empty(session.Workspaces);
     }
 
     [Fact]
