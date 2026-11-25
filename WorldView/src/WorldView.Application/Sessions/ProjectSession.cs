@@ -367,7 +367,7 @@ public sealed class ProjectSession : IAsyncDisposable
                 _closeTask = null;
             }
 
-            completion.SetException(failure);
+            completion.TrySetException(failure);
             return;
         }
 
@@ -378,8 +378,46 @@ public sealed class ProjectSession : IAsyncDisposable
             _closeTask = null;
         }
 
-        SessionClosed?.Invoke(this, EventArgs.Empty);
-        completion.SetResult();
+        try
+        {
+            // SessionClosed 是"资源已关闭"的完成通知，不是资源关闭阶段：异常不改变
+            // 已经进入的 Closed 状态，也不影响关闭 Task 的结果。
+            NotifySessionClosedSafely();
+        }
+        finally
+        {
+            // 关闭 Task 必须可靠完成：执行体为 fire-and-forget，任何通知异常都不能
+            // 让调用者永久等待（否则注册表/编排的等待链会整体悬挂）。
+            // 通知方法已逐个隔离订阅者异常，此处 finally 再兜底保证收尾不被跳过。
+            completion.TrySetResult();
+        }
+    }
+
+    /// <summary>
+    /// 按订阅注册顺序逐一通知 SessionClosed；单个订阅者抛异常就地隔离，不阻断后续订阅者。
+    /// 保留原有事件类型、参数与调用顺序；唯一语义变化是"订阅者异常不再向外传播"——
+    /// 这是必要的：本执行体 fire-and-forget，向外传播会同时造成未观察异常与关闭 Task 永久悬挂。
+    /// </summary>
+    private void NotifySessionClosedSafely()
+    {
+        var handlers = SessionClosed;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (EventHandler handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+                // 通知失败不回滚 Closed、不改写 CloseFailureDiagnostic、不阻断其余订阅者；
+                // Application 层没有日志端口，就地隔离是唯一不引入未观察异常的处置。
+            }
+        }
     }
 
     /// <summary>
