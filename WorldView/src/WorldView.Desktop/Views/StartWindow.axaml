@@ -105,7 +105,7 @@
                     </Grid>
 
                     <Border Classes="surface-card">
-                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="eyebrow" Text="CONTINUE CREATING" />
@@ -143,14 +143,6 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <StackPanel IsHitTestVisible="False" HorizontalAlignment="Center"
-                                            VerticalAlignment="Center" Spacing="6">
-                                    <TextBlock Text="这里还没有项目" FontWeight="SemiBold"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="创建项目或打开已有项目后，它们会显示在这里。"
-                                               Foreground="{DynamicResource MutedTextBrush}"
-                                               FontSize="12" HorizontalAlignment="Center" />
-                                </StackPanel>
                             </Grid>
                             <Button Grid.Row="2" HorizontalAlignment="Right"
                                     Content="打开所选项目"
