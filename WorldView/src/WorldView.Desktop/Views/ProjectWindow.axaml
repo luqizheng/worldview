@@ -11,7 +11,6 @@
         Title="World View — 项目工作区" Width="1240" Height="800" MinWidth="1040" MinHeight="680">
 
     <Grid RowDefinitions="Auto,*,Auto">
-        <!-- Project header -->
         <Border Grid.Row="0" Background="{DynamicResource CardBrush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                 Padding="26,16">
@@ -31,17 +30,18 @@
         </Border>
 
         <Grid Grid.Row="1" ColumnDefinitions="280,*" ColumnSpacing="18" Margin="20">
-            <!-- Navigation / maps -->
-            <StackPanel Grid.Column="0" Spacing="14">
-                <Border Classes="surface-card">
-                    <StackPanel Spacing="12">
+            <!-- The map list consumes only the space left after its header and actions.
+                 The local-project footer is a sibling row and therefore cannot be pushed off-screen. -->
+            <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="14">
+                <Border Grid.Row="0" Classes="surface-card">
+                    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
                         <StackPanel Spacing="3">
                             <TextBlock Classes="eyebrow" Text="PROJECT CONTENT" />
                             <TextBlock Classes="section-title" Text="地图" />
                             <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
                                        Text="项目中的世界地图与区域。" />
                         </StackPanel>
-                        <ListBox Height="300" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="app:MapSummary">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
@@ -60,21 +60,20 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <TextBlock Text="{Binding MapsStatusText}" FontSize="12"
+                        <TextBlock Grid.Row="2" Text="{Binding MapsStatusText}" FontSize="12"
                                    Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" />
-                        <Button Classes="primary" Content="＋  创建地图" Click="OnCreateMapClick" />
-                    </StackPanel>
+                        <Button Grid.Row="3" Classes="primary" Content="＋  创建地图" Click="OnCreateMapClick" />
+                    </Grid>
                 </Border>
-                <Border Classes="subtle-panel">
+                <Border Grid.Row="1" Classes="subtle-panel">
                     <StackPanel Spacing="5">
                         <TextBlock Classes="eyebrow" Text="LOCAL WORKSPACE" />
                         <TextBlock Text="项目数据保存在本机。" FontSize="12"
                                    Foreground="{DynamicResource MutedTextBrush}" />
                     </StackPanel>
                 </Border>
-            </StackPanel>
+            </Grid>
 
-            <!-- Main workspace area -->
             <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="14">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Spacing="3">
