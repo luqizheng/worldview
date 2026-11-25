@@ -19,18 +19,21 @@ public partial class StartViewModel : ObservableObject
     private readonly CreateProjectUseCase _createProjectUseCase;
     private readonly OpenProjectUseCase _openProjectUseCase;
     private readonly IRecentProjectsStore _recentProjectsStore;
+    private readonly IAppLog? _log;
 
     public StartViewModel(
         CreateProjectUseCase createProjectUseCase,
         OpenProjectUseCase openProjectUseCase,
-        IRecentProjectsStore recentProjectsStore)
+        IRecentProjectsStore recentProjectsStore,
+        IAppLog? log = null)
     {
         _createProjectUseCase = createProjectUseCase;
         _openProjectUseCase = openProjectUseCase;
         _recentProjectsStore = recentProjectsStore;
+        _log = log;
     }
 
-    /// <summary>会话就绪事件：窗口层据此打开项目工作区窗口。</summary>
+    /// <summary>会话就绪事件：窗口层切换到项目工作区。</summary>
     public event Action<ProjectSession>? ProjectOpened;
 
     /// <summary>状态栏文本（操作结果与诊断摘要）。</summary>
@@ -55,15 +58,52 @@ public partial class StartViewModel : ObservableObject
     /// <summary>最近项目列表。</summary>
     public ObservableCollection<RecentProjectEntry> RecentProjects { get; } = new();
 
-    /// <summary>启动时加载最近项目。</summary>
+    public bool HasRecentProjects => RecentProjects.Count > 0;
+
+    public bool IsRecentProjectsEmpty => RecentProjects.Count == 0;
+
+    /// <summary>最近项目读取失败时的可见诊断（成功加载后清空）。</summary>
+    [ObservableProperty]
+    private string _recentProjectsLoadDiagnostic = string.Empty;
+
+    /// <summary>
+    /// 启动时加载最近项目，并刷新空状态投影。存储读取失败转为状态与日志，
+    /// 不向启动窗口抛出，也不影响新建/手动打开项目。
+    /// </summary>
     public async Task LoadRecentProjectsAsync()
     {
         RecentProjects.Clear();
-        var recents = await _recentProjectsStore.LoadAsync().ConfigureAwait(true);
-        foreach (var entry in recents)
+        try
         {
-            RecentProjects.Add(entry);
+            var recents = await _recentProjectsStore.LoadAsync().ConfigureAwait(true);
+            foreach (var entry in recents)
+            {
+                RecentProjects.Add(entry);
+            }
+
+            RecentProjectsLoadDiagnostic = string.Empty;
+            if (StatusText.StartsWith("最近项目加载失败", StringComparison.Ordinal))
+            {
+                StatusText = "就绪";
+            }
         }
+        catch (Exception ex)
+        {
+            ReportRecentProjectsLoadFailure(ex);
+        }
+        finally
+        {
+            OnPropertyChanged(nameof(HasRecentProjects));
+            OnPropertyChanged(nameof(IsRecentProjectsEmpty));
+        }
+    }
+
+    /// <summary>把最近项目加载失败落为可见状态并写入应用日志（供启动窗口兜底路径复用）。</summary>
+    internal void ReportRecentProjectsLoadFailure(Exception ex)
+    {
+        _log?.Error("StartWindow", "最近项目加载失败。", ex);
+        RecentProjectsLoadDiagnostic = "最近项目加载失败（详见日志）。";
+        StatusText = RecentProjectsLoadDiagnostic;
     }
 
     /// <summary>创建项目包（目标父目录由窗口层选择）。</summary>

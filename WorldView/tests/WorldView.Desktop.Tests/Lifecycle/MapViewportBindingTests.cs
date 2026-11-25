@@ -291,7 +291,7 @@ public class MapViewportBindingTests
     }
 
     [Fact]
-    public async Task Close_Failure_RepeatCallsObserveSameException_NotMaskedAsSuccess()
+    public async Task Close_Failure_RepeatCallStartsRetry_OnlyFailedStageReruns_FinallySucceeds()
     {
         var (binding, renderer) = CreateBinding();
         renderer.DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。");
@@ -300,16 +300,25 @@ public class MapViewportBindingTests
         var first = binding.RequestClose();
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => first.WaitAsync(_gateTimeout));
+        Assert.Equal(1, renderer.DisposeCount);
 
-        // 后续调用返回同一 faulted Task：观察到同一异常，不被伪装为成功。
-        var second = binding.RequestClose();
-        Assert.Same(first, second);
+        // 统一裁决 2.2/2.3：失败后的重复调用启动重试尝试（新 Task），
+        // 失败阶段重新执行、已成功阶段不重复释放——失败绝不被伪装为成功。
+        var retry = binding.RequestClose();
+        Assert.NotSame(first, retry);
         var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => second.WaitAsync(_gateTimeout));
-        Assert.Same(ex, ex2);
-
-        Assert.Equal(1, renderer.DisposeCount); // 不重复执行
+            () => retry.WaitAsync(_gateTimeout));
+        Assert.Contains("renderer 释放失败", ex2.Message, StringComparison.Ordinal);
+        Assert.Equal(2, renderer.DisposeCount); // 失败阶段重新执行
+        Assert.Contains("close_retry", binding.CloseStageLog);
+        Assert.False(binding.IsCloseSucceeded);
         Assert.True(binding.IsClosed);          // 终态语义不变
+
+        // 故障解除后再重试：仅补 renderer 阶段 → 全部阶段成功（IsCloseSucceeded 终态）。
+        renderer.DisposeFailure = null;
+        await binding.RequestClose().WaitAsync(_gateTimeout);
+        Assert.True(binding.IsCloseSucceeded);
+        Assert.Equal(3, renderer.DisposeCount);
     }
 
     [Fact]
@@ -389,11 +398,24 @@ public class MapViewportBindingTests
             new[] { "is_closed", "coordinator_failed", "publisher_disposed", "renderer_disposed" },
             binding.CloseStageLog);
 
-        // 重复 RequestClose：同一 Task、原始异常原样再现，不重复执行任何阶段。
-        var repeat = binding.RequestClose();
-        Assert.Same(closeTask, repeat);
-        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(() => repeat.WaitAsync(_gateTimeout));
+        // 重复 RequestClose（统一裁决 2.2/2.3）：启动重试——coordinator 阶段重新执行
+        // （仍未成功），已成功的 publisher / renderer 阶段跳过、不重复释放。
+        var retry = binding.RequestClose();
+        Assert.NotSame(closeTask, retry);
+        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(() => retry.WaitAsync(_gateTimeout));
         Assert.Same(coordinatorFailure, ex2);
+        Assert.Equal(2, binding.CoordinatorAttempts);  // 失败阶段重新执行
+        Assert.Equal(1, binding.PublisherAttempts);    // 已成功阶段不重复释放
+        Assert.Equal(1, renderer.DisposeCount);
+        Assert.Contains("close_retry", binding.CloseStageLog);
+        Assert.Contains("publisher_skipped", binding.CloseStageLog);
+        Assert.Contains("renderer_skipped", binding.CloseStageLog);
+
+        // 故障解除后再重试：coordinator 补完 → IsCloseSucceeded 终态。
+        binding.CoordinatorFailure = null;
+        await binding.RequestClose().WaitAsync(_gateTimeout);
+        Assert.True(binding.IsCloseSucceeded);
+        Assert.Equal(3, binding.CoordinatorAttempts);
         Assert.Equal(1, binding.PublisherAttempts);
         Assert.Equal(1, renderer.DisposeCount);
     }
@@ -420,9 +442,23 @@ public class MapViewportBindingTests
             new[] { "is_closed", "coordinator_closed", "publisher_failed", "renderer_disposed" },
             binding.CloseStageLog);
 
-        var repeat = binding.RequestClose();
-        Assert.Same(closeTask, repeat);
-        Assert.Equal(1, binding.PublisherAttempts); // 不重复释放
+        // 重复 RequestClose（统一裁决 2.2/2.3）：启动重试——publisher 阶段重新执行
+        // （仍未成功），已成功的 coordinator / renderer 阶段跳过。
+        var retry = binding.RequestClose();
+        Assert.NotSame(closeTask, retry);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => retry.WaitAsync(_gateTimeout));
+        Assert.Equal(1, binding.CoordinatorAttempts); // 已成功阶段不重复释放
+        Assert.Equal(2, binding.PublisherAttempts);   // 失败阶段重新执行
+        Assert.Equal(1, renderer.DisposeCount);
+        Assert.Contains("coordinator_skipped", binding.CloseStageLog);
+        Assert.Contains("close_retry", binding.CloseStageLog);
+
+        // 故障解除后再重试：publisher 补完 → IsCloseSucceeded 终态。
+        binding.PublisherFailure = null;
+        await binding.RequestClose().WaitAsync(_gateTimeout);
+        Assert.True(binding.IsCloseSucceeded);
+        Assert.Equal(1, binding.CoordinatorAttempts);
+        Assert.Equal(3, binding.PublisherAttempts);
         Assert.Equal(1, renderer.DisposeCount);
     }
 
@@ -476,14 +512,29 @@ public class MapViewportBindingTests
             new[] { "is_closed", "coordinator_failed", "publisher_failed", "renderer_failed" },
             binding.CloseStageLog);
 
-        // 重复 RequestClose：共享同一 faulted Task 与同一聚合异常，不重复释放。
-        var repeat = binding.RequestClose();
-        Assert.Same(closeTask, repeat);
-        var aggregate2 = await Assert.ThrowsAsync<AggregateException>(() => repeat.WaitAsync(_gateTimeout));
-        Assert.Same(aggregate, aggregate2);
-        Assert.Equal(1, binding.CoordinatorAttempts);
-        Assert.Equal(1, binding.PublisherAttempts);
-        Assert.Equal(1, renderer.DisposeCount);
+        // 重复 RequestClose（统一裁决 2.2/2.3）：三个阶段均未成功 → 全部重新执行，
+        // 原始异常实例保持（新聚合容器，InnerExceptions 仍为同一批异常）。
+        var retry = binding.RequestClose();
+        Assert.NotSame(closeTask, retry);
+        var aggregate2 = await Assert.ThrowsAsync<AggregateException>(() => retry.WaitAsync(_gateTimeout));
+        Assert.Equal(3, aggregate2.InnerExceptions.Count);
+        Assert.Same(coordinatorFailure, aggregate2.InnerExceptions[0]);
+        Assert.Same(publisherFailure, aggregate2.InnerExceptions[1]);
+        Assert.Same(rendererFailure, aggregate2.InnerExceptions[2]);
+        Assert.Equal(2, binding.CoordinatorAttempts);
+        Assert.Equal(2, binding.PublisherAttempts);
+        Assert.Equal(2, renderer.DisposeCount);
+        Assert.Contains("close_retry", binding.CloseStageLog);
+
+        // 故障全部解除后再重试：三个阶段补完 → IsCloseSucceeded 终态。
+        binding.CoordinatorFailure = null;
+        binding.PublisherFailure = null;
+        renderer.DisposeFailure = null;
+        await binding.RequestClose().WaitAsync(_gateTimeout);
+        Assert.True(binding.IsCloseSucceeded);
+        Assert.Equal(3, binding.CoordinatorAttempts);
+        Assert.Equal(3, binding.PublisherAttempts);
+        Assert.Equal(3, renderer.DisposeCount);
     }
 
     [Fact]

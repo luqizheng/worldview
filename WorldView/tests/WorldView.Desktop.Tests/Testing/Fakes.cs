@@ -18,14 +18,17 @@ namespace WorldView.Desktop.Tests.Testing;
 public static class TestSessions
 {
     /// <summary>构造 Ready 会话（公开 API：TryCompleteOpen 使 Opening→Ready）。</summary>
-    public static ProjectSession CreateReadySession(Guid? projectId = null)
+    public static ProjectSession CreateReadySession(
+        Guid? projectId = null,
+        IPackageDatabase? database = null,
+        IAssetStore? assetStore = null)
     {
         var session = new ProjectSession(
             Guid.NewGuid(),
             "C:\\pkg\\demo.wvproject",
             PackageManifest.CreateV1(DateTimeOffset.UtcNow),
-            new StubPackageDatabase(),
-            new StubAssetStore(),
+            database ?? new StubPackageDatabase(),
+            assetStore ?? new StubAssetStore(),
             projectId ?? Guid.NewGuid());
         Assert.True(session.TryCompleteOpen());
         return session;
@@ -69,6 +72,13 @@ public sealed class StubPackageDatabase : IPackageDatabase
 
 public sealed class StubAssetStore : IAssetStore
 {
+    /// <summary>失败注入：指定操作抛出异常（用于关闭重试测试）。</summary>
+    public Func<string, Exception?>? FailureHook { get; set; }
+
+    public int DisposeAttempts { get; private set; }
+
+    public int DisposeSuccesses { get; private set; }
+
     public string RootPath => "/stub-assets";
 
     /// <summary>DisposeAsync 调用计数（生命周期测试：断言不提前释放）。</summary>
@@ -85,6 +95,13 @@ public sealed class StubAssetStore : IAssetStore
     public ValueTask DisposeAsync()
     {
         DisposeCount++;
+        DisposeAttempts++;
+        if (FailureHook?.Invoke("AssetStore:Dispose") is { } failure)
+        {
+            throw failure;
+        }
+
+        DisposeSuccesses++;
         return ValueTask.CompletedTask;
     }
 }

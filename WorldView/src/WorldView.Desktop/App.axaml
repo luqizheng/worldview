@@ -2,9 +2,111 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="WorldView.Desktop.App"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="Inter" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Background" Value="{DynamicResource InputSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="10,9" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.eyebrow">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="28" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.surface-card">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+        </Style>
+        <Style Selector="Border.subtle-panel">
+            <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
     </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppSurfaceBrush" Color="#F5F6F8" />
+                    <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F0F2F5" />
+                    <SolidColorBrush x:Key="ControlSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ControlHoverBrush" Color="#EEF1F5" />
+                    <SolidColorBrush x:Key="InputSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="BorderBrush" Color="#E1E5EB" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#202733" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#687385" />
+                    <SolidColorBrush x:Key="AccentBrush" Color="#385D82" />
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#294B6D" />
+                    <SolidColorBrush x:Key="AccentSoftBrush" Color="#E8EFF6" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppSurfaceBrush" Color="#171B21" />
+                    <SolidColorBrush x:Key="CardBrush" Color="#20262E" />
+                    <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#272F39" />
+                    <SolidColorBrush x:Key="ControlSurfaceBrush" Color="#29313B" />
+                    <SolidColorBrush x:Key="ControlHoverBrush" Color="#35404D" />
+                    <SolidColorBrush x:Key="InputSurfaceBrush" Color="#1B222A" />
+                    <SolidColorBrush x:Key="BorderBrush" Color="#394451" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#E8EDF3" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#A0ACBA" />
+                    <SolidColorBrush x:Key="AccentBrush" Color="#638CB4" />
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#79A1C8" />
+                    <SolidColorBrush x:Key="AccentSoftBrush" Color="#2D4053" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

@@ -400,32 +400,46 @@ public class ProjectCloseOrchestrationTests
     // ---- DEF-03：日志异常不得破坏生命周期收尾 ----
 
     [Fact]
-    public async Task C2_BindingCloseFails_WithFailingLog_StillClosesSession_AndCompletes()
+    public async Task C2_BindingCloseFails_WithFailingLog_SessionStillCloses_ButAttemptFailsForRetry()
     {
-        // 内层：Binding 关闭失败 + Warn 日志自身抛异常 → 编排必须继续关闭其余
-        // Binding 与 ProjectSession，C2 Task 正常完成（内层失败不外溢）。
+        // 统一裁决 2.3/2.5：Binding 关闭失败 + Warn 日志自身抛异常 → 编排必须继续
+        // 关闭其余 Binding 与 ProjectSession（后续安全阶段不被跳过），但本轮 C2 以
+        // 聚合异常失败（未成功关闭的 Binding 绝不被静默丢弃），失败 Binding 留待重试；
+        // ProjectClosed 不触发、集合不清理。
         var log = new FakeAppLog { WarnFailure = new InvalidOperationException("日志实现故障（测试注入）。") };
         var (vm, query, database, _, session) = CreateVm(log);
-        vm.TestBindingFactory = ws => new MapViewportBinding(
-            ws.ViewState,
-            renderer: new ProbeRenderer(gate: false) { DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。") });
+        var failingRenderer = new ProbeRenderer(gate: false)
+        {
+            DisposeFailure = new InvalidOperationException("renderer 释放失败（测试注入）。"),
+        };
+        vm.TestBindingFactory = ws => new MapViewportBinding(ws.ViewState, renderer: failingRenderer);
         await OpenWorkspacesAsync(vm, query, 2);
 
         var projectClosedCount = 0;
         vm.ProjectClosed += () => projectClosedCount++;
 
         var task = vm.CloseProjectLifetimeAsync();
-        await task.WaitAsync(GateTimeout); // C2 正常完成：日志异常未破坏收尾
+        var observed = await Assert.ThrowsAsync<AggregateException>(() => task.WaitAsync(GateTimeout));
 
+        Assert.Equal(2, observed.InnerExceptions.Count); // 两个 Binding 失败按阶段聚合
         Assert.True(vm.IsProjectCloseLifetimeFinished);
         Assert.Equal(ProjectSessionState.Closed, session.State); // 步骤 2 照常执行
         Assert.True(database.IsDisposed);
-        Assert.Equal(1, projectClosedCount);
-        Assert.True(log.WarnCount >= 2);   // 每个 Binding 的失败都尝试过记日志（且都失败）
-        Assert.Empty(vm.Workspaces);       // 步骤 3 集合清理未被打断
+        Assert.Equal(0, projectClosedCount);       // 未全部成功：不通知窗口
+        Assert.True(log.WarnCount >= 2);           // 每个 Binding 的失败都尝试过记日志（且都失败）
+        Assert.Equal(2, vm.Workspaces.Count);      // 步骤 3 集合清理被跳过（不清未关闭 Binding）
 
-        // 幂等契约不变：重复调用返回同一 C2 Task。
-        Assert.Same(task, vm.CloseProjectLifetimeAsync());
+        // 重试（统一裁决 2.2）：任务字段已复位 → 新一轮编排；Session.CloseAsync 幂等
+        // 返回（已 Closed，代价为零），Binding 只补 renderer 失败阶段。
+        failingRenderer.DisposeFailure = null;
+        var retry = vm.CloseProjectLifetimeAsync();
+        Assert.NotSame(task, retry);
+        await retry.WaitAsync(GateTimeout);
+
+        Assert.True(vm.IsProjectCloseLifetimeFinished);
+        Assert.Equal(1, projectClosedCount);       // 补完成功：ProjectClosed 恰好一次
+        Assert.Empty(vm.Workspaces);
+        Assert.Same(retry, vm.CloseProjectLifetimeAsync()); // 成功终态：重复调用返回同一 Task
     }
 
     [Fact]
@@ -454,12 +468,20 @@ public class ProjectCloseOrchestrationTests
         Assert.Equal(0, projectClosedCount);            // 失败路径不通知窗口（语义不变）
         Assert.Equal(1, database.DisposeCount);
 
-        // 幂等契约不变：重复调用返回同一 C2 Task，并观察到同一原始异常。
-        var repeat = vm.CloseProjectLifetimeAsync();
-        Assert.Same(task, repeat);
+        // 重试契约（统一裁决 2.2）：任务字段已复位 → 重复调用启动新一轮编排
+        // （不共享 faulted Task），故障未解除则再次观察到同一原始异常实例。
+        var retry = vm.CloseProjectLifetimeAsync();
+        Assert.NotSame(task, retry);
         var observedAgain = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => repeat.WaitAsync(GateTimeout));
+            () => retry.WaitAsync(GateTimeout));
         Assert.Same(originalFailure, observedAgain);
+        Assert.Equal(2, database.DisposeCount);
+
+        // 故障解除后再重试：只补数据库阶段 → 全部成功，ProjectClosed 恰好一次。
+        database.DisposeFailure = null;
+        await vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout);
+        Assert.Equal(1, projectClosedCount);
+        Assert.Equal(3, database.DisposeCount);
     }
 
     [Fact]
@@ -479,17 +501,51 @@ public class ProjectCloseOrchestrationTests
             () => vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout));
 
         Assert.Equal("数据库释放失败（测试注入）。", ex.Message);
-        Assert.True(vm.IsProjectCloseLifetimeFinished);  // 失败也算"编排结束"→ 窗口放行关闭
+        Assert.True(vm.IsProjectCloseLifetimeFinished);  // 失败也算"编排结束"→ 窗口收尾
         Assert.Equal(0, projectClosedCount);             // 步骤 4 未到达：不通知窗口
 
-        // 共享任务：重复调用返回同一任务、观察到同一异常（继续被观察，不二次执行）。
+        // 重试契约（统一裁决 2.2）：失败后任务字段复位 → 重复调用启动新一轮编排，
+        // 故障未解除则再次失败（被观察，不留未观察异常）、不伪装为成功。
         var second = vm.CloseProjectLifetimeAsync();
-        Assert.Same(vm.CloseProjectLifetimeAsync(), second);
         await Assert.ThrowsAsync<InvalidOperationException>(() => second.WaitAsync(GateTimeout));
-        Assert.Equal(1, database.DisposeCount);
+        Assert.Equal(2, database.DisposeCount);
+
+        // 故障解除后重试：补完数据库阶段 → 成功终态。
+        database.DisposeFailure = null;
+        await vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout);
+        Assert.Equal(1, projectClosedCount);
 
         _ = assets;
         _ = session;
+    }
+
+    [Fact]
+    public async Task C2_FailureThenRetry_CloseLifetimeStartSticky_NewOpenStillRejected()
+    {
+        // 统一裁决 2.4：编排失败进入重试不会撤销"关闭已启动"的不可逆状态——
+        // C2 失败（任务字段复位为重试入口）后，新的 OpenWorkspace 仍被拒绝
+        // （关闭可重试，但绝不回到可新建工作区的开放状态）。
+        var (vm, query, database, _, session) = CreateVm();
+        vm.TestBindingFactory = ws => new MapViewportBinding(ws.ViewState);
+        await OpenWorkspacesAsync(vm, query, 1);
+
+        database.DisposeFailure = new InvalidOperationException("数据库释放失败（测试注入）。");
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout));
+
+        Assert.True(vm.IsProjectCloseLifetimeFinished); // 本轮编排已结束
+        Assert.True(vm.IsProjectCloseLifetimeStarted);  // sticky：仍处不可逆关闭状态
+
+        vm.SelectedMap = query.Maps[0];
+        await vm.OpenWorkspaceCommand.ExecuteAsync(null);
+        Assert.Contains("无法打开", vm.WorkspaceStatusText); // 失败后依然拒绝新建工作区
+
+        database.DisposeFailure = null;
+        await vm.CloseProjectLifetimeAsync().WaitAsync(GateTimeout);
+
+        Assert.True(vm.IsProjectCloseLifetimeStarted);  // 全程 sticky
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Empty(vm.Workspaces);
     }
 
     [Fact]

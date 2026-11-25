@@ -23,8 +23,9 @@ namespace WorldView.Desktop.ViewModels;
 /// - 每个工作区一个 <see cref="MapViewportBinding"/>（工作区打开时创建，创建者唯一）；
 /// - C1（<see cref="CloseWorkspaceCommand"/>）：先关目标 Binding → 关工作区 → 移除集合 → Dispose；
 /// - C2（<see cref="CloseProjectLifetimeAsync"/>）：唯一业务编排入口——先关全部存活
-///   Binding → 关会话 → 清集合 → ProjectClosed 一次；整体最多启动一次，重复调用
-///   等待首次操作（幂等契约）。
+///   Binding → 关会话 → 清集合 → ProjectClosed 一次；进行中重复调用共享同一编排任务
+///   （幂等契约）；失败后可再次调用进入重试（重试只补未完成阶段，已成功释放的
+///   资源不重复释放），但关闭的不可逆性不随重试撤销（启动即 sticky）。
 ///
 /// P1-01 关闭期间不可逆契约：C2 启动（共享任务字段的 CAS 成功）即线性化点，此后
 /// 项目进入不可逆关闭状态——新的 OpenWorkspace 一律拒绝（<see
@@ -48,10 +49,16 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>Binding 登记 / 移除与 C2 启动状态联合判定的串行化门（锁内不含任何 await）。</summary>
     private readonly object _lifecycleGate = new();
 
-    /// <summary>C2 唯一编排任务（首次调用创建；非 null 即"已启动"）。幂等契约的实现载体。</summary>
+    /// <summary>C2 当前编排任务（非 null 即"当前有一次编排已启动且未失败"）。
+    /// 失败后重置为 null（重试入口）；成功后保留（终态，重复调用返回同一任务）。
+    /// 线性化点语义见 <see cref="_closeLifetimeStarted"/>。</summary>
     private Task? _projectCloseLifetimeTask;
 
-    /// <summary>C2 编排是否已结束（成功或失败均算结束；窗口 Closing 处理器据此放行关闭）。</summary>
+    /// <summary>C2 是否曾经启动（sticky，一旦置位永不复位）。独立于任务字段：
+    /// 失败重试会重置任务字段，但关闭的不可逆性（禁止新建 Workspace）不随之撤销。</summary>
+    private bool _closeLifetimeStarted;
+
+    /// <summary>最近一次 C2 编排是否已结束（成功或失败均算结束；按次复位）。</summary>
     private volatile bool _projectCloseLifetimeFinished;
 
     public ProjectWorkspaceViewModel(
@@ -91,16 +98,18 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>已打开的工作区。</summary>
     public ObservableCollection<MapWorkspaceSession> Workspaces { get; } = new();
 
-    /// <summary>C2 编排是否已结束（成功或失败）。窗口 Closing 处理器据此放行最终关闭。</summary>
+    /// <summary>最近一次 C2 编排是否已结束（成功或失败）。按次复位：重试启动新编排时置回 false。</summary>
     public bool IsProjectCloseLifetimeFinished => _projectCloseLifetimeFinished;
 
     /// <summary>
-    /// C2 编排是否已启动（P1-01：启动即不可逆关闭状态）。线性化点为
-    /// <see cref="CloseProjectLifetimeAsync"/> 中共享任务字段的 CAS 成功时刻——该时刻
-    /// 之后新的 OpenWorkspace 必须被拒绝，在途打开必须在注册前就地回收。
+    /// C2 是否已启动（P1-01：启动即不可逆关闭状态）。线性化点为
+    /// <see cref="CloseProjectLifetimeAsync"/> 中 CAS 成功时刻——该时刻之后新的
+    /// OpenWorkspace 必须被拒绝，在途打开必须在注册前就地回收。
+    /// sticky 语义（WP-30B 3A 统一裁决 2.4）：编排失败进入重试不会复位本标记——
+    /// "关闭可重试"不等于"关闭可撤销"，已启动关闭的项目永不回到可新建工作区状态。
     /// 启动前取消（Token 已取消）不置位：未启动任何关闭动作。
     /// </summary>
-    public bool IsProjectCloseLifetimeStarted => Volatile.Read(ref _projectCloseLifetimeTask) is not null;
+    public bool IsProjectCloseLifetimeStarted => Volatile.Read(ref _closeLifetimeStarted);
 
     /// <summary>地图列表状态说明。</summary>
     [ObservableProperty]
@@ -299,7 +308,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
     /// <summary>
     /// 关闭项目会话命令：只委托唯一编排方法（ADR-10 §7.2；不得保留旧的
-    /// "先 Session.CloseAsync 再 ProjectClosed"顺序）。
+    /// "先 Session.CloseAsync 再 ProjectClosed"顺序）。失败呈现诊断并保留重试能力
+    /// （WP-30B 3A 统一裁决 2.2：失败不永久锁死生命周期对象）。
     /// </summary>
     [RelayCommand]
     private async Task CloseProjectAsync(CancellationToken cancellationToken)
@@ -312,20 +322,23 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         catch (Exception ex)
         {
             // 异常已在编排内记录；此处保证命令路径也观察到异常（不留未观察异常），
-            // 并如实呈现失败。窗口关闭策略见 ADR-10 §7.2 流程裁决 4。
-            _log?.Warn("ProjectWorkspace", "项目关闭失败。", ex);
-            WorkspaceStatusText = $"项目关闭失败：{ex.Message}（详见日志）。";
+            // 并如实呈现失败。失败后编排任务已复位，用户可再次触发重试。
+            _log?.Error("ProjectWorkspace", "项目关闭失败。", ex);
+            WorkspaceStatusText = $"项目关闭失败：{ex.Message}（可再次关闭重试；详见日志）。";
         }
     }
 
     /// <summary>
-    /// C2 唯一业务编排入口（ADR-10 §7.2）：关闭该会话下全部存活 Binding → 关闭
-    /// ProjectSession → 清理视图集合 → ProjectClosed 一次。
+    /// C2 唯一业务编排入口（ADR-10 §7.2 + WP-30B 3A 统一裁决）：关闭该会话下全部存活
+    /// Binding → 关闭 ProjectSession → 清理视图集合 → ProjectClosed 一次。
     ///
-    /// 幂等契约（行为级）：整体最多启动一次；重复调用（含"关闭项目"命令与
-    /// Window.Closing 的并发触发）返回并等待首次操作，不并行、不跳过、不重复释放。
-    /// P1-01：CAS 成功即"不可逆关闭状态"的启动点——此后新的 OpenWorkspace 被拒绝、
-    /// 在途打开被就地回收（见 <see cref="IsProjectCloseLifetimeStarted"/>）。
+    /// 幂等契约（行为级）：进行中重复调用（含"关闭项目"命令与 Window.Closing 的并发
+    /// 触发）共享并等待同一编排任务，不并行、不跳过、不重复释放。
+    /// 重试契约（统一裁决 2.2/2.3）：编排失败后任务字段复位为 null——下一次调用启动
+    /// 新一轮编排，只补未完成的阶段（Binding 失败阶段与 Session 失败阶段均有各自的
+    /// 阶段级完成标记，已成功释放的资源不会重复释放）；成功为终态，任务字段保留。
+    /// P1-01：CAS 成功即"不可逆关闭状态"的启动点（<see cref="_closeLifetimeStarted"/>
+    /// sticky 置位）——此后新的 OpenWorkspace 被拒绝、在途打开被就地回收，重试不复位。
     /// 实现约定：先把"已启动"任务写入共享字段，编排体才开始执行——即使编排体在当前
     /// 调用栈内同步完成（ProjectClosed → Window.Close → Closing 重入链），重入也只会
     /// 看到已启动并等待同一任务，不会第二次执行。
@@ -353,6 +366,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             return raced;
         }
 
+        // sticky 启动标记：CAS 成功即置位、永不复位（统一裁决 2.4 关闭不可逆）。
+        Volatile.Write(ref _closeLifetimeStarted, true);
+        _projectCloseLifetimeFinished = false;
+
         // 编排体的返回 Task 永不 fault（全部异常路由进 completion，由等待者观察），
         // 因此丢弃安全：不留未观察的后台任务。
         _ = ExecuteProjectCloseLifetimeAsync(completion);
@@ -360,63 +377,81 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。
-    /// 步骤 1 为排空循环（P1-01 第 4 条）：只要集合中仍存在未关闭 Binding 就继续关闭，
-    /// 终止条件是"集合内无未关闭 Binding"——由于启动后新的打开被拒绝、在途打开被就地
-    /// 回收（判定与登记同锁互斥），循环必然在有限轮内终止。
+    /// C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排；WP-30B 3A 统一裁决 2.3）。
+    /// 步骤 1 为单遍排空（P1-01 第 4 条）：对本轮启动时所有"关闭尚未成功"的 Binding
+    /// 各尝试一次；单个失败记诊断、收集异常后继续其余 Binding（阶段隔离）——该 Binding
+    /// 留待下一次编排重试（失败阶段可重新执行，不在此轮内死循环）。
+    /// 步骤 2 的会话关闭不因 Binding 失败而跳过（后续阶段不因前一阶段异常被永久跳过）；
+    /// 会话关闭失败时跳过步骤 3/4（集合状态与会话真实状态一致性依赖会话关闭成功），
+    /// 留待重试。
+    /// 异常传播（统一裁决 2.3/2.5）：单异常原样保留，多异常按阶段顺序聚合为
+    /// AggregateException；原始异常信息不丢失。
     /// 日志纪律（DEF-03）：本方法内的所有日志都是 best-effort——日志实现自身的
     /// 异常绝不参与生命周期收尾的控制流，原始生命周期异常优先传递给等待者。
     /// </summary>
     private async Task ExecuteProjectCloseLifetimeAsync(TaskCompletionSource completion)
     {
-        Exception? failure = null;
+        List<Exception>? failures = null;
         try
         {
-            // 步骤 1：排空全部存活 Binding（每个执行 B 子序；单个失败记诊断后继续，
-            // 否则会留下"部分视口已关、会话仍 Ready"的更危险状态——ADR-10 §7.2）。
-            // RequestClose 幂等且启动即置 IsClosed 终态（含失败路径），不会死循环。
-            while (true)
+            // 步骤 1：单遍排空本轮启动时所有"关闭尚未成功"的 Binding（B 子序；
+            // 失败收集后继续其余 Binding，失败者留待重试——ADR-10 §7.2 阶段隔离）。
+            MapViewportBinding[] pending;
+            lock (_lifecycleGate)
             {
-                MapViewportBinding[] pending;
-                lock (_lifecycleGate)
-                {
-                    pending = _viewportBindings.Values.Where(b => !b.IsClosed).ToArray();
-                }
+                pending = _viewportBindings.Values.Where(b => !b.IsCloseSucceeded).ToArray();
+            }
 
-                if (pending.Length == 0)
+            foreach (var binding in pending)
+            {
+                try
                 {
-                    break;
+                    await binding.RequestClose().ConfigureAwait(true);
                 }
-
-                foreach (var binding in pending)
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        await binding.RequestClose().ConfigureAwait(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
-                        WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
-                    }
+                    // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
+                    WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
+                    (failures ??= new List<Exception>()).Add(ex);
                 }
             }
 
             // 步骤 2：关闭 ProjectSession（以 None 跑到结束——中途取消会留下
-            // "Binding 已关、会话未关"的半关闭状态）。
-            await Session.CloseAsync(CancellationToken.None).ConfigureAwait(true);
+            // "Binding 已关、会话未关"的半关闭状态）。Binding 失败不阻断本步骤
+            // （统一裁决 2.3：后续阶段不因前一阶段异常被永久跳过）。
+            try
+            {
+                await Session.CloseAsync(CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                WarnBestEffort("项目会话关闭失败，留待重试。", ex);
+                (failures ??= new List<Exception>()).Add(ex);
+
+                // 会话未关闭：跳过步骤 3/4（跳过不等于永久跳过——重试会重新到达）。
+                throw BuildCloseFailure(failures);
+            }
+
+            // 步骤 2.5：会话已关闭但步骤 1 存在 Binding 失败——不得清空集合
+            // （未成功关闭的呈现资源绝不被静默丢弃），以聚合异常失败本轮，
+            // 失败 Binding 留待重试（届时 Session.CloseAsync 幂等返回，代价为零）。
+            if (failures is not null)
+            {
+                throw BuildCloseFailure(failures);
+            }
 
             // 步骤 3：清理视图集合（Session.CloseAsync 只清 Application 的 _workspaces，
             // 不会清 ViewModel 的 ObservableCollection）。
-            // P1-01 第 5 条：清空 Binding 集合前断言"无未关闭 Binding"——不变量破坏
-            // 属实现缺陷，宁可让 C2 失败，也绝不静默清掉未关闭的呈现资源。
+            // P1-01 第 5 条：清空 Binding 集合前断言"无未成功关闭的 Binding"——到达
+            // 本步骤时步骤 1 已排空且全部成功，仍存在未关闭 Binding 属实现缺陷
+            // （排空快照遗漏），宁可让 C2 失败，也绝不静默清掉未关闭的呈现资源。
             lock (_lifecycleGate)
             {
-                var unclosed = _viewportBindings.Values.Where(b => !b.IsClosed).ToList();
+                var unclosed = _viewportBindings.Values.Where(b => !b.IsCloseSucceeded).ToList();
                 if (unclosed.Count > 0)
                 {
                     throw new InvalidOperationException(
-                        $"C2 收尾不变量被破坏：清空 Binding 集合时仍有 {unclosed.Count} 个未关闭 Binding。");
+                        $"C2 收尾不变量被破坏：清空 Binding 集合时仍有 {unclosed.Count} 个未成功关闭的 Binding。");
                 }
 
                 _viewportBindings.Clear();
@@ -424,32 +459,41 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
             Workspaces.Clear();
 
-            // 步骤 4：通知窗口（ProjectClosed → Window.Close()）。真实窗口的 Closing
-            // 处理器会在本任务尚未完成时取消该次 Close 并等待本任务完成后收尾重关
-            // （ADR-10 §7.2 窗口关闭流程，R5）。
+            // 步骤 4：通知窗口（ProjectClosed → Window 允许最终关闭）。仅在全部阶段
+            // 成功时触发（异常路径在此前已抛出）；因此 C2 全程 ProjectClosed 至多一次。
             ProjectClosed?.Invoke();
         }
         catch (Exception ex)
         {
             // DEF-03：先保存原始生命周期异常，再做 best-effort 日志——日志失败
             // 既不覆盖原始异常，也不会让下方 Finished / SetException 收尾被跳过。
-            failure = ex;
             WarnBestEffort("项目生命周期关闭失败。", ex);
+            FailCloseLifetime(completion, ex);
+            return;
         }
 
         // DEF-02：先置 Finished（volatile 写）再完成任务。完成顺序不可交换——
-        // 从 completion.Task 恢复的等待者（窗口 Closing 收尾重关）在观察到任务完成时，
-        // 必然已经能读到 Finished == true，不会再取消最终关闭。成功与失败同序。
+        // 从 completion.Task 恢复的等待者在观察到任务完成时，必然已经能读到
+        // Finished == true。成功与失败同序。
         _projectCloseLifetimeFinished = true;
-        if (failure is not null)
-        {
-            completion.SetException(failure);
-        }
-        else
-        {
-            completion.SetResult();
-        }
+        completion.SetResult();
     }
+
+    /// <summary>
+    /// C2 失败收尾（统一裁决 2.2）：置 Finished → 复位任务字段（重试入口）→
+    /// 向等待者传播原始异常。任务字段复位必须晚于 Finished 置位且只复位自己的任务
+    /// （比较后交换）：重试启动的新任务绝不会被旧编排的失败收尾误杀。
+    /// </summary>
+    private void FailCloseLifetime(TaskCompletionSource completion, Exception failure)
+    {
+        _projectCloseLifetimeFinished = true;
+        Interlocked.CompareExchange(ref _projectCloseLifetimeTask, null, completion.Task);
+        completion.SetException(failure);
+    }
+
+    /// <summary>按统一裁决 2.3/2.5 聚合本轮收集的异常：单个原样返回，多个按阶段顺序聚合。</summary>
+    private static Exception BuildCloseFailure(List<Exception> failures)
+        => failures.Count == 1 ? failures[0] : new AggregateException(failures);
 
     /// <summary>
     /// best-effort 警告日志（DEF-03）：日志实现的异常就地吞掉、不向外传播——

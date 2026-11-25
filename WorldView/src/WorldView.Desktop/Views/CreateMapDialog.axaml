@@ -17,7 +17,7 @@
     <StackPanel Margin="16" Spacing="10">
         <TextBlock FontWeight="SemiBold" FontSize="16" Text="新建地图" />
         <TextBlock Opacity="0.8" Text="地图名称（同一项目内唯一，不区分大小写）" />
-        <TextBox x:Name="NameBox" Text="{Binding MapName}" Watermark="例如：主地图" />
+        <TextBox x:Name="NameBox" Text="{Binding MapName}" PlaceholderText="例如：主地图" />
         <TextBlock Text="{Binding ErrorText}"
                    Foreground="Red" TextWrapping="Wrap"
                    IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

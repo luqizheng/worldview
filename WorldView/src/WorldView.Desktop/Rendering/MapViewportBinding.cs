@@ -30,8 +30,9 @@ namespace WorldView.Desktop.Rendering;
 /// P1-02 异常安全收尾：关闭子序（1b→1c→1d）既定顺序不可重排；任一阶段失败后仍继续
 /// 执行其余阶段（释放失败不阻断后续释放），全部异常就地收集，待所有释放步骤结束后
 /// 一次性向等待者传播——单个失败原样保留原始异常，多个失败以 AggregateException
-/// 聚合（InnerExceptions 保持阶段顺序）。重复 RequestClose 共享同一关闭 Task（DEF-01），
-/// 不重复执行任何释放步骤。
+/// 聚合（InnerExceptions 保持阶段顺序）。进行中的重复 RequestClose 共享同一关闭 Task
+/// （DEF-01）；失败后的重试只补未成功阶段（阶段级完成标记，统一裁决 2.3），
+/// 已成功阶段绝不重复释放。
 /// </summary>
 internal class MapViewportBinding
 {
@@ -47,9 +48,14 @@ internal class MapViewportBinding
     // volatile：Render 回调入口的关闭检查必须无锁（ADR-08 Q9）。
     private volatile bool _isClosed;
 
-    // DEF-01：唯一关闭 Task。第一次 RequestClose 创建并缓存；后续调用（无论进行中
-    // 还是已完成）都返回同一 Task——所有调用者等待相同的关闭结果，第一次关闭的
-    // 失败也通过同一 faulted Task 原样传播，不会被伪装成成功。
+    // 阶段级完成标记（WP-30B 3A 统一裁决 2.3）：只在对应释放步骤成功后置位。
+    // 失败后的重试只重新执行未置位阶段，已成功阶段绝不重复释放。
+    private bool _coordinatorClosed;
+    private bool _publisherDisposed;
+    private bool _rendererDisposed;
+
+    // 关闭尝试 Task。进行中共享同一 Task（DEF-01）；上一轮尝试失败后，下一次
+    // RequestClose 启动新尝试（只补未成功阶段）并替换本字段。全部访问经 _closeGate 串行化。
     private Task? _closeTask;
 
     // 视口标量缓存：UI 线程单写者（控件 SizeChanged / ScalingChanged / Attach 时写入），
@@ -73,6 +79,16 @@ internal class MapViewportBinding
     /// <summary>Binding 是否已永久关闭（终态，不可重置）。</summary>
     public bool IsClosed => _isClosed;
 
+    /// <summary>
+    /// 关闭子序是否已全部成功完成（Coordinator → Publisher → Renderer 三阶段
+    /// 完成标记全部置位）。统一裁决 2.3：C2 编排据此区分"关闭成功"与
+    /// "已启动但存在未完成清理工作"——后者可经 RequestClose 重试补完。
+    /// </summary>
+    public bool IsCloseSucceeded
+    {
+        get { lock (_closeGate) { return _coordinatorClosed && _publisherDisposed && _rendererDisposed; } }
+    }
+
     /// <summary>当前是否有控件 Attach（暂时 Detach 会清空；永久关闭也会清空）。</summary>
     internal bool HasAttachedControl => Volatile.Read(ref _attachedControl) is not null;
 
@@ -89,33 +105,49 @@ internal class MapViewportBinding
     }
 
     /// <summary>
-    /// 永久关闭当前视口的呈现资源（B / C1 / C2 共用子序）。幂等且<strong>共享关闭结果</strong>：
-    /// 第一次调用创建唯一关闭 Task，后续调用返回同一 Task 并等待首次操作完成
-    /// （DEF-01）——不仅"已启动"，而是共享进行中的进度与最终结果；首次关闭失败时，
-    /// 后续调用者观察到同一异常。不关闭 Workspace / ProjectSession（那是拥有者
-    /// C1 / C2 编排的职责）。
+    /// 永久关闭当前视口的呈现资源（B / C1 / C2 共用子序）。
+    /// WP-30B 3A 统一裁决（2.1/2.2/2.3）：
+    /// - <strong>进行中共享</strong>：关闭尝试执行期间，重复调用返回同一 Task 并等待
+    ///   首次操作（DEF-01）——所有调用者等待相同的关闭结果与进度，不并行两套关闭流程；
+    /// - <strong>失败可重试</strong>：上一轮尝试失败（faulted）后，下一次调用启动新尝试，
+    ///   只重新执行未成功的阶段（阶段级完成标记）；已成功阶段绝不重复释放；
+    /// - <strong>成功终态</strong>：全部阶段成功后，后续调用幂等返回同一成功 Task，
+    ///   不重复执行任何释放步骤。
+    /// 不关闭 Workspace / ProjectSession（那是拥有者 C1 / C2 编排的职责）。
     /// </summary>
     public Task RequestClose()
     {
         lock (_closeGate)
         {
-            if (_closeTask is not null)
+            if (_closeTask is { } existing)
             {
-                // 关闭已启动（进行中或已完成）：返回同一 Task，等待者共享结果。
-                // 重复调用只记录 already_closed 诊断，不重复执行任何资源关闭。
-                _closeStageLog.Add("already_closed");
-                return _closeTask;
+                if (!existing.IsCompleted)
+                {
+                    // 关闭进行中：共享同一 Task（DEF-01）。
+                    _closeStageLog.Add("already_closed");
+                    return existing;
+                }
+
+                if (existing.IsCompletedSuccessfully)
+                {
+                    // 已全部成功（终态）：幂等返回，不重复释放。
+                    _closeStageLog.Add("already_closed");
+                    return existing;
+                }
+
+                // 上一轮尝试失败：存在未完成的清理阶段 → 启动重试尝试（新 Task）。
+                _closeStageLog.Add("close_retry");
+            }
+            else
+            {
+                // 1a. 置终态（volatile 写；此后 Render 入口立即拒绝新帧）。
+                _isClosed = true;
+                _closeStageLog.Add("is_closed");
+                _attachedControl = null;
             }
 
-            // 1a. 置终态（volatile 写；此后 Render 入口立即拒绝新帧）。
-            _isClosed = true;
-            _closeStageLog.Add("is_closed");
-            _attachedControl = null;
-
-            // 创建并缓存唯一关闭 Task。CloseDeferredStartAsync 先 Task.Yield 把
-            // 流水线的同步段（Coordinator.CloseAsync → Publisher.Dispose → Renderer.Dispose）
-            // 调度出当前锁范围：并发调用者不会在 _closeGate 上被门控阻塞的
-            // Renderer.Dispose 卡住，而是立即拿到同一 Task 等待首次结果。
+            // 锁内创建、锁外执行同步段（Task.Yield 延迟启动）：并发调用者不会在本锁上
+            // 被门控阻塞，而是立即拿到同一 Task 等待首次结果。
             var task = CloseDeferredStartAsync();
             _closeTask = task;
             return task;
@@ -146,8 +178,10 @@ internal class MapViewportBinding
     /// <summary>
     /// 步骤 1b–1d（ADR-10 §7.1）：屏障 → 发布器 → 渲染器，顺序不可重排。
     /// P1-02：任一阶段失败仍继续执行后续释放阶段；所有异常收集后统一聚合，
-    /// 在全部释放步骤结束后一次性抛出（经 CloseDeferredStartAsync 使共享关闭 Task
+    /// 在全部释放步骤结束后一次性抛出（经 CloseDeferredStartAsync 使本轮关闭 Task
     /// 进入 faulted 状态，由所有等待者观察同一结果）。
+    /// WP-30B 3A 统一裁决 2.3：已成功阶段由完成标记跳过（重试不重复释放），
+    /// 失败阶段在下一轮重试中重新执行。
     /// </summary>
     private async Task ClosePipelineAsync()
     {
@@ -155,45 +189,71 @@ internal class MapViewportBinding
 
         // 1b. Coordinator.DisposeAsync：先 CloseAsync——停新请求、协作取消未完成请求，
         //     并在发布器锁内置位 F-1 关闭屏障（WP-30A 线性化点）；再释放协调器取消源。
-        //     阶段日志如实记录：成功记 coordinator_closed，失败记 coordinator_failed。
-        try
+        //     阶段日志如实记录：成功记 coordinator_closed，失败记 coordinator_failed；
+        //     上一轮已成功的阶段记 coordinator_skipped（不重复执行）。
+        if (Volatile.Read(ref _coordinatorClosed))
         {
-            await CloseCoordinatorStepAsync().ConfigureAwait(false);
-            RecordStage("coordinator_closed");
+            RecordStage("coordinator_skipped");
         }
-        catch (Exception ex)
+        else
         {
-            (failures ??= new List<Exception>()).Add(ex);
-            RecordStage("coordinator_failed");
+            try
+            {
+                await CloseCoordinatorStepAsync().ConfigureAwait(false);
+                Volatile.Write(ref _coordinatorClosed, true);
+                RecordStage("coordinator_closed");
+            }
+            catch (Exception ex)
+            {
+                (failures ??= new List<Exception>()).Add(ex);
+                RecordStage("coordinator_failed");
+            }
         }
 
         // 1c. Publisher.Dispose：此后一切发布与候选版本分配被拒绝；
         //     已发布快照的逻辑数据在被引用期间保持有效（PRA-01 §8）。
-        try
+        if (Volatile.Read(ref _publisherDisposed))
         {
-            DisposePublisherStep();
-            RecordStage("publisher_disposed");
+            RecordStage("publisher_skipped");
         }
-        catch (Exception ex)
+        else
         {
-            (failures ??= new List<Exception>()).Add(ex);
-            RecordStage("publisher_failed");
+            try
+            {
+                DisposePublisherStep();
+                Volatile.Write(ref _publisherDisposed, true);
+                RecordStage("publisher_disposed");
+            }
+            catch (Exception ex)
+            {
+                (failures ??= new List<Exception>()).Add(ex);
+                RecordStage("publisher_failed");
+            }
         }
 
         // 1d. Renderer.Dispose（M1 幂等空操作）。
-        try
+        if (Volatile.Read(ref _rendererDisposed))
         {
-            _renderer.Dispose();
-            RecordStage("renderer_disposed");
+            RecordStage("renderer_skipped");
         }
-        catch (Exception ex)
+        else
         {
-            (failures ??= new List<Exception>()).Add(ex);
-            RecordStage("renderer_failed");
+            try
+            {
+                _renderer.Dispose();
+                Volatile.Write(ref _rendererDisposed, true);
+                RecordStage("renderer_disposed");
+            }
+            catch (Exception ex)
+            {
+                (failures ??= new List<Exception>()).Add(ex);
+                RecordStage("renderer_failed");
+            }
         }
 
-        // 异常安全收尾的传播点：全部释放步骤已结束，才向等待者传播。
+        // 异常安全收尾的传播点：本轮全部释放步骤已结束，才向等待者传播。
         // 单个异常原样保留（同一实例）；多个异常按阶段顺序聚合。
+        // 本轮失败不影响下一轮重试（RequestClose 启动新尝试补完剩余阶段）。
         if (failures is not null)
         {
             throw failures.Count == 1 ? failures[0] : new AggregateException(failures);

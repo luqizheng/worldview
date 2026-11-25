@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,9 @@ public partial class App : Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // 启动面（创建/打开/最近项目）为唯一主窗口；项目工作区以独立窗口打开。
-            // 项目会话的关闭由 Program.Main 在生命周期结束后统一编排。
+            // 隐藏首页进入项目工作区时，不能让最后一个可见窗口的关闭触发进程退出；
+            // 以 MainWindow 关闭为唯一隐式退出条件，项目窗口关闭后首页才能可靠恢复。
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             desktop.MainWindow = new StartWindow();
         }
 
