@@ -18,14 +18,17 @@ namespace WorldView.Desktop.Tests.Testing;
 public static class TestSessions
 {
     /// <summary>构造 Ready 会话（公开 API：TryCompleteOpen 使 Opening→Ready）。</summary>
-    public static ProjectSession CreateReadySession(Guid? projectId = null)
+    public static ProjectSession CreateReadySession(
+        Guid? projectId = null,
+        IPackageDatabase? database = null,
+        IAssetStore? assetStore = null)
     {
         var session = new ProjectSession(
             Guid.NewGuid(),
             "C:\\pkg\\demo.wvproject",
             PackageManifest.CreateV1(DateTimeOffset.UtcNow),
-            new StubPackageDatabase(),
-            new StubAssetStore(),
+            database ?? new StubPackageDatabase(),
+            assetStore ?? new StubAssetStore(),
             projectId ?? Guid.NewGuid());
         Assert.True(session.TryCompleteOpen());
         return session;
@@ -57,6 +60,13 @@ public sealed class StubPackageDatabase : IPackageDatabase
 
 public sealed class StubAssetStore : IAssetStore
 {
+    /// <summary>失败注入：指定操作抛出异常（用于关闭重试测试）。</summary>
+    public Func<string, Exception?>? FailureHook { get; set; }
+
+    public int DisposeAttempts { get; private set; }
+
+    public int DisposeSuccesses { get; private set; }
+
     public string RootPath => "/stub-assets";
 
     public Task<AssetPutResult> PutAsync(Stream content, CancellationToken cancellationToken = default)
@@ -67,7 +77,17 @@ public sealed class StubAssetStore : IAssetStore
 
     public bool Exists(string contentHash) => false;
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        DisposeAttempts++;
+        if (FailureHook?.Invoke("AssetStore:Dispose") is { } failure)
+        {
+            throw failure;
+        }
+
+        DisposeSuccesses++;
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>可编排结果的地图创建替身；成功时把创建的地图写入可选的查询替身（模拟正式持久化）。</summary>

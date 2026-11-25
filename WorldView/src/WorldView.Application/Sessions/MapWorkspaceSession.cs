@@ -15,6 +15,7 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
 {
     private readonly object _gate = new();
     private bool _closed;
+    private bool _disposed;
     private readonly CancellationTokenSource _derivedWorkCts = new();
 
     public MapWorkspaceSession(ProjectSession projectSession, ValidatedWorkspaceContext context)
@@ -43,6 +44,12 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
     public bool IsClosed
     {
         get { lock (_gate) { return _closed; } }
+    }
+
+    /// <summary>派生工作取消源是否已释放（会话关闭时统一释放）。</summary>
+    public bool IsDisposed
+    {
+        get { lock (_gate) { return _disposed; } }
     }
 
     /// <summary>上下文切换：经 Core Domain 重新解析并替换上下文，取消旧的派生工作。</summary>
@@ -95,8 +102,19 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>释放派生工作取消源；幂等，可与 CloseAsync 失败后的重试安全组合。</summary>
     public ValueTask DisposeAsync()
     {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            _disposed = true;
+        }
+
         _derivedWorkCts.Dispose();
         return ValueTask.CompletedTask;
     }

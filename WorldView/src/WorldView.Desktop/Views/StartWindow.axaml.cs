@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
 using WorldView.Desktop.ViewModels;
 
@@ -11,6 +12,7 @@ namespace WorldView.Desktop.Views;
 public partial class StartWindow : Window
 {
     private readonly Func<ProjectSession, ProjectWorkspaceViewModel> _workspaceViewModelFactory;
+    private ProjectWindow? _workspaceWindow;
 
     public StartWindow()
     {
@@ -25,17 +27,57 @@ public partial class StartWindow : Window
         DataContext = vm;
         vm.ProjectOpened += OnProjectOpened;
         Closed += (_, _) => vm.ProjectOpened -= OnProjectOpened;
-        _ = vm.LoadRecentProjectsAsync();
+        _ = ObserveRecentProjectsLoadAsync(vm);
     }
 
-    /// <summary>会话就绪：打开工作区窗口；启动面保留（多项目并存的 V1 语义）。</summary>
+    /// <summary>
+    /// 观察启动期最近项目加载任务：ViewModel 已把存储失败转为状态与日志，
+    /// 这里兜底任何意外异常，保证未观察异常不会中断启动窗口。
+    /// </summary>
+    private static async Task ObserveRecentProjectsLoadAsync(StartViewModel vm)
+    {
+        try
+        {
+            await vm.LoadRecentProjectsAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            App.Services?.GetService<IAppLog>()?.Error("StartWindow", "最近项目加载出现未处理异常。", ex);
+            vm.ReportRecentProjectsLoadFailure(ex);
+        }
+    }
+
+    /// <summary>项目会话就绪：隐藏项目首页并显示唯一的项目工作区窗口。</summary>
     private void OnProjectOpened(ProjectSession session)
     {
+        // 同一会话的 DuplicateOpen 或重复点击不能创建第二个工作区窗口。
+        if (_workspaceWindow is { IsVisible: true } existing)
+        {
+            existing.Activate();
+            return;
+        }
+
         var workspaceWindow = new ProjectWindow
         {
             DataContext = _workspaceViewModelFactory(session),
         };
-        workspaceWindow.Show(this);
+        _workspaceWindow = workspaceWindow;
+
+        // StartWindow 是应用 MainWindow，不能 Close；隐藏它可避免触发应用级退出。
+        // 工作区关闭（包括标题栏关闭按钮）后再恢复首页。
+        workspaceWindow.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_workspaceWindow, workspaceWindow))
+            {
+                _workspaceWindow = null;
+            }
+
+            Show();
+            Activate();
+        };
+
+        workspaceWindow.Show();
+        Hide();
     }
 
     /// <summary>选择目标父目录（创建项目包）。</summary>

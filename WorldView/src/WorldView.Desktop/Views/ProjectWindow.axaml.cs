@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Avalonia.Controls;
 using WorldView.Desktop.ViewModels;
 
@@ -6,9 +7,51 @@ namespace WorldView.Desktop.Views;
 
 public partial class ProjectWindow : Window
 {
+    private bool _allowClose;
+    private bool _closeInProgress;
+    private ProjectWorkspaceViewModel? _subscribedViewModel;
+
     public ProjectWindow()
     {
         InitializeComponent();
+
+        // 标题栏关闭也必须走项目会话关闭流程，不能只销毁窗口而遗留活动会话。
+        Closing += async (_, e) =>
+        {
+            if (_allowClose)
+            {
+                return;
+            }
+
+            e.Cancel = true;
+            if (_closeInProgress)
+            {
+                return;
+            }
+
+            if (DataContext is not ProjectWorkspaceViewModel vm)
+            {
+                _allowClose = true;
+                Close();
+                return;
+            }
+
+            _closeInProgress = true;
+            try
+            {
+                await vm.CloseProjectCommand.ExecuteAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                vm.WorkspaceStatusText = $"关闭项目失败：{ex.Message}";
+            }
+            finally
+            {
+                // 成功路径由 ProjectClosed 关闭窗口；失败路径取消本次关闭但保留再次尝试能力。
+                // 所有分支都必须复位，否则窗口会永久拒绝关闭。
+                _closeInProgress = false;
+            }
+        };
 
         // 项目会话关闭 → 关闭本窗口（返回启动面）。会话关闭次序由 ProjectSession 负责。
         PropertyChanged += (_, e) =>
@@ -18,15 +61,27 @@ public partial class ProjectWindow : Window
                 return;
             }
 
-            if (e.OldValue is ProjectWorkspaceViewModel old)
+            if (_subscribedViewModel is { } old)
             {
-                old.ProjectClosed -= Close;
+                old.ProjectClosed -= OnProjectClosed;
             }
 
-            if (e.NewValue is ProjectWorkspaceViewModel fresh)
+            _subscribedViewModel = e.NewValue as ProjectWorkspaceViewModel;
+            if (_subscribedViewModel is { } fresh)
             {
-                fresh.ProjectClosed += Close;
+                fresh.ProjectClosed += OnProjectClosed;
             }
+        };
+
+        // 窗口销毁时按订阅时的实例退订，避免 DataContext 已切换导致订阅泄漏。
+        Closed += (_, _) =>
+        {
+            if (_subscribedViewModel is { } closed)
+            {
+                closed.ProjectClosed -= OnProjectClosed;
+            }
+
+            _subscribedViewModel = null;
         };
 
         // 地图列表在窗口加载后拉取（经 Core Domain 查询端口；未实现时显示依赖门槛）。
@@ -37,6 +92,12 @@ public partial class ProjectWindow : Window
                 _ = loaded.LoadMapsAsync();
             }
         };
+    }
+
+    private void OnProjectClosed()
+    {
+        _allowClose = true;
+        Close();
     }
 
     /// <summary>

@@ -337,8 +337,8 @@ public class ProjectSessionLifecycleTests
         await session.CloseAsync();
 
         Assert.Equal(ProjectSessionState.Closed, session.State);
-        Assert.True(workspace.DerivedWorkCancellationToken.IsCancellationRequested);
         Assert.True(workspace.IsClosed);
+        Assert.True(workspace.IsDisposed); // 会话关闭统一释放子工作区的取消源
         // 逆序释放：Asset Store 在数据库之前。
         var assetDispose = sharedLog.IndexOf("AssetStore:Dispose");
         var databaseDispose = sharedLog.IndexOf("Database:Dispose");
@@ -472,6 +472,15 @@ public sealed class FakeAssetStore : IAssetStore
     /// <summary>与数据库共享的调用序列（用于断言释放顺序）。</summary>
     public List<string>? SharedLog { get; set; }
 
+    /// <summary>失败注入：指定操作抛出异常。</summary>
+    public Func<string, Exception?>? FailureHook { get; set; }
+
+    /// <summary>Dispose 调用次数（含失败尝试），用于验证失败后重试不重复释放已成功资源。</summary>
+    public int DisposeAttempts { get; private set; }
+
+    /// <summary>Dispose 成功次数。</summary>
+    public int DisposeSuccesses { get; private set; }
+
     private void Record(string operation)
     {
         CallLog.Add(operation);
@@ -500,7 +509,14 @@ public sealed class FakeAssetStore : IAssetStore
 
     public ValueTask DisposeAsync()
     {
+        DisposeAttempts++;
         Record("AssetStore:Dispose");
+        if (FailureHook?.Invoke("AssetStore:Dispose") is { } failure)
+        {
+            throw failure;
+        }
+
+        DisposeSuccesses++;
         return ValueTask.CompletedTask;
     }
 }

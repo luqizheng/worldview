@@ -17,6 +17,8 @@ public enum ProjectSessionState
     Failed,
     Cancelled,
     Closing,
+    /// <summary>关闭过程中发生异常：资源可能部分释放，允许再次 CloseAsync 重试。</summary>
+    CloseFailed,
     Closed,
 }
 
@@ -33,6 +35,9 @@ public sealed class ProjectSession : IAsyncDisposable
     private readonly object _stateGate = new();
     private readonly List<MapWorkspaceSession> _workspaces = new();
     private ProjectSessionState _state = ProjectSessionState.Opening;
+    private bool _assetStoreDisposed;
+    private bool _databaseDisposed;
+    private string? _closeFailureDiagnostic;
 
     public ProjectSession(
         Guid sessionId,
@@ -79,6 +84,12 @@ public sealed class ProjectSession : IAsyncDisposable
 
     /// <summary>会话是否处于 Ready（仅 Ready 暴露给 UI/用例使用）。</summary>
     public bool IsReady => State == ProjectSessionState.Ready;
+
+    /// <summary>最近一次关闭失败的诊断（异常类型与消息）；真正关闭成功后清空。</summary>
+    public string? CloseFailureDiagnostic
+    {
+        get { lock (_stateGate) { return _closeFailureDiagnostic; } }
+    }
 
     /// <summary>
     /// 会话完全关闭（资源已释放）后触发；注册表据此解除该包的占用，
@@ -202,66 +213,109 @@ public sealed class ProjectSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// 关闭会话：先关闭全部子工作区，再按逆序释放 Asset Store 与数据库资源。
-    /// 关闭后停止接受新工作；重复关闭为幂等空操作。永不删除包。
+    /// 关闭会话：先关闭并释放全部子工作区，再按逆序释放 Asset Store 与数据库资源。
+    /// 只有全部资源释放成功才进入 Closed 并触发 SessionClosed；异常进入 CloseFailed，
+    /// 下次调用从失败点继续（已成功释放的资源不会重复释放）。永不删除包。
     /// </summary>
     public async Task CloseAsync(CancellationToken cancellationToken = default)
     {
         lock (_stateGate)
         {
+            // Closed：幂等成功；Closing：已有一次关闭在执行（单机程序无并发关闭入口）。
             if (_state is ProjectSessionState.Closed or ProjectSessionState.Closing)
             {
                 return;
             }
 
-            if (_state == ProjectSessionState.Ready)
-            {
-                _state = ProjectSessionState.Closing;
-            }
+            _state = ProjectSessionState.Closing;
         }
 
-        // 1. 先关子工作区（AF-01 §8.2），逐个移除。
-        while (true)
+        try
         {
-            MapWorkspaceSession? workspace;
-            lock (_stateGate)
+            // 1. 先关子工作区（AF-01 §8.2）。只有 Close + Dispose 都成功才从列表移除，
+            //    失败时保留在工作区列表，重试时继续按幂等语义完成释放。
+            while (true)
             {
-                if (_workspaces.Count == 0)
+                MapWorkspaceSession? workspace;
+                lock (_stateGate)
                 {
-                    break;
+                    if (_workspaces.Count == 0)
+                    {
+                        break;
+                    }
+
+                    workspace = _workspaces[^1];
                 }
 
-                workspace = _workspaces[^1];
-                _workspaces.RemoveAt(_workspaces.Count - 1);
+                await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
+                await workspace.DisposeAsync().ConfigureAwait(false);
+                lock (_stateGate)
+                {
+                    if (_workspaces.Count > 0 && ReferenceEquals(_workspaces[^1], workspace))
+                    {
+                        _workspaces.RemoveAt(_workspaces.Count - 1);
+                    }
+                }
             }
 
-            await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
-        }
+            // 2. 逆序释放资源：Asset Store → 数据库。标记只在 Dispose 成功时置位。
+            bool assetStoreDisposed;
+            lock (_stateGate)
+            {
+                assetStoreDisposed = _assetStoreDisposed;
+            }
 
-        // 2. 逆序释放资源：Asset Store → 数据库。
-        await AssetStore.DisposeAsync().ConfigureAwait(false);
-        await Database.DisposeAsync().ConfigureAwait(false);
+            if (!assetStoreDisposed)
+            {
+                await AssetStore.DisposeAsync().ConfigureAwait(false);
+                lock (_stateGate)
+                {
+                    _assetStoreDisposed = true;
+                }
+            }
+
+            bool databaseDisposed;
+            lock (_stateGate)
+            {
+                databaseDisposed = _databaseDisposed;
+            }
+
+            if (!databaseDisposed)
+            {
+                await Database.DisposeAsync().ConfigureAwait(false);
+                lock (_stateGate)
+                {
+                    _databaseDisposed = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            lock (_stateGate)
+            {
+                _state = ProjectSessionState.CloseFailed;
+                _closeFailureDiagnostic = $"{ex.GetType().Name}: {ex.Message}";
+            }
+
+            throw;
+        }
 
         Action? handlers;
         lock (_stateGate)
         {
             _state = ProjectSessionState.Closed;
+            _closeFailureDiagnostic = null;
             handlers = () => SessionClosed?.Invoke(this, EventArgs.Empty);
         }
 
         handlers?.Invoke();
     }
 
-    /// <summary>IAsyncDisposable 等价于 CloseAsync（失败状态会话同样释放已占用资源）。</summary>
-    public ValueTask DisposeAsync()
-    {
-        if (State is ProjectSessionState.Closed or ProjectSessionState.Closing)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        return new ValueTask(CloseAsync(CancellationToken.None));
-    }
+    /// <summary>
+    /// IAsyncDisposable 等价于 CloseAsync：Closed 幂等返回，CloseFailed 可继续释放剩余资源，
+    /// 异常如实向上传递（建立失败路径由用例决定如何降为结果对象）。
+    /// </summary>
+    public ValueTask DisposeAsync() => new(CloseAsync(CancellationToken.None));
 
     private void EnsureReadyForNewWork()
     {

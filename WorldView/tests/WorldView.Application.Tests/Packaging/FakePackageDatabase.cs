@@ -26,8 +26,14 @@ public sealed class FakePackageDatabase : IPackageDatabase
     /// <summary>与 Asset Store 共享的调用序列（用于断言释放顺序）。</summary>
     public List<string>? SharedLog { get; set; }
 
-    /// <summary>失败注入：下次指定操作抛出异常。</summary>
+    /// <summary>失败注入：指定操作抛出异常。</summary>
     public Func<string, Exception?>? FailureHook { get; set; }
+
+    /// <summary>Dispose 调用次数（含失败尝试），用于验证失败后重试不重复释放已成功资源。</summary>
+    public int DisposeAttempts { get; private set; }
+
+    /// <summary>Dispose 成功次数。</summary>
+    public int DisposeSuccesses { get; private set; }
 
     public Func<CancellationToken, Task>? DelayHook { get; set; }
 
@@ -86,7 +92,9 @@ public sealed class FakePackageDatabase : IPackageDatabase
 
     public ValueTask DisposeAsync()
     {
-        Record("Database:Dispose");
+        DisposeAttempts++;
+        Record("Database:Dispose"); // FailureHook 可在此抛出异常
+        DisposeSuccesses++;
         return ValueTask.CompletedTask;
     }
 }

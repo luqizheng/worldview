@@ -11,7 +11,6 @@
         CanResize="True">
 
     <Grid ColumnDefinitions="248,*">
-        <!-- Product navigation -->
         <Border Grid.Column="0" Background="{DynamicResource CardBrush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
             <Grid RowDefinitions="Auto,*,Auto" Margin="22,24">
@@ -19,7 +18,6 @@
                     <TextBlock FontSize="23" FontWeight="Bold" Text="WORLD VIEW" />
                     <TextBlock Classes="eyebrow" Text="WORLD BUILDING STUDIO" />
                 </StackPanel>
-
                 <StackPanel Grid.Row="1" Margin="0,42,0,0" Spacing="8">
                     <Border Background="{DynamicResource AccentSoftBrush}" CornerRadius="8" Padding="12,10">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -31,7 +29,6 @@
                     <TextBlock Margin="12,4" Foreground="{DynamicResource MutedTextBrush}" Text="最近项目" />
                     <TextBlock Margin="12,4" Foreground="{DynamicResource MutedTextBrush}" Text="地图与场景" />
                 </StackPanel>
-
                 <StackPanel Grid.Row="2" Spacing="4">
                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12" />
                     <TextBlock Classes="eyebrow" Text="LOCAL PROJECTS" />
@@ -41,7 +38,6 @@
             </Grid>
         </Border>
 
-        <!-- Main content -->
         <Grid Grid.Column="1" RowDefinitions="Auto,*">
             <Border Grid.Row="0" Padding="34,22"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
@@ -77,11 +73,10 @@
                                             IsEnabled="{Binding CreateParentDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                 </Grid>
                                 <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
-                                           Text="{Binding CreateParentDirectory, StringFormat='保存位置：{0}', FallbackValue='保存位置：尚未选择'}"
+                                           Text="{Binding CreateParentDirectory, TargetNullValue='尚未选择保存位置'}"
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
-
                         <Border Grid.Column="1" Classes="surface-card">
                             <StackPanel Spacing="12">
                                 <TextBlock Classes="eyebrow" Text="OPEN EXISTING" />
@@ -90,7 +85,7 @@
                                            Text="选择本机上的 .wvproject 项目包目录，继续已有创作。"
                                            TextWrapping="Wrap" />
                                 <Border Classes="subtle-panel" MinHeight="48">
-                                    <TextBlock Text="{Binding SelectedPackagePath, FallbackValue='尚未选择项目包'}"
+                                    <TextBlock Text="{Binding SelectedPackagePath, TargetNullValue='尚未选择项目包'}"
                                                Foreground="{DynamicResource MutedTextBrush}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
@@ -117,7 +112,8 @@
                             </Grid>
                             <Grid Grid.Row="1" MinHeight="150">
                                 <ListBox x:Name="RecentList" ItemsSource="{Binding RecentProjects}"
-                                         SelectedItem="{Binding SelectedRecentItem}">
+                                         SelectedItem="{Binding SelectedRecentItem}"
+                                         IsVisible="{Binding HasRecentProjects}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="app:RecentProjectEntry">
                                             <Border CornerRadius="7" Padding="10">
@@ -143,6 +139,17 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                <StackPanel IsVisible="{Binding IsRecentProjectsEmpty}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                    <TextBlock Text="还没有最近项目" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="创建一个新世界，或打开已有项目后，它会显示在这里。"
+                                               FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                               TextWrapping="Wrap" TextAlignment="Center" />
+                                    <TextBlock Text="{Binding RecentProjectsLoadDiagnostic}"
+                                               FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                               TextWrapping="Wrap" TextAlignment="Center" />
+                                </StackPanel>
                             </Grid>
                             <Button Grid.Row="2" HorizontalAlignment="Right"
                                     Content="打开所选项目"
@@ -150,7 +157,6 @@
                                     CommandParameter="{Binding SelectedRecentItem}" />
                         </Grid>
                     </Border>
-
                     <Border Classes="subtle-panel">
                         <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource MutedTextBrush}"
                                    TextWrapping="Wrap" />
