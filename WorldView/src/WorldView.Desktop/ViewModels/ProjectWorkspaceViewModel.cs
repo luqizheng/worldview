@@ -20,6 +20,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     private readonly IMapQueryService? _mapQuery;
     private readonly IWorkspaceContextResolver? _contextResolver;
     private readonly IAppLog? _log;
+    private bool _projectClosedRaised;
 
     public ProjectWorkspaceViewModel(
         ProjectSession session,
@@ -147,11 +148,40 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     [ObservableProperty]
     private MapWorkspaceSession? _selectedWorkspace;
 
-    /// <summary>关闭项目会话（先关子工作区再释放资源；不删除包）。</summary>
+    /// <summary>
+    /// 关闭项目会话（先关子工作区再释放资源；不删除包）。
+    /// 只有 CloseAsync 成功返回且会话确实进入 Closed 才触发一次 ProjectClosed；
+    /// 失败保留窗口与状态文本，允许再次尝试。
+    /// </summary>
     [RelayCommand]
     private async Task CloseProjectAsync(CancellationToken cancellationToken)
     {
-        await Session.CloseAsync(cancellationToken).ConfigureAwait(true);
+        if (_projectClosedRaised)
+        {
+            return;
+        }
+
+        try
+        {
+            await Session.CloseAsync(cancellationToken).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _log?.Error("ProjectWorkspace", "关闭项目失败。", ex);
+            WorkspaceStatusText = $"关闭项目失败：{ex.Message}";
+            return;
+        }
+
+        if (Session.State != ProjectSessionState.Closed)
+        {
+            // CloseAsync 在已有一次关闭执行中时会幂等返回，但不能据此认定成功。
+            var diagnostic = Session.CloseFailureDiagnostic is { Length: > 0 } detail ? $"：{detail}" : string.Empty;
+            WorkspaceStatusText = $"关闭项目未完成（当前状态 {Session.State}）{diagnostic}";
+            return;
+        }
+
+        WorkspaceStatusText = "项目已关闭。";
+        _projectClosedRaised = true;
         ProjectClosed?.Invoke();
     }
 }

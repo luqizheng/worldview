@@ -146,6 +146,9 @@
                                     <TextBlock Text="创建一个新世界，或打开已有项目后，它会显示在这里。"
                                                FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
                                                TextWrapping="Wrap" TextAlignment="Center" />
+                                    <TextBlock Text="{Binding RecentProjectsLoadDiagnostic}"
+                                               FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                               TextWrapping="Wrap" TextAlignment="Center" />
                                 </StackPanel>
                             </Grid>
                             <Button Grid.Row="2" HorizontalAlignment="Right"

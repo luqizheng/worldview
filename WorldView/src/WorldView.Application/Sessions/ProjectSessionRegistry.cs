@@ -54,9 +54,10 @@ public sealed class ProjectSessionRegistry
         return _openSessions.TryGetValue(canonicalPackagePath, out var session) ? session : null;
     }
 
-    /// <summary>移除登记（建立失败或关闭完成后）。</summary>
+    /// <summary>移除登记（建立失败或关闭完成后），同时解除 SessionClosed 订阅。</summary>
     public bool Remove(ProjectSession session)
     {
+        session.SessionClosed -= OnSessionClosed;
         return ((ICollection<KeyValuePair<string, ProjectSession>>)_openSessions)
             .Remove(new(session.CanonicalPackagePath, session));
     }
@@ -74,7 +75,11 @@ public sealed class ProjectSessionRegistry
         foreach (var session in _openSessions.Values)
         {
             await session.CloseAsync(cancellationToken).ConfigureAwait(false);
-            Remove(session);
+            // 只有真正关闭才解除占用；关闭失败保留登记，异常继续向上传递。
+            if (session.State == ProjectSessionState.Closed)
+            {
+                Remove(session);
+            }
         }
     }
 }

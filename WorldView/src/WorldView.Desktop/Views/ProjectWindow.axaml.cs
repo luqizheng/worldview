@@ -9,6 +9,7 @@ public partial class ProjectWindow : Window
 {
     private bool _allowClose;
     private bool _closeInProgress;
+    private ProjectWorkspaceViewModel? _subscribedViewModel;
 
     public ProjectWindow()
     {
@@ -46,7 +47,8 @@ public partial class ProjectWindow : Window
             }
             finally
             {
-                // 成功后 ProjectClosed 会关闭窗口；若实现路径未触发事件也允许再次尝试关闭。
+                // 成功路径由 ProjectClosed 关闭窗口；失败路径取消本次关闭但保留再次尝试能力。
+                // 所有分支都必须复位，否则窗口会永久拒绝关闭。
                 _closeInProgress = false;
             }
         };
@@ -59,24 +61,27 @@ public partial class ProjectWindow : Window
                 return;
             }
 
-            if (e.OldValue is ProjectWorkspaceViewModel old)
+            if (_subscribedViewModel is { } old)
             {
                 old.ProjectClosed -= OnProjectClosed;
             }
 
-            if (e.NewValue is ProjectWorkspaceViewModel fresh)
+            _subscribedViewModel = e.NewValue as ProjectWorkspaceViewModel;
+            if (_subscribedViewModel is { } fresh)
             {
                 fresh.ProjectClosed += OnProjectClosed;
             }
         };
 
-        // 窗口销毁时解除对 ViewModel 的事件订阅，避免长生命周期 VM 持有已关闭窗口。
+        // 窗口销毁时按订阅时的实例退订，避免 DataContext 已切换导致订阅泄漏。
         Closed += (_, _) =>
         {
-            if (DataContext is ProjectWorkspaceViewModel closed)
+            if (_subscribedViewModel is { } closed)
             {
                 closed.ProjectClosed -= OnProjectClosed;
             }
+
+            _subscribedViewModel = null;
         };
 
         // 地图列表在窗口加载后拉取（经 Core Domain 查询端口；未实现时显示依赖门槛）。

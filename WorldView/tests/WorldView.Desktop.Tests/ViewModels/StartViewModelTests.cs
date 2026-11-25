@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -46,6 +47,46 @@ public class StartViewModelTests
         Assert.Single(vm.RecentProjects);
         Assert.True(vm.HasRecentProjects);
         Assert.False(vm.IsRecentProjectsEmpty);
+    }
+
+    [Fact]
+    public async Task LoadRecentProjectsAsync_StoreFailure_ExposesDiagnostic_AndLogs()
+    {
+        var log = new RecordingLog();
+        var vm = new StartViewModel(null!, null!, new FailingRecentProjectsStore(), log);
+
+        await vm.LoadRecentProjectsAsync(); // 不抛出：启动窗口仍可用
+
+        Assert.Empty(vm.RecentProjects);
+        Assert.True(vm.IsRecentProjectsEmpty);
+        Assert.False(vm.HasRecentProjects);
+        Assert.Contains("最近项目加载失败", vm.StatusText, StringComparison.Ordinal);
+        Assert.Contains("最近项目加载失败", vm.RecentProjectsLoadDiagnostic, StringComparison.Ordinal);
+        Assert.Single(log.Errors);
+    }
+
+    private sealed class FailingRecentProjectsStore : IRecentProjectsStore
+    {
+        public Task<IReadOnlyList<RecentProjectEntry>> LoadAsync(CancellationToken cancellationToken = default)
+            => throw new IOException("注入：最近项目存储读取失败。");
+
+        public Task RecordOpenedAsync(
+            string packagePath,
+            DateTimeOffset openedAtUtc,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class RecordingLog : IAppLog
+    {
+        public List<string> Errors { get; } = new();
+
+        public void Info(string category, string message) { }
+
+        public void Warn(string category, string message, Exception? exception = null) { }
+
+        public void Error(string category, string message, Exception? exception = null)
+            => Errors.Add($"{category}: {message}: {exception?.Message}");
     }
 
     private sealed class StubRecentProjectsStore : IRecentProjectsStore

@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
 using WorldView.Desktop.ViewModels;
 
@@ -26,7 +27,24 @@ public partial class StartWindow : Window
         DataContext = vm;
         vm.ProjectOpened += OnProjectOpened;
         Closed += (_, _) => vm.ProjectOpened -= OnProjectOpened;
-        _ = vm.LoadRecentProjectsAsync();
+        _ = ObserveRecentProjectsLoadAsync(vm);
+    }
+
+    /// <summary>
+    /// 观察启动期最近项目加载任务：ViewModel 已把存储失败转为状态与日志，
+    /// 这里兜底任何意外异常，保证未观察异常不会中断启动窗口。
+    /// </summary>
+    private static async Task ObserveRecentProjectsLoadAsync(StartViewModel vm)
+    {
+        try
+        {
+            await vm.LoadRecentProjectsAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            App.Services?.GetService<IAppLog>()?.Error("StartWindow", "最近项目加载出现未处理异常。", ex);
+            vm.ReportRecentProjectsLoadFailure(ex);
+        }
     }
 
     /// <summary>项目会话就绪：隐藏项目首页并显示唯一的项目工作区窗口。</summary>
