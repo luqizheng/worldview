@@ -28,14 +28,24 @@ public partial class StartWindow : Window
         _ = vm.LoadRecentProjectsAsync();
     }
 
-    /// <summary>会话就绪：打开工作区窗口；启动面保留（多项目并存的 V1 语义）。</summary>
+    /// <summary>项目会话就绪：隐藏项目首页并显示唯一的项目工作区窗口。</summary>
     private void OnProjectOpened(ProjectSession session)
     {
         var workspaceWindow = new ProjectWindow
         {
             DataContext = _workspaceViewModelFactory(session),
         };
-        workspaceWindow.Show(this);
+
+        // StartWindow 是应用 MainWindow，不能 Close；隐藏它可避免触发应用级退出。
+        // 工作区关闭（包括标题栏关闭按钮）后再恢复首页。
+        workspaceWindow.Closed += (_, _) =>
+        {
+            Show();
+            Activate();
+        };
+
+        workspaceWindow.Show();
+        Hide();
     }
 
     /// <summary>选择目标父目录（创建项目包）。</summary>
