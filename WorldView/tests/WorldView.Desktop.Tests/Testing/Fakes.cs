@@ -187,6 +187,9 @@ public sealed class FakeAppLog : IAppLog
 {
     public int WarnCount { get; private set; }
 
+    /// <summary>Warn 实际抛出异常的次数（与 WarnCount 分离：调用过 ≠ 抛出过）。</summary>
+    public int WarnThrowCount { get; private set; }
+
     public List<string> WarnMessages { get; } = new();
 
     /// <summary>非 null 时 Warn 调用抛出该异常（模拟日志实现自身故障）。</summary>
@@ -202,6 +205,7 @@ public sealed class FakeAppLog : IAppLog
         WarnMessages.Add(message);
         if (WarnFailure is { } failure)
         {
+            WarnThrowCount++;
             throw failure;
         }
     }

@@ -660,6 +660,12 @@ public class ProjectCloseOrchestrationTests
         // P2-01：孤儿回收路径上的日志必须 best-effort——日志实现的 Warn 抛异常时，
         // 绝不允许提前退出，否则 Session.CloseWorkspaceAsync / workspace.DisposeAsync
         // 都不会执行，孤儿工作区清理被日志故障阻断（同 DEF-03 日志纪律）。
+        //
+        // 孤儿 Dispose 的直接可观察证据（本测试核心）：
+        // MapWorkspaceSession 由 ProjectSession 内部创建且回收后即从会话移除、引用不可达，
+        // 故经 WorkspaceCreatedHookForTests 在创建点捕获实例（回调同步、仅捕获引用），
+        // 并以 MapWorkspaceSession.DisposeCount + DerivedWorkCancellationToken 的
+        // ObjectDisposedException 双重证据直接断言孤儿 DisposeAsync 恰好执行一次。
         // 交错方式与 C2_InFlightOpenWorkspace_StartedBeforeClose 测试一致：
         // 打开停在 GetMapAsync 门控 → C2 启动并挂在 Binding 关闭门控 → 放行打开，
         // 全程 TaskCompletionSource 门控，无 Sleep / 轮询 / 调度运气。
@@ -673,6 +679,11 @@ public class ProjectCloseOrchestrationTests
             new FakeWorkspaceContextResolver(),
             new CreateMapUseCase(session, new FakeMapCreationService()),
             log);
+
+        // 创建点捕获：created[0] = 先打开的常规工作区，created[1] = 被拦截的孤儿。
+        var created = new List<MapWorkspaceSession>();
+        session.WorkspaceCreatedHookForTests = created.Add;
+
         var gated = new ProbeRenderer(gate: true);
         var factoryCalls = 0;
         vm.TestBindingFactory = ws =>
@@ -686,6 +697,9 @@ public class ProjectCloseOrchestrationTests
         await vm.OpenWorkspaceCommand.ExecuteAsync(null);
         Assert.Single(vm.Workspaces);
         Assert.Single(session.Workspaces);
+        var firstWorkspace = vm.Workspaces[0];
+        Assert.Single(created);
+        Assert.Same(firstWorkspace, created[0]); // 捕获列表与正式集合一一对应
 
         // 第二次打开：停在 GetMapAsync 门控内（打开已开始、尚未完成）。
         gatedQuery.GateEnabled = true;
@@ -702,31 +716,55 @@ public class ProjectCloseOrchestrationTests
         gatedQuery.ReleaseGetMap();
         await openTask.WaitAsync(GateTimeout); // 若日志异常外溢，此命令任务将 fault，测试即失败
 
-        // 日志确实被调用并确实抛出了异常（best-effort 吞掉，而非未调用或未抛出）。
+        // 1) 日志确实被调用且确实抛出了异常（best-effort 吞掉，而非未调用或未抛出）。
         Assert.Equal(1, log.WarnCount);
+        Assert.Equal(1, log.WarnThrowCount);
         Assert.Contains("已被拦截，就地关闭", log.WarnMessages[0]);
 
-        // 回收路径未因日志异常提前退出：状态为拦截文案而非"打开工作区失败"。
+        // 2) 回收路径未因日志异常提前退出：状态为拦截文案而非"打开工作区失败"。
         Assert.Contains("拦截", vm.WorkspaceStatusText);
         Assert.DoesNotContain("打开工作区失败", vm.WorkspaceStatusText);
 
-        // Session.CloseWorkspaceAsync 仍然被执行的确定性证据：C2 仍挂在 Binding 关闭
-        // 门控内（其 Session.CloseAsync 尚未到达），孤儿工作区已被从 Application 会话
-        // 移除——若回收被日志异常阻断，此刻 session.Workspaces 将是 2 而不是 1。
-        Assert.Single(session.Workspaces); // 只剩第一个工作区，孤儿已被就地关闭并移除
-        Assert.Single(vm.Workspaces);
+        // 3) 孤儿实例已创建（第二个），且与常规工作区是不同实例——计数互不误计的前提。
+        Assert.Equal(2, created.Count);
+        var orphan = created[1];
+        Assert.NotSame(firstWorkspace, orphan);
+        Assert.False(orphan.WorkspaceId == firstWorkspace.WorkspaceId);
 
-        // 放行 C2：编排正常完成，全项目关闭，无任何孤儿资源泄漏
-        // （回收方法为直线流程：验证 CloseWorkspaceAsync 已执行后，DisposeAsync 是
-        // 剩余唯一收尾步骤，两者之间无任何可提前退出的代码路径）。
+        // 4) Session.CloseWorkspaceAsync 确实执行的确定性证据：C2 仍挂在第一个 Binding 的
+        //    关闭门控内（其 Session.CloseAsync 尚未到达步骤 2），而孤儿已不在 Application
+        //    会话集合中——只有回收路径的 CloseWorkspaceAsync 能把它移除。
+        Assert.Single(session.Workspaces);
+        Assert.DoesNotContain(orphan, session.Workspaces);
+        Assert.Single(vm.Workspaces);
+        Assert.DoesNotContain(orphan, vm.Workspaces); // 未登记进 VM 正式集合
+
+        // 5) 孤儿 DisposeAsync 确实执行且恰好一次（直接计数断言，不靠集合数量推断）。
+        Assert.Equal(1, orphan.DisposeCount);
+
+        // 6) 独立佐证：DisposeAsync 释放派生工作取消源后，访问其 Token 抛
+        //    ObjectDisposedException——Dispose 副作用的直接可观察后果。
+        Assert.Throws<ObjectDisposedException>(() => orphan.DerivedWorkCancellationToken);
+
+        // 7) 常规工作区此刻尚未被释放（C2 的 Session.CloseAsync 还没到），证明
+        //    orphan.DisposeCount 不是把第一个工作区的释放误计到了孤儿头上。
+        Assert.Equal(0, firstWorkspace.DisposeCount);
+
+        // 放行 C2：编排正常完成，全项目关闭，无任何孤儿资源泄漏。
         gated.ReleaseDispose();
         await closeTask.WaitAsync(GateTimeout);
+
+        // 8) C2 完成后：孤儿计数不变（已从会话移除，Session.CloseAsync 不会二次释放）；
+        //    常规工作区由 Session.CloseAsync 释放恰好一次。
+        Assert.Equal(1, orphan.DisposeCount);
+        Assert.Equal(1, firstWorkspace.DisposeCount);
 
         Assert.Equal(ProjectSessionState.Closed, session.State);
         Assert.Empty(vm.Workspaces);
         Assert.Empty(session.Workspaces);   // 无孤儿残留
         Assert.Equal(1, factoryCalls);      // 孤儿未创建 Binding
         Assert.Equal(1, log.WarnCount);     // 日志异常未引发连锁失败
+        Assert.Equal(1, log.WarnThrowCount);
     }
 
     [Fact]
