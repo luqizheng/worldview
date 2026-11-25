@@ -30,7 +30,7 @@ public partial class StartViewModel : ObservableObject
         _recentProjectsStore = recentProjectsStore;
     }
 
-    /// <summary>会话就绪事件：窗口层据此打开项目工作区窗口。</summary>
+    /// <summary>会话就绪事件：窗口层切换到项目工作区。</summary>
     public event Action<ProjectSession>? ProjectOpened;
 
     /// <summary>状态栏文本（操作结果与诊断摘要）。</summary>
@@ -55,7 +55,11 @@ public partial class StartViewModel : ObservableObject
     /// <summary>最近项目列表。</summary>
     public ObservableCollection<RecentProjectEntry> RecentProjects { get; } = new();
 
-    /// <summary>启动时加载最近项目。</summary>
+    public bool HasRecentProjects => RecentProjects.Count > 0;
+
+    public bool IsRecentProjectsEmpty => RecentProjects.Count == 0;
+
+    /// <summary>启动时加载最近项目，并刷新空状态投影。</summary>
     public async Task LoadRecentProjectsAsync()
     {
         RecentProjects.Clear();
@@ -64,6 +68,9 @@ public partial class StartViewModel : ObservableObject
         {
             RecentProjects.Add(entry);
         }
+
+        OnPropertyChanged(nameof(HasRecentProjects));
+        OnPropertyChanged(nameof(IsRecentProjectsEmpty));
     }
 
     /// <summary>创建项目包（目标父目录由窗口层选择）。</summary>
