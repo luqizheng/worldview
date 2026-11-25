@@ -20,7 +20,7 @@
                     <TextBlock Classes="eyebrow" Text="WORLD PROJECT" />
                     <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding ProjectDisplayName}" />
                     <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}"
-                               Text="{Binding ProjectId, StringFormat='PROJECT ID  {0}'}" />
+                               Text="{Binding ProjectId}" />
                 </StackPanel>
                 <Menu Grid.Column="1" VerticalAlignment="Center">
                     <MenuItem Header="文件">
@@ -92,7 +92,7 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Classes="section-title" Text="已打开的工作区" />
                             <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
-                                       Text="{Binding Workspaces.Count, StringFormat='{0} 个会话'}" />
+                                       Text="{Binding Workspaces.Count}" />
                         </Grid>
                         <Grid Grid.Row="1">
                             <ListBox ItemsSource="{Binding Workspaces}" SelectedItem="{Binding SelectedWorkspace}">
