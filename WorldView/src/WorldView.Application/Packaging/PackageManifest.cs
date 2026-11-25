@@ -31,11 +31,11 @@ public sealed record PackageManifest
 
     public static PackageManifest CreateV1(DateTimeOffset createdAtUtc, string databaseRelativePath
         = ProjectPackageFormat.DatabaseFileName) => new()
-    {
-        PackageFormatVersion = ProjectPackageFormat.SupportedPackageFormatVersion,
-        Database = new ManifestDatabaseEntry { RelativePath = databaseRelativePath },
-        CreatedAtUtc = createdAtUtc,
-    };
+        {
+            PackageFormatVersion = ProjectPackageFormat.SupportedPackageFormatVersion,
+            Database = new ManifestDatabaseEntry { RelativePath = databaseRelativePath },
+            CreatedAtUtc = createdAtUtc,
+        };
 
     public sealed record ManifestDatabaseEntry
     {
