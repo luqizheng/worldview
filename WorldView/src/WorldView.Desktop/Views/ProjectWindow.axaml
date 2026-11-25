@@ -5,75 +5,143 @@
         xmlns:vm="using:WorldView.Desktop.ViewModels"
         xmlns:app="using:WorldView.Application.Abstractions"
         xmlns:session="using:WorldView.Application.Sessions"
-        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="520"
+        mc:Ignorable="d" d:DesignWidth="1240" d:DesignHeight="800"
         x:Class="WorldView.Desktop.Views.ProjectWindow"
         x:DataType="vm:ProjectWorkspaceViewModel"
-        Title="World View — 项目工作区" Width="760" Height="520" MinWidth="640" MinHeight="460">
+        Title="World View — 项目工作区" Width="1240" Height="800" MinWidth="1040" MinHeight="680">
 
-    <!--
-      项目工作区（AF-01 §6/§7.1）：项目身份 + Core Domain 地图摘要列表 + 地图工作区会话。
-      本窗口为文本基线：地图渲染属 PRA-01/PRA-02 之后的阶段。
-    -->
-
-    <DockPanel>
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="文件(_F)">
-                <MenuItem Header="关闭项目(_C)" Command="{Binding CloseProjectCommand}" />
-            </MenuItem>
-        </Menu>
-
-        <Border DockPanel.Dock="Bottom" Padding="12,6"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseBrush}" BorderThickness="0,1,0,0">
-            <StackPanel>
-                <TextBlock Text="{Binding WorkspaceStatusText}" TextWrapping="Wrap" />
-                <TextBlock Opacity="0.6" FontSize="11"
-                           Text="{Binding SessionId, StringFormat='进程内会话 ID（临时，非 Project ID）：{0}'}" />
-            </StackPanel>
+    <Grid RowDefinitions="Auto,*">
+        <!-- Project header -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                Padding="26,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="3">
+                    <TextBlock Classes="eyebrow" Text="WORLD PROJECT" />
+                    <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding ProjectDisplayName}" />
+                    <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}"
+                               Text="{Binding ProjectId, StringFormat='PROJECT ID  {0}'}" />
+                </StackPanel>
+                <Menu Grid.Column="1" VerticalAlignment="Center">
+                    <MenuItem Header="文件">
+                        <MenuItem Header="关闭项目" Command="{Binding CloseProjectCommand}" />
+                    </MenuItem>
+                </Menu>
+            </Grid>
         </Border>
 
-        <Grid Margin="16,12" ColumnDefinitions="*,*" ColumnSpacing="16">
-            <!-- 项目身份与地图列表 -->
-            <StackPanel Grid.Column="0" Spacing="10">
-                <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding ProjectDisplayName}" />
-                <TextBlock Opacity="0.7" Text="{Binding ProjectId, StringFormat='项目 ID：{0}'}" />
-
-                <Separator />
-
-                <TextBlock FontWeight="SemiBold" Text="地图（Core Domain 读投影）" />
-                <ListBox Height="180" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="app:MapSummary">
-                            <TextBlock Text="{Binding DisplayName}" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <TextBlock Opacity="0.8" Text="{Binding MapsStatusText}" TextWrapping="Wrap" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="CreateMapButton" Content="创建地图…" Click="OnCreateMapClick" />
-                    <Button Content="打开地图工作区" Command="{Binding OpenWorkspaceCommand}" />
-                </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="280,*" ColumnSpacing="18" Margin="20">
+            <!-- Navigation / maps -->
+            <StackPanel Grid.Column="0" Spacing="14">
+                <Border Classes="surface-card">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Classes="eyebrow" Text="PROJECT CONTENT" />
+                            <TextBlock Classes="section-title" Text="地图" />
+                            <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                       Text="项目中的世界地图与区域。" />
+                        </StackPanel>
+                        <ListBox Height="300" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="app:MapSummary">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Border Width="34" Height="34" CornerRadius="7"
+                                                Background="{DynamicResource AccentSoftBrush}">
+                                            <TextBlock Text="⌖" FontSize="20"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                            <TextBlock Text="世界地图" FontSize="11"
+                                                       Foreground="{DynamicResource MutedTextBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{Binding MapsStatusText}" FontSize="12"
+                                   Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" />
+                        <Button Classes="primary" Content="＋  创建地图" Click="OnCreateMapClick" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="subtle-panel">
+                    <StackPanel Spacing="5">
+                        <TextBlock Classes="eyebrow" Text="LOCAL WORKSPACE" />
+                        <TextBlock Text="项目数据保存在本机。" FontSize="12"
+                                   Foreground="{DynamicResource MutedTextBrush}" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
-            <!-- 工作区会话 -->
-            <StackPanel Grid.Column="1" Spacing="10">
-                <TextBlock FontWeight="SemiBold" Text="地图工作区会话" />
-                <ListBox Height="180" ItemsSource="{Binding Workspaces}" SelectedItem="{Binding SelectedWorkspace}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="session:MapWorkspaceSession">
-                            <StackPanel>
-                                <TextBlock Text="{Binding WorkspaceId}" FontSize="11" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Opacity="0.7" FontSize="11"
-                                           Text="{Binding Context.MapId, StringFormat='Map {0}'}" />
+            <!-- Main workspace area -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="14">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="eyebrow" Text="EDITOR WORKSPACES" />
+                        <TextBlock Classes="page-title" Text="工作区" />
+                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                   Text="打开地图工作区，开始构建和编辑你的世界。" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="primary" VerticalAlignment="Center"
+                            Content="打开地图工作区" Command="{Binding OpenWorkspaceCommand}" />
+                </Grid>
+
+                <Border Grid.Row="1" Classes="surface-card">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="section-title" Text="已打开的工作区" />
+                            <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                       Text="{Binding Workspaces.Count, StringFormat='{0} 个会话'}" />
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <ListBox ItemsSource="{Binding Workspaces}" SelectedItem="{Binding SelectedWorkspace}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="session:MapWorkspaceSession">
+                                        <Border CornerRadius="8" Padding="12">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                                <Border Width="42" Height="42" CornerRadius="8"
+                                                        Background="{DynamicResource AccentSoftBrush}">
+                                                    <TextBlock Text="▦" FontSize="21"
+                                                               Foreground="{DynamicResource AccentBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                                    <TextBlock Text="{Binding Context.MapId, StringFormat='地图 {0}'}"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="地图编辑会话" FontSize="11"
+                                                               Foreground="{DynamicResource MutedTextBrush}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="打开" FontSize="12"
+                                                           Foreground="{DynamicResource AccentBrush}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel IsHitTestVisible="False" HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" Spacing="8">
+                                <Border Width="64" Height="64" CornerRadius="16"
+                                        Background="{DynamicResource SubtleSurfaceBrush}">
+                                    <TextBlock Text="▦" FontSize="30"
+                                               Foreground="{DynamicResource MutedTextBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="还没有打开地图工作区" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="从左侧选择地图并创建工作区，或使用右上角按钮。"
+                                           FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
+                                           HorizontalAlignment="Center" TextWrapping="Wrap" />
                             </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="关闭所选工作区" Command="{Binding CloseWorkspaceCommand}" />
-                </StackPanel>
-                <Separator />
-                <Button Content="关闭项目会话" Command="{Binding CloseProjectCommand}" HorizontalAlignment="Left" />
-            </StackPanel>
+                        </Grid>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                            <Button Content="关闭所选工作区" Command="{Binding CloseWorkspaceCommand}" />
+                            <Button Classes="primary" Content="关闭项目" Command="{Binding CloseProjectCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
-    </DockPanel>
+    </Grid>
 </Window>
