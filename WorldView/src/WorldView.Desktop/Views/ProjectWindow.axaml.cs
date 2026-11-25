@@ -6,9 +6,45 @@ namespace WorldView.Desktop.Views;
 
 public partial class ProjectWindow : Window
 {
+    private bool _allowClose;
+    private bool _closeInProgress;
+
     public ProjectWindow()
     {
         InitializeComponent();
+
+        // 标题栏关闭也必须走项目会话关闭流程，不能只销毁窗口而遗留活动会话。
+        Closing += async (_, e) =>
+        {
+            if (_allowClose)
+            {
+                return;
+            }
+
+            e.Cancel = true;
+            if (_closeInProgress)
+            {
+                return;
+            }
+
+            if (DataContext is not ProjectWorkspaceViewModel vm)
+            {
+                _allowClose = true;
+                Close();
+                return;
+            }
+
+            _closeInProgress = true;
+            try
+            {
+                await vm.CloseProjectCommand.ExecuteAsync(null);
+            }
+            catch (Exception ex)
+            {
+                _closeInProgress = false;
+                vm.WorkspaceStatusText = $"关闭项目失败：{ex.Message}";
+            }
+        };
 
         // 项目会话关闭 → 关闭本窗口（返回启动面）。会话关闭次序由 ProjectSession 负责。
         PropertyChanged += (_, e) =>
@@ -20,12 +56,12 @@ public partial class ProjectWindow : Window
 
             if (e.OldValue is ProjectWorkspaceViewModel old)
             {
-                old.ProjectClosed -= Close;
+                old.ProjectClosed -= OnProjectClosed;
             }
 
             if (e.NewValue is ProjectWorkspaceViewModel fresh)
             {
-                fresh.ProjectClosed += Close;
+                fresh.ProjectClosed += OnProjectClosed;
             }
         };
 
@@ -37,6 +73,12 @@ public partial class ProjectWindow : Window
                 _ = loaded.LoadMapsAsync();
             }
         };
+    }
+
+    private void OnProjectClosed()
+    {
+        _allowClose = true;
+        Close();
     }
 
     /// <summary>
