@@ -10,7 +10,7 @@
         x:DataType="vm:ProjectWorkspaceViewModel"
         Title="World View — 项目工作区" Width="1240" Height="800" MinWidth="1040" MinHeight="680">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <!-- Project header -->
         <Border Grid.Row="0" Background="{DynamicResource CardBrush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
@@ -129,5 +129,13 @@
                 </Border>
             </Grid>
         </Grid>
+
+        <Border Grid.Row="2" Background="{DynamicResource SubtleSurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                Padding="20,9">
+            <TextBlock Text="{Binding WorkspaceStatusText}"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       FontSize="12" TextWrapping="Wrap" />
+        </Border>
     </Grid>
 </Window>
