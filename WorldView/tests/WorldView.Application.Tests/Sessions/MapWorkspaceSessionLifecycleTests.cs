@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
 using WorldView.Application.Packaging;
@@ -275,6 +276,94 @@ public class MapWorkspaceSessionLifecycleTests
 
         Assert.Equal(MapWorkspaceState.Closed, workspace.LifecycleState);
         Assert.True(workspace.IsDisposed);
+    }
+
+    // ---------- R1 P2-01：CloseAsync 的 CancellationToken 语义 ----------
+
+    [Fact]
+    public async Task CloseAsync_CancelledBeforeClose_StateUnchanged_NoRelease()
+    {
+        var project = BuildProjectSession();
+        var workspace = await OpenReadyAsync(project);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => workspace.CloseAsync(cts.Token));
+
+        // 进入 Closing 之前取消：状态不变、不释放资源、不进 CloseFailed。
+        Assert.Equal(MapWorkspaceState.Ready, workspace.LifecycleState);
+        Assert.False(workspace.IsClosed);
+        Assert.False(workspace.IsDisposed);
+        Assert.Null(workspace.CloseFailureDiagnostic);
+    }
+
+    [Fact]
+    public async Task CloseAsync_CancelledBeforeClose_FromCloseFailed_StaysCloseFailed()
+    {
+        var project = BuildProjectSession();
+        var workspace = await OpenReadyAsync(project);
+        var failure = workspace.DerivedWorkCancellationToken.Register(
+            () => throw new InvalidOperationException("注入：工作区关闭失败。"));
+        await Assert.ThrowsAnyAsync<Exception>(() => workspace.CloseAsync());
+        failure.Dispose();
+        Assert.Equal(MapWorkspaceState.CloseFailed, workspace.LifecycleState);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => workspace.CloseAsync(cts.Token));
+
+        // 重试入口上取消：停留在 CloseFailed（可再次重试），不误入其他状态。
+        Assert.Equal(MapWorkspaceState.CloseFailed, workspace.LifecycleState);
+        Assert.Contains("工作区关闭失败", workspace.CloseFailureDiagnostic, StringComparison.Ordinal);
+        Assert.False(workspace.IsDisposed);
+    }
+
+    [Fact]
+    public async Task CloseAsync_CancelledDuringClose_CompletesFully_NotCloseFailed()
+    {
+        var project = BuildProjectSession();
+        var workspace = await OpenReadyAsync(project);
+        using var cts = new CancellationTokenSource();
+        // 进入 Closing 后（派生工作取消瞬间）才取消调用方令牌——验证 Closing 阶段
+        // 不再接受取消：释放执行到底，进入 Closed 而非 CloseFailed。
+        using var trigger = workspace.DerivedWorkCancellationToken.Register(() => cts.Cancel());
+
+        await workspace.CloseAsync(cts.Token);
+
+        Assert.Equal(MapWorkspaceState.Closed, workspace.LifecycleState);
+        Assert.True(workspace.IsDisposed);
+        Assert.Null(workspace.CloseFailureDiagnostic);
+    }
+
+    // ---------- R1 P2-02：释放阶段标志与真实资源状态一致 ----------
+
+    [Fact]
+    public async Task DisposeHookFailure_ResourceNotYetDisposed_FlagMatchesReality()
+    {
+        var project = BuildProjectSession();
+        var workspace = await OpenReadyAsync(project);
+        var cancelCount = 0;
+        using var observer = workspace.DerivedWorkCancellationToken.Register(() => cancelCount++);
+        workspace.DisposeFailureHookForTests = () => throw new IOException("注入：资源释放失败。");
+
+        await Assert.ThrowsAnyAsync<Exception>(() => workspace.CloseAsync());
+
+        // 标志与真实资源状态一致：失败时释放步骤尚未执行，CTS 仍然存活（令牌可观察）。
+        Assert.Equal(MapWorkspaceState.CloseFailed, workspace.LifecycleState);
+        Assert.False(workspace.IsDisposed);
+        Assert.Equal(1, cancelCount); // 关闭阶段（取消）已成功执行
+        _ = workspace.DerivedWorkCancellationToken; // 不抛 ObjectDisposedException
+
+        workspace.DisposeFailureHookForTests = null;
+        await workspace.CloseAsync(); // 重试：完整执行释放步骤
+
+        Assert.Equal(MapWorkspaceState.Closed, workspace.LifecycleState);
+        Assert.True(workspace.IsDisposed);
+        Assert.Equal(1, cancelCount); // 已成功阶段不重复执行
+        // 真实释放结果与标志一致：CTS 已释放，令牌不可再观察。
+        Assert.Throws<ObjectDisposedException>(() => _ = workspace.DerivedWorkCancellationToken);
     }
 
     // ---------- B5：SwitchContext 状态守卫 ----------

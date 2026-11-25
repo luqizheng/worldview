@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
@@ -202,6 +203,30 @@ public class ProjectSessionWorkspaceLifecycleTests
         Assert.Equal(MapWorkspaceState.Closed, workspace.LifecycleState);
         Assert.Null(workspace.CloseFailureDiagnostic);
         Assert.Empty(session.Workspaces);
+    }
+
+    // ---------- R1 P2-01：取消不导致提前移除或资源泄漏 ----------
+
+    [Fact]
+    public async Task CloseWorkspace_CancelledBeforeClose_KeepsWorkspace_RetrySucceeds()
+    {
+        var (session, _, _) = BuildSession();
+        var workspace = await OpenAsync(session);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.False(await session.CloseWorkspaceAsync(workspace.WorkspaceId, cts.Token));
+
+        // 进入关闭流程之前取消：工作区保持 Ready、未被移除、资源未释放，可重试。
+        Assert.Equal(MapWorkspaceState.Ready, workspace.LifecycleState);
+        Assert.False(workspace.IsDisposed);
+        Assert.Single(session.Workspaces);
+
+        Assert.True(await session.CloseWorkspaceAsync(workspace.WorkspaceId)); // 有效令牌重试
+
+        Assert.Equal(MapWorkspaceState.Closed, workspace.LifecycleState);
+        Assert.True(workspace.IsDisposed);
+        Assert.Empty(session.Workspaces); // 双成功后才移除，无泄漏
     }
 
     // ---------- 项目级关闭兼容性（A-9 / A-10 / A-11） ----------

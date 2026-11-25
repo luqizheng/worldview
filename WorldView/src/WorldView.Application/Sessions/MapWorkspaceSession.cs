@@ -39,8 +39,12 @@ public enum MapWorkspaceState
 /// 每步成功才置位完成标记；任一步失败进入 CloseFailed 并保留进度，
 /// 重试（CloseAsync / DisposeAsync）跳过已成功完成的步骤。Close 与 Dispose
 /// 是独立记录的阶段：允许"关闭成功、释放失败"，重试不重复执行已完成的关闭。
+///
+/// 释放责任唯一性（WP-UI-04B R1 P2-02）：ProjectSession 是本会话生命周期的唯一
+/// 所有者——本类不实现公开的 IAsyncDisposable，DisposeAsync 为 internal 续段入口，
+/// 外部调用者不得绕过 ProjectSession 直接释放工作区会话；关闭入口为公开 CloseAsync。
 /// </summary>
-public sealed class MapWorkspaceSession : IAsyncDisposable
+public sealed class MapWorkspaceSession
 {
     private readonly object _gate = new();
     private readonly CancellationTokenSource _derivedWorkCts = new();
@@ -103,8 +107,10 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// 测试注入点：会话资源释放步骤完成后调用（真实释放已执行），可抛异常模拟
-    /// "释放步骤失败"。对齐 FakeAssetStore.FailureHook 的注入模式；生产代码不得设置。
+    /// 测试注入点：会话资源释放步骤执行前调用（真实 Dispose 尚未执行），可抛异常模拟
+    /// "释放步骤失败"——失败时资源未释放，_disposeCompleted 保持 false，与真实状态一致
+    /// （WP-UI-04B R1 P2-02）。对齐 FakeAssetStore.FailureHook 的注入模式；
+    /// 生产代码不得设置。
     /// </summary>
     internal Action? DisposeFailureHookForTests { get; set; }
 
@@ -164,8 +170,12 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
 
     /// <summary>
     /// 关闭工作区：取消派生工作并释放会话资源；不影响兄弟工作区与项目会话。
-    /// Closed 幂等成功；Closing 幂等短路（已有一次关闭在执行）；CloseFailed 为重试入口。
-    /// Created 可直接关闭（跳过 Opening 语义）。失败进入 CloseFailed 并保留进度，可重试。
+    /// 取消语义（WP-UI-04B R1 P2-01）：<paramref name="cancellationToken"/> 只作用于
+    /// 关闭流程开始前——进入 Closing 之前已取消，则以 <see cref="OperationCanceledException"/>
+    /// 结束，状态不变、不执行任何释放、不进入 CloseFailed；一旦进入 Closing，
+    /// 释放按固定顺序执行到底，不再接受取消（调用方在 Closing 阶段取消令牌不会导致
+    /// 资源只释放一半，也不会触发 CloseFailed）。Closed 幂等成功；Closing 幂等短路
+    /// （已有一次关闭在执行）；CloseFailed 为重试入口。失败进入 CloseFailed 并保留进度，可重试。
     /// </summary>
     public async Task CloseAsync(CancellationToken cancellationToken = default)
     {
@@ -179,6 +189,10 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
                 return;
             }
 
+            // 取消只作用于关闭流程开始前：此处尚未进入 Closing，取消不改变状态、
+            // 不释放任何资源（Created/Ready/CloseFailed 保持原状态，可再次调用重试）。
+            cancellationToken.ThrowIfCancellationRequested();
+
             _state = MapWorkspaceState.Closing;
         }
 
@@ -186,11 +200,13 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// 释放续段（对齐 ProjectSession.DisposeAsync 的续段模式）：Closed 幂等返回；
-    /// CloseFailed 继续释放剩余资源（跳过已完成步骤）；Closing 由 CloseAsync 流程驱动、
-    /// 直接返回；Created/Ready 拒绝——释放责任唯一归属关闭流程，不得绕过 CloseAsync 直接释放。
+    /// 释放续段（internal，WP-UI-04B R1 P2-02）：对齐 ProjectSession.DisposeAsync 的续段
+    /// 模式——Closed 幂等返回；CloseFailed 继续释放剩余资源（跳过已完成步骤）；Closing 由
+    /// CloseAsync 流程驱动、直接返回；Created/Ready 拒绝——释放责任唯一归属关闭流程。
+    /// 仅 ProjectSession（生命周期唯一所有者）可调用；不实现公开 IAsyncDisposable，
+    /// 外部调用者不得绕过 ProjectSession 直接释放工作区会话。
     /// </summary>
-    public async ValueTask DisposeAsync()
+    internal async ValueTask DisposeAsync()
     {
         lock (_gate)
         {
@@ -228,8 +244,12 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
 
             if (!_disposeCompleted)
             {
-                _derivedWorkCts.Dispose();
+                // 释放阶段当前只有一个不可再分的真实步骤（派生工作取消源 Dispose）。
+                // 失败注入点位于该步骤之前（WP-UI-04B R1 P2-02）：注入失败即"本步骤
+                // 尚未执行"——_disposeCompleted 与真实资源状态严格一致，不存在"资源已
+                // 释放但标志未置位"的假失败；重试将完整执行本步骤，不存在重复释放。
                 DisposeFailureHookForTests?.Invoke();
+                _derivedWorkCts.Dispose();
                 lock (_gate)
                 {
                     _disposeCompleted = true;
