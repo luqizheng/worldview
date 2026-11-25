@@ -69,7 +69,7 @@
                                 <TextBlock Foreground="{DynamicResource MutedTextBrush}"
                                            Text="建立独立的世界项目包，所有内容保存在你选择的位置。"
                                            TextWrapping="Wrap" />
-                                <TextBox Text="{Binding NewProjectName}" Watermark="输入项目名称" />
+                                <TextBox Text="{Binding NewProjectName}" PlaceholderText="输入项目名称" />
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                     <Button x:Name="ChooseCreateLocationButton" Content="选择保存位置…" Click="OnChooseCreateLocationClick" />
                                     <Button Grid.Column="1" Classes="primary" Content="创建项目"
@@ -113,7 +113,7 @@
                                 </StackPanel>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center"
                                            Foreground="{DynamicResource MutedTextBrush}" FontSize="12"
-                                           Text="{Binding RecentProjects.Count, StringFormat='{0} 个项目'}" />
+                                           Text="{Binding RecentProjects.Count}" />
                             </Grid>
                             <Grid Grid.Row="1" MinHeight="150">
                                 <ListBox x:Name="RecentList" ItemsSource="{Binding RecentProjects}"
