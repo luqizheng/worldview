@@ -95,9 +95,14 @@ public sealed class MapWorkspaceSession : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>测试 seam（WorldView.Desktop.Tests 经 IvT 访问）：<see cref="DisposeAsync"/>
+    /// 实际执行计数。默认 0，仅递增、无任何行为影响；生命周期测试据此断言释放恰好一次。</summary>
+    internal int DisposeCount { get; private set; }
+
     public ValueTask DisposeAsync()
     {
         _derivedWorkCts.Dispose();
+        DisposeCount++;
         return ValueTask.CompletedTask;
     }
 }

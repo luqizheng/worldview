@@ -25,6 +25,14 @@ namespace WorldView.Desktop.ViewModels;
 /// - C2（<see cref="CloseProjectLifetimeAsync"/>）：唯一业务编排入口——先关全部存活
 ///   Binding → 关会话 → 清集合 → ProjectClosed 一次；整体最多启动一次，重复调用
 ///   等待首次操作（幂等契约）。
+///
+/// P1-01 关闭期间不可逆契约：C2 启动（共享任务字段的 CAS 成功）即线性化点，此后
+/// 项目进入不可逆关闭状态——新的 OpenWorkspace 一律拒绝（<see
+/// cref="IsProjectCloseLifetimeStarted"/>）；C2 启动前已开始、尚未完成的 OpenWorkspace
+/// 在注册前复查该状态，已启动则就地关闭该工作区（不登记、不展示），防止泄漏。
+/// Binding 登记 / 移除与关闭状态检查共用 <see cref="_lifecycleGate"/>（锁内无 await），
+/// C2 步骤 1 以排空循环关闭全部存活 Binding，清集合前断言"无未关闭 Binding"
+/// （不变量破坏即失败，绝不静默清掉未关闭资源）。
 /// </summary>
 public partial class ProjectWorkspaceViewModel : ObservableObject
 {
@@ -33,8 +41,12 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     private readonly IAppLog? _log;
 
     /// <summary>存活视口 Binding（workspaceId → binding）。仅用于枚举的私有小集合：
-    /// 不是全局注册表、不注册 DI、不拥有释放权（释放归 binding 自身的幂等关闭，ADR-10 §8B 第 25 条）。</summary>
+    /// 不是全局注册表、不注册 DI、不拥有释放权（释放归 binding 自身的幂等关闭，ADR-10 §8B 第 25 条）。
+    /// 全部增删与"C2 是否已启动"的联合判定经 <see cref="_lifecycleGate"/> 串行化。</summary>
     private readonly Dictionary<Guid, MapViewportBinding> _viewportBindings = new();
+
+    /// <summary>Binding 登记 / 移除与 C2 启动状态联合判定的串行化门（锁内不含任何 await）。</summary>
+    private readonly object _lifecycleGate = new();
 
     /// <summary>C2 唯一编排任务（首次调用创建；非 null 即"已启动"）。幂等契约的实现载体。</summary>
     private Task? _projectCloseLifetimeTask;
@@ -82,6 +94,14 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>C2 编排是否已结束（成功或失败）。窗口 Closing 处理器据此放行最终关闭。</summary>
     public bool IsProjectCloseLifetimeFinished => _projectCloseLifetimeFinished;
 
+    /// <summary>
+    /// C2 编排是否已启动（P1-01：启动即不可逆关闭状态）。线性化点为
+    /// <see cref="CloseProjectLifetimeAsync"/> 中共享任务字段的 CAS 成功时刻——该时刻
+    /// 之后新的 OpenWorkspace 必须被拒绝，在途打开必须在注册前就地回收。
+    /// 启动前取消（Token 已取消）不置位：未启动任何关闭动作。
+    /// </summary>
+    public bool IsProjectCloseLifetimeStarted => Volatile.Read(ref _projectCloseLifetimeTask) is not null;
+
     /// <summary>地图列表状态说明。</summary>
     [ObservableProperty]
     private string _mapsStatusText = "尚未加载。";
@@ -120,13 +140,25 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
     }
 
-    /// <summary>为选定地图打开独立工作区会话（同时创建该工作区唯一的视口 Binding）。</summary>
+    /// <summary>
+    /// 为选定地图打开独立工作区会话（同时创建该工作区唯一的视口 Binding）。
+    /// P1-01：C2 已启动后一律拒绝（关闭不可逆）；C2 启动前已开始、尚未完成的打开，
+    /// 在注册前复查关闭状态——已启动则就地关闭该次打开的工作区，不登记、不展示，
+    /// 防止"会话已收尾、工作区仍存活"的泄漏。
+    /// </summary>
     [RelayCommand]
     private async Task OpenWorkspaceAsync(CancellationToken cancellationToken)
     {
         if (SelectedMap is null)
         {
             WorkspaceStatusText = "请先选择一个地图。";
+            return;
+        }
+
+        // C2 已启动：项目处于不可逆关闭状态，禁止新的打开（启动前拒绝，无副作用）。
+        if (IsProjectCloseLifetimeStarted)
+        {
+            WorkspaceStatusText = "项目正在关闭，无法打开新的工作区。";
             return;
         }
 
@@ -142,14 +174,70 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                     "Core Domain Branch/历史时间解析服务尚未实现，无法打开工作区。"),
                 cancellationToken).ConfigureAwait(true);
 
-            Workspaces.Add(workspace);
-            _viewportBindings.Add(workspace.WorkspaceId, CreateViewportBinding(workspace));
-            WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N}[{workspace.Context.MapId}] 已打开。";
+            // 注册前复查（P1-01 第 3 条）：打开进行期间 C2 可能已经启动。判定与登记
+            // 在同一锁内完成，保证与 C2 的"启动判定 + 排空 + 清集合"互斥交错。
+            bool registered;
+            lock (_lifecycleGate)
+            {
+                registered = !IsProjectCloseLifetimeStarted;
+                if (registered)
+                {
+                    Workspaces.Add(workspace);
+                    _viewportBindings.Add(workspace.WorkspaceId, CreateViewportBinding(workspace));
+                }
+            }
+
+            if (registered)
+            {
+                WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N}[{workspace.Context.MapId}] 已打开。";
+            }
+            else
+            {
+                await DiscardOrphanWorkspaceAsync(workspace).ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {
             _log?.Warn("ProjectWorkspace", "打开工作区失败。", ex);
             WorkspaceStatusText = $"打开工作区失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 就地回收"C2 启动后才完成打开"的孤儿工作区（P1-01 第 3 条）：该工作区已在
+    /// Application 侧创建（会话仍 Ready 时挂载成功），但未进入任何 ViewModel 集合，
+    /// 也不会被 C2 排空循环看到——必须在此处关闭并释放，否则既泄漏工作区资源，
+    /// 又会以"已打开"的假象出现在 Application 的会话状态里。
+    /// 会话整体可能正在 / 已经关闭，故每步均为 best-effort：失败记诊断后继续，
+    /// 保证 DisposeAsync 一定被尝试（日志异常不参与控制流，同 DEF-03 纪律）。
+    /// </summary>
+    private async Task DiscardOrphanWorkspaceAsync(MapWorkspaceSession workspace)
+    {
+        WorkspaceStatusText = "项目正在关闭：本次打开的工作区已被拦截并就地关闭。";
+
+        // P2-01：本方法内的一切日志必须走 best-effort——日志实现自身抛异常时
+        // 绝不允许提前退出，否则 CloseWorkspaceAsync / DisposeAsync 都不会执行，
+        // 孤儿工作区清理被日志故障阻断（违反 DEF-03 纪律：日志不参与生命周期
+        // 收尾的控制流）。
+        WarnBestEffort($"C2 启动后完成的工作区打开 {workspace.WorkspaceId:N} 已被拦截，就地关闭。");
+
+        try
+        {
+            // 会话侧关闭（None：正在关闭的项目不接受中途取消，避免半关闭状态）。
+            await Session.CloseWorkspaceAsync(workspace.WorkspaceId, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            WarnBestEffort("拦截工作区的会话侧关闭失败（会话可能已整体关闭）。", ex);
+        }
+
+        try
+        {
+            await workspace.DisposeAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            WarnBestEffort("拦截工作区的资源释放失败。", ex);
         }
     }
 
@@ -166,7 +254,13 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         var workspace = SelectedWorkspace;
 
         // 步骤 1：先关闭该工作区对应的视口 Binding（presentation 先于 Application，ADR-10 §7.1）。
-        if (_viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding))
+        MapViewportBinding? binding;
+        lock (_lifecycleGate)
+        {
+            _viewportBindings.TryGetValue(workspace.WorkspaceId, out binding);
+        }
+
+        if (binding is not null)
         {
             await binding.RequestClose().ConfigureAwait(true);
         }
@@ -177,7 +271,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
         // 步骤 4：释放派生工作资源；同步移除 Binding 登记。
         await workspace.DisposeAsync().ConfigureAwait(true);
-        _viewportBindings.Remove(workspace.WorkspaceId);
+        lock (_lifecycleGate)
+        {
+            _viewportBindings.Remove(workspace.WorkspaceId);
+        }
 
         WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N} 已关闭。";
     }
@@ -187,9 +284,14 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
     /// <summary>取工作区对应的存活 Binding（窗口层宿主视口控件用；无或已关闭则 null）。</summary>
     internal MapViewportBinding? GetViewportBinding(MapWorkspaceSession workspace)
-        => _viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding) && !binding.IsClosed
-            ? binding
-            : null;
+    {
+        lock (_lifecycleGate)
+        {
+            return _viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding) && !binding.IsClosed
+                ? binding
+                : null;
+        }
+    }
 
     /// <summary>视口 Binding 工厂（创建者唯一：工作区打开时创建，每工作区一个，M1 1:1）。</summary>
     internal virtual MapViewportBinding CreateViewportBinding(MapWorkspaceSession workspace)
@@ -222,6 +324,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     ///
     /// 幂等契约（行为级）：整体最多启动一次；重复调用（含"关闭项目"命令与
     /// Window.Closing 的并发触发）返回并等待首次操作，不并行、不跳过、不重复释放。
+    /// P1-01：CAS 成功即"不可逆关闭状态"的启动点——此后新的 OpenWorkspace 被拒绝、
+    /// 在途打开被就地回收（见 <see cref="IsProjectCloseLifetimeStarted"/>）。
     /// 实现约定：先把"已启动"任务写入共享字段，编排体才开始执行——即使编排体在当前
     /// 调用栈内同步完成（ProjectClosed → Window.Close → Closing 重入链），重入也只会
     /// 看到已启动并等待同一任务，不会第二次执行。
@@ -257,6 +361,9 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
     /// <summary>
     /// C2 编排体（ADR-10 §7.2 步骤 1–4，按依赖方向不可重排）。
+    /// 步骤 1 为排空循环（P1-01 第 4 条）：只要集合中仍存在未关闭 Binding 就继续关闭，
+    /// 终止条件是"集合内无未关闭 Binding"——由于启动后新的打开被拒绝、在途打开被就地
+    /// 回收（判定与登记同锁互斥），循环必然在有限轮内终止。
     /// 日志纪律（DEF-03）：本方法内的所有日志都是 best-effort——日志实现自身的
     /// 异常绝不参与生命周期收尾的控制流，原始生命周期异常优先传递给等待者。
     /// </summary>
@@ -265,18 +372,33 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         Exception? failure = null;
         try
         {
-            // 步骤 1：关闭全部存活 Binding（每个执行 B 子序；单个失败记诊断后继续，
+            // 步骤 1：排空全部存活 Binding（每个执行 B 子序；单个失败记诊断后继续，
             // 否则会留下"部分视口已关、会话仍 Ready"的更危险状态——ADR-10 §7.2）。
-            foreach (var binding in _viewportBindings.Values.ToArray())
+            // RequestClose 幂等且启动即置 IsClosed 终态（含失败路径），不会死循环。
+            while (true)
             {
-                try
+                MapViewportBinding[] pending;
+                lock (_lifecycleGate)
                 {
-                    await binding.RequestClose().ConfigureAwait(true);
+                    pending = _viewportBindings.Values.Where(b => !b.IsClosed).ToArray();
                 }
-                catch (Exception ex)
+
+                if (pending.Length == 0)
                 {
-                    // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
-                    WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
+                    break;
+                }
+
+                foreach (var binding in pending)
+                {
+                    try
+                    {
+                        await binding.RequestClose().ConfigureAwait(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
+                        WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
+                    }
                 }
             }
 
@@ -286,7 +408,20 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
             // 步骤 3：清理视图集合（Session.CloseAsync 只清 Application 的 _workspaces，
             // 不会清 ViewModel 的 ObservableCollection）。
-            _viewportBindings.Clear();
+            // P1-01 第 5 条：清空 Binding 集合前断言"无未关闭 Binding"——不变量破坏
+            // 属实现缺陷，宁可让 C2 失败，也绝不静默清掉未关闭的呈现资源。
+            lock (_lifecycleGate)
+            {
+                var unclosed = _viewportBindings.Values.Where(b => !b.IsClosed).ToList();
+                if (unclosed.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"C2 收尾不变量被破坏：清空 Binding 集合时仍有 {unclosed.Count} 个未关闭 Binding。");
+                }
+
+                _viewportBindings.Clear();
+            }
+
             Workspaces.Clear();
 
             // 步骤 4：通知窗口（ProjectClosed → Window.Close()）。真实窗口的 Closing
@@ -319,8 +454,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>
     /// best-effort 警告日志（DEF-03）：日志实现的异常就地吞掉、不向外传播——
     /// 只限 C2 编排路径使用；日志失败不改变任何关闭决策。
+    /// P2-01：<paramref name="exception"/> 可省略（无异常上下文的诊断日志同样
+    /// 经此调用，保证孤儿工作区回收路径上的任何日志都不可能阻断清理流程）。
     /// </summary>
-    private void WarnBestEffort(string message, Exception exception)
+    private void WarnBestEffort(string message, Exception? exception = null)
     {
         try
         {

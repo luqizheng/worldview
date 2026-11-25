@@ -26,8 +26,14 @@ namespace WorldView.Desktop.Rendering;
 ///
 /// 暂时 Detach 不走本类任何关闭路径；重新 Attach 复用同一 Binding（ADR-10 生命周期 A）。
 /// IsClosed 是终态，不可重置；已关闭的 Binding 拒绝重新 Attach（ADR-07 约束 10）。
+///
+/// P1-02 异常安全收尾：关闭子序（1b→1c→1d）既定顺序不可重排；任一阶段失败后仍继续
+/// 执行其余阶段（释放失败不阻断后续释放），全部异常就地收集，待所有释放步骤结束后
+/// 一次性向等待者传播——单个失败原样保留原始异常，多个失败以 AggregateException
+/// 聚合（InnerExceptions 保持阶段顺序）。重复 RequestClose 共享同一关闭 Task（DEF-01），
+/// 不重复执行任何释放步骤。
 /// </summary>
-internal sealed class MapViewportBinding
+internal class MapViewportBinding
 {
     /// <summary>进程内诊断标识（日志与测试锚点用；非持久化身份）。</summary>
     internal Guid BindingId { get; } = Guid.NewGuid();
@@ -123,22 +129,75 @@ internal sealed class MapViewportBinding
         await ClosePipelineAsync();
     }
 
-    /// <summary>步骤 1b–1d（ADR-10 §7.1）：屏障 → 发布器 → 渲染器，顺序不可重排。</summary>
+    // ---- 关闭子序阶段调用缝（P1-02 故障注入点） ----
+    // Coordinator / Publisher 为 Presentation 层的 sealed 具体类且 Dispose 成员非 virtual，
+    // 无法经构造注入替身；Renderer 已可经构造注入 ProbeRenderer 覆写。因此为前两个阶段
+    // 提供 internal virtual 调用缝（模式同 ProjectWorkspaceViewModel.CreateViewportBinding，
+    // 测试程序集经 InternalsVisibleTo 覆写）；生产实现一律直通真实资源，不含任何分支。
+
+    /// <summary>步骤 1b 调用缝：直通 <see cref="PresentationRequestCoordinator.DisposeAsync"/>。</summary>
+    internal virtual ValueTask CloseCoordinatorStepAsync()
+        => _runtime.Coordinator.DisposeAsync();
+
+    /// <summary>步骤 1c 调用缝：直通 <see cref="SceneSnapshotPublisher.Dispose"/>。</summary>
+    internal virtual void DisposePublisherStep()
+        => _runtime.Publisher.Dispose();
+
+    /// <summary>
+    /// 步骤 1b–1d（ADR-10 §7.1）：屏障 → 发布器 → 渲染器，顺序不可重排。
+    /// P1-02：任一阶段失败仍继续执行后续释放阶段；所有异常收集后统一聚合，
+    /// 在全部释放步骤结束后一次性抛出（经 CloseDeferredStartAsync 使共享关闭 Task
+    /// 进入 faulted 状态，由所有等待者观察同一结果）。
+    /// </summary>
     private async Task ClosePipelineAsync()
     {
+        List<Exception>? failures = null;
+
         // 1b. Coordinator.DisposeAsync：先 CloseAsync——停新请求、协作取消未完成请求，
         //     并在发布器锁内置位 F-1 关闭屏障（WP-30A 线性化点）；再释放协调器取消源。
-        await _runtime.Coordinator.DisposeAsync().ConfigureAwait(false);
-        RecordStage("coordinator_closed");
+        //     阶段日志如实记录：成功记 coordinator_closed，失败记 coordinator_failed。
+        try
+        {
+            await CloseCoordinatorStepAsync().ConfigureAwait(false);
+            RecordStage("coordinator_closed");
+        }
+        catch (Exception ex)
+        {
+            (failures ??= new List<Exception>()).Add(ex);
+            RecordStage("coordinator_failed");
+        }
 
         // 1c. Publisher.Dispose：此后一切发布与候选版本分配被拒绝；
         //     已发布快照的逻辑数据在被引用期间保持有效（PRA-01 §8）。
-        _runtime.Publisher.Dispose();
-        RecordStage("publisher_disposed");
+        try
+        {
+            DisposePublisherStep();
+            RecordStage("publisher_disposed");
+        }
+        catch (Exception ex)
+        {
+            (failures ??= new List<Exception>()).Add(ex);
+            RecordStage("publisher_failed");
+        }
 
         // 1d. Renderer.Dispose（M1 幂等空操作）。
-        _renderer.Dispose();
-        RecordStage("renderer_disposed");
+        try
+        {
+            _renderer.Dispose();
+            RecordStage("renderer_disposed");
+        }
+        catch (Exception ex)
+        {
+            (failures ??= new List<Exception>()).Add(ex);
+            RecordStage("renderer_failed");
+        }
+
+        // 异常安全收尾的传播点：全部释放步骤已结束，才向等待者传播。
+        // 单个异常原样保留（同一实例）；多个异常按阶段顺序聚合。
+        if (failures is not null)
+        {
+            throw failures.Count == 1 ? failures[0] : new AggregateException(failures);
+        }
     }
 
     /// <summary>

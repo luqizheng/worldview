@@ -71,6 +71,10 @@ public sealed class ProjectSession : IAsyncDisposable
     /// <summary>项目显示名（来自 Core Domain；未注册身份服务时为 null）。</summary>
     public string? ProjectDisplayName { get; private set; }
 
+    /// <summary>测试 seam（WorldView.Desktop.Tests 经 IvT 访问）：每个工作区创建时同步回调。
+    /// 默认 null（生产路径零开销）；生命周期测试借此捕获回收后不可达的孤儿实例。</summary>
+    internal Action<MapWorkspaceSession>? WorkspaceCreatedHookForTests { get; set; }
+
     /// <summary>当前生命周期状态（原子读取）。</summary>
     public ProjectSessionState State
     {
@@ -174,6 +178,8 @@ public sealed class ProjectSession : IAsyncDisposable
             }
 
             var workspace = new MapWorkspaceSession(this, resolution.Context);
+            // 测试 seam：回调发生在 _stateGate 锁内，订阅方必须同步且极短（仅捕获引用）。
+            WorkspaceCreatedHookForTests?.Invoke(workspace);
             _workspaces.Add(workspace);
             return workspace;
         }
