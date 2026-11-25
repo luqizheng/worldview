@@ -30,32 +30,29 @@ public partial class StartViewModel : ObservableObject
         _recentProjectsStore = recentProjectsStore;
     }
 
-    /// <summary>会话就绪事件：窗口层据此打开项目工作区窗口。</summary>
     public event Action<ProjectSession>? ProjectOpened;
 
-    /// <summary>状态栏文本（操作结果与诊断摘要）。</summary>
     [ObservableProperty]
     private string _statusText = "就绪";
 
-    /// <summary>新建项目名（不含后缀时可自动补 .wvproject）。</summary>
     [ObservableProperty]
     private string _newProjectName = "我的世界";
 
-    /// <summary>由窗口层文件/文件夹选择器设置的目标父目录与待打开包路径。</summary>
     [ObservableProperty]
     private string? _createParentDirectory;
 
     [ObservableProperty]
     private string? _selectedPackagePath;
 
-    /// <summary>最近项目列表当前选中项。</summary>
     [ObservableProperty]
     private RecentProjectEntry? _selectedRecentItem;
 
-    /// <summary>最近项目列表。</summary>
     public ObservableCollection<RecentProjectEntry> RecentProjects { get; } = new();
 
-    /// <summary>启动时加载最近项目。</summary>
+    public bool HasRecentProjects => RecentProjects.Count > 0;
+
+    public bool IsRecentProjectsEmpty => RecentProjects.Count == 0;
+
     public async Task LoadRecentProjectsAsync()
     {
         RecentProjects.Clear();
@@ -64,9 +61,11 @@ public partial class StartViewModel : ObservableObject
         {
             RecentProjects.Add(entry);
         }
+
+        OnPropertyChanged(nameof(HasRecentProjects));
+        OnPropertyChanged(nameof(IsRecentProjectsEmpty));
     }
 
-    /// <summary>创建项目包（目标父目录由窗口层选择）。</summary>
     [RelayCommand]
     private async Task CreateProjectAsync(CancellationToken cancellationToken)
     {
@@ -100,7 +99,6 @@ public partial class StartViewModel : ObservableObject
         }
     }
 
-    /// <summary>打开选定包路径（由窗口层选择）。</summary>
     [RelayCommand]
     private async Task OpenProjectAsync(CancellationToken cancellationToken)
     {
@@ -113,7 +111,6 @@ public partial class StartViewModel : ObservableObject
         await OpenPackageAsync(SelectedPackagePath, cancellationToken).ConfigureAwait(true);
     }
 
-    /// <summary>打开最近项目。</summary>
     [RelayCommand]
     private async Task OpenRecentAsync(RecentProjectEntry? entry, CancellationToken cancellationToken)
     {
