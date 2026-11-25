@@ -61,9 +61,11 @@ stateDiagram-v2
 
 异常与取消行为：
 
-- `CloseAsync` 执行中收到外部 `cancellationToken` 取消：与异常同路处理——已完成步骤
-  保持"已释放"标记，未完成步骤留待重试，状态进 `CloseFailed`（诊断注明取消）。
-  不允许半途静默吞掉取消。
+- `CloseAsync` 的取消语义（WP-UI-04B R1 P2-01 修订）：`cancellationToken` 只作用于
+  **关闭流程开始前**——进入 `Closing` 之前已取消，以 `OperationCanceledException` 结束，
+  状态不变、不执行任何释放、**不进入 `CloseFailed`**；一旦进入 `Closing`，释放按固定
+  顺序执行到底，不再接受取消——调用方在 `Closing` 阶段取消令牌不会导致资源只释放一半，
+  也不会触发 `CloseFailed`。不允许通过吞掉异常实现取消。
 - 重复 `CloseAsync` 并发调用：`Closing` 幂等短路（单机桌面程序无并发关闭入口，
   对齐 `ProjectSession.cs` L224 注释的既有裁定）。
 
@@ -145,7 +147,10 @@ Session 级别的资源**没有**独立于 Close 流程的第二释放入口—�
 - `DisposeAsync` 为**续段语义**（对齐 `ProjectSession.DisposeAsync` 模式）：
   Closed/Closing 幂等返回；CloseFailed 继续释放剩余资源；**Created/Ready 明确拒绝**
   （"必须先经 CloseAsync"）——释放责任唯一归属关闭流程，VM/Window 不得再直接释放
-  （原 VM 自做 `DisposeAsync` 已删除）。
+  （原 VM 自做 `DisposeAsync` 已删除）。**WP-UI-04B R1 P2-02 修订**：本方法收为
+  `internal`，类不再实现公开 `IAsyncDisposable`——ProjectSession 是生命周期唯一所有者，
+  外部调用者不得绕过 ProjectSession 直接释放工作区 Session（调用方仅 ProjectSession
+  与同程序集测试，经 `InternalsVisibleTo`）。
 - **注册移除规则已按 §4 不变量落地**：`ProjectSession.CloseWorkspaceAsync` 改为
   Close → Dispose → 双成功才 `_workspaces.Remove`；任意阶段失败返回 `false`、
   Session 保留在列表（CloseFailed）可重试。签名保持 `Task<bool>`（04A 计划曾建议
@@ -159,8 +164,11 @@ Session 级别的资源**没有**独立于 Close 流程的第二释放入口—�
 - **B2 MapName**：构造函数强制校验（`ArgumentException.ThrowIfNullOrWhiteSpace`）；
   `OpenWorkspaceAsync` 对 `map.DisplayName` 为空抛出明确异常（不静默降级）；
   `MapName` 只来自真实地图数据。
-- **测试注入点**：新增 internal `DisposeFailureHookForTests`（真实 CTS Dispose 执行后
-  可注入释放失败异常），沿用 `FakeAssetStore.FailureHook` 注入模式——CTS 无自然失败
+- **测试注入点**：新增 internal `DisposeFailureHookForTests`，在**真实 CTS Dispose 执行前**
+  调用，可注入释放失败异常（WP-UI-04B R1 P2-02 修订：原"释放后注入"会造成"资源已释放、
+  `_disposeCompleted` 未置位"的假失败——标志与真实资源状态不一致、重试重复执行 Dispose）。
+  释放阶段当前只有一个不可再分的真实步骤（CTS Dispose），注入失败即"该步骤未执行"，
+  不为形式引入更细的状态机。沿用 `FakeAssetStore.FailureHook` 注入模式——CTS 无自然失败
   路径，此为验证 mandated "Close 成功、Dispose 失败"重试语义的最小接缝，生产代码不设置。
 - **`IsClosed` 兼容语义**：Closing/CloseFailed/Closed（对齐替换前 `_closed` 布尔在
   关闭发起即置位的行为）。
