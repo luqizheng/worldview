@@ -268,3 +268,94 @@ B 经 `Task.Run` 在另一工作线程执行切换并在其线程上探测同一
 | Release 全量 | 980/980 通过 |
 | R3 路径轮询/固定延迟检查 | 0 命中 |
 | Windows / macOS CI（Debug/Release） | 见 PR #40（推送后确认） |
+
+## R3-R2：Test A 原子性测试重构（方案一：StateGateForTesting 观察入口）
+
+### 背景
+
+独立复审指出 R3-R1 遗留两个问题：
+
+1. **暂停点过晚**：Test A 的暂停在 `PropertyChanged` 订阅者内，而属性赋值先更新
+   backing field 再触发事件——订阅者接管时状态写入已完成，无法验证"身份判定 →
+   状态写入"之间的原子性。
+2. **探测手段被禁**：R3-R1 经反射 `GetField("_stateGate", NonPublic)` 获取真实锁，
+   违反"不允许反射访问私有锁"的约束。
+
+### 方案裁决（经用户与外部专家确认）
+
+先实施纯黑盒方案并做破坏实验：错误实现下 **8 次运行 8 次全部漏检**。诊断测量
+（以 B 到达 Resolver 为 0 时刻，8 次范围）：测试线程放行 A 为 26–138 µs、A 恢复并
+读取身份为 51–453 µs、B 完成身份分配为 519–703 µs——**A 总是先读、B 总是后分配**，
+漏检是系统性的而非概率性的。
+
+根因：正确实现下 B 被锁阻塞后不再产生任何可观察事件（测试自有观察点全部位于分配
+之后），"B 已被锁挡住"在纯黑盒下没有事件可等；放行 A 只能以"B 越过最后一个前置
+同步点"为依据，而放行后 A 的读取与 B 的分配之间无同步关系。
+
+经裁决采用**方案一**：`MapViewportBinding` 增加
+`internal object StateGateForTesting => _stateGate;`（经 `InternalsVisibleTo` 供
+测试程序集访问，与既有生命周期测试同一先例；仅暴露锁对象引用，生产代码一律使用
+`_stateGate`，不经该入口操作锁；非公开 API）。该改动的动机是关键并发不变量的
+确定性验证手段，不改变任何运行时行为。
+
+### 测试拆分
+
+原 Test A（`R3P0_PublishDuringCriticalSection_NewRequestIdentityExcluded`）拆分为：
+
+| 测试 | 职责 |
+|---|---|
+| `R3P0_PublishActionHoldsIdentityGate_UntilActionCompletes` | Binding 底层原子性：直接驱动 `PublishIfRequestCurrent`，暂停点在 publish Action **内部**；经 `GateProbeResolver` 探测真实锁。不经过 UI Dispatcher。 |
+| `R3P0_ViewModelPublishesContextStatusThroughBindingGuard` | ViewModel UI 发布接线：ContextSwitched 触发重请求、Dispatcher 投递与执行线程、成功/失败状态正常发布、旧请求不得覆盖新请求（投递前丢弃 + 回调内守卫拒绝）。不承担底层锁原子性证明。 |
+
+### 底层测试的同步时序（双分支确定性）
+
+1. 线程 A 调用 `PublishIfRequestCurrent(identityA, action)`，在 action 内部置位
+   `publishEntered` 并暂停（等待 `releasePublish` TCS）。正确实现此刻持有
+   `_stateGate`。
+2. 线程 B 经真实链路发起请求；`GateProbeResolver.ResolveAsync`（B 的线程）对
+   `StateGateForTesting` 执行 `Monitor.TryEnter(TimeSpan.Zero)`，结果经
+   `LockFreeObserved` TCS 交给测试线程，**探测先于信号**；随后照常返回，B 继续
+   沿真实链路推进到身份分配。
+3. 测试线程等待 `LockFreeObserved` 后分派：
+   - **false（锁被持有）** ⇒ 本场景唯一持锁者即 A 的发布临界区 ⇒ 正确实现；
+     B 的真实 `Monitor.Enter` 必然阻塞（B 确定性钉在竞争位置）。放行 A →
+     A 在 Action 内（仍持锁）读取最新身份必为自身身份 → A 返回释放锁 →
+     B 取得 identityA+1 并完成发布（锁释放的 happens-before）。
+   - **true（锁空闲）** ⇒ A 在 Action 内（publishEntered 已证明）而锁空闲 ⇒
+     判定与写入脱离同一临界区（错误实现签名）⇒ 断言**立即稳定失败**
+     （`Assert.False(lockFree, "身份门锁空闲…")`），无调度窗口。
+4. 场景中锁只有两个持有者（A 的发布临界区、B 即将进入的分配临界区），B 自身在
+   探测时刻位于分配锁之前、不可能持锁——判定无歧义。TryEnter 成功时在解析器
+   finally 中释放，不遗留锁状态。
+
+### 破坏实验（临时 worktree，未入库）
+
+实验分支 `tmp/r3-r2b-broken-impl`（自 `bbf52a6` 创建，实验后连同 worktree 一并
+删除），对 `PublishIfRequestCurrent` 移除锁保护（判定与 `publish()` 分离），运行
+**同一个**底层测试：
+
+| 实现 | 结果 |
+|---|---|
+| 错误实现（无锁）连续 5 次 | **5/5 稳定失败**，失败信息均为"身份门锁空闲：身份判定与状态写入未受同一锁保护" |
+| 正确实现连续 20 次 | **20/20 全部通过** |
+| 恢复生产实现后全量 | Debug 985/985、Release 981/981 通过（Test A 拆分净增 1 个测试） |
+
+对照：纯黑盒方案在错误实现下 8/8 漏检——真实锁探测的检出能力是决定性的。
+
+### 生产代码改动边界
+
+- `MapViewportBinding.cs`：**仅**新增 `StateGateForTesting` 属性（8 行含文档），
+  `PublishIfRequestCurrent` 与锁语义零改动。
+- `ProjectWorkspaceViewModel.cs`：零改动。
+
+### R3-R2 验证记录
+
+| 验证项 | 结果 |
+|---|---|
+| Desktop.Tests 全部 | 100/100 通过 |
+| 底层原子性测试连续 20 次（正确实现） | 20/20 通过 |
+| 底层原子性测试连续 5 次（错误实现，临时 worktree） | 5/5 稳定失败 |
+| Debug 全量 | 985/985 通过 |
+| Release 全量 | 981/981 通过 |
+| R3 路径轮询/固定延迟/反射检查 | 0 命中（`WaitUntilAsync` 仅 R1/R2 既有测试使用） |
+| Windows / macOS CI（Debug/Release） | 见 PR #40（推送后确认） |

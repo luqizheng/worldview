@@ -319,6 +319,18 @@ internal class MapViewportBinding
     private readonly object _stateGate = new();
 
     /// <summary>
+    /// 请求状态门的测试观察入口（R3-R2，经用户裁决批准的唯一生产改动）：
+    /// 并发回归测试需在独立线程上对<strong>真实</strong>
+    /// <see cref="_stateGate"/> 执行 <c>Monitor.TryEnter</c>，以确定性证明
+    /// "发布 Action 执行期间锁被持有 / B 已到达身份分配的锁竞争位置"——纯黑盒
+    /// 下该不变量无法观测（实测错误实现 8/8 漏检）。仅暴露锁对象引用本身：
+    /// 生产代码一律使用 <see cref="_stateGate"/>，不经本入口操作锁；
+    /// 测试程序集经 InternalsVisibleTo 访问（与既有生命周期测试同一先例），
+    /// 非公开 API。
+    /// </summary>
+    internal object StateGateForTesting => _stateGate;
+
+    /// <summary>
     /// 最近一次发起的场景请求身份（R1-P2-01 过期请求判定锚点）：发起即分配，
     /// 身份等于本值 ⇔ 该请求是最后一次发起的请求（当前有效请求）。
     /// </summary>
