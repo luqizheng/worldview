@@ -2,7 +2,7 @@
 
 World View is a local-first desktop application for creating, editing, reconstructing, and presenting fictional or historical worlds and their maps.
 
-This repository contains the project documentation baseline and the existing domain-design record.
+This repository contains the project documentation baseline and the existing domain-design record. The end-to-end development sequence is maintained in [plan.md](plan.md).
 
 ## Documentation
 
