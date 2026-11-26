@@ -1,5 +1,7 @@
 # World View Project Documentation
 
+> **Project execution roadmap:** see the repository-level [plan.md](../plan.md) for the end-to-end product design, implementation sequence, dependencies, parallel-work rules and release gates.
+
 This repository is the version-controlled documentation baseline for the World View project.
 
 ## Documentation map
