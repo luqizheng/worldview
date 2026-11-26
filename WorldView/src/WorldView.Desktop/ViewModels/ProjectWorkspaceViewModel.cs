@@ -183,27 +183,32 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                     "Core Domain Branch/历史时间解析服务尚未实现，无法打开工作区。"),
                 cancellationToken).ConfigureAwait(true);
 
-            // 注册前复查（P1-01 第 3 条）：打开进行期间 C2 可能已经启动。判定与登记
-            // 在同一锁内完成，保证与 C2 的"启动判定 + 排空 + 清集合"互斥交错。
+            // 注册前复查（P1-01 第 3 条）：打开进行期间 C2 可能已经启动。判定、去重检查
+            // 与登记在同一锁内完成，保证与 C2 的"启动判定 + 排空 + 清集合"互斥交错；
+            // Session 层同图去重可能返回既有工作区（WP-UI-04B B3）：UI 集合只镜像一次，
+            // 不重复添加（B4.10），既有工作区的 Binding 已在首次打开时登记，不重建。
             bool registered;
+            bool isExisting;
             lock (_lifecycleGate)
             {
                 registered = !IsProjectCloseLifetimeStarted;
-                if (registered)
+                isExisting = Workspaces.Contains(workspace);
+                if (registered && !isExisting)
                 {
                     Workspaces.Add(workspace);
                     _viewportBindings.Add(workspace.WorkspaceId, CreateViewportBinding(workspace));
                 }
             }
 
-            if (registered)
-            {
-                WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N}[{workspace.Context.MapId}] 已打开。";
-            }
-            else
+            if (!registered)
             {
                 await DiscardOrphanWorkspaceAsync(workspace).ConfigureAwait(true);
+                return;
             }
+
+            WorkspaceStatusText = isExisting
+                ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
+                : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。";
         }
         catch (Exception ex)
         {
@@ -215,43 +220,45 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>
     /// 就地回收"C2 启动后才完成打开"的孤儿工作区（P1-01 第 3 条）：该工作区已在
     /// Application 侧创建（会话仍 Ready 时挂载成功），但未进入任何 ViewModel 集合，
-    /// 也不会被 C2 排空循环看到——必须在此处关闭并释放，否则既泄漏工作区资源，
+    /// 也不会被 C2 排空循环看到——必须在此处关闭，否则既泄漏工作区资源，
     /// 又会以"已打开"的假象出现在 Application 的会话状态里。
-    /// 会话整体可能正在 / 已经关闭，故每步均为 best-effort：失败记诊断后继续，
-    /// 保证 DisposeAsync 一定被尝试（日志异常不参与控制流，同 DEF-03 纪律）。
+    /// 生命周期责任唯一归属 ProjectSession：合并后 Session.CloseWorkspaceAsync 即
+    /// "Close → Dispose → 双成功才移除"的原子编排（WP-UI-04B B4/G3），DisposeAsync
+    /// 已收为 internal，VM 不直接调用（释放不是 UI 的责任）。返回 false / 抛异常
+    /// 均 best-effort 记诊断后继续（会话整体可能正在 / 已经关闭；日志异常不参与
+    /// 控制流，同 DEF-03 纪律），工作区由项目关闭流程的子工作区排空兜底重试。
     /// </summary>
     private async Task DiscardOrphanWorkspaceAsync(MapWorkspaceSession workspace)
     {
         WorkspaceStatusText = "项目正在关闭：本次打开的工作区已被拦截并就地关闭。";
 
         // P2-01：本方法内的一切日志必须走 best-effort——日志实现自身抛异常时
-        // 绝不允许提前退出，否则 CloseWorkspaceAsync / DisposeAsync 都不会执行，
+        // 绝不允许提前退出，否则 CloseWorkspaceAsync 不会执行，
         // 孤儿工作区清理被日志故障阻断（违反 DEF-03 纪律：日志不参与生命周期
         // 收尾的控制流）。
         WarnBestEffort($"C2 启动后完成的工作区打开 {workspace.WorkspaceId:N} 已被拦截，就地关闭。");
 
         try
         {
-            // 会话侧关闭（None：正在关闭的项目不接受中途取消，避免半关闭状态）。
-            await Session.CloseWorkspaceAsync(workspace.WorkspaceId, CancellationToken.None).ConfigureAwait(true);
+            // 会话侧原子关闭（None：正在关闭的项目不接受中途取消，避免半关闭状态）。
+            var closed = await Session.CloseWorkspaceAsync(workspace.WorkspaceId, CancellationToken.None).ConfigureAwait(true);
+            if (!closed)
+            {
+                WarnBestEffort("拦截工作区的会话侧关闭返回失败（留待项目关闭流程重试）。");
+            }
         }
         catch (Exception ex)
         {
             WarnBestEffort("拦截工作区的会话侧关闭失败（会话可能已整体关闭）。", ex);
         }
-
-        try
-        {
-            await workspace.DisposeAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            WarnBestEffort("拦截工作区的资源释放失败。", ex);
-        }
     }
 
-    /// <summary>关闭选定工作区（C1：先关 Binding → 关工作区 → 移除集合 → Dispose；
-    /// 不影响兄弟工作区与项目会话，ADR-10 §7.1）。</summary>
+    /// <summary>
+    /// 关闭选定工作区（不影响兄弟工作区与项目会话；C1 先关 Binding，ADR-10 §7.1）。
+    /// 生命周期责任唯一归属 ProjectSession（Close → Dispose → 双成功才移除）：
+    /// 仅在关闭结果为成功时才从 UI 集合移除（B4.9/B4.10）；失败保留集合项与诊断，可重试。
+    /// ViewModel 不调用 DisposeAsync（释放不是 UI 的责任）。
+    /// </summary>
     [RelayCommand]
     private async Task CloseWorkspaceAsync(CancellationToken cancellationToken)
     {
@@ -261,7 +268,6 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         }
 
         var workspace = SelectedWorkspace;
-
         // 步骤 1：先关闭该工作区对应的视口 Binding（presentation 先于 Application，ADR-10 §7.1）。
         MapViewportBinding? binding;
         lock (_lifecycleGate)
@@ -274,18 +280,25 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             await binding.RequestClose().ConfigureAwait(true);
         }
 
-        // 步骤 2–3：Application 侧关闭 + 本地集合移除（次序不可交换）。
-        await Session.CloseWorkspaceAsync(workspace.WorkspaceId, cancellationToken).ConfigureAwait(true);
-        Workspaces.Remove(workspace);
+        // 步骤 2–3：Application 侧原子关闭（Close → Dispose → 双成功才移除，WP-UI-04B B4/G3；
+        // 释放责任唯一归属 ProjectSession，ViewModel 不调用 DisposeAsync）。
+        var closed = await Session.CloseWorkspaceAsync(workspace.WorkspaceId, cancellationToken).ConfigureAwait(true);
+        if (!closed)
+        {
+            // 关闭失败：工作区保留在 Session 列表（CloseFailed）与 UI 集合中，可再次尝试；
+            // Binding 已关闭（幂等），重试时 RequestClose 直接返回。
+            var diagnostic = workspace.CloseFailureDiagnostic is { Length: > 0 } detail ? $"：{detail}" : string.Empty;
+            WorkspaceStatusText = $"关闭工作区失败{diagnostic}";
+            return;
+        }
 
-        // 步骤 4：释放派生工作资源；同步移除 Binding 登记。
-        await workspace.DisposeAsync().ConfigureAwait(true);
+        Workspaces.Remove(workspace);
         lock (_lifecycleGate)
         {
             _viewportBindings.Remove(workspace.WorkspaceId);
         }
 
-        WorkspaceStatusText = $"工作区 {workspace.WorkspaceId:N} 已关闭。";
+        WorkspaceStatusText = $"工作区「{workspace.MapName}」已关闭。";
     }
 
     [ObservableProperty]

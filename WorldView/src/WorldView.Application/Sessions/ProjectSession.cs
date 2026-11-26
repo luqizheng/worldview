@@ -158,6 +158,10 @@ public sealed class ProjectSession : IAsyncDisposable
 
     /// <summary>
     /// 打开一个地图工作区。仅 Ready 状态允许；Branch/时间经 Core Domain 解析端口校验。
+    /// 同一 ProjectSession 内同一 MapId 只存在一个活动工作区：已有可复用工作区（Ready，
+    /// 未来含 Opening）时直接返回既有 Session，不重复创建、不重复初始化资源（WP-UI-04B B3）；
+    /// 该工作区正在关闭或关闭失败待重试时拒绝打开（不得绕开失败状态另建 Session）。
+    /// 已关闭的工作区不复用——其被移除后允许重新打开为新 Session。
     /// 解析等待期间会话被关闭时，晚到达的结果会被丢弃（不复活已关闭会话）。
     /// </summary>
     public async Task<MapWorkspaceSession> OpenWorkspaceAsync(
@@ -170,11 +174,24 @@ public sealed class ProjectSession : IAsyncDisposable
     {
         EnsureReadyForNewWork();
 
+        // 同图去重（早检查）：已有可复用工作区时直接返回，不重复查询地图、不重复解析上下文。
+        var existing = FindReusableWorkspace(mapId);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
         var map = await mapQueryService.GetMapAsync(
             RequireProjectId(), mapId, cancellationToken).ConfigureAwait(false);
         if (map is null)
         {
             throw new InvalidOperationException("地图不存在或不可访问（Core Domain 查询无此 Map）。");
+        }
+
+        // 地图显示名必须真实可用：空名称明确拒绝，绝不静默降级为 GUID 或占位名称（WP-UI-04B B2）。
+        if (string.IsNullOrWhiteSpace(map.DisplayName))
+        {
+            throw new InvalidOperationException($"地图 {mapId} 缺少有效显示名称（DisplayName 为空），拒绝打开工作区。");
         }
 
         var resolution = await contextResolver.ResolveAsync(
@@ -192,15 +209,30 @@ public sealed class ProjectSession : IAsyncDisposable
                 throw new InvalidOperationException($"会话已不在 Ready 状态（当前 {_state}），拒绝打开工作区。");
             }
 
-            var workspace = new MapWorkspaceSession(this, resolution.Context);
-            // 测试 seam：回调发生在 _stateGate 锁内，订阅方必须同步且极短（仅捕获引用）。
+            // 同图去重（权威复查）：解析等待期间同图工作区可能已被打开或进入关闭流程。
+            existing = FindReusableWorkspaceLocked(mapId);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            var workspace = new MapWorkspaceSession(this, resolution.Context, map.DisplayName);
+            // 测试 seam（PR #31 保留）：回调发生在 _stateGate 锁内，订阅方必须同步且极短（仅捕获引用）。
             WorkspaceCreatedHookForTests?.Invoke(workspace);
             _workspaces.Add(workspace);
+            workspace.MarkReady();
             return workspace;
         }
     }
 
-    /// <summary>关闭单个工作区（兄弟工作区与项目会话不受影响）。</summary>
+    /// <summary>
+    /// 关闭单个工作区（兄弟工作区与项目会话不受影响）。Close → Dispose → 双成功才从
+    /// 工作区列表移除（"成功释放后才移除"不变量，WP-UI-04B B4/G3 修复）；任意阶段失败
+    /// 返回 false，工作区保留在列表中（CloseFailed + 诊断 + 已完成进度），可再次调用重试
+    /// （幂等：跳过已成功释放的资源）。失败原因经工作区的 LifecycleState 与
+    /// CloseFailureDiagnostic 暴露；返回 false 属业务分支（对齐窗口关闭时序
+    /// "PS→VM: false + 诊断"），不是吞掉异常。
+    /// </summary>
     public async Task<bool> CloseWorkspaceAsync(Guid workspaceId, CancellationToken cancellationToken = default)
     {
         MapWorkspaceSession? workspace;
@@ -213,13 +245,58 @@ public sealed class ProjectSession : IAsyncDisposable
             }
         }
 
-        await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
+            await workspace.DisposeAsync().ConfigureAwait(false); // CloseAsync 成功后为幂等续段
+        }
+        catch (Exception)
+        {
+            // 关闭/释放失败：不提前 Remove，保留工作区、资源与诊断供重试。
+            return false;
+        }
+
         lock (_stateGate)
         {
             _workspaces.Remove(workspace);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// 查找同 MapId 的可复用活动工作区（非 Closed）。正在关闭（Closing）或关闭失败
+    /// （CloseFailed）的工作区拒绝复用并抛出明确异常；Closed 不复用（移除后可重开）。
+    /// </summary>
+    private MapWorkspaceSession? FindReusableWorkspace(Guid mapId)
+    {
+        lock (_stateGate)
+        {
+            return FindReusableWorkspaceLocked(mapId);
+        }
+    }
+
+    private MapWorkspaceSession? FindReusableWorkspaceLocked(Guid mapId)
+    {
+        for (var i = 0; i < _workspaces.Count; i++)
+        {
+            var workspace = _workspaces[i];
+            if (workspace.Context.MapId != mapId || workspace.LifecycleState == MapWorkspaceState.Closed)
+            {
+                continue;
+            }
+
+            if (workspace.LifecycleState is MapWorkspaceState.Closing or MapWorkspaceState.CloseFailed)
+            {
+                throw new InvalidOperationException(
+                    $"同地图工作区正在关闭或等待重试（状态 {workspace.LifecycleState}），拒绝重复打开该地图。");
+            }
+
+            // Ready（未来含 Opening）：复用既有工作区，不创建第二个 Session。
+            return workspace;
+        }
+
+        return null;
     }
 
     /// <summary>

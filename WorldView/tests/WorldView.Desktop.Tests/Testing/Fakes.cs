@@ -8,6 +8,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.Packaging;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
+using WorldView.Domain.Time;
 
 namespace WorldView.Desktop.Tests.Testing;
 
@@ -164,6 +165,20 @@ public sealed class FakeMapQueryService : IMapQueryService
         => Task.FromResult<MapSummary?>(Maps.FirstOrDefault(m => m.MapId == mapId));
 }
 
+/// <summary>固定成功的上下文解析替身（WP-UI-04B：VM 打开工作区路径测试用）。</summary>
+public sealed class StubContextResolver : IWorkspaceContextResolver
+{
+    public Task<WorkspaceContextResolution> ResolveAsync(
+        Guid projectId, Guid mapId, Guid? branchId, string? historicalTimeInput, CancellationToken cancellationToken = default)
+        => Task.FromResult(WorkspaceContextResolution.Ok(new ValidatedWorkspaceContext
+        {
+            MapId = mapId,
+            BranchId = branchId,
+            RootHistoryId = Guid.NewGuid(),
+            HistoricalTime = HistoricalTime.Epoch,
+        }));
+}
+
 /// <summary>
 /// 工作区上下文解析替身：默认成功（默认/主历史 + 纪元时间）；可注入失败诊断。
 /// 与 Application.Tests 的 FakeResolver 同契约、自备实现（Desktop.Tests 不引用其替身）。
@@ -191,7 +206,7 @@ public sealed class FakeWorkspaceContextResolver : IWorkspaceContextResolver
             MapId = mapId,
             BranchId = branchId,
             RootHistoryId = Guid.NewGuid(),
-            HistoricalTime = WorldView.Domain.Time.HistoricalTime.Epoch,
+            HistoricalTime = HistoricalTime.Epoch,
         }));
     }
 }

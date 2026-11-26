@@ -96,6 +96,9 @@ public class ProjectCloseOrchestrationTests
     {
         var query = new FakeMapQueryService();
         query.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        // WP-UI-04B B3（同图去重）后，多工作区测试必须使用不同地图：同图重开会被
+        // 会话层早检查短路为复用既有工作区，无法再构造多 Binding 交错。
+        query.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "副地图" });
         var session = TestSessions.CreateReadySession();
         var vm = new TestViewModel(
             session,
@@ -111,7 +114,7 @@ public class ProjectCloseOrchestrationTests
         var opened = new List<MapWorkspaceSession>();
         for (var i = 0; i < count; i++)
         {
-            vm.SelectedMap = query.Maps[0];
+            vm.SelectedMap = query.Maps[i]; // 每次不同地图（B3 同图去重：同图重开复用既有工作区）
             await vm.OpenWorkspaceCommand.ExecuteAsync(null);
             opened.Add(vm.Workspaces[^1]);
         }
@@ -615,6 +618,9 @@ public class ProjectCloseOrchestrationTests
         // 成功，但 VM 注册前复查发现 C2 已启动 → 就地关闭该工作区，不登记、不展示。
         var gatedQuery = new GatedMapQueryService();
         gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        // B3 同图去重后在途打开必须使用第二张地图：同图重开会被会话层早检查
+        // 短路为复用既有工作区，永远到不了 GetMapAsync 门控。
+        gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "副地图" });
         var session = TestSessions.CreateReadySession();
         var vm = new TestViewModel(
             session,
@@ -638,7 +644,7 @@ public class ProjectCloseOrchestrationTests
 
         // 第二次打开：停在 GetMapAsync 门控内（打开已开始、尚未完成）。
         gatedQuery.GateEnabled = true;
-        vm.SelectedMap = gatedQuery.Maps[0];
+        vm.SelectedMap = gatedQuery.Maps[1];
         var openTask = vm.OpenWorkspaceCommand.ExecuteAsync(null);
         await gatedQuery.GetMapEntered.WaitAsync(GateTimeout);
 
@@ -728,6 +734,8 @@ public class ProjectCloseOrchestrationTests
         var log = new FakeAppLog { WarnFailure = new InvalidOperationException("日志实现故障（测试注入）。") };
         var gatedQuery = new GatedMapQueryService();
         gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" });
+        // B3 同图去重后在途打开必须使用第二张地图（理由同 StartedBeforeClose 变体）。
+        gatedQuery.Maps.Add(new MapSummary { MapId = Guid.NewGuid(), DisplayName = "副地图" });
         var session = TestSessions.CreateReadySession();
         var vm = new TestViewModel(
             session,
@@ -759,7 +767,7 @@ public class ProjectCloseOrchestrationTests
 
         // 第二次打开：停在 GetMapAsync 门控内（打开已开始、尚未完成）。
         gatedQuery.GateEnabled = true;
-        vm.SelectedMap = gatedQuery.Maps[0];
+        vm.SelectedMap = gatedQuery.Maps[1];
         var openTask = vm.OpenWorkspaceCommand.ExecuteAsync(null);
         await gatedQuery.GetMapEntered.WaitAsync(GateTimeout);
 

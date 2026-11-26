@@ -596,6 +596,13 @@ public sealed class FakeMapQuery : IMapQueryService
         return new FakeMapQuery(matchAnyId: true, map);
     }
 
+    /// <summary>任意 Map ID 均可命中且显示名可控（WP-UI-04B B2：MapName 语义测试）。</summary>
+    public static FakeMapQuery WithDisplayName(string displayName)
+    {
+        var map = new MapSummary { MapId = Guid.NewGuid(), DisplayName = displayName };
+        return new FakeMapQuery(matchAnyId: true, map);
+    }
+
     public static FakeMapQuery WithOneMap()
     {
         var map = new MapSummary { MapId = Guid.NewGuid(), DisplayName = "主地图" };
