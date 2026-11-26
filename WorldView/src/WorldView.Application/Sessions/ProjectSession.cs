@@ -39,6 +39,10 @@ public sealed class ProjectSession : IAsyncDisposable
     private bool _databaseDisposed;
     private string? _closeFailureDiagnostic;
 
+    /// <summary>当前关闭尝试的共享执行 Task（仅 Closing 状态下非 null；_stateGate 保护）。
+    /// 统一裁决 2.1：关闭执行期间的其他关闭请求共享并等待同一 Task，绝不并行两套关闭流程。</summary>
+    private Task? _closeTask;
+
     public ProjectSession(
         Guid sessionId,
         string canonicalPackagePath,
@@ -75,6 +79,10 @@ public sealed class ProjectSession : IAsyncDisposable
 
     /// <summary>项目显示名（来自 Core Domain；未注册身份服务时为 null）。</summary>
     public string? ProjectDisplayName { get; private set; }
+
+    /// <summary>测试 seam（WorldView.Desktop.Tests 经 IvT 访问）：每个工作区创建时同步回调。
+    /// 默认 null（生产路径零开销）；生命周期测试借此捕获回收后不可达的孤儿实例。</summary>
+    internal Action<MapWorkspaceSession>? WorkspaceCreatedHookForTests { get; set; }
 
     /// <summary>当前生命周期状态（原子读取）。</summary>
     public ProjectSessionState State
@@ -185,6 +193,8 @@ public sealed class ProjectSession : IAsyncDisposable
             }
 
             var workspace = new MapWorkspaceSession(this, resolution.Context);
+            // 测试 seam：回调发生在 _stateGate 锁内，订阅方必须同步且极短（仅捕获引用）。
+            WorkspaceCreatedHookForTests?.Invoke(workspace);
             _workspaces.Add(workspace);
             return workspace;
         }
@@ -216,49 +226,84 @@ public sealed class ProjectSession : IAsyncDisposable
     /// 关闭会话：先关闭并释放全部子工作区，再按逆序释放 Asset Store 与数据库资源。
     /// 只有全部资源释放成功才进入 Closed 并触发 SessionClosed；异常进入 CloseFailed，
     /// 下次调用从失败点继续（已成功释放的资源不会重复释放）。永不删除包。
+    ///
+    /// WP-30B 3A 统一裁决：
+    /// - 2.1 并发幂等：Closing 期间的其他关闭请求共享同一执行 Task（等待首次关闭，
+    ///   不并行两套关闭流程）；Closed 幂等返回成功。
+    /// - 2.2 可重试：CloseFailed 后再次调用启动新一轮关闭尝试，只补未完成阶段。
+    /// - 2.3 阶段级完成状态 + 收集-继续-聚合：单个工作区 / Asset Store / 数据库阶段
+    ///   失败不阻断其他安全清理阶段（每个阶段独立隔离）；失败以原始异常保留，
+    ///   多异常按阶段顺序聚合为 AggregateException。
     /// </summary>
-    public async Task CloseAsync(CancellationToken cancellationToken = default)
+    public Task CloseAsync(CancellationToken cancellationToken = default)
     {
+        TaskCompletionSource? completion;
         lock (_stateGate)
         {
-            // Closed：幂等成功；Closing：已有一次关闭在执行（单机程序无并发关闭入口）。
-            if (_state is ProjectSessionState.Closed or ProjectSessionState.Closing)
+            // Closed：终态幂等成功；Closing：共享正在执行的关闭 Task（统一裁决 2.1）。
+            if (_state == ProjectSessionState.Closed)
             {
-                return;
+                return Task.CompletedTask;
             }
 
+            if (_state == ProjectSessionState.Closing)
+            {
+                return _closeTask ?? Task.CompletedTask;
+            }
+
+            // Ready / CloseFailed / Failed / Cancelled：启动新一轮关闭尝试。
             _state = ProjectSessionState.Closing;
+            completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _closeTask = completion.Task;
         }
 
+        // 锁外启动执行体：等待者（含并发进入的调用者）经 _closeTask 共享同一结果。
+        _ = ExecuteCloseAsync(completion, cancellationToken);
+        return completion.Task;
+    }
+
+    /// <summary>
+    /// 关闭执行体：子工作区（LIFO）→ Asset Store → 数据库。各阶段独立异常隔离，
+    /// 失败收集后继续其余安全阶段；全部结束后一次性聚合传播（单异常原样，
+    /// 多异常按阶段顺序 AggregateException）。成功路径置 Closed 并触发一次 SessionClosed。
+    /// </summary>
+    private async Task ExecuteCloseAsync(TaskCompletionSource completion, CancellationToken cancellationToken)
+    {
+        List<Exception>? failures = null;
         try
         {
-            // 1. 先关子工作区（AF-01 §8.2）。只有 Close + Dispose 都成功才从列表移除，
-            //    失败时保留在工作区列表，重试时继续按幂等语义完成释放。
-            while (true)
+            // 1. 子工作区（LIFO 快照）。只有 Close + Dispose 都成功才从列表移除；
+            //    失败者保留在列表，重试时继续按幂等语义完成释放（不重复执行已成功步骤）。
+            MapWorkspaceSession[] snapshot;
+            lock (_stateGate)
             {
-                MapWorkspaceSession? workspace;
-                lock (_stateGate)
-                {
-                    if (_workspaces.Count == 0)
-                    {
-                        break;
-                    }
+                snapshot = _workspaces.ToArray();
+            }
 
-                    workspace = _workspaces[^1];
+            for (var i = snapshot.Length - 1; i >= 0; i--)
+            {
+                var workspace = snapshot[i];
+                try
+                {
+                    await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
+                    // WP-30B Phase 3A（P2 缺口修复）：关闭后释放派生工作取消源。
+                    // CTS.Dispose 幂等；先 Close（取消派生工作）后 Dispose 的次序不可交换
+                    // （ADR-10 §3C 核验第 6 项）。
+                    await workspace.DisposeAsync().ConfigureAwait(false);
+                    lock (_stateGate)
+                    {
+                        _workspaces.Remove(workspace);
+                    }
                 }
-
-                await workspace.CloseAsync(cancellationToken).ConfigureAwait(false);
-                await workspace.DisposeAsync().ConfigureAwait(false);
-                lock (_stateGate)
+                catch (Exception ex)
                 {
-                    if (_workspaces.Count > 0 && ReferenceEquals(_workspaces[^1], workspace))
-                    {
-                        _workspaces.RemoveAt(_workspaces.Count - 1);
-                    }
+                    // 阶段隔离（统一裁决 2.3）：单个工作区失败不阻断其余工作区与
+                    // 后续资源阶段；该工作区保留在列表中留待重试。
+                    (failures ??= new List<Exception>()).Add(ex);
                 }
             }
 
-            // 2. 逆序释放资源：Asset Store → 数据库。标记只在 Dispose 成功时置位。
+            // 2. Asset Store。标记只在 Dispose 成功时置位；失败留待重试。
             bool assetStoreDisposed;
             lock (_stateGate)
             {
@@ -267,13 +312,22 @@ public sealed class ProjectSession : IAsyncDisposable
 
             if (!assetStoreDisposed)
             {
-                await AssetStore.DisposeAsync().ConfigureAwait(false);
-                lock (_stateGate)
+                try
                 {
-                    _assetStoreDisposed = true;
+                    await AssetStore.DisposeAsync().ConfigureAwait(false);
+                    lock (_stateGate)
+                    {
+                        _assetStoreDisposed = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= new List<Exception>()).Add(ex);
                 }
             }
 
+            // 3. 数据库。不因 Asset Store 失败而跳过（统一裁决 2.3：后续阶段不因
+            //    前一阶段异常被永久跳过；数据库释放与资产释放相互独立且安全）。
             bool databaseDisposed;
             lock (_stateGate)
             {
@@ -282,33 +336,88 @@ public sealed class ProjectSession : IAsyncDisposable
 
             if (!databaseDisposed)
             {
-                await Database.DisposeAsync().ConfigureAwait(false);
-                lock (_stateGate)
+                try
                 {
-                    _databaseDisposed = true;
+                    await Database.DisposeAsync().ConfigureAwait(false);
+                    lock (_stateGate)
+                    {
+                        _databaseDisposed = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= new List<Exception>()).Add(ex);
                 }
             }
         }
         catch (Exception ex)
         {
+            // 防御性兜底（正常路径不应到达）：编排自身缺陷同样进入失败聚合，
+            // 绝不允许遗留既非 Closing 也非 CloseFailed/Closed 的悬空状态。
+            (failures ??= new List<Exception>()).Add(ex);
+        }
+
+        if (failures is not null)
+        {
+            var failure = failures.Count == 1 ? failures[0] : new AggregateException(failures);
             lock (_stateGate)
             {
                 _state = ProjectSessionState.CloseFailed;
-                _closeFailureDiagnostic = $"{ex.GetType().Name}: {ex.Message}";
+                _closeFailureDiagnostic = $"{failure.GetType().Name}: {failure.Message}";
+                _closeTask = null;
             }
 
-            throw;
+            completion.TrySetException(failure);
+            return;
         }
 
-        Action? handlers;
         lock (_stateGate)
         {
             _state = ProjectSessionState.Closed;
             _closeFailureDiagnostic = null;
-            handlers = () => SessionClosed?.Invoke(this, EventArgs.Empty);
+            _closeTask = null;
         }
 
-        handlers?.Invoke();
+        try
+        {
+            // SessionClosed 是"资源已关闭"的完成通知，不是资源关闭阶段：异常不改变
+            // 已经进入的 Closed 状态，也不影响关闭 Task 的结果。
+            NotifySessionClosedSafely();
+        }
+        finally
+        {
+            // 关闭 Task 必须可靠完成：执行体为 fire-and-forget，任何通知异常都不能
+            // 让调用者永久等待（否则注册表/编排的等待链会整体悬挂）。
+            // 通知方法已逐个隔离订阅者异常，此处 finally 再兜底保证收尾不被跳过。
+            completion.TrySetResult();
+        }
+    }
+
+    /// <summary>
+    /// 按订阅注册顺序逐一通知 SessionClosed；单个订阅者抛异常就地隔离，不阻断后续订阅者。
+    /// 保留原有事件类型、参数与调用顺序；唯一语义变化是"订阅者异常不再向外传播"——
+    /// 这是必要的：本执行体 fire-and-forget，向外传播会同时造成未观察异常与关闭 Task 永久悬挂。
+    /// </summary>
+    private void NotifySessionClosedSafely()
+    {
+        var handlers = SessionClosed;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (EventHandler handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+                // 通知失败不回滚 Closed、不改写 CloseFailureDiagnostic、不阻断其余订阅者；
+                // Application 层没有日志端口，就地隔离是唯一不引入未观察异常的处置。
+            }
+        }
     }
 
     /// <summary>

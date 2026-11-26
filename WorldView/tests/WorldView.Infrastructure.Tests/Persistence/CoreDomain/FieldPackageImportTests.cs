@@ -211,15 +211,15 @@ public sealed class FieldPackageImportTests : IDisposable
     private static ImportFieldPackagePlan Plan(
         Guid projectId, Guid mapId, FieldPayloadStorageKind storageKind,
         Guid? expectedRevision = null, Guid? datasetId = null) => new()
-    {
-        ProjectId = projectId,
-        MapId = mapId,
-        FieldDatasetId = datasetId,
-        StorageKind = storageKind,
-        ProvenanceJson = """{"source":"field-package-import-test"}""",
-        CreatedAtUtcMs = Now + 5,
-        ExpectedCurrentFieldRevisionId = expectedRevision,
-    };
+        {
+            ProjectId = projectId,
+            MapId = mapId,
+            FieldDatasetId = datasetId,
+            StorageKind = storageKind,
+            ProvenanceJson = """{"source":"field-package-import-test"}""",
+            CreatedAtUtcMs = Now + 5,
+            ExpectedCurrentFieldRevisionId = expectedRevision,
+        };
 
     [Fact]
     public async Task Import_SqliteBlobPath_PublishesInternalPayloadNotRawPackage()

@@ -35,6 +35,10 @@ public sealed class FakePackageDatabase : IPackageDatabase
     /// <summary>Dispose 成功次数。</summary>
     public int DisposeSuccesses { get; private set; }
 
+    /// <summary>非 null 时 DisposeAsync 在记录后等待该门放行（制造可观察的"关闭进行中"窗口，
+    /// 供并发关闭共享 Task 断言使用）。</summary>
+    public TaskCompletionSource? DisposeGate { get; set; }
+
     public Func<CancellationToken, Task>? DelayHook { get; set; }
 
     public BootstrapMetadata? Metadata { get; set; }
@@ -90,12 +94,16 @@ public sealed class FakePackageDatabase : IPackageDatabase
         return Task.CompletedTask;
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         DisposeAttempts++;
         Record("Database:Dispose"); // FailureHook 可在此抛出异常
+        if (DisposeGate is { } gate)
+        {
+            await gate.Task;
+        }
+
         DisposeSuccesses++;
-        return ValueTask.CompletedTask;
     }
 }
 

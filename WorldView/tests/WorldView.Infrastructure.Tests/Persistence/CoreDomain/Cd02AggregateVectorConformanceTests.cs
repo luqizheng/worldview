@@ -156,58 +156,58 @@ public sealed class Cd02AggregateVectorConformanceTests
         switch (op)
         {
             case "add":
-            {
-                var (parent, token) = SplitPointer(target, pointer);
-                var value = patch["value"]!.DeepClone();
-                if (parent is JsonArray array)
                 {
-                    if (token == "-")
+                    var (parent, token) = SplitPointer(target, pointer);
+                    var value = patch["value"]!.DeepClone();
+                    if (parent is JsonArray array)
                     {
-                        array.Add(value);
+                        if (token == "-")
+                        {
+                            array.Add(value);
+                        }
+                        else
+                        {
+                            array.Insert(int.Parse(token, System.Globalization.CultureInfo.InvariantCulture), value);
+                        }
                     }
                     else
                     {
-                        array.Insert(int.Parse(token, System.Globalization.CultureInfo.InvariantCulture), value);
+                        ((JsonObject)parent)[token] = value;
                     }
-                }
-                else
-                {
-                    ((JsonObject)parent)[token] = value;
-                }
 
-                break;
-            }
+                    break;
+                }
 
             case "replace":
-            {
-                var (parent, token) = SplitPointer(target, pointer);
-                var value = patch["value"]!.DeepClone();
-                if (parent is JsonArray array)
                 {
-                    array[int.Parse(token, System.Globalization.CultureInfo.InvariantCulture)] = value;
-                }
-                else
-                {
-                    ((JsonObject)parent)[token] = value;
-                }
+                    var (parent, token) = SplitPointer(target, pointer);
+                    var value = patch["value"]!.DeepClone();
+                    if (parent is JsonArray array)
+                    {
+                        array[int.Parse(token, System.Globalization.CultureInfo.InvariantCulture)] = value;
+                    }
+                    else
+                    {
+                        ((JsonObject)parent)[token] = value;
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             case "remove":
-            {
-                var (parent, token) = SplitPointer(target, pointer);
-                if (parent is JsonArray array)
                 {
-                    array.RemoveAt(int.Parse(token, System.Globalization.CultureInfo.InvariantCulture));
-                }
-                else
-                {
-                    ((JsonObject)parent).Remove(token);
-                }
+                    var (parent, token) = SplitPointer(target, pointer);
+                    if (parent is JsonArray array)
+                    {
+                        array.RemoveAt(int.Parse(token, System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        ((JsonObject)parent).Remove(token);
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             default:
                 throw new InvalidOperationException($"向量使用了本运行器未实现的 patch op \"{op}\"。");

@@ -325,14 +325,14 @@ public sealed partial class SqliteCoreDomainDatabase
 
     private static ObjectDefinitionAssetLinkRecord MapDefinitionAssetLink(
         CoreObjectDefinitionAssetEntity entity) => new()
-    {
-        ObjectDefinitionAssetId = entity.object_definition_asset_id,
-        ProjectId = entity.project_id,
-        ObjectIdentityId = entity.object_identity_id,
-        AssetId = entity.asset_id,
-        Role = entity.role,
-        CreatedAtUtcMs = entity.created_at_utc_ms,
-    };
+        {
+            ObjectDefinitionAssetId = entity.object_definition_asset_id,
+            ProjectId = entity.project_id,
+            ObjectIdentityId = entity.object_identity_id,
+            AssetId = entity.asset_id,
+            Role = entity.role,
+            CreatedAtUtcMs = entity.created_at_utc_ms,
+        };
 
     private static void SaveChangesOrThrowSqlite(CoreDomainDbContext db)
     {

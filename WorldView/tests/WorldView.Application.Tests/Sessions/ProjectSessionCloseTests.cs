@@ -70,7 +70,135 @@ public class ProjectSessionCloseTests
     }
 
     [Fact]
-    public async Task WorkspaceCloseFailure_DoesNotReachClosed_AndKeepsWorkspaceForRetry()
+    public async Task ConcurrentClose_SharesSameCloseTask_SingleExecution()
+    {
+        // 统一裁决 2.1：关闭执行期间的其他关闭请求共享同一执行 Task，
+        // 不并行两套关闭流程、不重复释放任何资源、事件只触发一次。
+        var (session, database, assets) = BuildSession();
+        await OpenWorkspaceAsync(session);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        database.DisposeGate = gate;
+        var closedCount = 0;
+        session.SessionClosed += (_, _) => closedCount++;
+
+        var first = session.CloseAsync();   // 启动关闭：同步段直奔数据库释放门控并挂起
+        var second = session.CloseAsync();  // Closing 期间进入：必须共享同一执行 Task
+
+        Assert.Same(first, second);
+        Assert.Equal(ProjectSessionState.Closing, session.State);
+        Assert.Equal(0, database.DisposeSuccesses);
+
+        gate.TrySetResult();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Equal(1, assets.DisposeSuccesses);
+        Assert.Equal(1, database.DisposeSuccesses); // 关闭流程恰好执行一次
+        Assert.Equal(1, closedCount);
+    }
+
+    [Fact]
+    public async Task SessionClosed_NormalSubscriber_CloseTaskCompletesSuccessfully()
+    {
+        var (session, database, assets) = BuildSession();
+        var notifications = 0;
+        session.SessionClosed += (_, _) => notifications++;
+
+        var close = session.CloseAsync();
+        await close; // 真实 Task 完成断言（不依赖 sleep / 超时）
+
+        Assert.True(close.IsCompletedSuccessfully);
+        Assert.Equal(TaskStatus.RanToCompletion, close.Status);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Equal(1, notifications);
+        Assert.Equal(1, assets.DisposeSuccesses);
+        Assert.Equal(1, database.DisposeSuccesses);
+    }
+
+    [Fact]
+    public async Task SessionClosed_SubscriberThrows_CloseTaskStillCompletes_AndStaysClosed()
+    {
+        var (session, database, assets) = BuildSession();
+        var notifications = 0;
+        session.SessionClosed += (_, _) =>
+        {
+            notifications++;
+            throw new InvalidOperationException("注入：SessionClosed 订阅者失败。");
+        };
+
+        var close = session.CloseAsync();
+        await close; // 若通知异常传播到 fire-and-forget 执行体，这里将永久等待
+
+        Assert.True(close.IsCompletedSuccessfully);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Null(session.CloseFailureDiagnostic);
+        Assert.Equal(1, notifications);
+        Assert.Equal(1, assets.DisposeSuccesses);
+        Assert.Equal(1, database.DisposeSuccesses);
+
+        await session.CloseAsync(); // 终态幂等：重复调用仍然成功
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Equal(1, notifications); // 事件仍只触发一次
+    }
+
+    [Fact]
+    public async Task SessionClosed_OneSubscriberThrows_OthersStillNotified_InRegistrationOrder()
+    {
+        var (session, _, _) = BuildSession();
+        var notifications = new List<string>();
+        session.SessionClosed += (_, _) => notifications.Add("first");
+        session.SessionClosed += (_, _) =>
+        {
+            notifications.Add("second");
+            throw new IOException("注入：中间订阅者失败。");
+        };
+        session.SessionClosed += (_, _) => notifications.Add("third");
+
+        var close = session.CloseAsync();
+        await close;
+
+        Assert.True(close.IsCompletedSuccessfully);
+        Assert.Equal(new[] { "first", "second", "third" }, notifications);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+    }
+
+    [Fact]
+    public async Task SessionClosed_SubscriberThrows_ConcurrentCallersShareCompletion_NoHang()
+    {
+        var (session, database, _) = BuildSession();
+        var reachedDatabase = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        database.FailureHook = op =>
+        {
+            if (op == "Database:Dispose")
+            {
+                reachedDatabase.TrySetResult(); // 真实信号：关闭已进入最后的资源阶段
+            }
+
+            return null;
+        };
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        database.DisposeGate = gate;
+        session.SessionClosed += (_, _) => throw new InvalidOperationException("注入：SessionClosed 订阅者失败。");
+
+        var first = session.CloseAsync();
+        await reachedDatabase.Task; // Closing 窗口由真实阶段信号建立，无 sleep / 超时
+
+        var concurrent = new[] { session.CloseAsync(), session.CloseAsync(), session.CloseAsync() };
+        Assert.All(concurrent, call => Assert.Same(first, call));
+        Assert.Equal(ProjectSessionState.Closing, session.State);
+
+        gate.TrySetResult();
+        await first;
+        await Task.WhenAll(concurrent);
+
+        Assert.True(first.IsCompletedSuccessfully);
+        Assert.All(concurrent, call => Assert.True(call.IsCompletedSuccessfully));
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.Equal(1, database.DisposeSuccesses); // 共享同一次执行，无重复释放
+    }
+
+    [Fact]
+    public async Task WorkspaceCloseFailure_DoesNotReachClosed_ContinuesSafeStages_KeepsWorkspaceForRetry()
     {
         var (session, database, assets) = BuildSession();
         var workspace = await OpenWorkspaceAsync(session);
@@ -85,8 +213,10 @@ public class ProjectSessionCloseTests
         Assert.Contains("工作区关闭失败", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("工作区关闭失败", session.CloseFailureDiagnostic, StringComparison.Ordinal);
         Assert.Contains(session.Workspaces, w => w.WorkspaceId == workspace.WorkspaceId);
-        Assert.Equal(0, assets.DisposeAttempts);
-        Assert.Equal(0, database.DisposeAttempts);
+        // 统一裁决 2.3：工作区失败不阻断后续安全阶段——Asset Store 与数据库仍然释放，
+        // 该工作区保留在列表中留待重试；SessionClosed 不触发（未全部成功）。
+        Assert.Equal(1, assets.DisposeSuccesses);
+        Assert.Equal(1, database.DisposeSuccesses);
         Assert.Equal(0, closedCount);
     }
 
@@ -114,7 +244,7 @@ public class ProjectSessionCloseTests
     }
 
     [Fact]
-    public async Task AssetStoreDisposeFailure_DoesNotReachClosed_AndSkipsDatabase()
+    public async Task AssetStoreDisposeFailure_DoesNotReachClosed_StillDisposesDatabase()
     {
         var (session, database, assets) = BuildSession();
         assets.FailureHook = op => op == "AssetStore:Dispose"
@@ -123,11 +253,12 @@ public class ProjectSessionCloseTests
         var closedCount = 0;
         session.SessionClosed += (_, _) => closedCount++;
 
-        await Assert.ThrowsAnyAsync<Exception>(() => session.CloseAsync());
+        await Assert.ThrowsAsync<IOException>(() => session.CloseAsync());
 
         Assert.Equal(ProjectSessionState.CloseFailed, session.State);
         Assert.Contains("Asset Store 释放失败", session.CloseFailureDiagnostic, StringComparison.Ordinal);
-        Assert.Equal(0, database.DisposeAttempts);
+        // 统一裁决 2.3：Asset Store 失败不永久跳过数据库阶段（二者相互独立且安全）。
+        Assert.Equal(1, database.DisposeSuccesses);
         Assert.Equal(0, closedCount);
     }
 

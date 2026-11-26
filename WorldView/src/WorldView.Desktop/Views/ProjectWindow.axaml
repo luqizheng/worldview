@@ -87,7 +87,7 @@
                 </Grid>
 
                 <Border Grid.Row="1" Classes="surface-card">
-                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+                    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Classes="section-title" Text="已打开的工作区" />
                             <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"
@@ -120,7 +120,19 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Grid>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+
+                        <!-- WP-30B Phase 3A：选中工作区的视口宿主（M1 单视口；内容由 code-behind 按
+                             SelectedWorkspace 挂载 MapViewportControl，生命周期接线见 ADR-10）。 -->
+                        <Border Grid.Row="2" MinHeight="140"
+                                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="2">
+                            <ContentControl x:Name="ViewportHost" HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                            VerticalContentAlignment="Stretch" />
+                        </Border>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                             <Button Content="关闭所选工作区" Command="{Binding CloseWorkspaceCommand}" />
                             <Button Classes="primary" Content="关闭项目" Command="{Binding CloseProjectCommand}" />
                         </StackPanel>
