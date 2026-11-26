@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
+using WorldView.Presentation.Identity;
 using WorldView.Presentation.Publication;
+using WorldView.Presentation.Results;
 
 namespace WorldView.Desktop.Rendering;
 
@@ -271,6 +274,40 @@ internal class MapViewportBinding
         {
             throw failures.Count == 1 ? failures[0] : new AggregateException(failures);
         }
+    }
+
+    /// <summary>最近一次场景请求的最终结果记录（WP-RA-02-A：失败可观察的诊断锚点）。未发起过请求时为 null。</summary>
+    internal PresentationRequestOutcome? LastRequestOutcome => Volatile.Read(ref _lastOutcome);
+
+    private PresentationRequestOutcome? _lastOutcome;
+
+    /// <summary>最近一次场景请求发起时刻的上下文指纹十六进制（诊断锚点；未发起过为 null）。</summary>
+    internal string? LastRequestedFingerprintHex { get; private set; }
+
+    /// <summary>
+    /// 以已校验工作区上下文发起一次真实场景请求（WP-RA-02-A 接线：桌面生产路径）：
+    /// 经 <see cref="PresentationContextFactory.FromValidatedWorkspace"/> 构建不可变
+    /// PresentationContext（捕获当前视口代），委托本 Binding 私有的
+    /// <see cref="ViewportPresentationRuntime.RequestSceneAsync"/>——完整走
+    /// Context → Request → Prepare → Publish 管线；渲染侧经 <see cref="CaptureFrame"/>
+    /// 无锁捕获发布结果。请求结束记录 <see cref="LastRequestOutcome"/> 供宿主与测试观察。
+    /// 取消令牌只供调用方在发起前撤回；进入管线后的生命周期正确性由协调器的
+    /// 关闭屏障与 latest-request-wins 语义保证（WP-30A/WP-30B）。
+    /// </summary>
+    internal async Task<PresentationRequestOutcome> RequestSceneAsync(
+        ValidatedWorkspaceContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        // 请求创建（激活/取代/发布器激活）经协调器内部锁串行化；此处只保证
+        // LastRequestOutcome 记录与请求发起的对应关系（诊断一致性）。
+        var presentationContext = PresentationContextFactory.FromValidatedWorkspace(
+            context, _runtime.ViewportGeneration.Current);
+        LastRequestedFingerprintHex = presentationContext.Fingerprint.ToHex();
+        var outcome = await _runtime.RequestSceneAsync(presentationContext, cancellationToken).ConfigureAwait(false);
+        Volatile.Write(ref _lastOutcome, outcome);
+        return outcome;
     }
 
     /// <summary>
