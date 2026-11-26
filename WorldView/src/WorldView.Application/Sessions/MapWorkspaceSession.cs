@@ -71,6 +71,13 @@ public sealed class MapWorkspaceSession
         ViewState = new WorkspaceViewState();
     }
 
+    /// <summary>
+    /// 语义上下文切换事件（WP-RA-02-A）：SwitchContextAsync 成功替换 Context 后触发。
+    /// 携带替换后的已校验上下文；只在替换真实发生时触发（晚到达的丢弃结果不触发）。
+    /// 桌面宿主据此发起新的 Presentation 场景请求（语义切换不得复用旧 Context 快照）。
+    /// </summary>
+    public event Action<ValidatedWorkspaceContext>? ContextSwitched;
+
     /// <summary>进程内临时工作区 ID。</summary>
     public Guid WorkspaceId { get; }
 
@@ -173,6 +180,9 @@ public sealed class MapWorkspaceSession
             Context = resolution.Context;
             _derivedWorkCts.Cancel();
         }
+
+        // 锁外通知：订阅者据此发起新的场景请求（旧派生工作已被取消）。
+        ContextSwitched?.Invoke(Context);
     }
 
     /// <summary>
