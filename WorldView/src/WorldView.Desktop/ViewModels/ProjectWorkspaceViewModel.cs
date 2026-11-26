@@ -10,6 +10,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
 using WorldView.Desktop.Rendering;
+using WorldView.Presentation.Publication;
 
 namespace WorldView.Desktop.ViewModels;
 
@@ -41,10 +42,15 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     private readonly IWorkspaceContextResolver? _contextResolver;
     private readonly IAppLog? _log;
 
-    /// <summary>存活视口 Binding（workspaceId → binding）。仅用于枚举的私有小集合：
+    /// <summary>存活视口登记（workspaceId → entry）。仅用于枚举的私有小集合：
     /// 不是全局注册表、不注册 DI、不拥有释放权（释放归 binding 自身的幂等关闭，ADR-10 §8B 第 25 条）。
+    /// entry 同时持有该工作区的 ContextSwitched 订阅（WP-RA-02-A：语义切换 → 重请求；
+    /// 关闭时退订，防止重复打开/关闭路径上的订阅泄漏）。
     /// 全部增删与"C2 是否已启动"的联合判定经 <see cref="_lifecycleGate"/> 串行化。</summary>
-    private readonly Dictionary<Guid, MapViewportBinding> _viewportBindings = new();
+    private readonly Dictionary<Guid, WorkspaceViewportEntry> _viewportBindings = new();
+
+    /// <summary>单个工作区的视口登记：Binding + 该工作区的上下文切换订阅。</summary>
+    private sealed record WorkspaceViewportEntry(MapWorkspaceSession Workspace, MapViewportBinding Binding);
 
     /// <summary>Binding 登记 / 移除与 C2 启动状态联合判定的串行化门（锁内不含任何 await）。</summary>
     private readonly object _lifecycleGate = new();
@@ -187,6 +193,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             // 与登记在同一锁内完成，保证与 C2 的"启动判定 + 排空 + 清集合"互斥交错；
             // Session 层同图去重可能返回既有工作区（WP-UI-04B B3）：UI 集合只镜像一次，
             // 不重复添加（B4.10），既有工作区的 Binding 已在首次打开时登记，不重建。
+            MapViewportBinding? newBinding = null;
             bool registered;
             bool isExisting;
             lock (_lifecycleGate)
@@ -196,7 +203,11 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 if (registered && !isExisting)
                 {
                     Workspaces.Add(workspace);
-                    _viewportBindings.Add(workspace.WorkspaceId, CreateViewportBinding(workspace));
+                    newBinding = CreateViewportBinding(workspace);
+                    var entry = new WorkspaceViewportEntry(workspace, newBinding);
+                    _viewportBindings.Add(workspace.WorkspaceId, entry);
+                    // 语义切换订阅（WP-RA-02-A）：SwitchContextAsync 替换 Context 后重发场景请求。
+                    SubscribeContextSwitched(entry);
                 }
             }
 
@@ -206,9 +217,22 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 return;
             }
 
-            WorkspaceStatusText = isExisting
-                ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
-                : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。";
+            if (newBinding is not null)
+            {
+                // 初始场景请求（WP-RA-02-A 验收链路）：等待 Prepare 完成；结果可观察，
+                // 失败不冒充成功（工作区仍保持打开，渲染侧显示空态直到有效发布）。
+                var outcome = await newBinding.RequestSceneAsync(
+                    workspace.Context, cancellationToken).ConfigureAwait(true);
+                WorkspaceStatusText = isExisting
+                    ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
+                    : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。{DescribeOutcome(outcome)}";
+            }
+            else
+            {
+                WorkspaceStatusText = isExisting
+                    ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
+                    : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。";
+            }
         }
         catch (Exception ex)
         {
@@ -269,15 +293,15 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
         var workspace = SelectedWorkspace;
         // 步骤 1：先关闭该工作区对应的视口 Binding（presentation 先于 Application，ADR-10 §7.1）。
-        MapViewportBinding? binding;
+        WorkspaceViewportEntry? entry;
         lock (_lifecycleGate)
         {
-            _viewportBindings.TryGetValue(workspace.WorkspaceId, out binding);
+            _viewportBindings.TryGetValue(workspace.WorkspaceId, out entry);
         }
 
-        if (binding is not null)
+        if (entry is not null)
         {
-            await binding.RequestClose().ConfigureAwait(true);
+            await entry.Binding.RequestClose().ConfigureAwait(true);
         }
 
         // 步骤 2–3：Application 侧原子关闭（Close → Dispose → 双成功才移除，WP-UI-04B B4/G3；
@@ -298,6 +322,9 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             _viewportBindings.Remove(workspace.WorkspaceId);
         }
 
+        // 关闭成功后退订语义切换事件（WP-RA-02-A：防止重复打开/关闭路径上的订阅泄漏）。
+        UnsubscribeContextSwitched(workspace);
+
         WorkspaceStatusText = $"工作区「{workspace.MapName}」已关闭。";
     }
 
@@ -309,8 +336,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     {
         lock (_lifecycleGate)
         {
-            return _viewportBindings.TryGetValue(workspace.WorkspaceId, out var binding) && !binding.IsClosed
-                ? binding
+            return _viewportBindings.TryGetValue(workspace.WorkspaceId, out var entry) && !entry.Binding.IsClosed
+                ? entry.Binding
                 : null;
         }
     }
@@ -318,6 +345,74 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>视口 Binding 工厂（创建者唯一：工作区打开时创建，每工作区一个，M1 1:1）。</summary>
     internal virtual MapViewportBinding CreateViewportBinding(MapWorkspaceSession workspace)
         => new(workspace.ViewState);
+
+    /// <summary>
+    /// 订阅工作区的语义上下文切换事件（WP-RA-02-A §3.4）：SwitchContextAsync 成功替换
+    /// Context 后触发重请求——发起新的 Scene Request，旧 Context 的快照由发布器的
+    /// 语义身份清空机制移除，绝不作为新 Context 的有效显示结果。订阅经 entry 保存，
+    /// 关闭时退订（防重复订阅与订阅泄漏）。
+    /// </summary>
+    private void SubscribeContextSwitched(WorkspaceViewportEntry entry)
+    {
+        void Handler(ValidatedWorkspaceContext context)
+            => OnWorkspaceContextSwitched(entry, context);
+
+        entry.Workspace.ContextSwitched += Handler;
+        _contextSwitchHandlers[entry.Workspace.WorkspaceId] = Handler;
+    }
+
+    /// <summary>退订工作区的语义切换事件（幂等；未订阅时无操作）。</summary>
+    private void UnsubscribeContextSwitched(MapWorkspaceSession workspace)
+    {
+        if (_contextSwitchHandlers.Remove(workspace.WorkspaceId, out var handler))
+        {
+            workspace.ContextSwitched -= handler;
+        }
+    }
+
+    /// <summary>语义切换订阅表（workspaceId → handler；与 _viewportBindings 同步增删）。</summary>
+    private readonly Dictionary<Guid, Action<ValidatedWorkspaceContext>> _contextSwitchHandlers = new();
+
+    /// <summary>
+    /// 语义切换事件处理器：Binding 已关闭或工作区已进入关闭流程时忽略（关闭路径
+    /// 已阻止新请求，迟到的切换事件不得触碰已关闭 Runtime）；否则发起重请求，
+    /// 结果经状态文本可观察（失败不冒充成功）。
+    /// </summary>
+    private void OnWorkspaceContextSwitched(WorkspaceViewportEntry entry, ValidatedWorkspaceContext context)
+    {
+        if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
+        {
+            return;
+        }
+
+        _ = HandleContextSwitchedAsync(entry, context);
+    }
+
+    private async Task HandleContextSwitchedAsync(WorkspaceViewportEntry entry, ValidatedWorkspaceContext context)
+    {
+        try
+        {
+            var outcome = await entry.Binding.RequestSceneAsync(context).ConfigureAwait(true);
+            WorkspaceStatusText = $"工作区「{entry.Workspace.MapName}」语义切换：{DescribeOutcome(outcome)}";
+        }
+        catch (Exception ex)
+        {
+            _log?.Warn("ProjectWorkspace", "语义切换重请求失败。", ex);
+            WorkspaceStatusText = $"语义切换重请求失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>场景请求结果的人类可读描述（WP-RA-02-A §3.5：失败状态明确、可观察，不伪装成功）。</summary>
+    private static string DescribeOutcome(PresentationRequestOutcome outcome) => outcome.State switch
+    {
+        PresentationRequestState.Published => $"场景已发布（快照 v{outcome.PublishedSnapshotVersion}）。",
+        PresentationRequestState.Failed => $"场景请求失败：{outcome.Diagnostic}",
+        PresentationRequestState.RejectedClosed => "场景请求被拒绝：视口呈现管线已关闭。",
+        PresentationRequestState.RejectedStale => $"场景请求被拒绝（过期候选）：{outcome.Diagnostic}",
+        PresentationRequestState.Cancelled => "场景请求已取消。",
+        PresentationRequestState.Superseded => "场景请求已被更新的请求取代。",
+        _ => $"场景请求结束（{outcome.State}）。",
+    };
 
     /// <summary>
     /// 关闭项目会话命令：只委托唯一编排方法（ADR-10 §7.2；不得保留旧的
@@ -409,22 +504,22 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         {
             // 步骤 1：单遍排空本轮启动时所有"关闭尚未成功"的 Binding（B 子序；
             // 失败收集后继续其余 Binding，失败者留待重试——ADR-10 §7.2 阶段隔离）。
-            MapViewportBinding[] pending;
+            WorkspaceViewportEntry[] pending;
             lock (_lifecycleGate)
             {
-                pending = _viewportBindings.Values.Where(b => !b.IsCloseSucceeded).ToArray();
+                pending = _viewportBindings.Values.Where(e => !e.Binding.IsCloseSucceeded).ToArray();
             }
 
-            foreach (var binding in pending)
+            foreach (var entry in pending)
             {
                 try
                 {
-                    await binding.RequestClose().ConfigureAwait(true);
+                    await entry.Binding.RequestClose().ConfigureAwait(true);
                 }
                 catch (Exception ex)
                 {
                     // best-effort 日志：即使 Warn 失败也必须继续关闭其余 Binding。
-                    WarnBestEffort($"视口 Binding {binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
+                    WarnBestEffort($"视口 Binding {entry.Binding.BindingId:N} 关闭失败，继续关闭其余视口。", ex);
                     (failures ??= new List<Exception>()).Add(ex);
                 }
             }
@@ -460,7 +555,7 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             // （排空快照遗漏），宁可让 C2 失败，也绝不静默清掉未关闭的呈现资源。
             lock (_lifecycleGate)
             {
-                var unclosed = _viewportBindings.Values.Where(b => !b.IsCloseSucceeded).ToList();
+                var unclosed = _viewportBindings.Values.Where(e => !e.Binding.IsCloseSucceeded).ToList();
                 if (unclosed.Count > 0)
                 {
                     throw new InvalidOperationException(
@@ -468,6 +563,12 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 }
 
                 _viewportBindings.Clear();
+            }
+
+            // 全部 Binding 已成功关闭：退订全部语义切换订阅（WP-RA-02-A，防泄漏）。
+            foreach (var workspace in Workspaces.ToArray())
+            {
+                UnsubscribeContextSwitched(workspace);
             }
 
             Workspaces.Clear();
