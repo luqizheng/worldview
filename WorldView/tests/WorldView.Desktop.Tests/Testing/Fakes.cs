@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using WorldView.Application.Abstractions;
@@ -219,6 +220,12 @@ public sealed class FakeAppLog : IAppLog
 {
     public int WarnCount { get; private set; }
 
+    /// <summary>Info 调用计数（R3：过期请求结果丢弃留痕的确定性完成信号）。</summary>
+    public int InfoCount { get; private set; }
+
+    /// <summary>Info 消息记录（R3：丢弃留痕断言用）。</summary>
+    public List<string> InfoMessages { get; } = new();
+
     /// <summary>Warn 实际抛出异常的次数（与 WarnCount 分离：调用过 ≠ 抛出过）。</summary>
     public int WarnThrowCount { get; private set; }
 
@@ -227,8 +234,48 @@ public sealed class FakeAppLog : IAppLog
     /// <summary>非 null 时 Warn 调用抛出该异常（模拟日志实现自身故障）。</summary>
     public Exception? WarnFailure { get; set; }
 
+    private readonly object _infoGate = new();
+
+    /// <summary>Info 等待器注册表（R3-R1-02：TCS 信号替代轮询）。</summary>
+    private readonly List<(Func<string, bool> Match, TaskCompletionSource Signal)> _infoWaiters = new();
+
+    /// <summary>
+    /// 确定性等待一条匹配的 Info 留痕（R3-R1-02）：先在锁内检查已有消息（消除
+    /// "留痕先于注册发生"的丢失窗口），再注册 TCS 等待器，由 Info 调用触发首个
+    /// 匹配等待器。无轮询、无固定延迟；<paramref name="timeout"/> 仅作挂死保护。
+    /// </summary>
+    public Task WaitForInfoAsync(Func<string, bool> match, TimeSpan timeout)
+    {
+        lock (_infoGate)
+        {
+            if (InfoMessages.Any(match))
+            {
+                return Task.CompletedTask;
+            }
+
+            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _infoWaiters.Add((match, signal));
+            return signal.Task.WaitAsync(timeout);
+        }
+    }
+
     public void Info(string category, string message)
     {
+        TaskCompletionSource? toSignal = null;
+        lock (_infoGate)
+        {
+            InfoCount++;
+            InfoMessages.Add(message);
+
+            var index = _infoWaiters.FindIndex(w => w.Match(message));
+            if (index >= 0)
+            {
+                toSignal = _infoWaiters[index].Signal;
+                _infoWaiters.RemoveAt(index);
+            }
+        }
+
+        toSignal?.TrySetResult();
     }
 
     public void Warn(string category, string message, Exception? exception = null)
