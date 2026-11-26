@@ -80,7 +80,7 @@ ME-07 uses existing PRA numbering where available. These are bounded implementat
 | PRA-02 | Avalonia viewport host, custom draw operation and Skia resource lifetime | New implementation contract and platform spike report | PRA-01 implementation tests pass |
 | PRA-03 | Projection adapter, spatial index and geometry interaction integration | Existing spatial-presentation contracts reconciled with ME-05/ME-06; library spike | Typed CRS/precision contracts and PRA-01 scene identity |
 | PRA-04 | Text shaping, glyph drawing and label layout | Existing Production Renderer Architecture; detailed contract as needed | Stable scene/style/label inputs and HarfBuzz package matrix |
-| PRA-05 | Batching, level of detail, caches and performance | New measurable workload/benchmark contract | PRA-02/03 correctness and representative map fixtures |
+| PRA-05 | Batching, level of detail, caches and performance | Spatial Chunk & LOD Contract V0.1 + measured benchmark report | PRA-02/03 correctness and representative map fixtures |
 | PRA-06 | Animation presentation runtime | Existing Animation Runtime Contract V0.1 | Context fingerprint and historical-time source semantics integrated |
 | PRA-07 | Terrain, raster and Field Package visualization | ME-05 Field Package contracts + Map Engine renderer contract | Verified package parser/tiling and Field Revision read path |
 | PRA-08 | Decorations, symbols and remaining presentation composition | Existing visualization architecture + scene model | Scene layers and style/symbol resolution contract reconciled |
