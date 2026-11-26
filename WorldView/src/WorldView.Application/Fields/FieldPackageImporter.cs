@@ -403,18 +403,18 @@ public sealed class FieldPackageImporter
         Guid payloadId,
         string payloadSha256,
         long payloadByteLength) => new()
-    {
-        FieldPayloadId = payloadId,
-        ProjectId = plan.ProjectId,
-        FieldDatasetId = datasetId,
-        FieldRevisionId = revisionId,
-        StorageKind = FieldPayloadStorageKind.SqliteBlob,
-        PayloadFormat = PayloadFormat,
-        FormatVersion = PayloadFormatVersion,
-        HashAlgorithm = "sha-256",
-        ByteLength = payloadByteLength,
-        ContentHash = payloadSha256,
-        RelativePath = null,
-        CreatedAtUtcMs = plan.CreatedAtUtcMs,
-    };
+        {
+            FieldPayloadId = payloadId,
+            ProjectId = plan.ProjectId,
+            FieldDatasetId = datasetId,
+            FieldRevisionId = revisionId,
+            StorageKind = FieldPayloadStorageKind.SqliteBlob,
+            PayloadFormat = PayloadFormat,
+            FormatVersion = PayloadFormatVersion,
+            HashAlgorithm = "sha-256",
+            ByteLength = payloadByteLength,
+            ContentHash = payloadSha256,
+            RelativePath = null,
+            CreatedAtUtcMs = plan.CreatedAtUtcMs,
+        };
 }

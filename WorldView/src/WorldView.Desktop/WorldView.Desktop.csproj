@@ -22,7 +22,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WorldView.Application\WorldView.Application.csproj" />
+    <ProjectReference Include="..\WorldView.Presentation\WorldView.Presentation.csproj" />
     <ProjectReference Include="..\WorldView.Infrastructure\WorldView.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!--
+    WP-30B Phase 3A：视口生命周期类型（MapViewportBinding 等）为 Desktop 内部具体类，
+    按 ADR-07 约束 7 不实现接口、不注册 DI；生命周期测试经 InternalsVisibleTo 访问
+    （与 Application / Presentation 的既有授权模式一致）。
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="WorldView.Desktop.Tests" />
   </ItemGroup>
 
 </Project>

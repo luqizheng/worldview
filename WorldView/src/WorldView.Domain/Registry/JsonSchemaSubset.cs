@@ -468,45 +468,45 @@ public static class JsonSchemaSubset
         switch (a.ValueKind)
         {
             case JsonValueKind.Object:
-            {
-                var aCount = 0;
-                foreach (var property in a.EnumerateObject())
                 {
-                    aCount++;
-                    if (!b.TryGetProperty(property.Name, out var bValue) || !JsonDeepEquals(property.Value, bValue))
+                    var aCount = 0;
+                    foreach (var property in a.EnumerateObject())
                     {
-                        return false;
+                        aCount++;
+                        if (!b.TryGetProperty(property.Name, out var bValue) || !JsonDeepEquals(property.Value, bValue))
+                        {
+                            return false;
+                        }
                     }
-                }
 
-                var bCount = 0;
-                foreach (var _ in b.EnumerateObject())
-                {
-                    bCount++;
-                }
+                    var bCount = 0;
+                    foreach (var _ in b.EnumerateObject())
+                    {
+                        bCount++;
+                    }
 
-                return aCount == bCount;
-            }
+                    return aCount == bCount;
+                }
 
             case JsonValueKind.Array:
-            {
-                if (a.GetArrayLength() != b.GetArrayLength())
                 {
-                    return false;
-                }
-
-                using var aEnumerator = a.EnumerateArray().GetEnumerator();
-                using var bEnumerator = b.EnumerateArray().GetEnumerator();
-                while (aEnumerator.MoveNext() && bEnumerator.MoveNext())
-                {
-                    if (!JsonDeepEquals(aEnumerator.Current, bEnumerator.Current))
+                    if (a.GetArrayLength() != b.GetArrayLength())
                     {
                         return false;
                     }
-                }
 
-                return true;
-            }
+                    using var aEnumerator = a.EnumerateArray().GetEnumerator();
+                    using var bEnumerator = b.EnumerateArray().GetEnumerator();
+                    while (aEnumerator.MoveNext() && bEnumerator.MoveNext())
+                    {
+                        if (!JsonDeepEquals(aEnumerator.Current, bEnumerator.Current))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
 
             case JsonValueKind.String:
                 return string.Equals(a.GetString(), b.GetString(), StringComparison.Ordinal);

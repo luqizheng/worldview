@@ -224,7 +224,7 @@ internal static class CoreDomainAggregateModel
                 .HasPrincipalKey(x => new { x.ProjectId, x.AssetId }).OnDelete(DeleteBehavior.NoAction);
         });
     }
-    
+
     private static void ConfigureGuidText<TEntity>(EntityTypeBuilder<TEntity> entity)
         where TEntity : class
     {
