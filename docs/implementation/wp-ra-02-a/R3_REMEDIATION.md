@@ -164,3 +164,107 @@ Info 语义恰当；测试观察其作为完成信号），并新增 `InfoCount`
 3. 过期请求的成败结果一律丢弃并留痕，不覆盖、不静默；
 4. 关闭（Binding/Workspace 终态）后不接受任何发布；
 5. UI 属性赋值只发生在 UI Dispatcher 线程；锁内无 await、无 I/O、无嵌套锁。
+
+---
+
+# R3-R1 Remediation — 并发测试确定性修复（复审整改）
+
+- 基线：R3 HEAD `a9915c6d6677e08733e8df2d1c5585ea1c418b9c`
+- 复审发现：R3-R1-01（核心并发测试以"任务已创建"冒充"B 已到达锁竞争位置"）
+  + R3-R1-02（R3 交付声称确定性信号，实际仍存在 10ms 轮询）。
+- 生产代码 `PublishIfRequestCurrent` 的 `_stateGate` 方案保留不动。
+
+## R3-R1-01：B 到达锁竞争位置的确定性证明
+
+### 原缺陷
+
+`switchBInitiated` TCS 在 `Task.Run(...)` 创建后立即触发，只能证明任务对象已创建，
+不能证明 B 已实际执行到身份分配的锁竞争位置——正确实现与错误实现都可能因 B 尚未
+运行而使判别断言碰巧通过。
+
+### 修复方案：ContentionProbeResolver（测试自有，零生产代码改动）
+
+关键依据是生产代码的**同步执行链**（零调度点）：
+
+```
+B 线程: workspace.SwitchContextAsync(branchC, …, ContentionProbeResolver)
+  → await contextResolver.ResolveAsync(…)          // 返回已完成 Task + ConfigureAwait(false)
+                                                    //   ⇒ 同线程内联继续，无线程跳转
+  → lock (_gate) { … }                             // 会话锁，短暂、无竞争
+  → ContextSwitched?.Invoke(Context)               // 同步多播委托（MapWorkspaceSession.cs:185）
+      → VM 处理器同步前缀（_ = HandleContextSwitchedAsync 的首个 await 即
+        RequestSceneAsync，其同步前缀直达 lock (_stateGate) { identity = ++ }）
+```
+
+`ContentionProbeResolver.ResolveAsync` 在 B 的线程上、返回已完成任务**之前**，
+对 `_stateGate`（经反射读取私有字段，测试代码不变更生产可见性）执行
+`Monitor.TryEnter(gate, TimeSpan.Zero)` 并立即退出——该点是 B 路径上距身份分配锁
+最近的测试可达同步点，**探测点到锁之间零 await、零线程跳转**，探测发生即 B 已
+实际推进到锁竞争位置。
+
+判定语义（`LockFreeObserved`）：
+
+- **false（锁被持有）⇒ 正确实现**：场景中唯一持锁者是 A 的发布回调（被测试阻塞在
+  `PublishIfRequestCurrent` 临界区内，`publishEntered` 已确认）。B 随后真实执行的
+  `Monitor.Enter` 必然阻塞——B 被**锁的所有权**钉在竞争位置。此时放行 A：读取
+  `identityAtPublish`（仍在 A 的临界区内、动作返回之前）时，B 的分配需要先取得锁，
+  而锁由 A 持有至动作返回 ⇒ **必为 2，与线程调度无关**。
+- **true（锁空闲）⇒ 错误实现签名**：A 持锁的前提下不可能出现。测试随即等待 B 进入
+  准备步（`GatedPreparation.WaitEnteredAsync(2)`——准备严格后于身份分配），使
+  "B 的分配已完成"**先于放行被证明** ⇒ 放行后读取必为 3 ⇒ 核心断言
+  `Assert.Equal(2, identityAtPublish)` **稳定失败**。
+
+判定与断言之间**无任何时序假设**：两个分支的"分配 vs 读取"先后均由锁所有权或
+TCS 信号（准备步进入严格后于分配）证明，而非时间窗口。
+
+线程构造说明（任务书要求明确）：这是**跨线程锁竞争**，非同线程重入——A 的回调经
+`Task.Run(() => dispatcher.DrainOne())` 在 drain 工作线程执行并持有 `_stateGate`；
+B 经 `Task.Run` 在另一工作线程执行切换并在其线程上探测同一把锁。
+
+### 破坏实验（错误实现稳定失败，未提交到 PR）
+
+在临时 worktree `worldview-wt-r3r1-exp`（分支 `tmp/r3-r1-broken-impl-experiment`，
+基于 R3 基线，实验后已删除）中，将 VM 发布路径改为"身份检查与 UI 赋值分离"
+（R2 修复前形态：`LatestInitiatedRequestIdentity` 比较 + 直接赋值，无临界区），
+其余代码不动：
+
+| 运行 | 结果 |
+|---|---|
+| 1–5（连续 5 次） | 全部失败：`Assert.Equal() Failure: Expected: 2, Actual: 3` |
+
+错误实现下探测必然返回"锁空闲"签名 → B 越过分配点 → 准备步进入信号证明分配先于
+放行 → 读取见 3 → 核心断言稳定失败。实验代码未进入 PR 分支。
+
+## R3-R1-02：TCS 信号替代轮询
+
+- `FakeAppLog.WaitForInfoAsync(match, timeout)`：注册时先在锁内检查已有消息
+  （消除"留痕先于注册"的丢失窗口），再注册 TCS 等待器；`Info` 触发首个匹配
+  等待器。无轮询、无固定延迟；timeout 仅作挂死保护。
+- `QueueingUiDispatcher.WaitPostedAsync(timeout)`：注册时队列已非空则立即完成，
+  否则由下一次 `Post` 触发 TCS。
+- R3 路径测试（全部 `R3P0_*` + R3 重写的 `R2P0_LateFailureAfterNewRequestPublished`）
+  的 `WaitUntilAsync` 调用全部替换：
+  - 投递等待 → `WaitPostedAsync`；
+  - 丢弃留痕等待 → `WaitForInfoAsync`；
+  - `PreparationFailures == 1` / `Superseded == 1` 计数轮询 → 删除（留痕在协调器
+    Record 之后同一 continuation 内发生，留痕可见即计数已落定；计数断言保留在
+    信号之后）；
+  - Test C 的 `LatestInitiatedRequestIdentity == 3` 轮询 → 删除（非法上下文的
+    失败路径为纯同步链：`SwitchContextAsync` 返回时身份已分配、回调已入队，
+    直接断言）。
+- `WaitUntilAsync`（有界条件轮询）保留，仅供 R1/R2 既有测试使用，注释已明确
+  R3 路径禁止使用。
+- 验证：对 R3 路径测试文本 grep `WaitUntilAsync|Task.Delay|Thread.Sleep|SpinWait`
+  = 0 命中。
+
+## R3-R1 验证记录
+
+| 验证项 | 结果 |
+|---|---|
+| Desktop.Tests 全部 | 99/99 通过 |
+| 核心并发测试连续 20 次 | 20/20 通过 |
+| 破坏实验（错误实现）核心测试连续 5 次 | 5/5 稳定失败（Expected 2 / Actual 3） |
+| Debug 全量 | 984/984 通过 |
+| Release 全量 | 980/980 通过 |
+| R3 路径轮询/固定延迟检查 | 0 命中 |
+| Windows / macOS CI（Debug/Release） | 见 PR #40（推送后确认） |

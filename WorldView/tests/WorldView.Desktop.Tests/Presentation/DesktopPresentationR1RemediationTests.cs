@@ -42,9 +42,15 @@ namespace WorldView.Desktop.Tests.Presentation;
 /// <c>Task.Delay</c> 已全部移除；竞态测试的同步点由 PropertyChanged 订阅者
 /// 门控（订阅者在状态赋值过程中执行 = 确定处于发布临界区内）构造。
 ///
+/// R3-R1（并发测试确定性强化）：核心竞态测试（Test A）经
+/// <see cref="ContentionProbeResolver"/> 在 B 的线程上、距身份分配锁最近的同步点
+/// 内以 <c>Monitor.TryEnter</c> 观测锁状态——"B 已到达锁竞争位置"由锁的所有权
+/// 与同步链（探测点到锁之间零 await/调度点）证明，而非"任务已创建"；R3 路径
+/// 测试的完成信号全部为 TCS（<c>WaitPostedAsync</c> / <c>WaitForInfoAsync</c>），
+/// 无轮询。<c>WaitUntilAsync</c>（有界条件轮询）仅为 R1/R2 既有测试保留。
+///
 /// 竞态构造全部经 TCS 门控的 ScenePreparation、门控/工作线程解析替身与队列式
-/// UI 调度器（DrainOne 精确控制回调执行时刻），绝无 Thread.Sleep；轮询仅等待
-/// "已被门控确定的离散状态"的传播，带超时上限。
+/// UI 调度器（DrainOne 精确控制回调执行时刻），绝无 Thread.Sleep。
 /// </summary>
 public class DesktopPresentationR1RemediationTests
 {
@@ -73,12 +79,40 @@ public class DesktopPresentationR1RemediationTests
 
         public bool CheckAccess() => false;
 
+        private TaskCompletionSource? _postSignal;
+
+        /// <summary>
+        /// 确定性等待下一次投递（R3-R1-02）：注册时队列已非空则立即完成（消除
+        /// "投递先于注册发生"的丢失窗口）；否则由下一次 Post 触发 TCS。无轮询。
+        /// </summary>
+        public Task WaitPostedAsync(TimeSpan timeout)
+        {
+            TaskCompletionSource? toSignal = null;
+            lock (_gate)
+            {
+                if (_queue.Count > 0)
+                {
+                    return Task.CompletedTask;
+                }
+
+                _postSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                toSignal = _postSignal;
+            }
+
+            return toSignal.Task.WaitAsync(timeout);
+        }
+
         public void Post(Action action)
         {
+            TaskCompletionSource? toSignal = null;
             lock (_gate)
             {
                 _queue.Enqueue(action);
+                toSignal = _postSignal;
+                _postSignal = null;
             }
+
+            toSignal?.TrySetResult();
         }
 
         public void Drain()
@@ -280,6 +314,11 @@ public class DesktopPresentationR1RemediationTests
         await vm.CloseWorkspaceCommand.ExecuteAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// 有界条件轮询（R1/R2 既有测试的传播等待，带超时上限）。R3-R1-02 起：
+    /// R3 路径测试不得使用本方法——其完成信号一律为 TCS
+    /// （<c>QueueingUiDispatcher.WaitPostedAsync</c> / <c>FakeAppLog.WaitForInfoAsync</c>）。
+    /// </summary>
     private static async Task WaitUntilAsync(Func<bool> condition, string description)
     {
         var deadline = DateTime.UtcNow + _timeout;
@@ -438,6 +477,67 @@ public class DesktopPresentationR1RemediationTests
         public Task<WorkspaceContextResolution> ResolveAsync(
             Guid projectId, Guid mapId, Guid? branchId, string? historicalTimeInput, CancellationToken cancellationToken = default)
             => Task.FromResult(WorkspaceContextResolution.Ok(_results.Dequeue()));
+    }
+
+    /// <summary>
+    /// 锁竞争位置探测解析器（R3-R1-01）：在 B 的切换路径上、距
+    /// <c>MapViewportBinding.RequestSceneAsync</c> 身份分配锁<strong>最近</strong>的
+    /// 测试可达同步点内，于 B 的线程上同步观测 <c>_stateGate</c> 的锁状态。
+    ///
+    /// 同步链依据（无调度点）：本解析器返回已完成的 Task →
+    /// <c>MapWorkspaceSession.SwitchContextAsync</c> 的
+    /// <c>await ResolveAsync(...)</c> 同步继续（ConfigureAwait(false) + 已完成任务 =
+    /// 同线程内联继续）→ <c>lock (_gate)</c>（短暂、无竞争）→
+    /// <c>ContextSwitched?.Invoke</c>（同步多播委托）→ VM 处理器同步前缀
+    /// （<c>_ = HandleContextSwitchedAsync</c> 的首个 await 即
+    /// <c>RequestSceneAsync</c>，其同步前缀直达 <c>lock (_stateGate)</c> 身份分配）。
+    /// 探测点之后到锁之间<strong>零 await、零线程跳转</strong>——探测发生即 B 已
+    /// 实际推进到锁竞争位置。
+    ///
+    /// 判定语义（<see cref="LockFreeObserved"/> = TryEnter 是否成功）：
+    /// - false（锁被持有）：场景中唯一持锁者是 A 的发布回调（正被测试阻塞在
+    ///   <c>PublishIfRequestCurrent</c> 临界区内）⇒ B 即将真实进入的
+    ///   <c>Monitor.Enter</c> 必然阻塞——B 已被确定性钉在竞争位置；
+    /// - true（锁空闲）：A 持锁的前提下不可能出现 ⇒ 错误实现签名（身份判定与
+    ///   UI 写入脱离临界区），B 无需等锁即可分配身份。
+    /// 判定与后续断言之间无时序依赖（见 R3P0_PublishDuringCriticalSection 测试
+    /// 文档），对被测实现的两种形态均确定性成立。
+    /// </summary>
+    private sealed class ContentionProbeResolver : IWorkspaceContextResolver
+    {
+        private readonly ValidatedWorkspaceContext _context;
+        private readonly Func<object> _stateGateAccessor;
+
+        public ContentionProbeResolver(ValidatedWorkspaceContext context, Func<object> stateGateAccessor)
+        {
+            _context = context;
+            _stateGateAccessor = stateGateAccessor;
+        }
+
+        /// <summary>true = TryEnter 成功（锁空闲）；false = 锁被持有（B 将阻塞）。</summary>
+        public TaskCompletionSource<bool> LockFreeObserved { get; }
+            = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<WorkspaceContextResolution> ResolveAsync(
+            Guid projectId, Guid mapId, Guid? branchId, string? historicalTimeInput, CancellationToken cancellationToken = default)
+        {
+            var gate = _stateGateAccessor();
+            var lockFree = false;
+            try
+            {
+                lockFree = Monitor.TryEnter(gate, TimeSpan.Zero);
+            }
+            finally
+            {
+                if (lockFree)
+                {
+                    Monitor.Exit(gate);
+                }
+            }
+
+            LockFreeObserved.TrySetResult(lockFree);
+            return Task.FromResult(WorkspaceContextResolution.Ok(_context));
+        }
     }
 
     // ---- R1-P2-01：请求完成乱序 / 状态倒退防护 ----
@@ -712,7 +812,7 @@ public class DesktopPresentationR1RemediationTests
         await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(contextB));
         await prep!.WaitEnteredAsync(1);
         await workspace.SwitchContextAsync(branchC, historicalTimeInput: null, new ScriptedResolver(contextC));
-        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "请求 3 状态投递");
+        await dispatcher.WaitPostedAsync(_timeout);
         dispatcher.Drain();
         var statusOfRequest3 = vm.WorkspaceStatusText;
         Assert.Contains("语义切换", statusOfRequest3, StringComparison.Ordinal);
@@ -720,16 +820,13 @@ public class DesktopPresentationR1RemediationTests
 
         // A 晚到失败（门控释放后准备异常 → 协调器归一化 Failed 结果，身份 2 已过期）。
         prep!.Release(1);
-        await WaitUntilAsync(
-            () => binding.Runtime.Coordinator.Counters.PreparationFailures == 1,
-            "旧请求晚到失败落定");
 
-        // R3-02 确定性完成信号：投递前守卫的丢弃留痕。判定与留痕之间无任何 await/
-        // 调度点，留痕可见 ⇔ 身份判定已执行且结果为丢弃——此后该 continuation 不可能
-        // 再投递任何回调；队列中亦不存在其他潜在投递者（B 的回调已 Drain）。
-        await WaitUntilAsync(
-            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
-            "过期失败被投递前守卫丢弃（留痕）");
+        // R3-R1-02 确定性完成信号：投递前守卫的丢弃留痕经 FakeAppLog 的 TCS 等待器
+        // 通知（注册时先查已有消息，无丢失窗口；无轮询）。该留痕在协调器计数之后
+        // 同一 continuation 内发生，故其可见即"失败已落定 + 身份判定已执行且结果为
+        // 丢弃"——此后该 continuation 不可能再投递任何回调。
+        await log.WaitForInfoAsync(
+            m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal), _timeout);
 
         // 投递前身份守卫：A 的失败回调未入队。
         Assert.Equal(0, dispatcher.PostedCount);
@@ -854,20 +951,34 @@ public class DesktopPresentationR1RemediationTests
     // ---- R3：发布原子性（身份分配与 UI 发布串行化）+ 确定性测试 ----
 
     /// <summary>
-    /// R3 规格 Test A（发布期间启动新请求，确定性验证 R3-01）：请求 A 的发布回调
-    /// 正处于 <c>PublishIfRequestCurrent</c> 的 <c>_stateGate</c> 临界区内
-    /// （状态赋值过程中，经 PropertyChanged 订阅者门控保持临界区打开）时，从临界区
-    /// 内部发起请求 B——B 的身份分配需要同一把锁，<strong>确定性</strong>地被排除在
-    /// A 的"身份判定 → 状态写入完成"之外：
+    /// R3 规格 Test A（发布期间启动新请求，确定性验证 R3-01，R3-R1-01 强化）：
+    /// 请求 A 的发布回调正处于 <c>PublishIfRequestCurrent</c> 的 <c>_stateGate</c>
+    /// 临界区内（状态赋值过程中，经 PropertyChanged 订阅者门控保持临界区打开）时，
+    /// 从外部线程发起请求 B——B 的身份分配需要同一把锁，<strong>确定性</strong>地
+    /// 被排除在 A 的"身份判定 → 状态写入完成"之外。
+    ///
+    /// B 到达锁竞争位置的<strong>确定性证据</strong>（R3-R1-01）：B 的切换使用
+    /// <see cref="ContentionProbeResolver"/>，其 ResolveAsync 在 B 的线程上于
+    /// <c>_stateGate</c> 上执行 <c>Monitor.TryEnter(0)</c>——该点是 B 路径上距身份
+    /// 分配锁最近的测试可达同步点，其后到锁之间零 await、零线程跳转（同步链依据见
+    /// 该类文档）。判定语义：
     /// <list type="bullet">
-    /// <item>A 的发布在其身份（2）仍为最新时完整执行（identityAtPublish == 2）；</item>
-    /// <item>A 的失败状态先落地（A 当期为最新请求，发布守卫放行）；</item>
-    /// <item>临界区退出后 B 才取得身份 3，B 的成功发布随后覆盖 A 的状态——最终
-    /// UI 状态对应最新有效请求。</item>
+    /// <item>TryEnter 失败（锁被 A 持有）⇒ 正确实现 ⇒ B 的 <c>Monitor.Enter</c>
+    /// 必然阻塞——B 已被钉在竞争位置。此时放行 A：读取（仍在 A 的临界区内）时 B
+    /// 不可能已分配（分配需先取得锁，锁由 A 持有至动作返回）⇒ identityAtPublish
+    /// 必为 2，<strong>由锁的所有权证明，与线程调度无关</strong>；</item>
+    /// <item>TryEnter 成功（锁空闲）⇒ 错误实现签名（A 未持锁执行写入）⇒ B 无需
+    /// 等锁即可分配。测试随即等待 B 进入准备步（<c>GatedPreparation</c> Entered，
+    /// 准备严格后于身份分配）——分配完成先于放行被证明 ⇒ 读取必为 3，
+    /// <c>Assert.Equal(2, ...)</c> <strong>稳定失败</strong>。</item>
     /// </list>
-    /// 回归判别：若身份判定与状态写入脱离同一临界区（修复回退），B（已在临界区内
-    /// 被发起、无需等待锁即可分配身份）可能在 identityAtPublish 读取前取得身份 3，
-    /// 断言即失败。同步点全部为 TCS 门控，无固定延迟、无调度碰运气。
+    /// 线程构造（跨线程锁竞争，非同线程重入）：A 的回调在 drain 工作线程执行并
+    /// 持锁；B 经 <c>Task.Run</c> 在另一工作线程执行切换与探测——探测点与锁获取
+    /// 点都在 B 的线程上，判读的是真实的跨线程锁状态。
+    ///
+    /// 最终时序：A 的失败状态先落地（A 发布时仍为最新）→ B 取得身份 3 → B 成功
+    /// 发布覆盖 → 最终 UI 状态对应最新有效请求。同步点全部为 TCS 门控
+    /// （<c>WaitPostedAsync</c> / <c>WaitForInfoAsync</c>），无固定延迟、无轮询。
     /// </summary>
     [Fact]
     public async Task R3P0_PublishDuringCriticalSection_NewRequestIdentityExcluded()
@@ -890,21 +1001,21 @@ public class DesktopPresentationR1RemediationTests
         var workspace = await OpenAsync(vm, mapQuery, map);
         var binding = vm.GetViewportBinding(workspace)!;
 
-        // A：切换请求（门控挂起）→ 释放 → 失败 → 当期最新（B 未发起）→ 投递前守卫放行 → 回调入队。
+        // A：切换请求（门控挂起）→ 释放 → 失败 → 当期最新（B 未发起）→ 投递前守卫
+        // 放行 → 回调入队（同步链：SwitchContextAsync → Invoke → 处理器同步前缀 →
+        // Post，返回时已入队）。
         await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(contextB));
         await prep!.WaitEnteredAsync(1);
         prep!.Release(1);
-        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "A 失败状态回调入队");
+        await dispatcher.WaitPostedAsync(_timeout);
         Assert.Equal(2, binding.LatestInitiatedRequestIdentity);
 
         // 竞态构造：A 的回调执行到状态赋值时（= 已通过身份判定、处于 _stateGate
-        // 临界区内），由 PropertyChanged 订阅者接管：发起请求 B、保持临界区打开、
+        // 临界区内），由 PropertyChanged 订阅者接管：保持临界区打开，直到测试放行；
         // 放行后在赋值完成前读取最新身份。
         var publishEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var switchBInitiated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releasePublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         long identityAtPublish = -1;
-        Task? switchBTask = null;
         var armPhase = 0; // 0 = 未武装；武装后首个状态变更触发门控（Exchange 置 2 防重入）。
 
         void OnStatusChanged(object? sender, PropertyChangedEventArgs e)
@@ -919,29 +1030,43 @@ public class DesktopPresentationR1RemediationTests
                 return;
             }
 
-            // 此刻处于 PublishIfRequestCurrent 的 _stateGate 临界区内。
+            // 此刻处于 PublishIfRequestCurrent 的 _stateGate 临界区内（drain 工作线程）。
             publishEntered.TrySetResult();
-
-            // 从临界区内发起 B：其身份分配必须等本临界区退出（锁由本线程持有）。
-            switchBTask = Task.Run(() => workspace.SwitchContextAsync(
-                branchC, historicalTimeInput: null, new ScriptedResolver(contextC)));
-            switchBInitiated.TrySetResult();
 
             // 保持临界区打开，直到测试放行。
             releasePublish.Task.Wait(_timeout);
 
-            // 放行后、赋值完成前读取：若身份分配可与发布交错（修复回退），B 的身份
-            // 可能已被取得（3）；修复生效时 B 仍被锁排除，此处必为 2。
+            // 放行后、赋值完成前读取：正确实现下 B 被锁排除（仍为 2）；错误实现下
+            // B 的分配已被准备步进入信号证明先于放行（必为 3）→ 核心断言失败。
             identityAtPublish = binding.LatestInitiatedRequestIdentity;
         }
 
         vm.PropertyChanged += OnStatusChanged;
         Volatile.Write(ref armPhase, 1);
 
-        // 在独立线程执行 A 的回调（本测试主线程需要在回调阻塞期间与之交互）。
+        // 在独立线程执行 A 的回调（与 B 的 Task.Run 线程构成真实的跨线程锁竞争）。
         var drainTask = Task.Run(() => dispatcher.DrainOne());
-        await publishEntered.Task.WaitAsync(_timeout);      // A 已进入发布临界区
-        await switchBInitiated.Task.WaitAsync(_timeout);    // B 已从临界区内被发起
+        await publishEntered.Task.WaitAsync(_timeout); // A 已进入发布临界区（持锁）
+
+        // 发起 B（独立工作线程），其切换路径经 ContentionProbeResolver 在锁竞争
+        // 位置同步观测锁状态——信号即"B 已实际到达竞争位置"的确定性证据。
+        var probe = new ContentionProbeResolver(
+            contextC,
+            () => (object?)typeof(MapViewportBinding)
+                .GetField("_stateGate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .GetValue(binding)!);
+        var switchBTask = Task.Run(() => workspace.SwitchContextAsync(
+            branchC, historicalTimeInput: null, probe));
+        var lockFree = await probe.LockFreeObserved.Task.WaitAsync(_timeout);
+
+        if (lockFree)
+        {
+            // 错误实现签名：A 未持锁 ⇒ B 已越过分配点。等待准备步进入（严格后于
+            // 身份分配），使"分配完成"先于放行被证明——读取必见 3，核心断言失败。
+            await prep!.WaitEnteredAsync(2);
+        }
+        // 正确实现签名：锁被 A 持有 ⇒ B 的 Monitor.Enter 必然阻塞，B 已被钉在竞争
+        // 位置；此时放行安全且读取必为 2（锁所有权证明，与调度无关）。
 
         releasePublish.TrySetResult();                      // 放行 → A 完成写入 → 临界区退出
         Assert.True(await drainTask);                       // A 的回调确实执行并发布
@@ -949,15 +1074,17 @@ public class DesktopPresentationR1RemediationTests
         // A 的失败状态已落地（A 发布时仍是最新请求）。
         Assert.Contains("场景请求失败", vm.WorkspaceStatusText, StringComparison.Ordinal);
         // 核心不变量：A 的写入完成前，B 的身份分配被临界区排除（仍为 2）。
+        // 错误实现下 B 的分配已先于放行被证明 → 此处必为 3 → 稳定失败。
         Assert.Equal(2, identityAtPublish);
 
         // B 在临界区退出后取得身份 3 → 成功发布 → 覆盖 A 的状态（最终 UI = 最新请求）。
-        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 状态投递");
+        await dispatcher.WaitPostedAsync(_timeout);
         Assert.True(dispatcher.DrainOne());
         Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
         Assert.Equal(PresentationRequestState.Published, binding.LastRequestOutcome!.State);
         Assert.Contains("已发布", vm.WorkspaceStatusText, StringComparison.Ordinal);
         Assert.DoesNotContain("场景请求失败", vm.WorkspaceStatusText, StringComparison.Ordinal);
+        await switchBTask; // B 的切换任务正常完成（异常将在此浮出）
     }
 
     /// <summary>
@@ -992,23 +1119,21 @@ public class DesktopPresentationR1RemediationTests
         await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(contextB));
         await prep!.WaitEnteredAsync(1);
 
-        // B：发起并立即成功（身份 3）→ 状态可见。
+        // B：发起并立即成功（身份 3）→ 状态可见（TCS 投递信号，无轮询）。
         await workspace.SwitchContextAsync(branchC, historicalTimeInput: null, new ScriptedResolver(contextC));
-        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 状态投递");
+        await dispatcher.WaitPostedAsync(_timeout);
         Assert.True(dispatcher.DrainOne());
         var statusOfB = vm.WorkspaceStatusText;
         Assert.Contains("语义切换", statusOfB, StringComparison.Ordinal);
         Assert.Contains("已发布", statusOfB, StringComparison.Ordinal);
         Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
 
-        // A 晚到成功（Superseded 完成）→ 投递前身份守卫丢弃（留痕 = 完成信号）。
+        // A 晚到成功（Superseded 完成）→ 投递前身份守卫丢弃。留痕经 TCS 等待器
+        // 等待（无轮询）；留痕在协调器 Record 之后同一 continuation 内发生，故其
+        // 可见即 Superseded 已计数。
         prep!.Release(1);
-        await WaitUntilAsync(
-            () => binding.Runtime.Coordinator.Counters.Superseded == 1,
-            "旧请求晚到落定");
-        await WaitUntilAsync(
-            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
-            "过期成功被投递前守卫丢弃（留痕）");
+        await log.WaitForInfoAsync(
+            m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal), _timeout);
 
         // A 的回调从未入队；B 的状态与结果不被覆盖（晚到成功同样不得倒退）。
         Assert.Equal(0, dispatcher.PostedCount);
@@ -1057,10 +1182,12 @@ public class DesktopPresentationR1RemediationTests
         await prep!.WaitEnteredAsync(1);
 
         // B：非法上下文切换（身份 3 = 最新）→ 请求创建失败归一化为 Failed → 当期最新
-        // 请求的失败正常发布（守卫放行）。
+        // 请求的失败正常发布（守卫放行）。SwitchContextAsync 的整条链（Invoke →
+        // 处理器同步前缀 → RequestSceneAsync 同步失败路径 → Post）为同步执行，
+        // 返回时身份已分配、回调已入队——直接断言，无轮询。
         await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(invalidContext));
-        await WaitUntilAsync(() => binding.LatestInitiatedRequestIdentity == 3, "B 请求发起");
-        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 失败状态投递");
+        Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
+        await dispatcher.WaitPostedAsync(_timeout);
         Assert.True(dispatcher.DrainOne());
         var statusOfB = vm.WorkspaceStatusText;
         Assert.Contains("语义切换", statusOfB, StringComparison.Ordinal);
@@ -1072,11 +1199,10 @@ public class DesktopPresentationR1RemediationTests
         // A 晚到成功（身份 2 已过期）：B 因非法上下文在请求创建阶段失败，从未注册
         // 进协调器——协调器无从知晓身份 3，A 在协调器侧仍是其已知最新请求（成功
         // 正常落定）；过期判定的权威是 Binding 的最新发起身份（R3-01 正确性层）。
-        // 投递前守卫丢弃留痕即确定性完成信号（判定与留痕间无 await/调度点）。
+        // 投递前守卫丢弃留痕经 TCS 等待器等待（无轮询；判定与留痕间无 await/调度点）。
         prep!.Release(1);
-        await WaitUntilAsync(
-            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
-            "过期成功被投递前守卫丢弃（留痕）");
+        await log.WaitForInfoAsync(
+            m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal), _timeout);
 
         // B 的失败状态保留：不被晚到成功覆盖（失败不冒充成功、过期不得倒退）。
         Assert.Equal(0, dispatcher.PostedCount);
