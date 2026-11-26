@@ -171,9 +171,22 @@ internal class MapViewportBinding
     internal virtual ValueTask CloseCoordinatorStepAsync()
         => _runtime.Coordinator.DisposeAsync();
 
-    /// <summary>步骤 1c 调用缝：直通 <see cref="SceneSnapshotPublisher.Dispose"/>。</summary>
+    /// <summary>
+    /// 步骤 1c 调用缝：直通 <see cref="SceneSnapshotPublisher.Dispose"/>。
+    /// 仅 Debug 构建在此处检查一次性验收故障（ADR-10 阶段级完成标记使重试只补
+    /// 本阶段：前序 Coordinator 已成功 → 重试时 coordinator_skipped，不重复释放）；
+    /// Release 编译后本方法只有下面这一条直调语句，无状态、无分支。
+    /// </summary>
     internal virtual void DisposePublisherStep()
-        => _runtime.Publisher.Dispose();
+    {
+#if DEBUG
+        if (DebugCloseFault.Consume(DebugCloseFault.FaultStage) is { } injected)
+        {
+            throw injected;
+        }
+#endif
+        _runtime.Publisher.Dispose();
+    }
 
     /// <summary>
     /// 步骤 1b–1d（ADR-10 §7.1）：屏障 → 发布器 → 渲染器，顺序不可重排。

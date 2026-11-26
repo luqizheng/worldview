@@ -1,6 +1,9 @@
 using System;
 using System.ComponentModel;
 using Avalonia.Controls;
+#if DEBUG
+using Avalonia.Input;
+#endif
 using Avalonia.Interactivity;
 using WorldView.Desktop.Rendering;
 using WorldView.Desktop.ViewModels;
@@ -23,10 +26,18 @@ public partial class ProjectWindow : Window
     private bool _allowClose;
     private bool _closeInProgress;
     private ProjectWorkspaceViewModel? _subscribedViewModel;
+#if DEBUG
+    // 仅 Debug 编译：一次性故障注入的可见武装入口（Release 无此字段 / 快捷键 / 分支）。
+    private readonly string _debugBaseTitle;
+#endif
 
     public ProjectWindow()
     {
         InitializeComponent();
+#if DEBUG
+        _debugBaseTitle = Title ?? string.Empty;
+        KeyDown += OnDebugFaultKeyDown;
+#endif
 
         // 标题栏关闭也必须走项目会话关闭流程，不能只销毁窗口而遗留活动会话。
         Closing += async (_, e) =>
@@ -66,6 +77,10 @@ public partial class ProjectWindow : Window
                 // 成功路径由 ProjectClosed 关闭窗口；失败路径取消本次关闭但保留再次尝试能力。
                 // 所有分支都必须复位，否则窗口会永久拒绝关闭。
                 _closeInProgress = false;
+#if DEBUG
+                // 故障被消费后同步撤下标题栏武装标记，避免误导后续重试。
+                RefreshDebugFaultTitle();
+#endif
             }
         };
 
@@ -114,6 +129,36 @@ public partial class ProjectWindow : Window
             }
         };
     }
+
+#if DEBUG
+    /// <summary>
+    /// 人工验收专用入口：Ctrl+Shift+F9 武装一次性 Publisher 阶段关闭故障。
+    /// 标题栏与状态栏同时提示；再次按同一组合键重复武装仍只有"一次"故障。
+    /// </summary>
+    private void OnDebugFaultKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F9
+            || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Shift))
+                != (KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            return;
+        }
+
+        DebugCloseFault.ArmOnce();
+        RefreshDebugFaultTitle();
+        if (DataContext is ProjectWorkspaceViewModel vm)
+        {
+            vm.WorkspaceStatusText =
+                "[DEBUG] 一次性关闭故障已武装（Publisher 阶段）：首次点击 X 将失败，窗口保留；再次点击 X 正常关闭。";
+        }
+
+        e.Handled = true;
+    }
+
+    private void RefreshDebugFaultTitle()
+        => Title = _debugBaseTitle
+            + (DebugCloseFault.IsArmed ? DebugCloseFault.ArmedTitleSuffix : string.Empty);
+#endif
 
     private void OnProjectClosed()
     {
