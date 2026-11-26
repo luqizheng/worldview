@@ -359,3 +359,104 @@ B 经 `Task.Run` 在另一工作线程执行切换并在其线程上探测同一
 | Release 全量 | 981/981 通过 |
 | R3 路径轮询/固定延迟/反射检查 | 0 命中（`WaitUntilAsync` 仅 R1/R2 既有测试使用） |
 | Windows / macOS CI（Debug/Release） | 见 PR #40（推送后确认） |
+
+## R3-R2 独立复核（专项核验，2026-11-26）
+
+本节记录对 `868f829` 的独立复核结果：重点不是"正确实现能通过测试"，而是
+"测试能否稳定检出锁保护被移除的错误实现"。
+
+### 核心不变量
+
+`MapViewportBinding` 的 `_stateGate` 同时保护身份分配与
+`PublishIfRequestCurrent` 的身份检查 + 发布操作。必须保证：**A 的 publish Action
+执行期间，B 无法完成请求身份分配**。目标错误实现 = 判定与 `publish()` 之间无锁。
+
+### 全仓库锁获取点枚举与第三持锁者排除
+
+`grep -rn "_stateGate\|StateGateForTesting" WorldView/src WorldView/tests --include="*.cs"`
+（排除 obj/bin）结果分类：
+
+| 位置 | 性质 | 测试期间是否可能持锁 |
+|---|---|---|
+| `ProjectSession.cs`（20+ 处） | **另一个类**的私有同名字段、独立实例 | 否——与 `MapViewportBinding._stateGate` 不是同一对象 |
+| `MapViewportBinding.cs:372` | `RequestSceneAsync` 身份分配 | B 即将进入的点；探测时 B 尚未执行到此处 |
+| `MapViewportBinding.cs:398` | `RequestSceneAsync` 指纹记录 | B 在身份分配之后才进入；探测时未发生 |
+| `MapViewportBinding.cs:445` | `PublishIfRequestCurrent` 发布临界区 | **A 正在持有**（publishEntered 已证明 Action 内暂停） |
+| `MapViewportBinding.cs:485` | `RecordOutcomeIfCurrent` 结果记录 | B 在管线完成之后才进入；探测时未发生 |
+| `MapViewportBinding.cs:331` | `StateGateForTesting` 属性 | 仅返回引用，不获取锁 |
+| 测试文件 | `GateProbeResolver` 探测 + 文档引用 | 唯一测试持锁点，且成功获取后立即 `finally` 释放 |
+
+**排除结论**：本测试中同一实例的锁只有两个潜在持有者——A 的发布临界区（探测时
+确实持有）、B 稍后进入的身份分配（探测时尚未进入）。每个测试经
+`BuildR1(bindingFactory: …)` 创建**独立**的 `MapViewportBinding` 实例，xUnit 并行
+执行的不同测试不共享锁实例；测试自有订阅者、`ContextSwitched` 回调、准备步门控
+均不获取该锁。因此 `TryEnter` 失败只能由 A 持有锁造成，判定方向唯一。
+
+### 探测时序逐项核验
+
+1. 探测在 `GateProbeResolver.ResolveAsync` 内、B 的 `SwitchContextAsync` 调用线程上
+   同步执行（`Task.Run` 启动 B 的切换，resolver 由 B 的线程调用）；
+2. 探测目标 `binding.StateGateForTesting` = 生产 `_stateGate` 同一实例（属性直接
+   返回该字段，非测试自建锁）；
+3. `Monitor.TryEnter(gate, TimeSpan.Zero)` 发生在 `LockFreeObserved.TrySetResult`
+   **之前**；TCS 使用 `RunContinuationsAsynchronously`，测试线程 continuation 不会
+   在 B 的线程内联执行，避免反向阻塞；
+4. 探测先于信号 ⇒ 测试观察到信号时结果已确定；
+5. 探测成功时 `finally` 中 `Monitor.Exit`；探测失败时 `lockFree == false`，
+   不调用 `Monitor.Exit`；
+6. 探测后 resolver 返回 `WorkspaceContextResolution.Ok(_context)`（已完成 Task，
+   同线程内联继续）→ 真实 `SwitchContextAsync` 链路继续到身份分配，无模拟替代；
+7. 异常传播：探测无抛异常路径（`TryEnter(0)` 不抛；`Monitor.Exit` 仅在成功获取后
+   调用）；若 resolver 本身异常，B 的 `switchTask` 会在 `await` 处浮出，测试超时
+   保护为 10 秒。
+
+### 错误实现下的立即失败路径
+
+错误实现中 A 的 publish Action 内不持锁。A 进入 Action 并置位 `publishEntered`
+后等待 `releasePublish`；此时同一实例 `_stateGate` 空闲（无第三持锁者，见上表）。
+B 在 resolver 中的 `TryEnter` 必然成功 ⇒ `LockFreeObserved` 收到 `true` ⇒
+`Assert.False(lockFree, "身份门锁空闲…")` **在测试线程收到信号的瞬间即失败**。
+
+该失败判定不依赖：线程调度速度（信号先于放行 A，A 尚未执行任何后续动作）、
+延迟时间（无 `Task.Delay`/`Sleep`/`SpinWait`/轮询）、偶然执行顺序（判定对象是
+探测时刻的锁状态，探测先于信号 by construction）。错误实现下不存在能通过测试的
+路径——除非 A 的 Action 未进入（此时 `publishEntered` 等待超时，测试仍失败）。
+
+### StateGateForTesting 暴露边界核验
+
+- `WorldView.Desktop.csproj:35` 明确 `<InternalsVisibleTo Include="WorldView.Desktop.Tests" />`
+  —— 属性为 `internal`，仅测试程序集可访问；
+- 全仓库引用显示：**仅** `GateProbeResolver` 使用该属性；生产代码一律直接使用
+  `_stateGate`，无任何生产路径经由该属性操作锁；
+- 属性只返回引用，不暴露锁操作接口，不改变锁语义；无需引入接口层、DI 或新抽象。
+
+### 复核实验（实际执行，临时 worktree 自 `868f829` 创建，实验后删除）
+
+| 实验 | 方法 | 结果 |
+|---|---|---|
+| A：正确实现 | `dotnet test --filter "FullyQualifiedName~R3P0_PublishActionHoldsIdentityGate"` 连续 20 次 | **20/20 全部通过**（每次 `失败: 0 成功: 1`） |
+| B：错误实现 | 临时 worktree 中把 `PublishIfRequestCurrent` 改为判定与 `publish()` 分离，运行**同一个**测试连续 5 次 | **5/5 全部失败**，失败信息均为"A 的 publish Action 执行期间身份门锁空闲：身份判定与状态写入未受同一锁保护（错误实现签名）" |
+| 恢复核验 | 实验 worktree 与分支 `tmp/r3-r2-review-broken` 已删除；主工作树 `git status --short` 为空，生产代码无 `EXPERIMENT` 标记残留 | 通过 |
+
+### 完整验证（实际执行）
+
+| 验证项 | 结果 |
+|---|---|
+| Desktop.Tests Debug | 100/100，失败 0 |
+| Debug 全量 | 985/985，失败 0 |
+| Release 全量 | 981/981，失败 0 |
+| Windows Debug / Release CI | success / success |
+| macOS Debug / Release CI | success / success |
+| CI Run ID | `45845579467`（head `868f829`，四矩阵全绿） |
+
+测试数量说明：Desktop.Tests 从 R3-R1 的 99 增至 100，原因是 Test A 一分为二
+（底层原子性 + ViewModel 接线），净增 1 个测试；全量 Debug 984 → 985、Release
+980 → 981 同因。Debug 与 Release 的 4 个差额来自 `#if DEBUG` 包裹的
+`DebugCloseFaultTests`，非失败或跳过。CI 日志逐作业计数需 GitHub 认证（本环境
+未认证，403），此处以本地同命令实测计数与 CI 作业结论为依据。
+
+### 复核结论
+
+锁持有者判定逻辑严谨、探测时序无竞态漏洞、错误实现被稳定检出（5/5）、正确实现
+20/20、全量与四矩阵 CI 通过、文档与实际代码一致。本轮独立复核未发现需要修正的
+问题；PR #40 保持 Draft、未合并、未转 Ready。
