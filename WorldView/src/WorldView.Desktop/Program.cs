@@ -7,6 +7,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.Sessions;
 using WorldView.Application.Settings;
 using WorldView.Application.UseCases;
+using WorldView.Desktop.Ui;
 using WorldView.Desktop.ViewModels;
 using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.IO;
@@ -113,12 +114,15 @@ internal static class Program
             IWorkspaceContextResolver contextResolver = new CoreDomainWorkspaceContextResolver(session.Database);
             IMapCreationService mapCreation = new CoreDomainMapCreationService(session.Database);
             var createMapUseCase = new CreateMapUseCase(session, mapCreation, log: sp.GetRequiredService<IAppLog>());
+            // UI Dispatcher 边界（WP-RA-02-A R1-P1-01）：ContextSwitched 后台路径的
+            // ViewModel 属性更新经 Avalonia UI 线程投递（见 ProjectWorkspaceViewModel）。
             return new ProjectWorkspaceViewModel(
                 session,
                 mapQuery,
                 contextResolver,
                 createMapUseCase,
-                log: sp.GetRequiredService<IAppLog>());
+                log: sp.GetRequiredService<IAppLog>(),
+                uiDispatcher: AvaloniaUiDispatcher.Instance);
         });
 
         return services.BuildServiceProvider();

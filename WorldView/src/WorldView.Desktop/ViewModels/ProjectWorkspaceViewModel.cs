@@ -10,6 +10,7 @@ using WorldView.Application.Abstractions;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
 using WorldView.Desktop.Rendering;
+using WorldView.Desktop.Ui;
 using WorldView.Presentation.Publication;
 
 namespace WorldView.Desktop.ViewModels;
@@ -42,6 +43,15 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     private readonly IWorkspaceContextResolver? _contextResolver;
     private readonly IAppLog? _log;
 
+    /// <summary>
+    /// UI Dispatcher 边界（WP-RA-02-A R1-P1-01）：<c>ContextSwitched</c> 由
+    /// SwitchContextAsync 的异步解析完成线程触发（真实异步解析时可能为
+    /// ThreadPool），该线程不存在 Avalonia SynchronizationContext——由事件触发的
+    /// ViewModel 属性更新必须经本抽象投递到 UI 线程。生产组合根注入
+    /// AvaloniaUiDispatcher；默认值同为 Avalonia 实现（缺省即安全）。
+    /// </summary>
+    private readonly IUiDispatcher _uiDispatcher;
+
     /// <summary>存活视口登记（workspaceId → entry）。仅用于枚举的私有小集合：
     /// 不是全局注册表、不注册 DI、不拥有释放权（释放归 binding 自身的幂等关闭，ADR-10 §8B 第 25 条）。
     /// entry 同时持有该工作区的 ContextSwitched 订阅（WP-RA-02-A：语义切换 → 重请求；
@@ -72,13 +82,15 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         IMapQueryService? mapQuery,
         IWorkspaceContextResolver? contextResolver,
         CreateMapUseCase createMap,
-        IAppLog? log = null)
+        IAppLog? log = null,
+        IUiDispatcher? uiDispatcher = null)
     {
         Session = session;
         _mapQuery = mapQuery;
         _contextResolver = contextResolver;
         CreateMap = createMap;
         _log = log;
+        _uiDispatcher = uiDispatcher ?? AvaloniaUiDispatcher.Instance;
     }
 
     /// <summary>项目会话关闭事件（窗口层据此返回启动面）。C2 编排全程只触发一次。</summary>
@@ -221,11 +233,19 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             {
                 // 初始场景请求（WP-RA-02-A 验收链路）：等待 Prepare 完成；结果可观察，
                 // 失败不冒充成功（工作区仍保持打开，渲染侧显示空态直到有效发布）。
-                var outcome = await newBinding.RequestSceneAsync(
+                // R1-P2-02：初始请求先于视口控件 Bind 发起（M1 空白场景与视口尺寸无关，
+                // 契约 B）；R1-P2-01：若等待期间有更新的请求发起（如并发的语义切换），
+                // 本请求已过期——仅当前有效请求才把结果写入状态文本，过期请求静默让位。
+                // 注意：过期判定只看请求身份（是否存在更新的请求）；本请求自身的
+                // RejectedClosed 等结果即便发生在关闭之后也如实显示（失败不冒充成功）。
+                var initialRequest = await newBinding.RequestSceneAsync(
                     workspace.Context, cancellationToken).ConfigureAwait(true);
+                var outcomeText = newBinding.LatestInitiatedRequestIdentity == initialRequest.RequestIdentity
+                    ? DescribeOutcome(initialRequest.Outcome)
+                    : string.Empty;
                 WorkspaceStatusText = isExisting
                     ? $"地图「{workspace.MapName}」已有打开的工作区（{workspace.WorkspaceId:N}），复用现有工作区。"
-                    : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。{DescribeOutcome(outcome)}";
+                    : $"工作区「{workspace.MapName}」({workspace.WorkspaceId:N}) 已打开。{outcomeText}";
             }
             else
             {
@@ -376,7 +396,9 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>
     /// 语义切换事件处理器：Binding 已关闭或工作区已进入关闭流程时忽略（关闭路径
     /// 已阻止新请求，迟到的切换事件不得触碰已关闭 Runtime）；否则发起重请求，
-    /// 结果经状态文本可观察（失败不冒充成功）。
+    /// 结果经状态文本可观察（失败不冒充成功）。事件可能在 ThreadPool 线程触发
+    /// （R1-P1-01）：本方法只做线程无关的判定与请求发起，任何 ViewModel 属性
+    /// 更新一律经 <see cref="_uiDispatcher"/> 投递到 UI 线程。
     /// </summary>
     private void OnWorkspaceContextSwitched(WorkspaceViewportEntry entry, ValidatedWorkspaceContext context)
     {
@@ -392,15 +414,87 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     {
         try
         {
-            var outcome = await entry.Binding.RequestSceneAsync(context).ConfigureAwait(true);
-            WorkspaceStatusText = $"工作区「{entry.Workspace.MapName}」语义切换：{DescribeOutcome(outcome)}";
+            var request = await entry.Binding.RequestSceneAsync(context).ConfigureAwait(false);
+            PublishContextSwitchStatus(entry, request);
         }
         catch (Exception ex)
         {
+            // 后台路径异常必须被观察（R1-P1-01）：先在触发线程记录日志（IAppLog
+            // 实现线程安全），状态可视化经 UI Dispatcher 投递（尽力，不阻塞后台路径）。
             _log?.Warn("ProjectWorkspace", "语义切换重请求失败。", ex);
-            WorkspaceStatusText = $"语义切换重请求失败：{ex.Message}";
+            PublishContextSwitchFailureStatus(entry, ex);
         }
     }
+
+    /// <summary>
+    /// 语义切换请求结果的 UI 状态发布（R1-P1-01 / R1-P2-01）：投递前与投递执行时
+    /// 双重守卫——工作区/Binding 存活且该请求仍是当前有效请求。投递期间工作区
+    /// 可能已关闭、更新的请求可能已发起，二者均不得再修改 ViewModel 状态。
+    /// </summary>
+    private void PublishContextSwitchStatus(WorkspaceViewportEntry entry, SceneRequestResult request)
+    {
+        if (!IsRequestCurrent(entry.Binding, entry.Workspace, request))
+        {
+            return;
+        }
+
+        _uiDispatcher.Post(() =>
+        {
+            // 投递执行时复查（R1-P1-01：投递延迟期间状态可能已变化）。
+            if (!IsRequestCurrent(entry.Binding, entry.Workspace, request))
+            {
+                return;
+            }
+
+            try
+            {
+                WorkspaceStatusText = $"工作区「{entry.Workspace.MapName}」语义切换：{DescribeOutcome(request.Outcome)}";
+            }
+            catch (Exception ex)
+            {
+                // PropertyChanged 订阅者异常不得外泄到 Dispatcher（否则成为不可观察
+                // 的未处理异常）；就地记录保留诊断（R1-P1-01 第 8 条）。
+                _log?.Warn("ProjectWorkspace", "语义切换状态更新失败。", ex);
+            }
+        });
+    }
+
+    /// <summary>语义切换重请求失败的 UI 状态发布：守卫规则同 <see cref="PublishContextSwitchStatus"/>。</summary>
+    private void PublishContextSwitchFailureStatus(WorkspaceViewportEntry entry, Exception exception)
+    {
+        if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
+        {
+            return;
+        }
+
+        _uiDispatcher.Post(() =>
+        {
+            if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
+            {
+                return;
+            }
+
+            try
+            {
+                WorkspaceStatusText = $"语义切换重请求失败：{exception.Message}";
+            }
+            catch (Exception ex)
+            {
+                _log?.Warn("ProjectWorkspace", "语义切换失败状态更新失败。", ex);
+            }
+        });
+    }
+
+    /// <summary>
+    /// 请求结果发布守卫（R1-P2-01）：Binding/工作区存活，且该请求仍是本 Binding
+    /// 最新发起的请求。请求身份为每实例私有单调计数（非全局静态），工作区之间
+    /// 互不影响；关闭再重新打开的工作区拥有全新 Binding 实例，旧实例的请求
+    /// 不可能污染新实例。
+    /// </summary>
+    private static bool IsRequestCurrent(MapViewportBinding binding, MapWorkspaceSession workspace, SceneRequestResult request)
+        => !binding.IsClosed
+            && !workspace.IsClosed
+            && binding.LatestInitiatedRequestIdentity == request.RequestIdentity;
 
     /// <summary>场景请求结果的人类可读描述（WP-RA-02-A §3.5：失败状态明确、可观察，不伪装成功）。</summary>
     private static string DescribeOutcome(PresentationRequestOutcome outcome) => outcome.State switch

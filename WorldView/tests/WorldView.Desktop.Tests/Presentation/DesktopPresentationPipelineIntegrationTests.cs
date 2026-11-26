@@ -8,6 +8,7 @@ using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
 using WorldView.Desktop.Rendering;
 using WorldView.Desktop.Tests.Testing;
+using WorldView.Desktop.Ui;
 using WorldView.Desktop.ViewModels;
 using WorldView.Domain.Time;
 using WorldView.Presentation.Assembly;
@@ -134,8 +135,9 @@ public class DesktopPresentationPipelineIntegrationTests
             IWorkspaceContextResolver? contextResolver,
             CreateMapUseCase createMap,
             IAppLog? log = null,
+            IUiDispatcher? uiDispatcher = null,
             Func<MapWorkspaceSession, MapViewportBinding>? bindingFactory = null)
-            : base(session, mapQuery, contextResolver, createMap, log)
+            : base(session, mapQuery, contextResolver, createMap, log, uiDispatcher)
         {
             _bindingFactory = bindingFactory;
         }
@@ -160,6 +162,9 @@ public class DesktopPresentationPipelineIntegrationTests
             mapQuery: mapQuery,
             contextResolver: resolver ?? new StubContextResolver(),
             createMap: new CreateMapUseCase(session, new FakeMapCreationService(mapQuery)),
+            // 测试宿主无 Avalonia 消息循环：注入内联调度器（R1-P1-01 生产默认仍为
+            // AvaloniaUiDispatcher；投递边界的正确性由 R1 专项测试以受控调度器验证）。
+            uiDispatcher: InlineUiDispatcher.Instance,
             bindingFactory: bindingFactory);
         return (vm, session, mapQuery);
     }

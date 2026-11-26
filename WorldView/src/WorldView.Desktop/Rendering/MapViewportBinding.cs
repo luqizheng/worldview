@@ -11,6 +11,13 @@ using WorldView.Presentation.Results;
 namespace WorldView.Desktop.Rendering;
 
 /// <summary>
+/// 一次场景请求的最终结果与其发起身份（WP-RA-02-A R1-P2-01）：调用方据此判定
+/// 该请求是否仍是当前有效请求——过期请求不得覆盖当前请求的状态（状态倒退防护）。
+/// 请求身份由发起方 Binding 每实例分配（非全局静态），Workspace 之间互不影响。
+/// </summary>
+internal sealed record SceneRequestResult(PresentationRequestOutcome Outcome, long RequestIdentity);
+
+/// <summary>
 /// 视口生命周期协调的单一执行者（WP-30B ADR-07 / ADR-10，Desktop 内部具体类）：
 /// 一个工作区视口私有的呈现管线所有权——持有 <see cref="ViewportPresentationRuntime"/>
 /// （Publisher + Coordinator + 视口代计数）与无状态 <see cref="MapSceneRenderer"/>，
@@ -284,6 +291,17 @@ internal class MapViewportBinding
     /// <summary>最近一次场景请求发起时刻的上下文指纹十六进制（诊断锚点；未发起过为 null）。</summary>
     internal string? LastRequestedFingerprintHex { get; private set; }
 
+    // R1-P2-01：本 Binding 私有的请求身份计数（每实例单调递增，非全局静态）。
+    // 每个 Workspace 独立管理自己的请求身份——不同 Workspace 的请求互不影响；
+    // 关闭再重新打开的工作区拥有全新 Binding 实例，身份天然隔离。
+    private long _latestInitiatedRequestIdentity;
+
+    /// <summary>
+    /// 最近一次发起的场景请求身份（R1-P2-01 过期请求判定锚点）：发起即分配，
+    /// 身份等于本值 ⇔ 该请求是最后一次发起的请求（当前有效请求）。
+    /// </summary>
+    internal long LatestInitiatedRequestIdentity => Volatile.Read(ref _latestInitiatedRequestIdentity);
+
     /// <summary>
     /// 以已校验工作区上下文发起一次真实场景请求（WP-RA-02-A 接线：桌面生产路径）：
     /// 经 <see cref="PresentationContextFactory.FromValidatedWorkspace"/> 构建不可变
@@ -293,21 +311,35 @@ internal class MapViewportBinding
     /// 无锁捕获发布结果。请求结束记录 <see cref="LastRequestOutcome"/> 供宿主与测试观察。
     /// 取消令牌只供调用方在发起前撤回；进入管线后的生命周期正确性由协调器的
     /// 关闭屏障与 latest-request-wins 语义保证（WP-30A/WP-30B）。
+    ///
+    /// R1-P2-01：发起即分配本 Binding 私有的请求身份；完成时仅当本请求仍是最新
+    /// 发起请求才写入 <see cref="LastRequestOutcome"/>——晚到的过期请求（Superseded、
+    /// 异常晚到等）不得覆盖当前请求的结果记录（状态倒退防护）。协调器原有的
+    /// latest-request-wins 发布语义不受影响（发布正确性仍由三重身份机制保证）。
     /// </summary>
-    internal async Task<PresentationRequestOutcome> RequestSceneAsync(
+    internal async Task<SceneRequestResult> RequestSceneAsync(
         ValidatedWorkspaceContext context,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // 请求创建（激活/取代/发布器激活）经协调器内部锁串行化；此处只保证
-        // LastRequestOutcome 记录与请求发起的对应关系（诊断一致性）。
+        // 请求创建（激活/取代/发布器激活）经协调器内部锁串行化；身份分配在发起
+        // 调用栈内完成，保证"身份 = 当前最新"与请求发起一一对应（诊断一致性）。
+        var identity = Interlocked.Increment(ref _latestInitiatedRequestIdentity);
         var presentationContext = PresentationContextFactory.FromValidatedWorkspace(
             context, _runtime.ViewportGeneration.Current);
-        LastRequestedFingerprintHex = presentationContext.Fingerprint.ToHex();
+        if (Volatile.Read(ref _latestInitiatedRequestIdentity) == identity)
+        {
+            LastRequestedFingerprintHex = presentationContext.Fingerprint.ToHex();
+        }
+
         var outcome = await _runtime.RequestSceneAsync(presentationContext, cancellationToken).ConfigureAwait(false);
-        Volatile.Write(ref _lastOutcome, outcome);
-        return outcome;
+        if (Volatile.Read(ref _latestInitiatedRequestIdentity) == identity)
+        {
+            Volatile.Write(ref _lastOutcome, outcome);
+        }
+
+        return new SceneRequestResult(outcome, identity);
     }
 
     /// <summary>
@@ -339,6 +371,13 @@ internal class MapViewportBinding
     /// 视口相关呈现输入变化（逻辑尺寸 / DPI）：缓存标量并推进视口代
     /// （ADR-11 问题 10；代变化 → 同语义刷新语义，由 Presentation 指纹机制消费）。
     /// UI 线程调用。
+    ///
+    /// R1-P2-02 契约（方案 B，PRA-01 M1 Profile §3.5）：M1 空白场景内容与视口
+    /// 尺寸/代数无关——本方法的代数推进只影响未来捕获帧的代标记（快照请求
+    /// 创建时按 Profile 捕获当时代为不可变值），不构成已发布快照的场景失效，
+    /// 不触发新的场景请求；重复/无效尺寸通知同样不产生请求。未来依赖视口的
+    /// 场景内容（WP-30C / B 阶段）落地时，必须在本方法建立明确的去重刷新路径
+    /// （按内容对视口的真实依赖判定），不得借本方法无条件增加场景请求。
     /// </summary>
     internal void OnViewportChanged(double width, double height, double renderScaling)
     {
