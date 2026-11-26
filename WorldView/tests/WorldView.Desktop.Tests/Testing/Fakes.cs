@@ -219,6 +219,12 @@ public sealed class FakeAppLog : IAppLog
 {
     public int WarnCount { get; private set; }
 
+    /// <summary>Info 调用计数（R3：过期请求结果丢弃留痕的确定性完成信号）。</summary>
+    public int InfoCount { get; private set; }
+
+    /// <summary>Info 消息记录（R3：丢弃留痕断言用）。</summary>
+    public List<string> InfoMessages { get; } = new();
+
     /// <summary>Warn 实际抛出异常的次数（与 WarnCount 分离：调用过 ≠ 抛出过）。</summary>
     public int WarnThrowCount { get; private set; }
 
@@ -229,6 +235,8 @@ public sealed class FakeAppLog : IAppLog
 
     public void Info(string category, string message)
     {
+        InfoCount++;
+        InfoMessages.Add(message);
     }
 
     public void Warn(string category, string message, Exception? exception = null)

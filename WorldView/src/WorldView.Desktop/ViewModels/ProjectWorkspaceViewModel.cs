@@ -446,32 +446,65 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 语义切换请求结果的 UI 状态发布（R1-P1-01 / R1-P2-01 / R2-P0 统一路径）：
-    /// 成功结果与失败结果（含 Binding 归一化的管线异常）共用本方法——投递前与
-    /// 投递执行时双重守卫：工作区/Binding 存活且该请求仍是当前有效请求
-    /// （<see cref="IsRequestCurrent"/>，身份规则唯一）。投递期间工作区可能已关闭、
-    /// 更新的请求可能已发起，二者均不得再修改 ViewModel 状态——过期请求的失败
-    /// 状态同样被丢弃，不得覆盖新请求已发布的状态。
+    /// 语义切换请求结果的 UI 状态发布（R1-P1-01 / R1-P2-01 / R2-P0 / R3-01 统一路径）：
+    /// 成功结果与失败结果（含 Binding 归一化的管线异常）共用本方法。
+    ///
+    /// 三层守卫（R3-01 后的完整结构）：
+    /// 1. 投递前预检（<see cref="IsRequestCurrent"/>）：注定过期的请求不入队（优化层，
+    ///    非正确性层）；丢弃经 <see cref="LogDiscardedStatus"/> 留痕（可观察的完成信号）。
+    /// 2. 投递回调内的关闭检查：Binding/工作区已关闭则放弃——二者均为 sticky 终态
+    ///    （关闭后永不回开），对终态标志的 check-then-act 不存在"检查后被撤销"的窗口。
+    /// 3. <see cref="MapViewportBinding.PublishIfRequestCurrent"/>：请求身份判定与
+    ///    <c>WorkspaceStatusText</c> 赋值在 Binding 的 <c>_stateGate</c> 同一临界区内
+    ///    <strong>原子完成</strong>（R3-01 正确性层）——该锁同时串行化
+    ///    <see cref="MapViewportBinding.RequestSceneAsync"/> 的请求身份分配，因此
+    ///    "新请求取得更新身份"不可能插入"旧请求身份判定通过"与"旧请求状态写入完成"
+    ///    之间；R2 修复前的 check-then-write 竞态窗口从机制上消除。
+    ///
+    /// 线程与重入（R3-01 约束 3/7/8）：
+    /// - UI 属性赋值仍只发生在 UI Dispatcher 线程（回调内同步执行，锁内无 await）；
+    /// - <c>_stateGate</c> 为 Binding 实例私有锁（非全局），持有时间仅为"一次身份比较
+    ///   + 一次属性赋值"，无 I/O、无 await，不与 <c>_lifecycleGate</c>/<c>_closeGate</c>
+    ///   形成嵌套获取，无锁顺序问题；
+    /// - 赋值触发的 <see cref="System.ComponentModel.INotifyPropertyChanged.PropertyChanged"/>
+    ///   同步订阅者在本临界区内执行：同线程重入 <c>_stateGate</c>（Monitor 可重入）不会
+    ///   死锁；若订阅者同步发起新请求（重入身份分配），其发生因果上晚于本次已通过的
+    ///   身份判定，且新请求自身的发布随后覆盖——最终状态仍归属最新请求，无状态倒退。
+    ///   订阅者异常由下方 catch 就地隔离，不会把锁留在损坏状态（Monitor 语义：异常即退出
+    ///   临界区并释放锁）。
     /// </summary>
     private void PublishContextSwitchStatus(WorkspaceViewportEntry entry, SceneRequestResult request)
     {
+        // 投递前预检（优化层）：投递期间工作区可能已关闭、更新的请求可能已发起，
+        // 二者均不得再修改 ViewModel 状态——过期请求的结果（含失败）同样被丢弃。
         if (!IsRequestCurrent(entry.Binding, entry.Workspace, request))
         {
+            LogDiscardedStatus(entry, request, "投递前守卫");
             return;
         }
 
         _uiDispatcher.Post(() =>
         {
-            // 投递执行时复查（R1-P1-01：投递延迟期间状态可能已变化；R2-P0：
-            // 失败回调入队后新请求可能已启动——过期失败同样在回调内被丢弃）。
-            if (!IsRequestCurrent(entry.Binding, entry.Workspace, request))
+            // 关闭检查（终态 sticky 标志；与 _stateGate 判定分开，见上文第 2 层说明）。
+            if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
             {
+                LogDiscardedStatus(entry, request, "回调执行时关闭守卫");
                 return;
             }
 
             try
             {
-                WorkspaceStatusText = $"工作区「{entry.Workspace.MapName}」语义切换：{DescribeOutcome(request.Outcome)}";
+                // R3-01 正确性层：身份判定与状态写入在 Binding 的 _stateGate 临界区内
+                // 原子完成（见本方法 XML 文档）。发布失败（请求已过期）同样留痕。
+                var published = entry.Binding.PublishIfRequestCurrent(request.RequestIdentity, () =>
+                {
+                    WorkspaceStatusText = $"工作区「{entry.Workspace.MapName}」语义切换：{DescribeOutcome(request.Outcome)}";
+                });
+
+                if (!published)
+                {
+                    LogDiscardedStatus(entry, request, "回调执行时身份守卫");
+                }
             }
             catch (Exception ex)
             {
@@ -481,6 +514,18 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
             }
         });
     }
+
+    /// <summary>
+    /// 过期请求结果丢弃留痕（R3-02）：丢弃路径唯一可观察的诊断事件，既是生产侧
+    /// 可观测性（过期结果丢弃本就是值得记录的呈现事件），也是回归测试的确定性
+    /// 完成信号——测试据此确认"身份判定已执行且结果为丢弃"，再断言 Dispatcher
+    /// 队列与 UI 状态（R3-02 第 3/4 条）。日志失败不参与控制流（调用方无 catch 依赖）。
+    /// </summary>
+    private void LogDiscardedStatus(WorkspaceViewportEntry entry, SceneRequestResult request, string guard)
+        => _log?.Info(
+            "ProjectWorkspace",
+            $"语义切换请求结果已丢弃（{guard}）：请求 {request.RequestIdentity} 已非最新（当前 " +
+            $"{entry.Binding.LatestInitiatedRequestIdentity}）或视口/工作区已关闭；UI 状态保持最新有效请求。");
 
     /// <summary>
     /// 请求结果发布守卫（R1-P2-01 / R2-P0，成功与失败唯一的有效性规则）：

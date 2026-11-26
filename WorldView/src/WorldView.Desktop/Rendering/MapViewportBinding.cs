@@ -415,6 +415,34 @@ internal class MapViewportBinding
     }
 
     /// <summary>
+    /// R3-01：同步验证请求身份并在<strong>同一临界区</strong>内执行状态发布操作。
+    /// 判定（<paramref name="requestIdentity"/> 是否仍是最新发起请求）与
+    /// <paramref name="publish"/> 的执行都在 <see cref="_stateGate"/> 内原子完成——
+    /// 与 <see cref="RequestSceneAsync"/> 的身份分配共用同一把锁，因此"新请求取得
+    /// 更新身份"与"旧请求发布状态"被完全串行化：要么新请求先发起（本方法判定失败、
+    /// 不发布），要么旧请求在仍为最新时完成整个发布（其后新请求才可能发起，且其自身
+    /// 发布随后覆盖）——R2 修复前"检查通过 → 被新请求抢占 → 旧请求继续写入"的窗口
+    /// 在锁内不存在。锁内无 await；<paramref name="publish"/> 由调用方保证只做同步的
+    /// UI 属性赋值（<see cref="publish"/> 触发的 PropertyChanged 同步回调重入分析
+    /// 见 <see cref="T:WorldView.Desktop.ViewModels.ProjectWorkspaceViewModel"/> 的
+    /// PublishContextSwitchStatus 文档）。Binding 已关闭（终态）时同样拒绝发布。
+    /// 返回是否执行了发布（false = 请求已过期或 Binding 已关闭）。
+    /// </summary>
+    internal bool PublishIfRequestCurrent(long requestIdentity, Action publish)
+    {
+        lock (_stateGate)
+        {
+            if (_isClosed || _latestInitiatedRequestIdentity != requestIdentity)
+            {
+                return false;
+            }
+
+            publish();
+            return true;
+        }
+    }
+
+    /// <summary>
     /// 构造归一化的 Failed 结果（R2-P0）：本请求未到达协调器或未获得协调器序号时
     /// Sequence 记 0（与协调器自身的 RejectedClosedOutcome(sequence: 0) 约定一致）。
     /// </summary>

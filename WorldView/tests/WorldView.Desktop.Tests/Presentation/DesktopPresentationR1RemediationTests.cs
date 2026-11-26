@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,6 +34,13 @@ namespace WorldView.Desktop.Tests.Presentation;
 /// 管线异常）与成功结果共用同一套 IsRequestCurrent 守卫——投递前与回调执行时
 /// 双重身份检查。旧请求晚到失败（投递前守卫）与已入队失败回调在新请求启动后
 /// 执行（回调内守卫）均不得覆盖新请求的 UI 状态；当前最新请求的失败正常发布。
+///
+/// R3（发布原子性 + 确定性测试）：UI 状态发布的"身份判定 + 状态写入"经
+/// Binding 的 <c>PublishIfRequestCurrent</c> 在 <c>_stateGate</c> 同一临界区内
+/// 原子完成（与请求身份分配共用同一把锁）——新请求的身份分配不可能插入旧请求
+/// 的判定与写入之间。过期结果丢弃经 Info 留痕（确定性完成信号），固定
+/// <c>Task.Delay</c> 已全部移除；竞态测试的同步点由 PropertyChanged 订阅者
+/// 门控（订阅者在状态赋值过程中执行 = 确定处于发布临界区内）构造。
 ///
 /// 竞态构造全部经 TCS 门控的 ScenePreparation、门控/工作线程解析替身与队列式
 /// UI 调度器（DrainOne 精确控制回调执行时刻），绝无 Thread.Sleep；轮询仅等待
@@ -187,14 +195,17 @@ public class DesktopPresentationR1RemediationTests
             Interlocked.Increment(ref _index);
             step.Entered.TrySetResult();
 
-            if (step.Throw)
-            {
-                throw new InvalidOperationException("准备失败注入（R1 专项测试）。");
-            }
-
+            // R3-02：先等门、再抛出——(Gate: true, Throw: true) 语义为"门控挂起，
+            // 释放后失败"，与各测试脚本注释的意图一致；(Gate: false, Throw: true)
+            // 仍为立即失败，既有脚本行为不变。
             if (step.Gate)
             {
                 await step.Release.Task.ConfigureAwait(false);
+            }
+
+            if (step.Throw)
+            {
+                throw new InvalidOperationException("准备失败注入（R1 专项测试）。");
             }
 
             var content = new WorldView.Presentation.Scene.BlankSceneContent(new WorldView.Presentation.Scene.BlankBackgroundItem(
@@ -665,11 +676,15 @@ public class DesktopPresentationR1RemediationTests
     // ---- R2-P0：失败路径的请求身份保护（统一发布守卫） ----
 
     /// <summary>
-    /// R2 规格 Test 1：旧请求晚到失败，不得覆盖新请求成功状态。
+    /// R2 规格 Test 1（R3 强化）：旧请求晚到失败，不得覆盖新请求成功状态。
     /// 时序（确定性）：A（切换 1）门控挂起 → B（切换 2）发起并成功发布（状态可见）
     /// → A 晚到失败（门控准备异常，经协调器归一化为 Failed 结果）→ A 的失败结果
     /// 到达统一发布入口时投递前身份守卫丢弃（A 已被 B 取代）——失败回调根本不入队。
     /// 失败本身经协调器计数如实可观察（不静默）。
+    /// R3-02：投递前守卫丢弃时生产代码经 Info 留痕（"已丢弃（投递前守卫）"）——
+    /// 该留痕即"身份判定已执行且结果为丢弃"的确定性完成信号（判定与留痕之间无
+    /// 任何 await/调度点，留痕可见 ⇔ 判定已完成），此后该 continuation 不可能再
+    /// 投递任何回调；本测试据信号断言 <c>PostedCount == 0</c>，不再依赖固定延迟。
     /// </summary>
     [Fact]
     public async Task R2P0_LateFailureAfterNewRequestPublished_IsDiscardedBeforeDispatch()
@@ -679,13 +694,16 @@ public class DesktopPresentationR1RemediationTests
         var branchC = Guid.NewGuid();
         var contextB = MakeContext(mapId, branchB);
         var contextC = MakeContext(mapId, branchC);
+        var log = new FakeAppLog();
         GatedPreparation? prep = null;
-        var (vm, _, mapQuery, dispatcher) = BuildR1(bindingFactory: ws =>
-        {
-            // 请求 1（初始）立即；请求 2（切换 A）门控挂起后抛异常；请求 3（切换 B）立即。
-            prep = new GatedPreparation((Gate: false, Throw: false), (Gate: true, Throw: true), (Gate: false, Throw: false));
-            return new MapViewportBinding(ws.ViewState, ViewportPresentationRuntime.Create(prep.PrepareAsync));
-        });
+        var (vm, _, mapQuery, dispatcher) = BuildR1(
+            log: log,
+            bindingFactory: ws =>
+            {
+                // 请求 1（初始）立即；请求 2（切换 A）门控挂起后抛异常；请求 3（切换 B）立即。
+                prep = new GatedPreparation((Gate: false, Throw: false), (Gate: true, Throw: true), (Gate: false, Throw: false));
+                return new MapViewportBinding(ws.ViewState, ViewportPresentationRuntime.Create(prep.PrepareAsync));
+            });
 
         var map = new MapSummary { MapId = mapId, DisplayName = "R2-A" };
         var workspace = await OpenAsync(vm, mapQuery, map);
@@ -705,9 +723,13 @@ public class DesktopPresentationR1RemediationTests
         await WaitUntilAsync(
             () => binding.Runtime.Coordinator.Counters.PreparationFailures == 1,
             "旧请求晚到失败落定");
-        // 等待 VM 后台 continuation 走完发布判定（此处延迟仅做传播落定，不构造竞态；
-        // 竞态时序已由门控确定）。断言对象为不变量：过期失败绝不入队、绝不覆盖。
-        await Task.Delay(100);
+
+        // R3-02 确定性完成信号：投递前守卫的丢弃留痕。判定与留痕之间无任何 await/
+        // 调度点，留痕可见 ⇔ 身份判定已执行且结果为丢弃——此后该 continuation 不可能
+        // 再投递任何回调；队列中亦不存在其他潜在投递者（B 的回调已 Drain）。
+        await WaitUntilAsync(
+            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
+            "过期失败被投递前守卫丢弃（留痕）");
 
         // 投递前身份守卫：A 的失败回调未入队。
         Assert.Equal(0, dispatcher.PostedCount);
@@ -827,5 +849,298 @@ public class DesktopPresentationR1RemediationTests
         Assert.True(dispatcher.DrainOne());
         Assert.Equal(statusAfterClose, vm.WorkspaceStatusText);
         Assert.DoesNotContain("场景请求失败", vm.WorkspaceStatusText, StringComparison.Ordinal);
+    }
+
+    // ---- R3：发布原子性（身份分配与 UI 发布串行化）+ 确定性测试 ----
+
+    /// <summary>
+    /// R3 规格 Test A（发布期间启动新请求，确定性验证 R3-01）：请求 A 的发布回调
+    /// 正处于 <c>PublishIfRequestCurrent</c> 的 <c>_stateGate</c> 临界区内
+    /// （状态赋值过程中，经 PropertyChanged 订阅者门控保持临界区打开）时，从临界区
+    /// 内部发起请求 B——B 的身份分配需要同一把锁，<strong>确定性</strong>地被排除在
+    /// A 的"身份判定 → 状态写入完成"之外：
+    /// <list type="bullet">
+    /// <item>A 的发布在其身份（2）仍为最新时完整执行（identityAtPublish == 2）；</item>
+    /// <item>A 的失败状态先落地（A 当期为最新请求，发布守卫放行）；</item>
+    /// <item>临界区退出后 B 才取得身份 3，B 的成功发布随后覆盖 A 的状态——最终
+    /// UI 状态对应最新有效请求。</item>
+    /// </list>
+    /// 回归判别：若身份判定与状态写入脱离同一临界区（修复回退），B（已在临界区内
+    /// 被发起、无需等待锁即可分配身份）可能在 identityAtPublish 读取前取得身份 3，
+    /// 断言即失败。同步点全部为 TCS 门控，无固定延迟、无调度碰运气。
+    /// </summary>
+    [Fact]
+    public async Task R3P0_PublishDuringCriticalSection_NewRequestIdentityExcluded()
+    {
+        var mapId = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        var branchC = Guid.NewGuid();
+        var contextB = MakeContext(mapId, branchB);
+        var contextC = MakeContext(mapId, branchC);
+        GatedPreparation? prep = null;
+        var (vm, _, mapQuery, dispatcher) = BuildR1(bindingFactory: ws =>
+        {
+            // 请求 1（初始）立即；请求 2（切换 A）门控挂起后失败（状态文本含
+            // "场景请求失败"，与 B 的成功文本可区分）；请求 3（切换 B）立即成功。
+            prep = new GatedPreparation((Gate: false, Throw: false), (Gate: true, Throw: true), (Gate: false, Throw: false));
+            return new MapViewportBinding(ws.ViewState, ViewportPresentationRuntime.Create(prep.PrepareAsync));
+        });
+
+        var map = new MapSummary { MapId = mapId, DisplayName = "R3-A" };
+        var workspace = await OpenAsync(vm, mapQuery, map);
+        var binding = vm.GetViewportBinding(workspace)!;
+
+        // A：切换请求（门控挂起）→ 释放 → 失败 → 当期最新（B 未发起）→ 投递前守卫放行 → 回调入队。
+        await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(contextB));
+        await prep!.WaitEnteredAsync(1);
+        prep!.Release(1);
+        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "A 失败状态回调入队");
+        Assert.Equal(2, binding.LatestInitiatedRequestIdentity);
+
+        // 竞态构造：A 的回调执行到状态赋值时（= 已通过身份判定、处于 _stateGate
+        // 临界区内），由 PropertyChanged 订阅者接管：发起请求 B、保持临界区打开、
+        // 放行后在赋值完成前读取最新身份。
+        var publishEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var switchBInitiated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long identityAtPublish = -1;
+        Task? switchBTask = null;
+        var armPhase = 0; // 0 = 未武装；武装后首个状态变更触发门控（Exchange 置 2 防重入）。
+
+        void OnStatusChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is not nameof(ProjectWorkspaceViewModel.WorkspaceStatusText))
+            {
+                return;
+            }
+
+            if (Interlocked.Exchange(ref armPhase, 2) != 1)
+            {
+                return;
+            }
+
+            // 此刻处于 PublishIfRequestCurrent 的 _stateGate 临界区内。
+            publishEntered.TrySetResult();
+
+            // 从临界区内发起 B：其身份分配必须等本临界区退出（锁由本线程持有）。
+            switchBTask = Task.Run(() => workspace.SwitchContextAsync(
+                branchC, historicalTimeInput: null, new ScriptedResolver(contextC)));
+            switchBInitiated.TrySetResult();
+
+            // 保持临界区打开，直到测试放行。
+            releasePublish.Task.Wait(_timeout);
+
+            // 放行后、赋值完成前读取：若身份分配可与发布交错（修复回退），B 的身份
+            // 可能已被取得（3）；修复生效时 B 仍被锁排除，此处必为 2。
+            identityAtPublish = binding.LatestInitiatedRequestIdentity;
+        }
+
+        vm.PropertyChanged += OnStatusChanged;
+        Volatile.Write(ref armPhase, 1);
+
+        // 在独立线程执行 A 的回调（本测试主线程需要在回调阻塞期间与之交互）。
+        var drainTask = Task.Run(() => dispatcher.DrainOne());
+        await publishEntered.Task.WaitAsync(_timeout);      // A 已进入发布临界区
+        await switchBInitiated.Task.WaitAsync(_timeout);    // B 已从临界区内被发起
+
+        releasePublish.TrySetResult();                      // 放行 → A 完成写入 → 临界区退出
+        Assert.True(await drainTask);                       // A 的回调确实执行并发布
+
+        // A 的失败状态已落地（A 发布时仍是最新请求）。
+        Assert.Contains("场景请求失败", vm.WorkspaceStatusText, StringComparison.Ordinal);
+        // 核心不变量：A 的写入完成前，B 的身份分配被临界区排除（仍为 2）。
+        Assert.Equal(2, identityAtPublish);
+
+        // B 在临界区退出后取得身份 3 → 成功发布 → 覆盖 A 的状态（最终 UI = 最新请求）。
+        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 状态投递");
+        Assert.True(dispatcher.DrainOne());
+        Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
+        Assert.Equal(PresentationRequestState.Published, binding.LastRequestOutcome!.State);
+        Assert.Contains("已发布", vm.WorkspaceStatusText, StringComparison.Ordinal);
+        Assert.DoesNotContain("场景请求失败", vm.WorkspaceStatusText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// R3 规格 Test B（最新请求成功）：B 成功发布后状态可见；旧请求 A 的晚到成功
+    /// （Superseded 完成）被投递前守卫丢弃——成功结果同样不得倒退覆盖。丢弃经
+    /// Info 留痕作为确定性完成信号（R3-02），无固定延迟。
+    /// </summary>
+    [Fact]
+    public async Task R3P0_LatestRequestSuccess_StaleLateCompletionCannotOverwrite()
+    {
+        var mapId = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        var branchC = Guid.NewGuid();
+        var contextB = MakeContext(mapId, branchB);
+        var contextC = MakeContext(mapId, branchC);
+        var log = new FakeAppLog();
+        GatedPreparation? prep = null;
+        var (vm, _, mapQuery, dispatcher) = BuildR1(
+            log: log,
+            bindingFactory: ws =>
+            {
+                // 请求 1（初始）立即；请求 2（切换 A）门控挂起后晚到成功；请求 3（切换 B）立即成功。
+                prep = new GatedPreparation((Gate: false, Throw: false), (Gate: true, Throw: false), (Gate: false, Throw: false));
+                return new MapViewportBinding(ws.ViewState, ViewportPresentationRuntime.Create(prep.PrepareAsync));
+            });
+
+        var map = new MapSummary { MapId = mapId, DisplayName = "R3-B" };
+        var workspace = await OpenAsync(vm, mapQuery, map);
+        var binding = vm.GetViewportBinding(workspace)!;
+
+        // A：发起并挂起（身份 2）。
+        await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(contextB));
+        await prep!.WaitEnteredAsync(1);
+
+        // B：发起并立即成功（身份 3）→ 状态可见。
+        await workspace.SwitchContextAsync(branchC, historicalTimeInput: null, new ScriptedResolver(contextC));
+        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 状态投递");
+        Assert.True(dispatcher.DrainOne());
+        var statusOfB = vm.WorkspaceStatusText;
+        Assert.Contains("语义切换", statusOfB, StringComparison.Ordinal);
+        Assert.Contains("已发布", statusOfB, StringComparison.Ordinal);
+        Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
+
+        // A 晚到成功（Superseded 完成）→ 投递前身份守卫丢弃（留痕 = 完成信号）。
+        prep!.Release(1);
+        await WaitUntilAsync(
+            () => binding.Runtime.Coordinator.Counters.Superseded == 1,
+            "旧请求晚到落定");
+        await WaitUntilAsync(
+            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
+            "过期成功被投递前守卫丢弃（留痕）");
+
+        // A 的回调从未入队；B 的状态与结果不被覆盖（晚到成功同样不得倒退）。
+        Assert.Equal(0, dispatcher.PostedCount);
+        dispatcher.Drain();
+        Assert.Equal(statusOfB, vm.WorkspaceStatusText);
+        Assert.Equal(3, binding.LastRequestOutcome!.Sequence);
+        Assert.Equal(PresentationRequestState.Published, binding.LastRequestOutcome.State);
+        Assert.Equal(1, binding.Runtime.Coordinator.Counters.Superseded);
+    }
+
+    /// <summary>
+    /// R3 规格 Test C（最新请求失败）：最新请求 B 的失败正常发布（不为过滤过期请求
+    /// 而错误丢弃当前请求的失败结果）；旧请求 A 的晚到成功不得覆盖 B 的失败状态。
+    /// </summary>
+    [Fact]
+    public async Task R3P0_LatestRequestFailure_IsPublished_StaleLateSuccessCannotOverwrite()
+    {
+        var mapId = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        var invalidContext = new ValidatedWorkspaceContext
+        {
+            MapId = Guid.Empty,
+            BranchId = branchB,
+            RootHistoryId = Guid.NewGuid(),
+            HistoricalTime = HistoricalTime.Epoch,
+        };
+        var contextA = MakeContext(mapId, Guid.NewGuid());
+        var log = new FakeAppLog();
+        GatedPreparation? prep = null;
+        var (vm, _, mapQuery, dispatcher) = BuildR1(
+            log: log,
+            bindingFactory: ws =>
+            {
+                // 请求 1（初始）立即；请求 2（切换 A）门控挂起后晚到成功；
+                // 请求 3（切换 B，非法上下文）在请求创建阶段失败，不消耗准备步。
+                prep = new GatedPreparation((Gate: false, Throw: false), (Gate: true, Throw: false));
+                return new MapViewportBinding(ws.ViewState, ViewportPresentationRuntime.Create(prep.PrepareAsync));
+            });
+
+        var map = new MapSummary { MapId = mapId, DisplayName = "R3-C" };
+        var workspace = await OpenAsync(vm, mapQuery, map);
+        var binding = vm.GetViewportBinding(workspace)!;
+
+        // A：发起并挂起（身份 2）。
+        await workspace.SwitchContextAsync(Guid.NewGuid(), historicalTimeInput: null, new ScriptedResolver(contextA));
+        await prep!.WaitEnteredAsync(1);
+
+        // B：非法上下文切换（身份 3 = 最新）→ 请求创建失败归一化为 Failed → 当期最新
+        // 请求的失败正常发布（守卫放行）。
+        await workspace.SwitchContextAsync(branchB, historicalTimeInput: null, new ScriptedResolver(invalidContext));
+        await WaitUntilAsync(() => binding.LatestInitiatedRequestIdentity == 3, "B 请求发起");
+        await WaitUntilAsync(() => dispatcher.PostedCount >= 1, "B 失败状态投递");
+        Assert.True(dispatcher.DrainOne());
+        var statusOfB = vm.WorkspaceStatusText;
+        Assert.Contains("语义切换", statusOfB, StringComparison.Ordinal);
+        Assert.Contains("场景请求失败", statusOfB, StringComparison.Ordinal);
+        Assert.True(log.WarnCount >= 1); // 管线异常被 VM 观察记录（Binding 归一化不吞异常）
+        Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
+        Assert.Equal(PresentationRequestState.Failed, binding.LastRequestOutcome!.State);
+
+        // A 晚到成功（身份 2 已过期）：B 因非法上下文在请求创建阶段失败，从未注册
+        // 进协调器——协调器无从知晓身份 3，A 在协调器侧仍是其已知最新请求（成功
+        // 正常落定）；过期判定的权威是 Binding 的最新发起身份（R3-01 正确性层）。
+        // 投递前守卫丢弃留痕即确定性完成信号（判定与留痕间无 await/调度点）。
+        prep!.Release(1);
+        await WaitUntilAsync(
+            () => log.InfoMessages.Any(m => m.Contains("已丢弃（投递前守卫）", StringComparison.Ordinal)),
+            "过期成功被投递前守卫丢弃（留痕）");
+
+        // B 的失败状态保留：不被晚到成功覆盖（失败不冒充成功、过期不得倒退）。
+        Assert.Equal(0, dispatcher.PostedCount);
+        dispatcher.Drain();
+        Assert.Equal(statusOfB, vm.WorkspaceStatusText);
+        Assert.Equal(PresentationRequestState.Failed, binding.LastRequestOutcome!.State);
+        Assert.Equal(3, binding.LatestInitiatedRequestIdentity);
+    }
+
+    /// <summary>
+    /// R3 规格 Test D（关闭状态，Binding 原语级）：Binding 关闭（终态）后，
+    /// <c>PublishIfRequestCurrent</c> 拒绝发布——尚未执行的发布回调不会修改任何状态。
+    /// VM 级关闭场景由 R1/R2 既有两个关闭测试覆盖（回调执行时关闭守卫丢弃）。
+    /// </summary>
+    [Fact]
+    public async Task R3P0_PublishIfRequestCurrent_ClosedBinding_IsRejected()
+    {
+        var mapId = Guid.NewGuid();
+        var prep = new GatedPreparation((Gate: false, Throw: false));
+        var binding = new MapViewportBinding(
+            new WorkspaceViewState(), ViewportPresentationRuntime.Create(prep.PrepareAsync));
+
+        var request = await binding.RequestSceneAsync(MakeContext(mapId, Guid.NewGuid()));
+        Assert.False(binding.IsClosed);
+        Assert.True(binding.PublishIfRequestCurrent(request.RequestIdentity, () => { }));
+
+        await binding.RequestClose();
+        Assert.True(binding.IsClosed);
+
+        var executed = false;
+        Assert.False(binding.PublishIfRequestCurrent(request.RequestIdentity, () => executed = true));
+        Assert.False(executed);
+    }
+
+    /// <summary>原语直测（R3-01）：当前有效请求 → 发布执行并返回 true。</summary>
+    [Fact]
+    public async Task R3P0_PublishIfRequestCurrent_CurrentIdentity_ExecutesAndReturnsTrue()
+    {
+        var mapId = Guid.NewGuid();
+        var prep = new GatedPreparation((Gate: false, Throw: false));
+        var binding = new MapViewportBinding(
+            new WorkspaceViewState(), ViewportPresentationRuntime.Create(prep.PrepareAsync));
+        var request = await binding.RequestSceneAsync(MakeContext(mapId, Guid.NewGuid()));
+
+        var executed = false;
+        Assert.True(binding.PublishIfRequestCurrent(request.RequestIdentity, () => executed = true));
+        Assert.True(executed);
+    }
+
+    /// <summary>原语直测（R3-01）：已被取代的过期请求 → 不执行发布并返回 false。</summary>
+    [Fact]
+    public async Task R3P0_PublishIfRequestCurrent_SupersededIdentity_IsRejected()
+    {
+        var mapId = Guid.NewGuid();
+        var prep = new GatedPreparation((Gate: false, Throw: false), (Gate: false, Throw: false));
+        var binding = new MapViewportBinding(
+            new WorkspaceViewState(), ViewportPresentationRuntime.Create(prep.PrepareAsync));
+        var first = await binding.RequestSceneAsync(MakeContext(mapId, Guid.NewGuid()));
+        var second = await binding.RequestSceneAsync(MakeContext(mapId, Guid.NewGuid()));
+        Assert.NotEqual(first.RequestIdentity, second.RequestIdentity);
+
+        var executed = false;
+        Assert.False(binding.PublishIfRequestCurrent(first.RequestIdentity, () => executed = true));
+        Assert.False(executed);
+        Assert.True(binding.PublishIfRequestCurrent(second.RequestIdentity, () => { }));
     }
 }
