@@ -461,7 +461,10 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
             // 步骤 4：通知窗口（ProjectClosed → Window 允许最终关闭）。仅在全部阶段
             // 成功时触发（异常路径在此前已抛出）；因此 C2 全程 ProjectClosed 至多一次。
-            ProjectClosed?.Invoke();
+            // P2-02：逐订阅者隔离异常——订阅者失败既不阻断其余订阅者，也不把已经
+            // 成功完成的资源关闭重新判定为失败（否则重试会重复触发通知，
+            // 违反"至多通知一次"契约；详见 <see cref="NotifyProjectClosedSafely"/>）。
+            NotifyProjectClosedSafely();
         }
         catch (Exception ex)
         {
@@ -494,6 +497,38 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
     /// <summary>按统一裁决 2.3/2.5 聚合本轮收集的异常：单个原样返回，多个按阶段顺序聚合。</summary>
     private static Exception BuildCloseFailure(List<Exception> failures)
         => failures.Count == 1 ? failures[0] : new AggregateException(failures);
+
+    /// <summary>
+    /// 按订阅注册顺序逐一通知 <see cref="ProjectClosed"/>；单个订阅者抛异常就地隔离
+    /// （best-effort 日志），不阻断后续订阅者，也不改变 C2 已经成功的关闭结果。
+    /// 设计依据：到达本方法时步骤 1–3（Binding 关闭、会话关闭、集合清理）已全部
+    /// 成功——通知是"资源已全部关闭"的完成信号而非关闭阶段，没有可重试的未完成
+    /// 阶段。若订阅者异常外泄导致 C2 判定失败，重试会在资源全部就绪的状态下再次
+    /// 执行到本方法，造成第二次通知，违反"至多通知一次"契约（P2-02）。故唯一
+    /// 一致的处置是：隔离 + 记录，C2 成功收尾（Finished / SetResult 照常执行）。
+    /// 日志纪律（DEF-03）：单个订阅者异常经 <see cref="WarnBestEffort"/> 记录，
+    /// 日志实现自身的异常同样不可能阻断通知循环或收尾。
+    /// </summary>
+    private void NotifyProjectClosedSafely()
+    {
+        var handlers = ProjectClosed;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                ((Action)handler)();
+            }
+            catch (Exception ex)
+            {
+                WarnBestEffort("ProjectClosed 订阅者通知失败（已隔离，不影响其余订阅者与关闭结果）。", ex);
+            }
+        }
+    }
 
     /// <summary>
     /// best-effort 警告日志（DEF-03）：日志实现的异常就地吞掉、不向外传播——
