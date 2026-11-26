@@ -3,3 +3,6 @@
 # Agent 测试/格式化临时目录
 WorldView/.testtmp/
 WorldView/.fmt-report/
+
+# Root-level test temp dirs (worktree-local, sandbox TEMP redirect)
+.testtmp/
