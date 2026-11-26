@@ -51,6 +51,13 @@ public sealed class MapWorkspaceSession
     private MapWorkspaceState _state = MapWorkspaceState.Created;
     private bool _closeCompleted;
     private bool _disposeCompleted;
+
+    /// <summary>
+    /// 测试 seam（WorldView.Desktop.Tests 经 IvT 访问；PR #31 保留）：<see cref="DisposeAsync"/>
+    /// 释放步骤的实际执行计数。仅在派生工作取消源 Dispose 真实成功后递增一次——与
+    /// _disposeCompleted 严格同步（幂等守卫保证重试不会重复释放，故终值 ≤ 1）。
+    /// </summary>
+    internal int DisposeCount { get; private set; }
     private string? _closeFailureDiagnostic;
 
     public MapWorkspaceSession(ProjectSession projectSession, ValidatedWorkspaceContext context, string mapName)
@@ -253,6 +260,7 @@ public sealed class MapWorkspaceSession
                 lock (_gate)
                 {
                     _disposeCompleted = true;
+                    DisposeCount++;
                 }
             }
         }

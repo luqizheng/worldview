@@ -23,6 +23,15 @@
 > 1 个：项目级关闭前取消保留工作区可重试）。重新执行全量测试 **900/900 通过**（04B
 > 基线 895 保持不变）。A-4 / A-3 注册表部分 / A-12~A-15 仍属 04C，**尚未开始**。
 
+> **WP-UI-04B-R3 与 PR #31 基线集成（2026-11-26）**：将 WP-UI-04B 分支与已合并
+> master（PR #31，WP-30B Phase 3A）合并，解决 4 处冲突。项目级关闭语义按 WP-30B
+> **统一裁决 2.3（收集-继续）**收敛：单个子工作区关闭失败不阻断其余工作区与
+> Asset Store / 数据库的安全清理阶段；"子工作区失败阻止项目 Closed"（CloseFailed +
+> 诊断 + 失败工作区保留待重试）与"重试不重复释放已完成步骤"两项不变量保留。
+> A-10 断言与 `ProjectCloseOrchestrationTests` 多工作区场景已按 B3 同图去重与
+> 统一裁决 2.3 对齐（测试意图不变，数据构造改用不同地图）。合并后全量测试
+> **947/947 通过**（Windows Debug 实测）。
+
 ## A. 自动化测试（Session / VM 层）
 
 窗口对象生命周期不做无头测试（PR #34 既定裁定），窗口行为经 VM/Registry 抽象覆盖。
@@ -38,7 +47,7 @@
 | A-7 | 关闭失败保留 Session（与列表注册） | Session | 注入 Dispose/Close 异常 → Session 仍在 `_workspaces`，`CloseFailed` + 诊断 |
 | A-8 | 关闭失败后可重试且幂等 | Session | 重试成功 → Closed；`SessionClosed`/释放步骤各只发生一次（调用日志断言） |
 | A-9 | 项目关闭会关闭全部地图工作区 | Session | 3 个工作区 → 项目 `CloseAsync` → 全部 Closed、列表清空、逆序释放（日志顺序） |
-| A-10 | 子工作区关闭失败时项目不能进入 Closed | Session | 注入第 2 个工作区释放异常 → 项目 `CloseFailed`，该工作区保留，前一个已释放的不重复释放；重试后全部 Closed |
+| A-10 | 子工作区关闭失败时项目不能进入 Closed | Session | 注入第 2 个工作区释放异常 → 项目 `CloseFailed`，该工作区保留；其余工作区与 AssetStore/Database 按 WP-30B 统一裁决 2.3 收集-继续照常完成释放（R3 对齐 PR #31 基线），重试不重复释放；重试后全部 Closed |
 | A-11 | 不重复释放资源 | Session | 双成功标记：失败重试路径下 AssetStore/Database Dispose 调用次数 == 1 |
 | A-12 | 无事件订阅泄漏 | VM + Registry | 关闭后：VM 对 Session 的订阅计数 == 0；注册表 Count 归零；`SessionClosed` 处理器已退订（GC 前 handler 计数） |
 | A-13 | 窗口注册与 Session 列表不分叉 | VM + Registry | 任意操作序列后不变量：`registry 中每个 handle 的 workspaceId ∈ project.Workspaces`，且每个有窗口的 Session 在注册表中可查 |

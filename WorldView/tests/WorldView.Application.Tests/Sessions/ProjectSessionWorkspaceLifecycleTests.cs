@@ -270,12 +270,16 @@ public class ProjectSessionWorkspaceLifecycleTests
 
         Assert.Equal(ProjectSessionState.CloseFailed, session.State);
         Assert.Contains("工作区关闭失败", session.CloseFailureDiagnostic, StringComparison.Ordinal);
-        // LIFO：second（后开）先关闭并失败——first 完全未被触及。
+        // LIFO：second（后开）先关闭并失败——失败工作区保留在列表中留待重试。
         Assert.Contains(session.Workspaces, w => w.WorkspaceId == second.WorkspaceId);
         Assert.Equal(MapWorkspaceState.CloseFailed, second.LifecycleState);
-        Assert.Equal(MapWorkspaceState.Ready, first.LifecycleState);
-        Assert.Equal(0, assets.DisposeAttempts);
-        Assert.Equal(0, database.DisposeAttempts);
+        // WP-UI-04B R3（PR #31 基线集成）：项目级关闭语义按 WP-30B 统一裁决 2.3
+        // （PR #31 已合并）演进为"收集-继续"——单个工作区失败不阻断其余工作区与
+        // 后续安全清理阶段：first 照常完成关闭，Asset Store / 数据库照常释放。
+        // "子工作区失败阻止项目 Closed"不变量保留：会话停在 CloseFailed 而非 Closed。
+        Assert.Equal(MapWorkspaceState.Closed, first.LifecycleState);
+        Assert.Equal(1, assets.DisposeSuccesses);
+        Assert.Equal(1, database.DisposeSuccesses);
         failure.Dispose();
     }
 
