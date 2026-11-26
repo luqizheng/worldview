@@ -11,11 +11,21 @@ using WorldView.Presentation.Results;
 namespace WorldView.Desktop.Rendering;
 
 /// <summary>
-/// 一次场景请求的最终结果与其发起身份（WP-RA-02-A R1-P2-01）：调用方据此判定
+/// 一次场景请求的最终结果与其发起身份（WP-RA-02-A R1-P2-01 / R2-P0）：调用方据此判定
 /// 该请求是否仍是当前有效请求——过期请求不得覆盖当前请求的状态（状态倒退防护）。
 /// 请求身份由发起方 Binding 每实例分配（非全局静态），Workspace 之间互不影响。
+/// R2-P0：<paramref name="failure"/> 非 null 表示请求管线抛出过异常——Binding 已把该
+/// 异常归一化为 State=Failed 的 <paramref name="outcome"/>（统一走成功路径的同一套
+/// 有效性守卫），异常对象原样保留在本属性上供调用方观察记录：不吞异常，也绝不以
+/// "catch 时读取全局最新身份"的方式伪造本请求身份。
 /// </summary>
-internal sealed record SceneRequestResult(PresentationRequestOutcome Outcome, long RequestIdentity);
+/// <param name="Outcome">请求的最终结果（管线异常时为归一化的 Failed 结果）。</param>
+/// <param name="RequestIdentity">本请求自己的身份（发起即分配，贯穿完整生命周期）。</param>
+/// <param name="Failure">管线抛出的原始异常；正常完成（含协调器归一化的失败结果）为 null。</param>
+internal sealed record SceneRequestResult(
+    PresentationRequestOutcome Outcome,
+    long RequestIdentity,
+    Exception? Failure = null);
 
 /// <summary>
 /// 视口生命周期协调的单一执行者（WP-30B ADR-07 / ADR-10，Desktop 内部具体类）：
@@ -294,7 +304,19 @@ internal class MapViewportBinding
     // R1-P2-01：本 Binding 私有的请求身份计数（每实例单调递增，非全局静态）。
     // 每个 Workspace 独立管理自己的请求身份——不同 Workspace 的请求互不影响；
     // 关闭再重新打开的工作区拥有全新 Binding 实例，身份天然隔离。
+    // R2 §5：身份分配（发起）与结果记录（完成）共用下方 _stateGate——
+    // "身份判定 + 状态写入"在该锁内原子完成，见 RecordOutcomeIfCurrent。
     private long _latestInitiatedRequestIdentity;
+
+    /// <summary>
+    /// 请求状态门（R2 §5）：保护"身份检查 → 状态写入"的原子性。此前先
+    /// Volatile.Read 身份再写状态的 check-then-write 存在竞态窗口——检查通过后
+    /// 被新请求抢占、旧请求仍把过期结果写入 <see cref="_lastOutcome"/> /
+    /// <see cref="LastRequestedFingerprintHex"/>，造成状态记录倒退。本锁把发起
+    /// （身份分配 + 指纹记录）与完成（结果记录）的判定和写入串行化：单机桌面
+    /// 软件定位下的最小同步方案，锁内无 await。读者仍走无锁 Volatile 读。
+    /// </summary>
+    private readonly object _stateGate = new();
 
     /// <summary>
     /// 最近一次发起的场景请求身份（R1-P2-01 过期请求判定锚点）：发起即分配，
@@ -316,6 +338,14 @@ internal class MapViewportBinding
     /// 发起请求才写入 <see cref="LastRequestOutcome"/>——晚到的过期请求（Superseded、
     /// 异常晚到等）不得覆盖当前请求的结果记录（状态倒退防护）。协调器原有的
     /// latest-request-wins 发布语义不受影响（发布正确性仍由三重身份机制保证）。
+    ///
+    /// R2-P0：请求身份贯穿完整生命周期——身份在发起时分配（本方法返回的
+    /// <see cref="SceneRequestResult"/> 无论成败都携带它）；管线抛出的异常（请求创建
+    /// 校验失败、协调器契约外漏出的异常）在本方法内归一化为 State=Failed 的结果，
+    /// 异常对象原样放入 <see cref="SceneRequestResult.Failure"/> 由调用方观察记录：
+    /// 不吞异常、不以"catch 时读取最新身份"伪造（那可能已是后续请求的身份）。
+    /// R2 §5：身份分配、指纹记录与结果记录的"身份判定 + 写入"全部经
+    /// <see cref="_stateGate"/> 原子完成，消除检查通过后被新请求抢占的写入竞态。
     /// </summary>
     internal async Task<SceneRequestResult> RequestSceneAsync(
         ValidatedWorkspaceContext context,
@@ -323,23 +353,102 @@ internal class MapViewportBinding
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // 请求创建（激活/取代/发布器激活）经协调器内部锁串行化；身份分配在发起
-        // 调用栈内完成，保证"身份 = 当前最新"与请求发起一一对应（诊断一致性）。
-        var identity = Interlocked.Increment(ref _latestInitiatedRequestIdentity);
-        var presentationContext = PresentationContextFactory.FromValidatedWorkspace(
-            context, _runtime.ViewportGeneration.Current);
-        if (Volatile.Read(ref _latestInitiatedRequestIdentity) == identity)
+        // 请求创建（激活/取代/发布器激活）经协调器内部锁串行化；身份分配即请求
+        // 起点（发起即分配，贯穿成败两条路径），在发起调用栈内完成——保证
+        // "身份 = 当前最新"与请求发起一一对应（诊断一致性）。
+        long identity;
+        lock (_stateGate)
         {
-            LastRequestedFingerprintHex = presentationContext.Fingerprint.ToHex();
+            identity = ++_latestInitiatedRequestIdentity;
         }
 
-        var outcome = await _runtime.RequestSceneAsync(presentationContext, cancellationToken).ConfigureAwait(false);
-        if (Volatile.Read(ref _latestInitiatedRequestIdentity) == identity)
+        PresentationContext presentationContext;
+        try
         {
-            Volatile.Write(ref _lastOutcome, outcome);
+            presentationContext = PresentationContextFactory.FromValidatedWorkspace(
+                context, _runtime.ViewportGeneration.Current);
+        }
+        catch (Exception ex)
+        {
+            // R2-P0：请求创建失败（如上下文校验异常）归一化为携带本请求身份的
+            // Failed 结果——失败状态与成功状态走同一套有效性判定（调用方据
+            // RequestIdentity 决定是否发布），异常对象原样保留供观察。此时尚无指纹。
+            var failed = FailedOutcome(
+                context.MapId,
+                context.BranchId,
+                context.HistoricalTime.Canonical(),
+                fingerprintHex: null,
+                diagnostic: $"请求创建失败：{ex.Message}");
+            RecordOutcomeIfCurrent(identity, failed);
+            return new SceneRequestResult(failed, identity, ex);
         }
 
+        lock (_stateGate)
+        {
+            if (_latestInitiatedRequestIdentity == identity)
+            {
+                LastRequestedFingerprintHex = presentationContext.Fingerprint.ToHex();
+            }
+        }
+
+        PresentationRequestOutcome outcome;
+        try
+        {
+            outcome = await _runtime.RequestSceneAsync(presentationContext, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // R2-P0：协调器契约外漏出的管线异常（如装配阶段抛出）同样归一化——
+            // 上下文已构建成功，指纹已知。异常对象原样保留，身份不丢失。
+            var failed = FailedOutcome(
+                presentationContext.MapId,
+                presentationContext.BranchId,
+                presentationContext.HistoricalTime.Canonical(),
+                presentationContext.Fingerprint.ToHex(),
+                diagnostic: $"场景请求管线异常：{ex.Message}");
+            RecordOutcomeIfCurrent(identity, failed);
+            return new SceneRequestResult(failed, identity, ex);
+        }
+
+        RecordOutcomeIfCurrent(identity, outcome);
         return new SceneRequestResult(outcome, identity);
+    }
+
+    /// <summary>
+    /// 构造归一化的 Failed 结果（R2-P0）：本请求未到达协调器或未获得协调器序号时
+    /// Sequence 记 0（与协调器自身的 RejectedClosedOutcome(sequence: 0) 约定一致）。
+    /// </summary>
+    private static PresentationRequestOutcome FailedOutcome(
+        Guid mapId,
+        Guid? branchId,
+        string historicalTimeCanonical,
+        string? fingerprintHex,
+        string diagnostic) => new()
+    {
+        Sequence = 0,
+        FingerprintHex = fingerprintHex ?? string.Empty,
+        MapId = mapId,
+        BranchId = branchId,
+        HistoricalTimeCanonical = historicalTimeCanonical,
+        State = PresentationRequestState.Failed,
+        Diagnostic = diagnostic,
+        CompletedAtUtc = DateTimeOffset.UtcNow,
+    };
+
+    /// <summary>
+    /// 锁内原子完成"身份是否仍然最新 → 记录请求结果"（R1-P2-01 + R2 §5）：判定与
+    /// 写入在同一锁内不可分割，消除"检查通过后被新请求抢占、旧请求仍然写入"的
+    /// 竞态窗口。仅当前有效请求的结果（含归一化失败结果）可成为诊断锚点。
+    /// </summary>
+    private void RecordOutcomeIfCurrent(long identity, PresentationRequestOutcome outcome)
+    {
+        lock (_stateGate)
+        {
+            if (_latestInitiatedRequestIdentity == identity)
+            {
+                _lastOutcome = outcome;
+            }
+        }
     }
 
     /// <summary>

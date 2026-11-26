@@ -240,6 +240,13 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
                 // RejectedClosed 等结果即便发生在关闭之后也如实显示（失败不冒充成功）。
                 var initialRequest = await newBinding.RequestSceneAsync(
                     workspace.Context, cancellationToken).ConfigureAwait(true);
+                // R2-P0：初始请求的管线异常已由 Binding 归一化为 Failed 结果（异常对象
+                // 随结果返回），此处观察记录；失败经 DescribeOutcome 如实显示。
+                if (initialRequest.Failure is { } initialFailure)
+                {
+                    _log?.Warn("ProjectWorkspace", "初始场景请求失败。", initialFailure);
+                }
+
                 var outcomeText = newBinding.LatestInitiatedRequestIdentity == initialRequest.RequestIdentity
                     ? DescribeOutcome(initialRequest.Outcome)
                     : string.Empty;
@@ -412,24 +419,39 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
     private async Task HandleContextSwitchedAsync(WorkspaceViewportEntry entry, ValidatedWorkspaceContext context)
     {
+        SceneRequestResult request;
         try
         {
-            var request = await entry.Binding.RequestSceneAsync(context).ConfigureAwait(false);
-            PublishContextSwitchStatus(entry, request);
+            request = await entry.Binding.RequestSceneAsync(context).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            // 后台路径异常必须被观察（R1-P1-01）：先在触发线程记录日志（IAppLog
-            // 实现线程安全），状态可视化经 UI Dispatcher 投递（尽力，不阻塞后台路径）。
-            _log?.Warn("ProjectWorkspace", "语义切换重请求失败。", ex);
-            PublishContextSwitchFailureStatus(entry, ex);
+            // R2-P0 防御路径：管线失败已在 Binding 内归一化为携带请求身份的 Failed
+            // 结果并经统一发布守卫（<see cref="PublishContextSwitchStatus"/>），正常
+            // 不会到达此处。能到达此处的只有管线之外的异常（编程缺陷级），且无请求
+            // 身份可用——只能记录观察（不得吞掉），绝不发布状态：无身份可判定该失败
+            // 是否仍是最新请求，发布即可能让旧失败覆盖当前请求的状态（R2-P0 竞态）。
+            _log?.Warn("ProjectWorkspace", "语义切换重请求异常（无请求身份，仅记录不发布状态）。", ex);
+            return;
         }
+
+        // R2-P0：请求携带的管线异常原样观察记录（Binding 归一化不吞异常）；
+        // 失败是否可视化由统一发布守卫决定——仅当前有效请求（含失败结果）可发布。
+        if (request.Failure is { } failure)
+        {
+            _log?.Warn("ProjectWorkspace", "语义切换重请求失败。", failure);
+        }
+
+        PublishContextSwitchStatus(entry, request);
     }
 
     /// <summary>
-    /// 语义切换请求结果的 UI 状态发布（R1-P1-01 / R1-P2-01）：投递前与投递执行时
-    /// 双重守卫——工作区/Binding 存活且该请求仍是当前有效请求。投递期间工作区
-    /// 可能已关闭、更新的请求可能已发起，二者均不得再修改 ViewModel 状态。
+    /// 语义切换请求结果的 UI 状态发布（R1-P1-01 / R1-P2-01 / R2-P0 统一路径）：
+    /// 成功结果与失败结果（含 Binding 归一化的管线异常）共用本方法——投递前与
+    /// 投递执行时双重守卫：工作区/Binding 存活且该请求仍是当前有效请求
+    /// （<see cref="IsRequestCurrent"/>，身份规则唯一）。投递期间工作区可能已关闭、
+    /// 更新的请求可能已发起，二者均不得再修改 ViewModel 状态——过期请求的失败
+    /// 状态同样被丢弃，不得覆盖新请求已发布的状态。
     /// </summary>
     private void PublishContextSwitchStatus(WorkspaceViewportEntry entry, SceneRequestResult request)
     {
@@ -440,7 +462,8 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
 
         _uiDispatcher.Post(() =>
         {
-            // 投递执行时复查（R1-P1-01：投递延迟期间状态可能已变化）。
+            // 投递执行时复查（R1-P1-01：投递延迟期间状态可能已变化；R2-P0：
+            // 失败回调入队后新请求可能已启动——过期失败同样在回调内被丢弃）。
             if (!IsRequestCurrent(entry.Binding, entry.Workspace, request))
             {
                 return;
@@ -459,37 +482,12 @@ public partial class ProjectWorkspaceViewModel : ObservableObject
         });
     }
 
-    /// <summary>语义切换重请求失败的 UI 状态发布：守卫规则同 <see cref="PublishContextSwitchStatus"/>。</summary>
-    private void PublishContextSwitchFailureStatus(WorkspaceViewportEntry entry, Exception exception)
-    {
-        if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
-        {
-            return;
-        }
-
-        _uiDispatcher.Post(() =>
-        {
-            if (entry.Binding.IsClosed || entry.Workspace.IsClosed)
-            {
-                return;
-            }
-
-            try
-            {
-                WorkspaceStatusText = $"语义切换重请求失败：{exception.Message}";
-            }
-            catch (Exception ex)
-            {
-                _log?.Warn("ProjectWorkspace", "语义切换失败状态更新失败。", ex);
-            }
-        });
-    }
-
     /// <summary>
-    /// 请求结果发布守卫（R1-P2-01）：Binding/工作区存活，且该请求仍是本 Binding
-    /// 最新发起的请求。请求身份为每实例私有单调计数（非全局静态），工作区之间
-    /// 互不影响；关闭再重新打开的工作区拥有全新 Binding 实例，旧实例的请求
-    /// 不可能污染新实例。
+    /// 请求结果发布守卫（R1-P2-01 / R2-P0，成功与失败唯一的有效性规则）：
+    /// Binding/工作区存活，且该请求仍是本 Binding 最新发起的请求。请求身份为每
+    /// 实例私有单调计数（非全局静态），工作区之间互不影响；关闭再重新打开的工作区
+    /// 拥有全新 Binding 实例，旧实例的请求不可能污染新实例。失败结果（含归一化的
+    /// 管线异常）走同一规则——不存在第二套判定逻辑。
     /// </summary>
     private static bool IsRequestCurrent(MapViewportBinding binding, MapWorkspaceSession workspace, SceneRequestResult request)
         => !binding.IsClosed
