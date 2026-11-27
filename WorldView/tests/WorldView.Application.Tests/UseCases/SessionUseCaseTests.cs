@@ -333,12 +333,17 @@ public class ProjectSessionLifecycleTests
         session.TransitionTo(ProjectSessionState.Ready);
         var workspace = await session.OpenWorkspaceAsync(
             Guid.NewGuid(), null, null, FakeMapQuery.WithAnyMap(), FakeResolver.Success());
+        // WP-30B Phase 3A：会话关闭现在会释放子工作区 CTS（DisposeAsync），
+        // 因此取消断言使用关闭前捕获的令牌；关闭后 Token 访问抛 ODE（释放证据）。
+        var derivedWorkToken = workspace.DerivedWorkCancellationToken;
 
         await session.CloseAsync();
 
         Assert.Equal(ProjectSessionState.Closed, session.State);
+        Assert.True(derivedWorkToken.IsCancellationRequested);
         Assert.True(workspace.IsClosed);
         Assert.True(workspace.IsDisposed); // 会话关闭统一释放子工作区的取消源
+        Assert.Throws<ObjectDisposedException>(() => _ = workspace.DerivedWorkCancellationToken);
         // 逆序释放：Asset Store 在数据库之前。
         var assetDispose = sharedLog.IndexOf("AssetStore:Dispose");
         var databaseDispose = sharedLog.IndexOf("Database:Dispose");
@@ -360,6 +365,46 @@ public class ProjectSessionLifecycleTests
         Assert.True(w1.IsClosed);
         Assert.True(w2.IsClosed);
         Assert.Equal(ProjectSessionState.Closed, session.State);
+    }
+
+    [Fact]
+    public async Task CloseSession_DisposesChildWorkspaceDerivedWorkCts_AfterClose()
+    {
+        // WP-30B Phase 3A（P2 缺口修复）：CloseAsync 在关闭每个子工作区后执行
+        // DisposeAsync——先 Close（取消派生工作）后 Dispose（释放 CTS），次序不可交换。
+        var database = new FakePackageDatabase("db.sqlite");
+        var assetStore = new FakeAssetStore();
+        var session = CreateSession(database, assetStore);
+        session.TransitionTo(ProjectSessionState.Ready);
+        var w1 = await session.OpenWorkspaceAsync(Guid.NewGuid(), null, null, FakeMapQuery.WithAnyMap(), FakeResolver.Success());
+        var w2 = await session.OpenWorkspaceAsync(Guid.NewGuid(), null, null, FakeMapQuery.WithAnyMap(), FakeResolver.Success());
+
+        await session.CloseAsync();
+
+        Assert.True(w1.IsClosed);
+        Assert.True(w2.IsClosed);
+        // CTS 已释放：Token 访问抛出 ObjectDisposedException（可观测的释放证据）。
+        Assert.Throws<ObjectDisposedException>(() => _ = w1.DerivedWorkCancellationToken);
+        Assert.Throws<ObjectDisposedException>(() => _ = w2.DerivedWorkCancellationToken);
+        Assert.Equal(ProjectSessionState.Closed, session.State);
+    }
+
+    [Fact]
+    public async Task CloseSession_IsIdempotent_ChildDisposeNotDoubled()
+    {
+        // 幂等：重复 CloseAsync 不重复释放子工作区 CTS（Dispose 幂等，但编排不得二次执行）。
+        var database = new FakePackageDatabase("db.sqlite");
+        var assetStore = new FakeAssetStore();
+        var session = CreateSession(database, assetStore);
+        session.TransitionTo(ProjectSessionState.Ready);
+        await session.OpenWorkspaceAsync(Guid.NewGuid(), null, null, FakeMapQuery.WithAnyMap(), FakeResolver.Success());
+
+        await session.CloseAsync();
+        var databaseDisposeCount = database.CallLog.Count(op => op == "Database:Dispose");
+        await session.CloseAsync();
+
+        Assert.Equal(1, databaseDisposeCount);
+        Assert.Equal(1, database.CallLog.Count(op => op == "Database:Dispose"));
     }
 
     [Fact]

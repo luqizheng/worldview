@@ -42,8 +42,8 @@ public sealed class FieldPackageReaderTests
         Assert.Equal(expectedGridWidth, reader.GridWidth);
         Assert.Equal(expectedTileCount, reader.TileCount);
         for (uint y = 0; y < 1; y++)
-        for (uint x = 0; x < expectedTileCount; x++)
-            Assert.NotEmpty(reader.ReadTile(x, y));
+            for (uint x = 0; x < expectedTileCount; x++)
+                Assert.NotEmpty(reader.ReadTile(x, y));
     }
 
     [Fact]

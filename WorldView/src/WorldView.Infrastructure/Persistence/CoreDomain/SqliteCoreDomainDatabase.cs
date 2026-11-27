@@ -77,7 +77,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     public IReadOnlyList<RawProjectIdentityRow> ReadProjectIdentityRows() =>
         _ef.Execute(db => (IReadOnlyList<RawProjectIdentityRow>)db.Projects.AsNoTracking()
@@ -158,7 +158,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     public MapRecord? FindMap(Guid projectId, Guid mapId)
     {
@@ -190,7 +190,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
             .ToArray());
     }
 
-    
+
 
     public void CreateMapStructure(MapCreationPlan plan)
     {
@@ -279,7 +279,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     public HistoryRecord? FindHistory(Guid projectId, Guid historyId)
     {
@@ -302,7 +302,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     public BranchRecord? FindBranch(Guid projectId, Guid branchId)
     {
@@ -324,7 +324,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     public void CreateBranchStructure(BranchCreationPlan plan)
     {
@@ -371,7 +371,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    
+
 
     private static ProjectRecord MapProject(CoreProjectEntity entity) => new()
     {

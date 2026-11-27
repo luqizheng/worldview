@@ -116,11 +116,19 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             ? new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId }
             : new { field_key = fieldKey, schema_version = 1, semantics_id = semanticsId, unit = "m" };
         object spatial = isLandWater
-            ? new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1",
-                coordinate_precision_profile_id = "fixture:coordinate-precision-v1" }
-            : new { map_space_id = "fixture-map-space-001", spatial_reference_id = "fixture:local-cartesian-v1",
+            ? new
+            {
+                map_space_id = "fixture-map-space-001",
+                spatial_reference_id = "fixture:local-cartesian-v1",
+                coordinate_precision_profile_id = "fixture:coordinate-precision-v1"
+            }
+            : new
+            {
+                map_space_id = "fixture-map-space-001",
+                spatial_reference_id = "fixture:local-cartesian-v1",
                 coordinate_precision_profile_id = "fixture:coordinate-precision-v1",
-                vertical_reference_id = "fixture:vertical-reference-local-v1" };
+                vertical_reference_id = "fixture:vertical-reference-local-v1"
+            };
         object valueEncoding = isLandWater
             ? new
             {
@@ -193,24 +201,24 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         Guid? expectedRevision,
         string fingerprint,
         long now) => new()
-    {
-        ProjectId = projectId,
-        MapId = mapId,
-        FieldDatasetId = datasetId,
-        FieldKey = "elevation",
-        DescriptorSchemaVersion = 1,
-        SemanticsId = "world-view.field.elevation.v1",
-        FieldRevisionId = revisionId,
-        Payload = CreatePayloadPlan(projectId, datasetId, revisionId, now),
-        PayloadBytes = new byte[] { 0x57, 0x56, 0x46, 0x50 },
-        ExpectedCurrentFieldRevisionId = expectedRevision,
-        ContentFingerprint = fingerprint,
-        ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1"),
-        Metadata = FieldRevisionMetadata.FromValidatedManifest(
+        {
+            ProjectId = projectId,
+            MapId = mapId,
+            FieldDatasetId = datasetId,
+            FieldKey = "elevation",
+            DescriptorSchemaVersion = 1,
+            SemanticsId = "world-view.field.elevation.v1",
+            FieldRevisionId = revisionId,
+            Payload = CreatePayloadPlan(projectId, datasetId, revisionId, now),
+            PayloadBytes = new byte[] { 0x57, 0x56, 0x46, 0x50 },
+            ExpectedCurrentFieldRevisionId = expectedRevision,
+            ContentFingerprint = fingerprint,
+            ManifestJson = BuildManifest("elevation", "world-view.field.elevation.v1"),
+            Metadata = FieldRevisionMetadata.FromValidatedManifest(
             BuildManifest("elevation", "world-view.field.elevation.v1")),
-        ProvenanceJson = """{"source":"test-fixture"}""",
-        CreatedAtUtcMs = now,
-    };
+            ProvenanceJson = """{"source":"test-fixture"}""",
+            CreatedAtUtcMs = now,
+        };
 
     private static RegisterFieldPayloadPlan CreatePayloadPlan(
         Guid projectId, Guid datasetId, Guid revisionId, long now)
@@ -274,7 +282,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(mismatch)),
         };
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with
+        { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainConflictException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -347,7 +356,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
             .Replace("\"byte_order\":\"little_endian\"",
                 "\"byte_order\":\"little_endian\",\"byte_order\":\"little_endian\"");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with
+        { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -361,7 +371,8 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
         var manifest = BuildManifest("elevation", "world-view.field.elevation.v1")
             .Replace("\"width\":2", "\"width\":NaN");
         var plan = Plan(project.ProjectId, mapId, Guid.NewGuid(), Guid.NewGuid(),
-            null, Fingerprint1, Now + 4) with { ManifestJson = manifest };
+            null, Fingerprint1, Now + 4) with
+        { ManifestJson = manifest };
 
         Assert.Throws<CoreDomainDataException>(() => FieldDatasetService.PublishRevision(core, plan));
         Assert.Null(core.FindFieldDataset(project.ProjectId, mapId, "elevation"));
@@ -1060,13 +1071,19 @@ public sealed class Cd02FieldDatasetPersistenceTests : IDisposable
                 root["value_encoding"]!["planes"]![0]!["bytes_per_cell"] = 1;
                 root["value_encoding"]!["category_codes"] = new JsonObject
                 {
-                    ["land"] = 1, ["water"] = 1, ["unknown"] = 2, ["outside_coverage"] = 3,
+                    ["land"] = 1,
+                    ["water"] = 1,
+                    ["unknown"] = 2,
+                    ["outside_coverage"] = 3,
                 };
                 break;
             case "MNF-018":
                 root["value_encoding"]!["category_codes"] = new JsonObject
                 {
-                    ["land"] = 0, ["water"] = 1, ["unknown"] = 2, ["outside_coverage"] = 3,
+                    ["land"] = 0,
+                    ["water"] = 1,
+                    ["unknown"] = 2,
+                    ["outside_coverage"] = 3,
                 };
                 break;
             case "MNF-019":

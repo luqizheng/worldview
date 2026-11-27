@@ -12,6 +12,7 @@
   <ItemGroup>
     <!-- Session lifecycle internals are exposed only for focused application tests. -->
     <InternalsVisibleTo Include="WorldView.Application.Tests" />
+    <InternalsVisibleTo Include="WorldView.Desktop.Tests" />
   </ItemGroup>
 
   <ItemGroup>
