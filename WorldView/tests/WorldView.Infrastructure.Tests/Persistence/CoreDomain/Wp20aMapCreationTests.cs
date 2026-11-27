@@ -185,10 +185,11 @@ public sealed class Wp20aMapCreationTests : IDisposable
 
         var first = MapRules.CreateMap(project, "First", nowUtcMs: 10L);
         core.CreateMapStructure(first);
-        var second = MapRules.CreateMap(project, "Second", nowUtcMs: 11L) with
+        var secondCandidate = MapRules.CreateMap(project, "Second", nowUtcMs: 11L);
+        var second = secondCandidate with
         {
             DefaultSpatialReference = first.DefaultSpatialReference,
-            Map = MapRules.CreateMap(project, "Second", nowUtcMs: 11L).Map with
+            Map = secondCandidate.Map with
             {
                 SpatialReferenceId = first.DefaultSpatialReference.SpatialReferenceId,
             },
