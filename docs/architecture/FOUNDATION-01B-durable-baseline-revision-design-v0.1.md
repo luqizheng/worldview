@@ -90,7 +90,7 @@ Add `core_map_initial_state_cursor`, one row per baseline:
 - `project_id`, `map_id`, `initial_state_id`;
 - `active_revision_id`;
 - nullable `selected_redo_child_revision_id`;
-- `cursor_version` (starts at 0 and increments on every append/Undo/Redo transition);
+- `cursor_version` (starts at 0 and increments on every append/Undo/Redo/redo-selection transition);
 - `updated_at_utc_ms`.
 
 The cursor has composite FKs to the baseline and to revisions belonging to that same baseline. In addition, `selected_redo_child_revision_id` must either be NULL or identify a direct child of `active_revision_id` in the same baseline; this cross-row predicate is validated in every cursor transaction. It is the only mutable authoritative row in the revision model.
@@ -122,7 +122,7 @@ The current lazy baseline creation path will be removed. A Map without a baselin
 
 ## 6. Cursor and Undo/Redo semantics
 
-Every transition requires both:
+Every cursor mutation requires both:
 
 - `expected_active_revision_id`;
 - `expected_cursor_version`.
@@ -215,7 +215,7 @@ The existing Object insertion path that adds an Initial State membership must ap
 - First membership edit creates revision one; revision zero remains unchanged.
 - Append/Undo/Redo preserve the complete revision tree and exact fingerprints.
 - Multiple redo children require explicit selection; a selection made in the history UI is persisted and survives reopen.
-- Stale expected revision or cursor version is rejected with no partial writes.
+- Stale expected revision or cursor version is rejected with no partial writes, including redo-child selection.
 - Edit-after-Undo creates a new child and preserves the abandoned descendants.
 - Object insertion with Initial Membership appends a revision atomically with identity/registration/reservation changes.
 - Existing development baseline data is migrated into revision zero without loss.
