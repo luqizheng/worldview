@@ -69,7 +69,7 @@ public sealed class Wp20aMapCreationTests : IDisposable
     [Fact]
     public async Task CreateViaSessionAdapter_Succeeds_MapQueryableAndInvariantPreserved()
     {
-        var (session, projectId, _) = await CreateAndOpenAsync("世界A");
+        var (session, projectId, packageRoot) = await CreateAndOpenAsync("世界A");
         var creation = new CoreDomainMapCreationService(session.Database);
 
         var result = await creation.CreateAsync(new MapCreationRequest { ProjectId = projectId, MapName = "  主地图  " });
@@ -91,12 +91,39 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.True(resolution.Success, resolution.Diagnostic);
         Assert.Equal(result.Map.MapId, resolution.Context!.MapId);
 
+        // Map 创建事务同时创建并绑定默认坐标框架；不虚构精度、容差或有效范围。
+        var core = new SqliteCoreDomainDatabase(session.Database);
+        var persistedMap = core.FindMap(projectId, result.Map.MapId)!;
+        Assert.False(string.IsNullOrWhiteSpace(persistedMap.SpatialReferenceId));
+        var spatialReference = core.FindSpatialReferenceDefinition(projectId, persistedMap.SpatialReferenceId!)!;
+        Assert.Equal(SpatialReferenceKind.LocalCartesian, spatialReference.Kind);
+        Assert.Equal("world-unit", spatialReference.CoordinateUnit);
+        Assert.Equal(SpatialAxisOrder.XY, spatialReference.AxisOrder);
+        Assert.Equal(2, spatialReference.Dimension);
+        Assert.Equal(SpatialWrapBehavior.None, spatialReference.WrapBehavior);
+        Assert.Null(spatialReference.VerticalReferenceId);
+        Assert.Null(spatialReference.PrecisionProfile);
+        Assert.Equal("{\"origin\":\"map-local\"}", spatialReference.DefinitionParametersJson);
+
         // 创建的 Map 可经现有打开流程打开工作区（M1 验收 5 的会话路径）。
         var workspace = await session.OpenWorkspaceAsync(result.Map.MapId, null, null, query, resolver);
         Assert.Equal(result.Map.MapId, workspace.Context.MapId);
         await session.CloseWorkspaceAsync(workspace.WorkspaceId);
 
         await session.CloseAsync();
+
+        // 关闭后重新打开包，Map 与 SR 绑定及定义必须仍然完整可解析。
+        var registryAfterReopen = new ProjectSessionRegistry();
+        var reopen = new OpenProjectUseCase(
+            _fileSystem, _databaseFactory, _bootstrapper, _assetStoreFactory, registryAfterReopen,
+            new CoreDomainProjectIdentityReader());
+        var reopened = await reopen.ExecuteAsync(packageRoot);
+        Assert.Equal(OpenProjectOutcome.Succeeded, reopened.Outcome);
+        var reopenedCore = new SqliteCoreDomainDatabase(reopened.Session!.Database);
+        var reopenedMap = reopenedCore.FindMap(projectId, result.Map.MapId)!;
+        Assert.Equal(persistedMap.SpatialReferenceId, reopenedMap.SpatialReferenceId);
+        Assert.NotNull(reopenedCore.FindSpatialReferenceDefinition(projectId, reopenedMap.SpatialReferenceId!));
+        await reopened.Session.CloseAsync();
     }
 
     [Fact]
