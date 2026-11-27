@@ -55,6 +55,26 @@ public sealed class SpatialReferenceRulesTests
     }
 
     [Fact]
+    public void CreateDefaultLocalCartesian_LeavesPrecisionPolicyUnspecified()
+    {
+        var projectId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var mapId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+        var definition = SpatialReferenceRules.CreateDefaultLocalCartesian(projectId, mapId, 123);
+
+        Assert.Equal(projectId, definition.ProjectId);
+        Assert.Equal($"local-cartesian-2d-world-unit-{mapId:N}", definition.SpatialReferenceId);
+        Assert.Equal(SpatialReferenceKind.LocalCartesian, definition.Kind);
+        Assert.Equal("world-unit", definition.CoordinateUnit);
+        Assert.Equal(SpatialAxisOrder.XY, definition.AxisOrder);
+        Assert.Equal(2, definition.Dimension);
+        Assert.Equal(SpatialWrapBehavior.None, definition.WrapBehavior);
+        Assert.Null(definition.VerticalReferenceId);
+        Assert.Null(definition.PrecisionProfile);
+        Assert.Equal(64, definition.DefinitionFingerprint.Length);
+    }
+
+    [Fact]
     public void Validate_RejectsChangedDefinitionContent()
     {
         var definition = SpatialReferenceRules.Create(Candidate());
