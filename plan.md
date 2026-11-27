@@ -128,7 +128,7 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 - Reconcile the current authoritative docs, accepted decisions, proposals and historical records.
 - Build a dependency map between Core Domain, Application Foundation, Map Engine, Field, Editor UI, Renderer, Map Generation and AI Assistant.
 - Identify open PRs and in-flight work that could overlap with planned tasks.
-- Define a consistent work-package template: objective, baseline SHA, scope, non-goals, design references, file ownership, dependencies, parallel work, implementation, tests, acceptance and handoff.
+- Define a consistent work-package template: objective, baseline SHA, scope, non-goals, design references, file ownership, dependencies, implementation, tests, acceptance and handoff.
 
 **Implementation/process**
 - Reconcile the completed WP-RA-02-A / PR #40 integration, the merged PR #41 contract and BASELINE-01 audit as the current baseline.
@@ -445,70 +445,33 @@ Deliver in thin vertical slices, each including UI + Application + Domain + test
 - All shipped capabilities have user-facing behavior, automated tests and recovery/error paths.
 - Release notes clearly state supported features and limitations.
 
-## 7. Parallel work and integration model
+## 7. Single-work-package execution and runtime lifecycle
 
-Parallel work is encouraged only after contracts and ownership boundaries are stable. The project is single-user/single-machine; parallel development does not imply multi-user product architecture.
+### 7.1 Development execution
 
-### 7.1 Safe parallel workstreams
+- Execute one work package at a time. Finish its design, implementation, tests, independent review and integration before starting the next dependent package.
+- Do not create parallel agent/worktree lanes as a project requirement. A short-lived branch is permitted for the active work package and its review; merge it before the next package.
+- Keep file ownership and scope explicit so the active change remains reviewable.
+- The project is a local-first, single-user desktop application. Do not add distributed coordination, multi-user collaboration or concurrency infrastructure without a separately approved product need.
 
-| Workstream | Can proceed in parallel when | Must not overlap with |
-|---|---|---|
-| Product UX/design | Domain operations and UI boundaries are understood | Competing changes to the same interaction contract |
-| Core Domain operations | Command/transaction contract is frozen | Another task changing the same aggregate, migration chain or persistence boundary |
-| Renderer viewport/backend | PRA-01 snapshot contract and package matrix are stable | Scene identity/snapshot contract changes |
-| Spatial services | Coordinate/geometry contracts are stable | Concurrent edits to the same geometry semantics |
-| Field Package | Field Dataset/Revision and package contracts are stable | Concurrent changes to the same package format or migrations |
-| UI shell/panels | View models and Application interfaces are stable | Competing edits to the same shell/navigation files |
-| Test/benchmark harness | Input fixtures and metric definitions are agreed | Changes to fixture semantics without versioning |
+### 7.2 Runtime asynchronous correctness
 
-### 7.2 Dependency-aware parallel lanes
+Single-user does not mean that the UI runtime is synchronous. UI events, background scene preparation, cancellation, file operations, window close and renderer resource disposal can interleave. The application must still prove:
 
-After Phase 2 architecture reconciliation, the following lanes may run concurrently when their contracts are frozen:
+- stale or cancelled work cannot publish after a newer request or after close;
+- one frame consumes one complete immutable snapshot;
+- UI/render thread affinity is respected;
+- cancellation and disposal are deterministic and do not leak resources;
+- file writes and project lifecycle transitions remain atomic and recoverable.
 
-- **Lane A — Core Domain:** missing formal operations, persistence and history.
-- **Lane B — Renderer foundation:** PRA-01 onward, but only when its input/context contracts are stable.
-- **Lane C — UX and UI design:** wireframes, interaction flows and accessibility specifications; production UI code waits for stable Application interfaces.
-- **Lane D — Field/terrain design:** Field contracts and test fixtures; Field runtime implementation waits for Domain and Asset integration.
-- **Lane E — Verification infrastructure:** CI, Windows/macOS smoke tests, deterministic fixtures and benchmark harness.
+Use the smallest in-process mechanisms that satisfy these guarantees. Do not introduce a generalized scheduler, distributed queue, event bus or multi-user locking model.
 
-These lanes are not permission to start all implementation simultaneously. Their entry gates must be satisfied independently.
+### 7.3 Integration cadence
 
-### 7.3 Required task isolation
-
-Every parallel implementation task must:
-- use its own branch and preferably its own Git worktree;
-- declare exact files/directories it owns;
-- declare files it must not modify;
-- pin a baseline commit SHA;
-- consume versioned contracts rather than inventing parallel interfaces;
-- avoid modifying the same migration sequence or central project files as another active task;
-- provide tests and a complete delivery report;
-- rebase/integrate only after the owning reviewer confirms compatibility.
-
-Do not have two agents edit the same files or migrations concurrently. If a shared interface must change, stop dependent work, update the contract first, then rebase consumers.
-
-### 7.4 Integration cadence
-
-- Keep integration serial even when implementation is parallel.
-- Merge one coherent work package at a time.
-- Run the owning test suite, impacted integration suites and full CI after integration.
-- Reconcile changes against the latest default branch before starting the next dependent package.
-- Do not build long-lived parallel branches on top of unmerged assumptions.
-
-### 7.5 Runtime asynchronous concurrency requirements
-
-Even without multi-user concurrency, implement and test:
-- latest-request-wins for viewport/scene preparation;
-- cancellation propagation and cancellation-safe cleanup;
-- stale-result rejection using context/generation/version tokens;
-- atomic publication of complete immutable snapshots;
-- no late publication after a view/session closes;
-- serialized or transactionally coordinated access to a single SQLite connection;
-- idempotent handling of retryable operations where an outcome may be unknown;
-- explicit resource lifetime and UI/render-thread affinity;
-- bounded background work and memory/cache budgets.
-
-Do not introduce distributed locks, server queues, multi-tenant isolation, event streaming infrastructure or generalized schedulers without a demonstrated local product need.
+- Each work package is based on the latest integrated default-branch SHA.
+- Run package-specific tests, then the full solution build/test matrix before merge.
+- Review the diff and verify that unrelated working-tree content is untouched.
+- Update this plan and the relevant contract only when a decision or dependency changes.
 
 ## 8. Standard work-package lifecycle
 
@@ -516,7 +479,7 @@ Every implementation package follows this lifecycle:
 
 1. **Baseline audit** — inspect current code, docs, tests, PRs and actual branch SHA.
 2. **Design** — state the problem, ownership, contracts, alternatives, decision and non-goals.
-3. **Dependency review** — list prerequisites, consumers, files and safe parallel work.
+3. **Dependency review** — list prerequisites, consumers, owned files and integration order.
 4. **Implementation plan** — split into small independently testable changes.
 5. **Implementation** — use isolated branch/worktree; do not expand scope silently.
 6. **Verification** — unit, integration, failure-injection, platform and performance tests appropriate to the change.
@@ -602,4 +565,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-After this roadmap is merged, execute **BASELINE-01**: inspect the latest default branch, all open map-related PRs (including the renderer work), current build/test state and the actual source tree. Produce a dependency/status matrix and identify the single next implementation package. Do not start broad parallel coding before this audit is complete.
+After this roadmap is merged, execute **BASELINE-01**: inspect the latest default branch, all open map-related PRs (including renderer work), current build/test state and the actual source tree. Produce a dependency/status matrix and identify the single next work package. Do not start implementation before this audit is complete.
