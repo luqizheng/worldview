@@ -49,7 +49,7 @@ public partial class _20261129000000_DurableInitialStateRevisions : Migration
                 lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
                 lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' ||
                 lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
-                1, '__EMPTY_FINGERPRINT__', m.CreatedAtUtcMs, m.UpdatedAtUtcMs
+                1, '__EMPTY_FINGERPRINT__', m.created_at_utc_ms, m.updated_at_utc_ms
             FROM core_map m
             WHERE NOT EXISTS (
                 SELECT 1 FROM core_map_initial_state_legacy s
