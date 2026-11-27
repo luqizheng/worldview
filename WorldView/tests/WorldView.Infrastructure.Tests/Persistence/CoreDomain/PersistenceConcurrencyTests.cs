@@ -379,9 +379,11 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         // → 第 3 条语句违反 UNIQUE(project_id, calendar_id)，事务必须整体回滚。
         var newMapId = Guid.NewGuid();
         var newRootHistoryId = Guid.NewGuid();
+        var newSpatialReference = SpatialReferenceRules.CreateDefaultLocalCartesian(project.ProjectId, newMapId, 10L);
         var tampered = first with
         {
-            Map = first.Map with { MapId = newMapId, MapName = "M2" },
+            DefaultSpatialReference = newSpatialReference,
+            Map = first.Map with { MapId = newMapId, MapName = "M2", SpatialReferenceId = newSpatialReference.SpatialReferenceId },
             RootHistory = first.RootHistory with { HistoryId = newRootHistoryId, OwnerMapId = newMapId },
             DefaultCalendar = first.DefaultCalendar with { MapId = newMapId }, // CalendarId 保留 → 唯一冲突
             DayZeroConfiguration = first.DayZeroConfiguration with
