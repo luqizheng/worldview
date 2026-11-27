@@ -7,8 +7,8 @@ namespace WorldView.Domain.Maps;
 
 /// <summary>
 /// Map 创建计划：一次 Core Domain 创建事务必须写入的全部结构
-/// （默认不可变 Spatial Reference 及其 Map 绑定、Map、恰好一条根 History、
-/// 一个 default Calendar、该 Calendar 的 day-zero Configuration）。
+/// （默认不可变 Spatial Reference 及其 Map 绑定、Map、空 time-zero baseline/revision zero/cursor、
+/// 恰好一条根 History、一个 default Calendar、该 Calendar 的 day-zero Configuration）。
 /// 所有 ID 预生成，持久化适配器在同一事务内按依赖序写入。
 /// </summary>
 public sealed record MapCreationPlan
