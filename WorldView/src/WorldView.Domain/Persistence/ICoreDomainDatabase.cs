@@ -160,16 +160,27 @@ public interface ICoreDomainDatabase
     /// <summary>查找 Map 的 Initial State 基线；不存在返回 null（每 Map 至多一行）。</summary>
     MapInitialStateRecord? FindMapInitialState(Guid projectId, Guid mapId);
 
-    /// <summary>列出基线的全部成员行（按 identity 稳定排序）。</summary>
+    /// <summary>列出当前 active revision 的全部成员快照（按 identity 稳定排序）。</summary>
     IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId);
 
+    /// <summary>列出 baseline 的不可变 revision 元数据（按 revision_number 稳定排序）。</summary>
+    IReadOnlyList<MapInitialStateRevisionRecord> ListMapInitialStateRevisions(Guid projectId, Guid mapId);
+
+    /// <summary>读取指定不可变 revision 的完整成员快照（按 identity 稳定排序）。</summary>
+    IReadOnlyList<InitialObjectRecord> ListInitialStateRevisionObjects(Guid projectId, Guid mapId, Guid revisionId);
+
     /// <summary>
-    /// 事务：Initial State 编辑（CAS 全量重写）——基线存在时 expected fingerprint 必须
-    /// 匹配当前值（不匹配抛 <see cref="CoreDomainConflictException"/>）；不存在时仅
-    /// expected 为 null 可建立。成员全量替换 + 指纹由 Domain 重算写入。成员必须有
-    /// 对应注册行（P3⇒P2）且身份 active；校验在事务内完成。
+    /// 事务：追加完整不可变 revision。expected active revision + cursor version 必须匹配；
+    /// 新 revision 以 active revision 为 parent，写入完整快照/操作摘要并推进 cursor。
+    /// 成员必须 active 且有 Map 注册行；任何失败整体回滚。
     /// </summary>
-    void EditMapInitialState(EditInitialStatePlan plan);
+    void AppendMapInitialStateRevision(EditInitialStatePlan plan);
+
+    /// <summary>事务：Undo 到 active revision 的 parent，并持久化 redo child 选择。</summary>
+    void UndoMapInitialStateCursor(UndoInitialStatePlan plan);
+
+    /// <summary>事务：Redo 到显式选择的 active revision 直接子节点。</summary>
+    void RedoMapInitialStateCursor(RedoInitialStatePlan plan);
 
     // ---- Core Asset 权威元数据（core_asset；P2-09-11 §4.6） ----
 
