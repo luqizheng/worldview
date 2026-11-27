@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123090000_ProjectMapSettingsDocuments";
+    public override string LastMigrationId => "20261128000000_OptionalSpatialReferencePrecisionPolicy";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
