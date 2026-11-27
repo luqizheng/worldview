@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261128000000_OptionalSpatialReferencePrecisionPolicy";
+    public override string LastMigrationId => "20261129000000_DurableInitialStateRevisions";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -849,9 +849,96 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     });
             });
 
-        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialObjectEntity", b =>
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", b =>
             {
                 b.Property<string>("initial_state_id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("TEXT");
+
+                b.Property<long>("created_at_utc_ms")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("map_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("project_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.HasKey("initial_state_id");
+
+                b.HasAlternateKey("project_id", "initial_state_id");
+
+                b.HasAlternateKey("project_id", "map_id", "initial_state_id");
+
+                b.HasAlternateKey("project_id", "map_id");
+
+                b.ToTable("core_map_initial_state");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", b =>
+            {
+                b.Property<string>("revision_id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("TEXT");
+
+                b.Property<long>("baseline_schema_version")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("content_fingerprint")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<long>("created_at_utc_ms")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("initial_state_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("map_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("operation_kind")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("operation_payload_json")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("parent_revision_id")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("project_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<long>("revision_number")
+                    .HasColumnType("INTEGER");
+
+                b.HasKey("revision_id");
+
+                b.HasAlternateKey("project_id", "map_id", "initial_state_id", "revision_id");
+
+                b.HasAlternateKey("project_id", "initial_state_id", "revision_id");
+
+                b.HasIndex("project_id", "map_id", "parent_revision_id");
+
+                b.HasIndex("project_id", "initial_state_id", "revision_number")
+                    .IsUnique();
+
+                b.ToTable("core_map_initial_state_revision", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_map_initial_state_revision_number", "revision_number >= 0");
+                        t.HasCheckConstraint("CK_core_map_initial_state_revision_fingerprint", "length(content_fingerprint) = 64 AND content_fingerprint NOT GLOB '*[^0-9a-f]*'");
+                        t.HasCheckConstraint("CK_core_map_initial_state_revision_root_operation", "(revision_number = 0 AND parent_revision_id IS NULL AND operation_kind IS NULL AND operation_payload_json IS NULL) OR (revision_number > 0 AND parent_revision_id IS NOT NULL AND operation_kind IS NOT NULL AND operation_payload_json IS NOT NULL)");
+                    });
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionObjectEntity", b =>
+            {
+                b.Property<string>("revision_id")
                     .HasColumnType("TEXT");
 
                 b.Property<string>("object_identity_id")
@@ -870,6 +957,10 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                 b.Property<long?>("initial_placement_schema_version")
                     .HasColumnType("INTEGER");
 
+                b.Property<string>("initial_state_id")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
                 b.Property<string>("map_id")
                     .IsRequired()
                     .HasColumnType("TEXT");
@@ -878,54 +969,48 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .IsRequired()
                     .HasColumnType("TEXT");
 
-                b.HasKey("initial_state_id", "object_identity_id");
+                b.HasKey("revision_id", "object_identity_id");
 
                 b.HasIndex("project_id", "object_identity_id");
 
-                b.HasIndex("project_id", "map_id", "initial_state_id");
+                b.HasIndex("project_id", "map_id", "revision_id");
 
-                b.HasIndex("project_id", "map_id", "object_identity_id");
-
-                b.ToTable("core_map_initial_object", t =>
+                b.ToTable("core_map_initial_state_revision_object", t =>
                     {
-                        t.HasCheckConstraint("CK_core_map_initial_object_placement_pair", "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)");
+                        t.HasCheckConstraint("CK_core_map_initial_state_revision_object_placement_pair", "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)");
                     });
             });
 
-        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", b =>
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateCursorEntity", b =>
             {
-                b.Property<string>("initial_state_id")
-                    .ValueGeneratedOnAdd()
+                b.Property<string>("project_id")
                     .HasColumnType("TEXT");
-
-                b.Property<long>("baseline_schema_version")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("content_fingerprint")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<long>("created_at_utc_ms")
-                    .HasColumnType("INTEGER");
 
                 b.Property<string>("map_id")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("initial_state_id")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("active_revision_id")
                     .IsRequired()
                     .HasColumnType("TEXT");
 
-                b.Property<string>("project_id")
-                    .IsRequired()
+                b.Property<string>("selected_redo_child_revision_id")
                     .HasColumnType("TEXT");
+
+                b.Property<long>("cursor_version")
+                    .HasColumnType("INTEGER");
 
                 b.Property<long>("updated_at_utc_ms")
                     .HasColumnType("INTEGER");
 
-                b.HasKey("initial_state_id");
+                b.HasKey("project_id", "map_id", "initial_state_id");
 
-                b.HasAlternateKey("project_id", "initial_state_id");
-
-                b.HasAlternateKey("project_id", "map_id");
-
-                b.ToTable("core_map_initial_state");
+                b.ToTable("core_map_initial_state_cursor", t =>
+                    {
+                        t.HasCheckConstraint("CK_core_map_initial_state_cursor_version", "cursor_version >= 0");
+                    });
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapObjectRefEntity", b =>
@@ -1634,15 +1719,8 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
             });
 
-        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialObjectEntity", b =>
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", b =>
             {
-                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreObjectEntity", null)
-                    .WithMany()
-                    .HasForeignKey("project_id", "object_identity_id")
-                    .HasPrincipalKey("project_id", "object_identity_id")
-                    .OnDelete(DeleteBehavior.NoAction)
-                    .IsRequired();
-
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", null)
                     .WithMany()
                     .HasForeignKey("project_id", "map_id", "initial_state_id")
@@ -1650,12 +1728,69 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
 
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "map_id", "initial_state_id", "parent_revision_id")
+                    .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                b.Navigation("CoreMapInitialStateEntity");
+                b.Navigation("CoreMapInitialStateRevisionEntity");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionObjectEntity", b =>
+            {
                 b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapObjectRefEntity", null)
                     .WithMany()
                     .HasForeignKey("project_id", "map_id", "object_identity_id")
                     .HasPrincipalKey("project_id", "map_id", "object_identity_id")
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
+
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "map_id", "initial_state_id", "revision_id")
+                    .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreObjectEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "object_identity_id")
+                    .HasPrincipalKey("project_id", "object_identity_id")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+
+                b.Navigation("CoreMapObjectRefEntity");
+                b.Navigation("CoreMapInitialStateRevisionEntity");
+                b.Navigation("CoreObjectEntity");
+            });
+
+        modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateCursorEntity", b =>
+            {
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "map_id", "initial_state_id")
+                    .HasPrincipalKey("project_id", "map_id", "initial_state_id")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "map_id", "initial_state_id", "active_revision_id")
+                    .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .IsRequired();
+
+                b.HasOne("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionEntity", null)
+                    .WithMany()
+                    .HasForeignKey("project_id", "map_id", "initial_state_id", "selected_redo_child_revision_id")
+                    .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                b.Navigation("CoreMapInitialStateEntity");
+                b.Navigation("CoreMapInitialStateRevisionEntity");
+                b.Navigation("CoreMapInitialStateRevisionEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", b =>
@@ -1666,6 +1801,8 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasPrincipalKey("ProjectId", "MapId")
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
+
+                b.Navigation("CoreMapEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapObjectRefEntity", b =>
