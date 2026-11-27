@@ -1,5 +1,6 @@
 using System;
 using WorldView.Domain.Projects;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Time;
 
 namespace WorldView.Domain.Maps;
@@ -15,6 +16,8 @@ public sealed record MapCreationPlan
     public required MapRecord Map { get; init; }
 
     public required SpatialReferenceDefinitionRecord DefaultSpatialReference { get; init; }
+
+    public required MapInitialStateCreationPlan InitialState { get; init; }
 
     public required HistoryRecord RootHistory { get; init; }
 
@@ -62,10 +65,25 @@ public static class MapRules
         var calendarId = Guid.NewGuid();
         var configurationId = Guid.NewGuid();
         var spatialReference = SpatialReferenceRules.CreateDefaultLocalCartesian(project.ProjectId, mapId, nowUtcMs);
+        var initialStateId = Guid.NewGuid();
+        var revisionZeroId = Guid.NewGuid();
+        var baselineSchemaVersion = MapInitialStateService.StructuralBaselineSchemaVersion;
+        var emptyFingerprint = InitialStateFingerprint.Compute(
+            baselineSchemaVersion, Array.Empty<InitialObjectRecord>());
 
         return new MapCreationPlan
         {
             DefaultSpatialReference = spatialReference,
+            InitialState = new MapInitialStateCreationPlan
+            {
+                ProjectId = project.ProjectId,
+                MapId = mapId,
+                InitialStateId = initialStateId,
+                RevisionZeroId = revisionZeroId,
+                BaselineSchemaVersion = baselineSchemaVersion,
+                EmptyContentFingerprint = emptyFingerprint,
+                NowUtcMs = nowUtcMs,
+            },
             Map = new MapRecord
             {
                 MapId = mapId,
