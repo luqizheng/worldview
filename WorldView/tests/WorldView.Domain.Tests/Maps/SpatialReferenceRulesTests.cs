@@ -68,7 +68,7 @@ public sealed class SpatialReferenceRulesTests
     {
         var candidate = Candidate() with
         {
-            PrecisionProfile = Candidate().PrecisionProfile with
+            PrecisionProfile = (Candidate().PrecisionProfile!) with
             {
                 MaximumAbsoluteQuantizationError = 0,
             },
