@@ -1,7 +1,7 @@
 # World View — Product Development Roadmap
 
-- Version: 1.0
-- Date: 2026-11-26
+- Version: 1.1
+- Date: 2026-11-27
 - Status: Project-level execution baseline; phase details are refined through versioned design contracts before implementation
 - Product: World View — local-first desktop software for creating, editing, reconstructing and presenting fictional or historical worlds and maps
 - Target platforms: Windows and macOS
@@ -140,7 +140,9 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 ### Phase 1 — Product requirements and end-to-end UX design
 
-**Status: PRODUCT-01 scope baseline drafted and user-approved; PR review pending.**
+**Status: PRODUCT-01 COMPLETE — PR #45 merged at `edb978ee12e8401a92eb5108b91b33224e3a23b5` (2026-11-27).**
+
+The approved M1/V1 scope and E2E-01..09 acceptance baseline is `docs/product/PRODUCT-01-v1-scope-and-acceptance.md`.
 
 **Product decision:** deliver M1 — Basic Map Application as an internal usable gate, then V1 — Basic Map Editor with a minimum complete manual authoring loop. V1 is not satisfied by a map-management shell or blank viewport. See `docs/product/PRODUCT-01-v1-scope-and-acceptance.md` for scope, non-goals and E2E-01 through E2E-09.
 
@@ -171,6 +173,8 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 - Product-critical unknowns are recorded with owners and resolution gates.
 
 ### Phase 2 — Architecture reconciliation and technical foundation audit
+
+**Status: ARCH-01 IN REVIEW — report `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.1.md`, audited at PR #45 merge `edb978e`.**
 
 **Goal:** verify that the existing architecture can support the Phase 1 journeys without contradictory ownership or missing formal operations.
 
@@ -567,4 +571,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-After PR #44 is merged, start **PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios** from execution-queue order 5. Establish the first usable Windows/macOS desktop product journeys, prioritize the minimum manual map-authoring slice, and define observable acceptance criteria before starting implementation. BASELINE-01 is complete; do not repeat the audit unless the source baseline materially changes.
+PRODUCT-01 is complete (PR #45). Review and approve **ARCH-01 — Cross-domain dependency and architecture reconciliation** at execution-queue order 6. After ARCH-01 is accepted, start **FOUNDATION-01** from the latest integrated master: close only the formal Project/Map/Spatial Reference/Application gaps required by the first vertical slice. Do not start V1 authoring or PRA-05 optimization before their formal history, geometry, scene-projection and spatial prerequisites are proven.
