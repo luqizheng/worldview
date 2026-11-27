@@ -90,7 +90,8 @@ public sealed class SpatialReferenceServiceTests
         var map = MapRules.CreateMap(project, "World", Now + 1);
         database.CreateMapStructure(map);
 
-        _ = MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId, first.SpatialReferenceId, Now + 2);
+        _ = MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId,
+            map.Map.SpatialReferenceId!, Now + 2);
 
         Assert.Throws<CoreDomainConflictException>(() =>
             MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId, second.SpatialReferenceId, Now + 3));
