@@ -188,15 +188,16 @@ public sealed class Wp20aMapCreationTests : IDisposable
         var secondCandidate = MapRules.CreateMap(project, "Second", nowUtcMs: 11L);
         var second = secondCandidate with
         {
-            Map = secondCandidate.Map with { MapId = first.Map.MapId },
-            RootHistory = secondCandidate.RootHistory with { OwnerMapId = first.Map.MapId },
+            DefaultCalendar = secondCandidate.DefaultCalendar with { CalendarId = first.DefaultCalendar.CalendarId },
         };
 
         Assert.ThrowsAny<Exception>(() => core.CreateMapStructure(second));
         Assert.Single(core.ListMaps(projectId));
         Assert.NotNull(core.FindMap(projectId, first.Map.MapId));
         Assert.NotNull(core.FindSpatialReferenceDefinition(projectId, first.DefaultSpatialReference.SpatialReferenceId));
+        Assert.Null(core.FindMap(projectId, second.Map.MapId));
         Assert.Null(core.FindSpatialReferenceDefinition(projectId, second.DefaultSpatialReference.SpatialReferenceId));
+        Assert.Null(core.FindMapInitialState(projectId, second.Map.MapId));
 
         await session.CloseAsync();
     }
