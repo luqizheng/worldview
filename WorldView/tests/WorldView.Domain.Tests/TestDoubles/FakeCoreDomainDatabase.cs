@@ -144,7 +144,7 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
                 $"同一项目内已存在同名地图「{plan.Map.MapName}」（名称唯一，不区分大小写）。");
         }
 
-        var spatialReference = SpatialReferenceRules.Validate(plan.DefaultSpatialReference);
+        var spatialReference = SpatialReferenceRules.ValidateDefaultLocalCartesian(plan.DefaultSpatialReference, plan.Map.MapId);
         if (spatialReference.ProjectId != plan.Map.ProjectId
             || spatialReference.SpatialReferenceId != plan.Map.SpatialReferenceId)
             throw new CoreDomainConflictException("Map 默认 Spatial Reference 与 Map 绑定不一致。");
