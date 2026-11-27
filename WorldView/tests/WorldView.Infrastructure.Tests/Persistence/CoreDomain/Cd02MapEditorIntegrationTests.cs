@@ -221,7 +221,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         return ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM core_map_initial_object;";
+            command.CommandText = "SELECT COUNT(*) FROM core_map_initial_state_revision_object;";
             return (long)command.ExecuteScalar()!;
         });
     }
