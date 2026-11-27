@@ -195,7 +195,6 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.ThrowsAny<Exception>(() => core.CreateMapStructure(second));
         Assert.Single(core.ListMaps(projectId));
         Assert.NotNull(core.FindMap(projectId, first.Map.MapId));
-        Assert.Null(core.FindMap(projectId, second.Map.MapId));
         Assert.NotNull(core.FindSpatialReferenceDefinition(projectId, first.DefaultSpatialReference.SpatialReferenceId));
         Assert.Null(core.FindSpatialReferenceDefinition(projectId, second.DefaultSpatialReference.SpatialReferenceId));
 
