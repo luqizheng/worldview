@@ -7,6 +7,7 @@ using WorldView.Application.Bootstrap;
 using WorldView.Application.Sessions;
 using WorldView.Application.UseCases;
 using WorldView.Domain.Maps;
+using WorldView.Domain.Objects;
 using WorldView.Domain.Persistence;
 using WorldView.Infrastructure.Assets;
 using WorldView.Infrastructure.IO;
@@ -48,6 +49,31 @@ public sealed class Wp20aMapCreationTests : IDisposable
     }
 
     /// <summary>镜像组合根装配：创建包 → 正式打开 → 返回 Ready 会话与身份。</summary>
+    private static Guid CreateRegisteredRiver(SqliteCoreDomainDatabase core, Guid projectId, Guid mapId, long nowUtcMs)
+    {
+        var allocation = ObjectIdReservationService.ReserveByTypeKey(core, projectId, "river", null, nowUtcMs);
+        var bound = ObjectIdReservationService.Bind(
+            core, projectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, nowUtcMs);
+        var identityId = bound.ObjectIdentityId!.Value;
+        ObjectCreationService.InsertObject(
+            core,
+            projectId,
+            bound.ReservationId,
+            new ObjectDefinitionRecord
+            {
+                ProjectId = projectId,
+                ObjectIdentityId = identityId,
+                DefinitionSchemaVersion = BuiltinObjectTypes.DescriptorSchemaVersion,
+                DefinitionPayloadJson = """{"canonical_name":"Demo River","river_class":"other"}""",
+                DefinitionHash = string.Empty,
+                UpdatedAtUtcMs = nowUtcMs,
+            },
+            new MapObjectRegistration { MapObjectRefId = Guid.NewGuid(), MapId = mapId },
+            new InitialObjectMembership { MembershipPayloadJson = """{"m":1}""" },
+            nowUtcMs);
+        return identityId;
+    }
+
     private async Task<(ProjectSession Session, Guid ProjectId, string PackageRoot)> CreateAndOpenAsync(string packageName)
     {
         var registry = new ProjectSessionRegistry();
@@ -123,6 +149,17 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.Equal(result.Map.MapId, workspace.Context.MapId);
         await session.CloseWorkspaceAsync(workspace.WorkspaceId);
 
+        // Object insertion appends an immutable revision; Undo persists the redo choice before close.
+        var insertedObjectId = CreateRegisteredRiver(core, projectId, result.Map.MapId, nowUtcMs: 20L);
+        var editedBaseline = core.FindMapInitialState(projectId, result.Map.MapId)!;
+        Assert.Equal(1, editedBaseline.ActiveRevisionNumber);
+        Assert.Single(core.ListInitialObjects(projectId, result.Map.MapId));
+        var undoneBaseline = MapInitialStateService.Undo(
+            core, projectId, result.Map.MapId, editedBaseline.ActiveRevisionId, editedBaseline.CursorVersion, nowUtcMs: 21L);
+        Assert.Equal(revisionZero.RevisionId, undoneBaseline.ActiveRevisionId);
+        Assert.Equal(editedBaseline.ActiveRevisionId, undoneBaseline.SelectedRedoChildRevisionId);
+        Assert.Empty(core.ListInitialObjects(projectId, result.Map.MapId));
+
         await session.CloseAsync();
 
         // 关闭后重新打开包，Map 与 SR 绑定及定义必须仍然完整可解析。
@@ -137,8 +174,17 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.Equal(persistedMap.SpatialReferenceId, reopenedMap.SpatialReferenceId);
         Assert.NotNull(reopenedCore.FindSpatialReferenceDefinition(projectId, reopenedMap.SpatialReferenceId!));
         var reopenedBaseline = reopenedCore.FindMapInitialState(projectId, result.Map.MapId)!;
-        Assert.Equal(baseline.ActiveRevisionId, reopenedBaseline.ActiveRevisionId);
-        Assert.Equal(baseline.CursorVersion, reopenedBaseline.CursorVersion);
+        Assert.Equal(undoneBaseline.ActiveRevisionId, reopenedBaseline.ActiveRevisionId);
+        Assert.Equal(undoneBaseline.CursorVersion, reopenedBaseline.CursorVersion);
+        Assert.Equal(editedBaseline.ActiveRevisionId, reopenedBaseline.SelectedRedoChildRevisionId);
+        Assert.Empty(reopenedCore.ListInitialObjects(projectId, result.Map.MapId));
+
+        // The persisted redo choice survives reopen and restores the immutable child snapshot.
+        var redoneBaseline = MapInitialStateService.Redo(
+            reopenedCore, projectId, result.Map.MapId, reopenedBaseline.ActiveRevisionId,
+            reopenedBaseline.CursorVersion, editedBaseline.ActiveRevisionId, nowUtcMs: 22L);
+        Assert.Equal(editedBaseline.ActiveRevisionId, redoneBaseline.ActiveRevisionId);
+        Assert.Equal(insertedObjectId, reopenedCore.ListInitialObjects(projectId, result.Map.MapId).Single().ObjectIdentityId);
         await reopened.Session.CloseAsync();
     }
 
