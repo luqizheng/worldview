@@ -263,6 +263,9 @@ public sealed class CoreDomainPersistenceTests : IDisposable
 
         Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => core.CreateMapStructure(plan));
         Assert.Equal(0, CountRows("core_map")); // 外键拒绝，无残留
+        Assert.Equal(0, CountRows("core_map_initial_state"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision"));
+        Assert.Equal(0, CountRows("core_map_initial_state_cursor"));
     }
 
     [Fact]
@@ -271,7 +274,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         var core = Core();
         var projectId = CreateProject();
         var plan = MapRules.CreateMap(core.FindProject(projectId)!, "M", nowUtcMs: 1L);
-        // 用一个无关的占用行预占 calendar_id：计划的 Map/History 插入成功后，
+        // 用一个无关的占用行预占 calendar_id：计划的 Map/Initial State/History 插入成功后，
         // Calendar 插入在事务中途违反 UNIQUE → 整体回滚。
         var occupierMapId = Guid.NewGuid();
         ExecuteRaw($"""
@@ -289,6 +292,9 @@ public sealed class CoreDomainPersistenceTests : IDisposable
         Assert.Equal(0, CountRows("core_spatial_reference"));
         Assert.Equal(0, CountRows("core_history"));
         Assert.Equal(0, CountRows("core_calendar_configuration"));
+        Assert.Equal(0, CountRows("core_map_initial_state"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision"));
+        Assert.Equal(0, CountRows("core_map_initial_state_cursor"));
         // 预占数据不受影响（回滚只作用于本事务）。
         Assert.Equal(1, CountRows("core_calendar"));
     }
