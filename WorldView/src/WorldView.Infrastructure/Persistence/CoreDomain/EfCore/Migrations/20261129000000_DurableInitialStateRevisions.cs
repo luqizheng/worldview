@@ -95,7 +95,7 @@ public partial class _20261129000000_DurableInitialStateRevisions : Migration
                     REFERENCES core_map_initial_state_revision (project_id, map_id, initial_state_id, revision_id)
             );
 
-            CREATE INDEX IX_core_map_initial_state_revision_parent
+            CREATE INDEX IX_core_map_initial_state_revision_project_id_map_id_parent_revision_id
                 ON core_map_initial_state_revision (project_id, map_id, parent_revision_id);
 
             CREATE TABLE core_map_initial_state_revision_object (
@@ -121,9 +121,9 @@ public partial class _20261129000000_DurableInitialStateRevisions : Migration
                     REFERENCES core_object (project_id, object_identity_id)
             );
 
-            CREATE INDEX IX_core_map_initial_state_revision_object_map
+            CREATE INDEX IX_core_map_initial_state_revision_object_project_id_map_id_revision_id
                 ON core_map_initial_state_revision_object (project_id, map_id, revision_id);
-            CREATE INDEX IX_core_map_initial_state_revision_object_object
+            CREATE INDEX IX_core_map_initial_state_revision_object_project_id_object_identity_id
                 ON core_map_initial_state_revision_object (project_id, object_identity_id);
 
             CREATE TABLE core_map_initial_state_cursor (
