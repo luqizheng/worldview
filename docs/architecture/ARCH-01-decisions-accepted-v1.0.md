@@ -44,6 +44,8 @@ The first V1 manual authoring workflow edits the Map's **time-zero Initial State
 
 The owning Core Domain must provide a durable baseline revision/edit-operation model. The existing mutable compare-and-swap full-set Initial State baseline is not sufficient by itself.
 
+**Contract supersession:** this accepted decision explicitly supersedes the earlier no-revision-chain/no-revision-table direction recorded in `docs/core-domain/CD-02-A_OBJECT_AND_INITIAL_STATE_AUTHORITY_v0.1.md` §10 and its cited P2-09-07 / P2-09-16 baseline assumptions. Those documents remain historical design records; their Initial State ownership and time-zero-versus-post-zero boundary remain valid, but their prohibition on durable baseline revisions is no longer authoritative. The implementation contract must be amended before code is changed.
+
 The formal model must provide:
 
 1. Immutable, durable revisions or equivalent formal baseline edit operations.
