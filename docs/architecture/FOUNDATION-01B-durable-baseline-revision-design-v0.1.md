@@ -93,7 +93,7 @@ Add `core_map_initial_state_cursor`, one row per baseline:
 - `cursor_version` (starts at 0 and increments on every append/Undo/Redo transition);
 - `updated_at_utc_ms`.
 
-The cursor has composite FKs to the baseline and to revisions belonging to that same baseline. It is the only mutable authoritative row in the revision model.
+The cursor has composite FKs to the baseline and to revisions belonging to that same baseline. In addition, `selected_redo_child_revision_id` must either be NULL or identify a direct child of `active_revision_id` in the same baseline; this cross-row predicate is validated in every cursor transaction. It is the only mutable authoritative row in the revision model.
 
 ## 4. Operation representation and normalization
 
@@ -152,7 +152,7 @@ Both are checked inside the same SQLite write transaction. A mismatch is a typed
 - Require the expected active revision/cursor version and an explicit selected child revision ID.
 - Validate that the selected revision is a direct child of the current active revision and belongs to the same baseline.
 - Move active revision to that child, clear selected redo child and increment cursor version.
-- When multiple children exist, the caller must select one explicitly. The current selected redo child is persisted so reopening can restore the visible redo choice.
+- When multiple children exist, the caller must select one explicitly. Undo sets the selected redo child to the revision just left. A dedicated `SelectRedoChild(expectedActiveRevisionId, expectedCursorVersion, childRevisionId)` operation persists a user's explicit branch choice without moving the active revision; it requires the target to be a direct child and increments `cursor_version`. Redo consumes the selected child (or accepts an explicit child ID in the same request), moves the active pointer and clears the selection. This makes a branch choice made in the history UI survive close/reopen. If there is only one child, the UI may offer a direct Redo action; if there are multiple children and no selected child, it must require an explicit choice.
 
 A new edit after Undo creates another child and preserves the old descendants. No revision is deleted or overwritten.
 
@@ -200,7 +200,8 @@ Core Domain will expose intent-level operations to:
 - list revision metadata/children for history presentation;
 - append a complete time-zero snapshot against expected revision and cursor;
 - Undo against expected revision and cursor;
-- Redo to an explicitly selected child against expected revision and cursor;
+- persist an explicit redo-child selection against expected revision and cursor;
+- Redo to the selected or explicitly supplied direct child against expected revision and cursor;
 - read any immutable revision snapshot.
 
 Application/UI code will not read or mutate revision/cursor tables directly and will not maintain an authoritative local Undo stack.
@@ -213,7 +214,7 @@ The existing Object insertion path that adds an Initial State membership must ap
 - Failure at each Map-creation stage leaves no partial Map-owned rows.
 - First membership edit creates revision one; revision zero remains unchanged.
 - Append/Undo/Redo preserve the complete revision tree and exact fingerprints.
-- Multiple redo children require explicit selection; selected redo choice survives reopen.
+- Multiple redo children require explicit selection; a selection made in the history UI is persisted and survives reopen.
 - Stale expected revision or cursor version is rejected with no partial writes.
 - Edit-after-Undo creates a new child and preserves the abandoned descendants.
 - Object insertion with Initial Membership appends a revision atomically with identity/registration/reservation changes.
