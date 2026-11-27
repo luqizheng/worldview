@@ -14,6 +14,8 @@ public sealed record MapCreationPlan
 {
     public required MapRecord Map { get; init; }
 
+    public required SpatialReferenceDefinitionRecord DefaultSpatialReference { get; init; }
+
     public required HistoryRecord RootHistory { get; init; }
 
     public required CalendarRecord DefaultCalendar { get; init; }
@@ -59,15 +61,17 @@ public static class MapRules
         var rootHistoryId = Guid.NewGuid();
         var calendarId = Guid.NewGuid();
         var configurationId = Guid.NewGuid();
+        var spatialReference = SpatialReferenceRules.CreateDefaultLocalCartesian(project.ProjectId, mapId, nowUtcMs);
 
         return new MapCreationPlan
         {
+            DefaultSpatialReference = spatialReference,
             Map = new MapRecord
             {
                 MapId = mapId,
                 ProjectId = project.ProjectId,
                 MapSpaceId = Guid.NewGuid().ToString("D"),
-                SpatialReferenceId = null,
+                SpatialReferenceId = spatialReference.SpatialReferenceId,
                 MapName = name,
                 LifecycleStatus = MapLifecycle.ActiveStatus,
                 CreatedAtUtcMs = nowUtcMs,
