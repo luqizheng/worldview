@@ -63,6 +63,8 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public List<InitialObjectRecord> InitialObjects { get; } = new();
 
+    public List<MapInitialStateRevisionRecord> InitialStateRevisions { get; } = new();
+
     public ProjectRecord? FindProject(Guid projectId) => Projects.FirstOrDefault(p => p.ProjectId == projectId);
 
     public IReadOnlyList<RawProjectIdentityRow> ReadProjectIdentityRows() => Projects
@@ -155,7 +157,41 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
             || spatialReference.SpatialReferenceId != plan.Map.SpatialReferenceId)
             throw new CoreDomainConflictException("Map 默认 Spatial Reference 与 Map 绑定不一致。");
         InsertSpatialReferenceDefinition(spatialReference);
+        if (plan.InitialState.ProjectId != plan.Map.ProjectId || plan.InitialState.MapId != plan.Map.MapId)
+            throw new CoreDomainConflictException("Map creation Initial State identity does not match Map ownership.");
+        var emptyFingerprint = InitialStateFingerprint.Compute(
+            plan.InitialState.BaselineSchemaVersion, Array.Empty<InitialObjectRecord>());
+        if (!string.Equals(emptyFingerprint, plan.InitialState.EmptyContentFingerprint, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Map creation empty Initial State fingerprint is invalid.");
         Maps.Add(plan.Map);
+        InitialStates.Add(new MapInitialStateRecord
+        {
+            InitialStateId = plan.InitialState.InitialStateId,
+            ProjectId = plan.InitialState.ProjectId,
+            MapId = plan.InitialState.MapId,
+            ActiveRevisionId = plan.InitialState.RevisionZeroId,
+            ActiveRevisionNumber = 0,
+            BaselineSchemaVersion = plan.InitialState.BaselineSchemaVersion,
+            ContentFingerprint = plan.InitialState.EmptyContentFingerprint,
+            CursorVersion = 0,
+            SelectedRedoChildRevisionId = null,
+            CreatedAtUtcMs = plan.InitialState.NowUtcMs,
+            UpdatedAtUtcMs = plan.InitialState.NowUtcMs,
+        });
+        InitialStateRevisions.Add(new MapInitialStateRevisionRecord
+        {
+            RevisionId = plan.InitialState.RevisionZeroId,
+            ProjectId = plan.InitialState.ProjectId,
+            MapId = plan.InitialState.MapId,
+            InitialStateId = plan.InitialState.InitialStateId,
+            RevisionNumber = 0,
+            ParentRevisionId = null,
+            BaselineSchemaVersion = plan.InitialState.BaselineSchemaVersion,
+            ContentFingerprint = plan.InitialState.EmptyContentFingerprint,
+            OperationKind = null,
+            OperationPayloadJson = null,
+            CreatedAtUtcMs = plan.InitialState.NowUtcMs,
+        });
         Histories.Add(plan.RootHistory);
         Calendars.Add(plan.DefaultCalendar);
         CalendarConfigurations.Add(plan.DayZeroConfiguration);
@@ -581,95 +617,118 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     public MapInitialStateRecord? FindMapInitialState(Guid projectId, Guid mapId) =>
         InitialStates.FirstOrDefault(s => s.ProjectId == projectId && s.MapId == mapId);
 
-    public IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId) =>
-        InitialObjects.Where(m => m.ProjectId == projectId && m.MapId == mapId)
-            .OrderBy(m => m.ObjectIdentityId)
-            .ToArray();
-
-    public void EditMapInitialState(EditInitialStatePlan plan)
+    public IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId)
     {
-        var baseline = FindMapInitialState(plan.ProjectId, plan.MapId);
-        if (baseline is not null)
-        {
-            if (plan.ExpectedFingerprint is null
-                || !string.Equals(baseline.ContentFingerprint, plan.ExpectedFingerprint, StringComparison.Ordinal))
-            {
-                throw new CoreDomainConflictException("Initial State CAS 冲突。");
-            }
+        var baseline = FindMapInitialState(projectId, mapId);
+        return baseline is null
+            ? Array.Empty<InitialObjectRecord>()
+            : ListInitialStateRevisionObjects(projectId, mapId, baseline.ActiveRevisionId);
+    }
 
-            if (baseline.InitialStateId != plan.InitialStateId)
-            {
-                throw new CoreDomainDataException("编辑计划基线与既有基线不一致。");
-            }
-        }
-        else if (plan.ExpectedFingerprint is not null)
-        {
-            throw new CoreDomainConflictException("尚无基线；expected fingerprint 必须为 null。");
-        }
-        else
-        {
-            InitialStates.Add(new MapInitialStateRecord
-            {
-                InitialStateId = plan.InitialStateId,
-                ProjectId = plan.ProjectId,
-                MapId = plan.MapId,
-                BaselineSchemaVersion = plan.BaselineSchemaVersion,
-                ContentFingerprint = "-",
-                CreatedAtUtcMs = plan.NowUtcMs,
-                UpdatedAtUtcMs = plan.NowUtcMs,
-            });
-        }
+    public IReadOnlyList<MapInitialStateRevisionRecord> ListMapInitialStateRevisions(Guid projectId, Guid mapId) =>
+        InitialStateRevisions.Where(r => r.ProjectId == projectId && r.MapId == mapId)
+            .OrderBy(r => r.RevisionNumber).ToArray();
 
+    public IReadOnlyList<InitialObjectRecord> ListInitialStateRevisionObjects(Guid projectId, Guid mapId, Guid revisionId) =>
+        InitialObjects.Where(m => m.ProjectId == projectId && m.MapId == mapId && m.RevisionId == revisionId)
+            .OrderBy(m => m.ObjectIdentityId).ToArray();
+
+    public void AppendMapInitialStateRevision(EditInitialStatePlan plan)
+    {
+        var baseline = FindMapInitialState(plan.ProjectId, plan.MapId)
+            ?? throw new CoreDomainDataException("Map is missing its Initial State baseline/cursor.");
+        if (baseline.ActiveRevisionId != plan.ExpectedActiveRevisionId
+            || baseline.CursorVersion != plan.ExpectedCursorVersion)
+            throw new CoreDomainConflictException("Initial State cursor stale.");
+        if (InitialStateRevisions.Any(r => r.RevisionId == plan.NewRevisionId))
+            throw new CoreDomainConflictException("Revision identity already exists.");
+
+        var parent = InitialStateRevisions.Single(r => r.ProjectId == plan.ProjectId
+            && r.InitialStateId == baseline.InitialStateId && r.RevisionId == baseline.ActiveRevisionId);
         var seen = new HashSet<Guid>();
+        var writes = new List<InitialObjectRecord>();
         foreach (var member in plan.Members)
         {
             if (!seen.Add(member.ObjectIdentityId))
-            {
                 throw new CoreDomainConflictException("成员集合含重复身份。");
-            }
-
-            var identity = Objects.FirstOrDefault(o =>
-                    o.ProjectId == plan.ProjectId && o.ObjectIdentityId == member.ObjectIdentityId)
-                ?? throw new CoreDomainConflictException("成员身份不存在。");
-            if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+            var identity = Objects.FirstOrDefault(o => o.ProjectId == plan.ProjectId
+                && o.ObjectIdentityId == member.ObjectIdentityId);
+            if (identity is null || identity.LifecycleStatus != ObjectLifecycleStatus.Active
+                || FindMapObjectRef(plan.ProjectId, plan.MapId, member.ObjectIdentityId) is null)
+                throw new CoreDomainConflictException("成员身份不是 active 或缺少 Map 注册行。");
+            writes.Add(new InitialObjectRecord
             {
-                throw new CoreDomainConflictException("draft/abandoned 身份不得进入 Initial State。");
-            }
-
-            if (FindMapObjectRef(plan.ProjectId, plan.MapId, member.ObjectIdentityId) is null)
-            {
-                throw new CoreDomainConflictException("成员缺少注册行（P3⇒P2）。");
-            }
-        }
-
-        InitialObjects.RemoveAll(m => m.ProjectId == plan.ProjectId && m.MapId == plan.MapId);
-        foreach (var member in plan.Members)
-        {
-            InitialObjects.Add(new InitialObjectRecord
-            {
-                ProjectId = plan.ProjectId,
-                MapId = plan.MapId,
-                InitialStateId = plan.InitialStateId,
-                ObjectIdentityId = member.ObjectIdentityId,
+                ProjectId = plan.ProjectId, MapId = plan.MapId, InitialStateId = baseline.InitialStateId,
+                RevisionId = plan.NewRevisionId, ObjectIdentityId = member.ObjectIdentityId,
                 MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-                PlacementPayloadJson = member.PlacementPayloadJson is null
-                    ? null
-                    : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-                PlacementSchemaVersion = member.PlacementSchemaVersion,
-                CreatedAtUtcMs = plan.NowUtcMs,
+                PlacementPayloadJson = member.PlacementPayloadJson is null ? null : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
+                PlacementSchemaVersion = member.PlacementSchemaVersion, CreatedAtUtcMs = plan.NowUtcMs,
             });
         }
 
-        var members = ListInitialObjects(plan.ProjectId, plan.MapId);
-        var fingerprint = InitialStateFingerprint.Compute(plan.BaselineSchemaVersion, members);
-        var updated = InitialStates.First(s => s.ProjectId == plan.ProjectId && s.MapId == plan.MapId);
-        InitialStates.Remove(updated);
-        InitialStates.Add(updated with
+        var fingerprint = InitialStateFingerprint.Compute(plan.BaselineSchemaVersion, writes);
+        if (!string.Equals(fingerprint, plan.ContentFingerprint, StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Revision content fingerprint does not match its immutable snapshot.");
+        var nextNumber = InitialStateRevisions.Where(r => r.ProjectId == plan.ProjectId
+                && r.InitialStateId == baseline.InitialStateId)
+            .Max(r => r.RevisionNumber) + 1;
+        InitialStateRevisions.Add(new MapInitialStateRevisionRecord
         {
-            BaselineSchemaVersion = plan.BaselineSchemaVersion,
-            ContentFingerprint = fingerprint,
-            UpdatedAtUtcMs = plan.NowUtcMs,
+            RevisionId = plan.NewRevisionId, ProjectId = plan.ProjectId, MapId = plan.MapId,
+            InitialStateId = baseline.InitialStateId, RevisionNumber = nextNumber,
+            ParentRevisionId = parent.RevisionId, BaselineSchemaVersion = plan.BaselineSchemaVersion,
+            ContentFingerprint = fingerprint, OperationKind = InitialStateOperation.SnapshotReplaceKind,
+            OperationPayloadJson = CanonicalJson.Canonicalize(plan.OperationPayloadJson), CreatedAtUtcMs = plan.NowUtcMs,
         });
+        InitialObjects.AddRange(writes);
+        var index = InitialStates.IndexOf(baseline);
+        InitialStates[index] = baseline with
+        {
+            ActiveRevisionId = plan.NewRevisionId, ActiveRevisionNumber = nextNumber,
+            BaselineSchemaVersion = plan.BaselineSchemaVersion, ContentFingerprint = fingerprint,
+            CursorVersion = baseline.CursorVersion + 1, SelectedRedoChildRevisionId = null,
+            UpdatedAtUtcMs = plan.NowUtcMs,
+        };
+    }
+
+    public void UndoMapInitialStateCursor(UndoInitialStatePlan plan)
+    {
+        var baseline = FindMapInitialState(plan.ProjectId, plan.MapId)
+            ?? throw new CoreDomainDataException("Map is missing its Initial State baseline/cursor.");
+        if (baseline.ActiveRevisionId != plan.ExpectedActiveRevisionId || baseline.CursorVersion != plan.ExpectedCursorVersion)
+            throw new CoreDomainConflictException("Initial State cursor stale.");
+        var active = InitialStateRevisions.Single(r => r.RevisionId == baseline.ActiveRevisionId);
+        if (active.ParentRevisionId is null)
+            throw new CoreDomainConflictException("Initial State is already at revision zero; Undo is unavailable.");
+        var parent = InitialStateRevisions.Single(r => r.RevisionId == active.ParentRevisionId);
+        var index = InitialStates.IndexOf(baseline);
+        InitialStates[index] = baseline with
+        {
+            ActiveRevisionId = parent.RevisionId, ActiveRevisionNumber = parent.RevisionNumber,
+            BaselineSchemaVersion = parent.BaselineSchemaVersion, ContentFingerprint = parent.ContentFingerprint,
+            CursorVersion = baseline.CursorVersion + 1, SelectedRedoChildRevisionId = active.RevisionId,
+            UpdatedAtUtcMs = plan.NowUtcMs,
+        };
+    }
+
+    public void RedoMapInitialStateCursor(RedoInitialStatePlan plan)
+    {
+        var baseline = FindMapInitialState(plan.ProjectId, plan.MapId)
+            ?? throw new CoreDomainDataException("Map is missing its Initial State baseline/cursor.");
+        if (baseline.ActiveRevisionId != plan.ExpectedActiveRevisionId || baseline.CursorVersion != plan.ExpectedCursorVersion)
+            throw new CoreDomainConflictException("Initial State cursor stale.");
+        var child = InitialStateRevisions.SingleOrDefault(r => r.ProjectId == plan.ProjectId
+            && r.MapId == plan.MapId && r.InitialStateId == baseline.InitialStateId
+            && r.RevisionId == plan.SelectedChildRevisionId && r.ParentRevisionId == baseline.ActiveRevisionId)
+            ?? throw new CoreDomainConflictException("Selected redo revision is not a direct child of the active revision.");
+        var index = InitialStates.IndexOf(baseline);
+        InitialStates[index] = baseline with
+        {
+            ActiveRevisionId = child.RevisionId, ActiveRevisionNumber = child.RevisionNumber,
+            BaselineSchemaVersion = child.BaselineSchemaVersion, ContentFingerprint = child.ContentFingerprint,
+            CursorVersion = baseline.CursorVersion + 1, SelectedRedoChildRevisionId = null,
+            UpdatedAtUtcMs = plan.NowUtcMs,
+        };
     }
 
     // ---- Asset / definition link ----
