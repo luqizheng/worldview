@@ -1,6 +1,6 @@
 # World View — Product Development Roadmap
 
-- Version: 1.5
+- Version: 1.6
 - Date: 2026-11-28
 - Status: Project-level execution baseline; phase details are refined through versioned design contracts before implementation
 - Product: World View — local-first desktop software for creating, editing, reconstructing and presenting fictional or historical worlds and maps
@@ -201,20 +201,21 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 ### Phase 3 — Core Domain and persistence completion for map authoring
 
-**Status: FOUNDATION-01A IMPLEMENTATION IN REVIEW.** FOUNDATION-01 source audit and authoritative time-zero contract are merged; the default Spatial Reference implementation is under review.
+**Status: FOUNDATION-01A COMPLETE; FOUNDATION-01B DESIGN IN REVIEW.** Default Spatial Reference implementation is merged; durable baseline revision/cursor design is prepared for review.
 
-**Current work package: FOUNDATION-01A**
+**Current work package: FOUNDATION-01B**
 
 - Source audit and gap matrix: `docs/architecture/FOUNDATION-01-source-audit-and-gap-matrix-v0.1.md`.
 - FOUNDATION-01A implementation contract: `docs/architecture/FOUNDATION-01A-default-spatial-reference-implementation-v0.1.md`.
+- FOUNDATION-01B revision/cursor design: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`.
 - Authoritative time-zero baseline and geometry publication contract: `docs/core-domain/FOUNDATION-01-time-zero-baseline-contract-v1.0.md`.
 - Binding product decisions remain in `docs/architecture/ARCH-01-decisions-accepted-v1.0.md`.
 
 **Goal:** implement the accepted Map creation, Spatial Reference, durable time-zero baseline revision, Undo/Redo and immutable geometry publication foundations required by the first manual authoring slice.
 
 **Sequential implementation gates**
-1. **FOUNDATION-01A — Default Spatial Reference:** create and bind the immutable 2D Local Cartesian / XY / `world-unit` Map-local definition in the same transaction as Map, root History, Calendar and day-zero configuration. Precision policy remains unspecified; Field Revision publication that requires it must fail closed.
-2. **FOUNDATION-01B — Durable baseline revisions:** establish the empty baseline identity and revision zero as part of Map creation; replace mutable baseline/member replacement with immutable revisions, durable active cursor and Core Domain-owned deterministic Undo/Redo. Stale cursor/revision requests fail closed.
+1. **FOUNDATION-01A — Default Spatial Reference:** COMPLETE — merged in PR #50 (`02adf552`). Create and bind the immutable 2D Local Cartesian / XY / `world-unit` Map-local definition in the same transaction as Map, root History, Calendar and day-zero configuration. Precision policy remains unspecified; Field Revision publication that requires it must fail closed.
+2. **FOUNDATION-01B — Durable baseline revisions:** DESIGN IN REVIEW — `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`. Establish the empty baseline identity and revision zero as part of Map creation; replace mutable baseline/member replacement with immutable revisions, durable active cursor and Core Domain-owned deterministic Undo/Redo. Stale cursor/revision requests fail closed.
 3. **FOUNDATION-01C — Geometry Asset publication:** integrate immutable content-addressed Geometry Assets with POI/River/Landmass membership and revision publication in one formal database transaction.
 
 **Design constraints**
