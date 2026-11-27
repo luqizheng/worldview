@@ -91,3 +91,18 @@
 本矩阵共有 53 个能力子项（A1–A9：9；B1–B9：9；C1–C10：10；D1–D11：11；E1–E7：7；F1–F7：7）。原审计稿中的“共 43 项”与状态合计数不一致，因此撤销旧总数和旧状态计数；本矩阵不再把未经脚本校验的状态合计作为结论。各条目的逐项状态与证据仍以表格为准。
 
 **一句话**：持久化与生命周期基础扎实；呈现管线骨架已实现并接入生产路径，但地图内容链路、视口交互、空间引擎与编辑器主体仍有关键缺口；GUI 平台验收证据不足。
+
+
+## Post-merge status override — 2026-11-27
+
+本矩阵的逐项状态是 BASELINE-01 在源码基线 `6ec34ea` 上的审计快照。审计完成后 PR #41 已合并（merge commit `73da06f0ef143c9a2df9a690aaed0acf1268e6e6`），因此以下条目的设计状态更新如下：
+
+| 能力 | 当前设计状态 | 实现状态 | 说明 |
+|---|---|---|---|
+| C6 Spatial Chunk | DESIGN ACCEPTED | NOT IMPLEMENTED | V0.1 合同已合并；无生产代码 |
+| C7 Fragment | DESIGN ACCEPTED | NOT IMPLEMENTED | 仅有已合并合同定义 |
+| C8 Large Feature | DESIGN ACCEPTED | NOT IMPLEMENTED | 仅有已合并合同定义 |
+| C9 LOD | DESIGN ACCEPTED | NOT IMPLEMENTED | 确定性输入/状态规则已冻结；无选择器实现 |
+| D11 Chunk/LOD 渲染支持 | DESIGN INPUT READY | NOT STARTED | PRA-05 仍被 PRA-02/03 正确性和代表性地图 fixtures 阻塞 |
+
+不要把 PR #41 的合并解释为 Spatial Index、Chunk、Fragment、LOD、Batching 或缓存已经实现。PRA-05 准入条件见 `BASELINE-01_POST_MERGE_UPDATE.md`。
