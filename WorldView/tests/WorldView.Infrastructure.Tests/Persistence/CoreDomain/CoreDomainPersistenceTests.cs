@@ -283,8 +283,10 @@ public sealed class CoreDomainPersistenceTests : IDisposable
 
         Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => core.CreateMapStructure(plan));
 
-        // 事务回滚：计划的 Map/根 History/Configuration 不得有任何残留。
+        // 事务回滚：计划的 Spatial Reference/Map/根 History/Configuration 不得有任何残留。
         Assert.Null(core.FindMap(projectId, plan.Map.MapId));
+        Assert.Null(core.FindSpatialReferenceDefinition(projectId, plan.DefaultSpatialReference.SpatialReferenceId));
+        Assert.Equal(0, CountRows("core_spatial_reference"));
         Assert.Equal(0, CountRows("core_history"));
         Assert.Equal(0, CountRows("core_calendar_configuration"));
         // 预占数据不受影响（回滚只作用于本事务）。
