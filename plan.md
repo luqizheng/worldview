@@ -1,6 +1,6 @@
 # World View — Product Development Roadmap
 
-- Version: 1.6
+- Version: 1.7
 - Date: 2026-11-28
 - Status: Project-level execution baseline; phase details are refined through versioned design contracts before implementation
 - Product: World View — local-first desktop software for creating, editing, reconstructing and presenting fictional or historical worlds and maps
@@ -592,4 +592,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-PRODUCT-01 is complete (PR #45). ARCH-01 audit is merged (PR #46), and all four product-owner decisions are accepted in `docs/architecture/ARCH-01-decisions-accepted-v1.0.md`. Execute FOUNDATION-01 from the latest integrated master: re-audit Project/Map/Spatial Reference/Application ownership, close only proven blocking gaps, and define the durable time-zero baseline revision/Undo/Redo boundary. Finalize Spatial Reference precision/extent in DESIGN-EXTENT before geometry authoring. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.
+PRODUCT-01 is complete (PR #45); ARCH-01 audit and accepted product decisions are merged (PRs #46–48). FOUNDATION-01A is implemented and merged (PR #50). The current gate is independent review of `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`: confirm immutable full-snapshot storage, revision-tree lineage, durable cursor/redo selection, atomic Object insertion membership, and close/reopen behavior against the source and authoritative time-zero contract. After design approval, implement FOUNDATION-01B and merge it before beginning FOUNDATION-01C. Keep DESIGN-EXTENT/PRA-03 as the gate for numeric precision, tolerances and valid extent; do not enable geometry publication without that policy. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.
