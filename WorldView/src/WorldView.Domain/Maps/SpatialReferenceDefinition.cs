@@ -105,6 +105,27 @@ public static class SpatialReferenceRules
         });
     }
 
+    public static SpatialReferenceDefinitionRecord ValidateDefaultLocalCartesian(
+        SpatialReferenceDefinitionRecord definition,
+        Guid mapId)
+    {
+        var validated = Validate(definition);
+        var expectedId = $"local-cartesian-2d-world-unit-{mapId:N}";
+        if (mapId == Guid.Empty
+            || !string.Equals(validated.SpatialReferenceId, expectedId, StringComparison.Ordinal)
+            || validated.Kind != SpatialReferenceKind.LocalCartesian
+            || !string.Equals(validated.CoordinateUnit, "world-unit", StringComparison.Ordinal)
+            || validated.AxisOrder != SpatialAxisOrder.XY
+            || validated.Dimension != 2
+            || validated.WrapBehavior != SpatialWrapBehavior.None
+            || validated.VerticalReferenceId is not null
+            || validated.PrecisionProfile is not null
+            || !string.Equals(validated.ValidDomainJson, "{}", StringComparison.Ordinal)
+            || !string.Equals(validated.DefinitionParametersJson, "{\"origin\":\"map-local\"}", StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Map creation requires its canonical 2D Local Cartesian / XY / world-unit Map-local Spatial Reference without an invented precision profile or finite extent.");
+        return validated;
+    }
+
     public static void ValidateFieldOwnerContext(
         MapRecord map,
         SpatialReferenceDefinitionRecord spatialReference,
