@@ -308,7 +308,7 @@ public sealed class FieldPackageOwnerContextValidationTests : IDisposable
 
         var error = Assert.Throws<FieldPackageValidationException>(() =>
             Validator().Validate(ManifestBytes(BuildManifest()), project.ProjectId, mapId));
-        Assert.Equal(FieldPackageOwnerContextErrorCodes.SpatialReferenceUnbound, error.Code);
+        Assert.Equal(FieldPackageOwnerContextErrorCodes.SpatialReferenceMismatch, error.Code);
     }
 
     [Fact]
