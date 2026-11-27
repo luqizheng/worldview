@@ -261,6 +261,8 @@ public static class MapInitialStateService
             CreatedAtUtcMs = nowUtcMs,
         }).ToArray();
         var fingerprint = InitialStateFingerprint.Compute(baselineSchemaVersion, childMembers);
+        if (string.Equals(fingerprint, baseline.ContentFingerprint, StringComparison.Ordinal))
+            return baseline; // No state change: do not create a redundant revision.
         var operationPayload = InitialStateOperation.ComputePayload(
             parentMembers, normalized, baseline.ContentFingerprint, fingerprint);
 
