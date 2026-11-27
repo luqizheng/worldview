@@ -284,6 +284,25 @@ public static class MapInitialStateService
             ?? throw new CoreDomainDataException("Initial State revision 已提交但 active cursor 不可读。");
     }
 
+    public static IReadOnlyList<MapInitialStateRevisionRecord> ListRevisions(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid mapId)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        return database.ListMapInitialStateRevisions(projectId, mapId);
+    }
+
+    public static IReadOnlyList<InitialObjectRecord> ReadRevision(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid mapId,
+        Guid revisionId)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        return database.ListInitialStateRevisionObjects(projectId, mapId, revisionId);
+    }
+
     public static MapInitialStateRecord Undo(
         ICoreDomainDatabase database,
         Guid projectId,
