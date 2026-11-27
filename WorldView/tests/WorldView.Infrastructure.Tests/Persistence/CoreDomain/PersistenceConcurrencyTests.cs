@@ -380,9 +380,18 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         var newMapId = Guid.NewGuid();
         var newRootHistoryId = Guid.NewGuid();
         var newSpatialReference = SpatialReferenceRules.CreateDefaultLocalCartesian(project.ProjectId, newMapId, 10L);
+        var newInitialStateId = Guid.NewGuid();
+        var newRevisionZeroId = Guid.NewGuid();
+        var newInitialState = first.InitialState with
+        {
+            MapId = newMapId,
+            InitialStateId = newInitialStateId,
+            RevisionZeroId = newRevisionZeroId,
+        };
         var tampered = first with
         {
             DefaultSpatialReference = newSpatialReference,
+            InitialState = newInitialState,
             Map = first.Map with { MapId = newMapId, MapName = "M2", SpatialReferenceId = newSpatialReference.SpatialReferenceId },
             RootHistory = first.RootHistory with { HistoryId = newRootHistoryId, OwnerMapId = newMapId },
             DefaultCalendar = first.DefaultCalendar with { MapId = newMapId }, // CalendarId 保留 → 唯一冲突
@@ -401,6 +410,9 @@ public sealed class PersistenceConcurrencyTests : IDisposable
         Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_history")));
         Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_calendar")));
         Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_calendar_configuration")));
+        Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_map_initial_state")));
+        Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_map_initial_state_revision")));
+        Assert.Equal(1, Access().Execute(c => Scalar(c, "SELECT COUNT(*) FROM core_map_initial_state_cursor")));
         Assert.Null(core.FindMap(project.ProjectId, newMapId));
 
         // 事务资源已释放：同一连接上可继续成功写入。
