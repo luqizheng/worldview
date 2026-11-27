@@ -105,6 +105,19 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.Null(spatialReference.PrecisionProfile);
         Assert.Equal("{\"origin\":\"map-local\"}", spatialReference.DefinitionParametersJson);
 
+        // 同一 Map 创建事务还建立了不可变空 baseline revision zero 与 cursor。
+        var baseline = core.FindMapInitialState(projectId, result.Map.MapId)!;
+        Assert.Equal(0, baseline.ActiveRevisionNumber);
+        Assert.Equal(0, baseline.CursorVersion);
+        Assert.Null(baseline.SelectedRedoChildRevisionId);
+        Assert.Empty(core.ListInitialObjects(projectId, result.Map.MapId));
+        var revisions = core.ListMapInitialStateRevisions(projectId, result.Map.MapId);
+        var revisionZero = Assert.Single(revisions);
+        Assert.Equal(0, revisionZero.RevisionNumber);
+        Assert.Null(revisionZero.ParentRevisionId);
+        Assert.Null(revisionZero.OperationKind);
+        Assert.Equal(baseline.ActiveRevisionId, revisionZero.RevisionId);
+
         // 创建的 Map 可经现有打开流程打开工作区（M1 验收 5 的会话路径）。
         var workspace = await session.OpenWorkspaceAsync(result.Map.MapId, null, null, query, resolver);
         Assert.Equal(result.Map.MapId, workspace.Context.MapId);
@@ -123,6 +136,9 @@ public sealed class Wp20aMapCreationTests : IDisposable
         var reopenedMap = reopenedCore.FindMap(projectId, result.Map.MapId)!;
         Assert.Equal(persistedMap.SpatialReferenceId, reopenedMap.SpatialReferenceId);
         Assert.NotNull(reopenedCore.FindSpatialReferenceDefinition(projectId, reopenedMap.SpatialReferenceId!));
+        var reopenedBaseline = reopenedCore.FindMapInitialState(projectId, result.Map.MapId)!;
+        Assert.Equal(baseline.ActiveRevisionId, reopenedBaseline.ActiveRevisionId);
+        Assert.Equal(baseline.CursorVersion, reopenedBaseline.CursorVersion);
         await reopened.Session.CloseAsync();
     }
 
