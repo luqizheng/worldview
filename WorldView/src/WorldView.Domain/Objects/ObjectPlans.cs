@@ -174,27 +174,49 @@ public sealed record InitialObjectWrite
     public long? PlacementSchemaVersion { get; init; }
 }
 
-/// <summary>
-/// Initial State 编辑计划（CAS 全量重写，P2-09-11 §4.1 "baseline/成员行重写"）：
-/// 基线不存在且 ExpectedFingerprint 为 null 时建立；已存在时 expected 必须匹配当前
-/// content_fingerprint。成员行全量替换（delete + insert），fingerprint 由 Domain 重算。
-/// </summary>
+/// <summary>Map creation's immutable empty baseline root and initial cursor.</summary>
+public sealed record MapInitialStateCreationPlan
+{
+    public required Guid ProjectId { get; init; }
+    public required Guid MapId { get; init; }
+    public required Guid InitialStateId { get; init; }
+    public required Guid RevisionZeroId { get; init; }
+    public required long BaselineSchemaVersion { get; init; }
+    public required string EmptyContentFingerprint { get; init; }
+    public required long NowUtcMs { get; init; }
+}
+
+/// <summary>Append one complete immutable snapshot as a child of the expected active revision.</summary>
 public sealed record EditInitialStatePlan
 {
     public required Guid ProjectId { get; init; }
-
     public required Guid MapId { get; init; }
-
-    /// <summary>基线 ID（建立时由 Domain 服务生成；编辑时为既有 ID）。</summary>
-    public required Guid InitialStateId { get; init; }
-
-    /// <summary>CAS 凭据：基线已存在时必须匹配当前指纹；null 仅在基线不存在（建立）时合法。</summary>
-    public string? ExpectedFingerprint { get; init; }
-
+    public required Guid ExpectedActiveRevisionId { get; init; }
+    public required long ExpectedCursorVersion { get; init; }
+    public required Guid NewRevisionId { get; init; }
     public required long BaselineSchemaVersion { get; init; }
-
-    /// <summary>完整新成员集合（顺序无关；按 identity 去重校验）。</summary>
     public required IReadOnlyList<InitialObjectWrite> Members { get; init; }
+    public required string OperationPayloadJson { get; init; }
+    public required long NowUtcMs { get; init; }
+}
 
+/// <summary>Move the active time-zero cursor to the active revision's parent.</summary>
+public sealed record UndoInitialStatePlan
+{
+    public required Guid ProjectId { get; init; }
+    public required Guid MapId { get; init; }
+    public required Guid ExpectedActiveRevisionId { get; init; }
+    public required long ExpectedCursorVersion { get; init; }
+    public required long NowUtcMs { get; init; }
+}
+
+/// <summary>Move the active time-zero cursor to an explicitly selected direct child.</summary>
+public sealed record RedoInitialStatePlan
+{
+    public required Guid ProjectId { get; init; }
+    public required Guid MapId { get; init; }
+    public required Guid ExpectedActiveRevisionId { get; init; }
+    public required long ExpectedCursorVersion { get; init; }
+    public required Guid SelectedChildRevisionId { get; init; }
     public required long NowUtcMs { get; init; }
 }
