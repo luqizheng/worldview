@@ -1,13 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace WorldView.Infrastructure.Persistence.CoreDomain.EfCore.Migrations;
 
-[DbContext(typeof(CoreDomainDbContext))]
-[Migration("20261128000000_OptionalSpatialReferencePrecisionPolicy")]
 public partial class _20261128000000_OptionalSpatialReferencePrecisionPolicy : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -36,19 +33,7 @@ public partial class _20261128000000_OptionalSpatialReferencePrecisionPolicy : M
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropCheckConstraint("CK_core_spatial_reference_precision_profile_complete", "core_spatial_reference");
-        migrationBuilder.DropCheckConstraint("CK_core_spatial_reference_precision_version", "core_spatial_reference");
-
-        migrationBuilder.AlterColumn<string>("precision_profile_id", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<int>("precision_profile_version", "core_spatial_reference", type: "INTEGER", nullable: false, defaultValue: 1, oldClrType: typeof(int), oldType: "INTEGER", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("precision_coordinate_unit", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("precision_axis_order", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("numeric_representation", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("maximum_absolute_quantization_error", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("rounding_mode", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("minimum_authoring_tolerance", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-        migrationBuilder.AlterColumn<string>("smallest_meaningful_feature_size", "core_spatial_reference", type: "TEXT", nullable: false, defaultValue: "", oldClrType: typeof(string), oldType: "TEXT", oldNullable: true);
-
-        migrationBuilder.AddCheckConstraint("CK_core_spatial_reference_precision_version", "core_spatial_reference", "precision_profile_version >= 1");
+        throw new NotSupportedException(
+            "Downgrading would require inventing a precision profile for coordinate frames that intentionally have none.");
     }
 }
