@@ -294,13 +294,16 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
                 new InitialObjectMembership { MembershipPayloadJson = """{"m":1}""" },
                 Now));
 
-        // 无半成品：identity 仍 draft、reservation 仍 Bound、无 definition/注册/成员/基线。
+        // 无半成品：identity 仍 draft、reservation 仍 Bound、无 definition/注册/新 revision。
+        // Map 创建时的 revision zero baseline 必须保持不变。
         Assert.Equal(ObjectLifecycleStatus.Draft, core.FindObject(project.ProjectId, identityId)!.LifecycleStatus);
         Assert.Equal(ReservationState.Bound, core.FindReservation(project.ProjectId, bound.ReservationId)!.State);
         Assert.Equal(0, CountRows("core_object_definition"));
         Assert.Equal(0, CountRows("core_map_object_ref"));
-        Assert.Equal(0, CountRows("core_map_initial_state"));
-        Assert.Equal(0, CountRows("core_map_initial_object"));
+        Assert.Equal(1, CountRows("core_map_initial_state"));
+        Assert.Equal(1, CountRows("core_map_initial_state_revision"));
+        Assert.Equal(1, CountRows("core_map_initial_state_cursor"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision_object"));
 
         // 移除注入后重试：复用同一 reservation/identity 成功（绝不分配替代 ID）。
         ExecuteRaw("DROP TRIGGER fail_definition_insert;");
@@ -473,19 +476,14 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var core = Core();
         var identityId = CreateActiveObject(project.ProjectId); // project_shared，未注册
 
-        // 经服务建立空基线（合法），随后手工插入成员行 → P3⇒P2 由复合 FK 数据库层强制。
-        MapInitialStateService.EditInitialState(
-            core, project.ProjectId, map.Map.MapId, null,
-            MapInitialStateService.StructuralBaselineSchemaVersion,
-            new List<InitialObjectWrite>(),
-            Now);
+        // Map 创建时已存在 revision zero；手工插入成员行 → P3⇒P2 由复合 FK 强制。
         var baseline = core.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
         Assert.NotNull(baseline);
 
         Assert.ThrowsAny<Exception>(() => ExecuteRaw(
-            $"INSERT INTO core_map_initial_object (project_id, map_id, initial_state_id, object_identity_id, initial_membership_payload_json, created_at_utc_ms) "
-            + $"VALUES ('{project.ProjectId:D}', '{map.Map.MapId:D}', '{baseline.InitialStateId:D}', '{identityId:D}', '{{}}', {Now});"));
-        Assert.Equal(0, CountRows("core_map_initial_object"));
+            $"INSERT INTO core_map_initial_state_revision_object (project_id, map_id, initial_state_id, revision_id, object_identity_id, initial_membership_payload_json, created_at_utc_ms) "
+            + $"VALUES ('{project.ProjectId:D}', '{map.Map.MapId:D}', '{baseline.InitialStateId:D}', '{baseline.ActiveRevisionId:D}', '{identityId:D}', '{{}}', {Now});"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision_object"));
     }
 
     [Fact]
@@ -499,8 +497,8 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
 
         // 第二条基线行被 UNIQUE(project,map) 拒绝。
         Assert.ThrowsAny<Exception>(() => ExecuteRaw(
-            $"INSERT INTO core_map_initial_state (initial_state_id, project_id, map_id, baseline_schema_version, content_fingerprint, created_at_utc_ms, updated_at_utc_ms) "
-            + $"VALUES ('{Guid.NewGuid():D}', '{project.ProjectId:D}', '{map.Map.MapId:D}', 1, 'y', {Now}, {Now});"));
+            $"INSERT INTO core_map_initial_state (initial_state_id, project_id, map_id, created_at_utc_ms) "
+            + $"VALUES ('{Guid.NewGuid():D}', '{project.ProjectId:D}', '{map.Map.MapId:D}', {Now});"));
         _ = identityId;
     }
 
@@ -514,9 +512,10 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var mapId = map.Map.MapId;
         var obj1 = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
         var obj2 = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
+        var revisionZero = core.FindMapInitialState(project.ProjectId, mapId)!;
 
         var baseline = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, null,
+            core, project.ProjectId, mapId, revisionZero.ActiveRevisionId, revisionZero.CursorVersion,
             MapInitialStateService.StructuralBaselineSchemaVersion,
             new List<InitialObjectWrite>
             {
@@ -525,9 +524,9 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
             },
             Now);
 
-        // 指纹确定性：同成员集合（payload 键序不同）→ 同指纹。
+        // 同成员集合（payload 键序不同）是 no-op：指纹和 active revision 均不变。
         var recomputed = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, baseline.ContentFingerprint,
+            core, project.ProjectId, mapId, baseline.ActiveRevisionId, baseline.CursorVersion,
             MapInitialStateService.StructuralBaselineSchemaVersion,
             new List<InitialObjectWrite>
             {
@@ -536,10 +535,11 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
             },
             Now + 1);
         Assert.Equal(baseline.ContentFingerprint, recomputed.ContentFingerprint);
+        Assert.Equal(baseline.ActiveRevisionId, recomputed.ActiveRevisionId);
+        Assert.Equal(baseline.CursorVersion, recomputed.CursorVersion);
 
-        // 全量替换（当前凭据有效 → 成功，产生新指纹）。
         var after = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, recomputed.ContentFingerprint,
+            core, project.ProjectId, mapId, recomputed.ActiveRevisionId, recomputed.CursorVersion,
             MapInitialStateService.StructuralBaselineSchemaVersion,
             new List<InitialObjectWrite>
             {
@@ -551,13 +551,12 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         Assert.Equal(obj1, members[0].ObjectIdentityId);
         Assert.Equal(InitialStateFingerprint.Compute(after.BaselineSchemaVersion, members), after.ContentFingerprint);
 
-        // CAS 冲突：recomputed 的凭据已被 after 编辑作废（stale）→ 拒绝。
+        // stale revision/cursor pair 已被 after 编辑作废。
         Assert.Throws<CoreDomainConflictException>(
             () => MapInitialStateService.EditInitialState(
-                core, project.ProjectId, mapId, recomputed.ContentFingerprint,
+                core, project.ProjectId, mapId, recomputed.ActiveRevisionId, recomputed.CursorVersion,
                 MapInitialStateService.StructuralBaselineSchemaVersion,
-                new List<InitialObjectWrite>(),
-                Now + 3));
+                new List<InitialObjectWrite>(), Now + 3));
     }
 
     [Fact]
@@ -568,10 +567,11 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var allocation = ObjectIdReservationService.ReserveByTypeKey(core, project.ProjectId, "river", null, Now);
         var bound = ObjectIdReservationService.Bind(
             core, project.ProjectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, Now);
+        var baseline = core.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
 
         Assert.Throws<CoreDomainConflictException>(
             () => MapInitialStateService.EditInitialState(
-                core, project.ProjectId, map.Map.MapId, null,
+                core, project.ProjectId, map.Map.MapId, baseline.ActiveRevisionId, baseline.CursorVersion,
                 MapInitialStateService.StructuralBaselineSchemaVersion,
                 new List<InitialObjectWrite>
                 {
