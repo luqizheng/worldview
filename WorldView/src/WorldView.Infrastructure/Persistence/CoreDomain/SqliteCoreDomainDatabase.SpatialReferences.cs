@@ -101,8 +101,8 @@ public sealed partial class SqliteCoreDomainDatabase
                         ?? throw new CoreDomainDataException("Map 当前绑定的 Spatial Reference 定义缺失。");
                     _ = SpatialReferenceRules.ValidateDefaultLocalCartesian(MapSpatialReference(currentEntity), mapId);
 
-                    var hasMapContent = db.MapObjectRefs.Any(x => x.ProjectId == projectId && x.MapId == mapId)
-                        || db.MapInitialObjects.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                    var hasMapContent = db.MapObjectRefs.Any(x => x.project_id == projectId && x.map_id == mapId)
+                        || db.MapInitialObjects.Any(x => x.project_id == projectId && x.map_id == mapId)
                         || db.FieldDatasets.Any(x => x.ProjectId == projectId && x.MapId == mapId);
                     if (hasMapContent)
                         throw new CoreDomainConflictException(
