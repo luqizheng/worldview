@@ -1280,22 +1280,45 @@ public sealed partial class SqliteCoreDomainDatabase
         CreatedAtUtcMs = entity.created_at_utc_ms,
     };
 
-    private static MapInitialStateRecord MapInitialState(CoreMapInitialStateEntity entity) => new()
+    private static MapInitialStateRecord MapInitialState(
+        CoreMapInitialStateEntity baseline,
+        CoreMapInitialStateCursorEntity cursor,
+        CoreMapInitialStateRevisionEntity active) => new()
     {
-        InitialStateId = entity.initial_state_id,
-        ProjectId = entity.project_id,
-        MapId = entity.map_id,
-        BaselineSchemaVersion = entity.baseline_schema_version,
-        ContentFingerprint = entity.content_fingerprint,
-        CreatedAtUtcMs = entity.created_at_utc_ms,
-        UpdatedAtUtcMs = entity.updated_at_utc_ms,
+        InitialStateId = baseline.initial_state_id,
+        ProjectId = baseline.project_id,
+        MapId = baseline.map_id,
+        ActiveRevisionId = active.revision_id,
+        ActiveRevisionNumber = active.revision_number,
+        BaselineSchemaVersion = active.baseline_schema_version,
+        ContentFingerprint = active.content_fingerprint,
+        CursorVersion = cursor.cursor_version,
+        SelectedRedoChildRevisionId = cursor.selected_redo_child_revision_id,
+        CreatedAtUtcMs = baseline.created_at_utc_ms,
+        UpdatedAtUtcMs = cursor.updated_at_utc_ms,
     };
 
-    private static InitialObjectRecord MapInitialObject(CoreMapInitialObjectEntity entity) => new()
+    private static MapInitialStateRevisionRecord MapInitialStateRevision(CoreMapInitialStateRevisionEntity entity) => new()
+    {
+        RevisionId = entity.revision_id,
+        ProjectId = entity.project_id,
+        MapId = entity.map_id,
+        InitialStateId = entity.initial_state_id,
+        RevisionNumber = entity.revision_number,
+        ParentRevisionId = entity.parent_revision_id,
+        BaselineSchemaVersion = entity.baseline_schema_version,
+        ContentFingerprint = entity.content_fingerprint,
+        OperationKind = entity.operation_kind,
+        OperationPayloadJson = entity.operation_payload_json,
+        CreatedAtUtcMs = entity.created_at_utc_ms,
+    };
+
+    private static InitialObjectRecord MapInitialObject(CoreMapInitialStateRevisionObjectEntity entity) => new()
     {
         ProjectId = entity.project_id,
         MapId = entity.map_id,
         InitialStateId = entity.initial_state_id,
+        RevisionId = entity.revision_id,
         ObjectIdentityId = entity.object_identity_id,
         MembershipPayloadJson = entity.initial_membership_payload_json,
         PlacementPayloadJson = entity.initial_placement_payload_json,
