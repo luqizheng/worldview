@@ -1,5 +1,7 @@
 using System;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.Linq;
 using WorldView.Domain.Persistence;
 
 namespace WorldView.Domain.Objects;
@@ -214,115 +216,165 @@ public static class MapRegistrationService
 }
 
 /// <summary>
-/// Map Initial State 服务（P3 存在层；CD-02-A §10）：每 Map 恰一个可变 time-zero
-/// 基线；编辑是 baseline authoring 路径（非 Command）；CAS 以 expected fingerprint 守卫；
-/// 成员全量重写；指纹由 Domain 规范化序列化计算（Handoff §5.6/§5.7）。
-/// Branch 继承 root Map baseline：分叉不复制任何行（ADR-002/005；继承是解析时语义）。
+/// Map time-zero baseline revision service. Every edit appends an immutable full snapshot;
+/// Core Domain owns the active cursor and deterministic Undo/Redo semantics.
 /// </summary>
 public static class MapInitialStateService
 {
-    /// <summary>结构层 baseline schema 版本（typed 内容 schema 为 open decision OD-1；V1 结构层 = 1）。</summary>
+    /// <summary>V1 structural baseline schema version.</summary>
     public const long StructuralBaselineSchemaVersion = 1;
 
-    /// <summary>
-    /// CAS 编辑 Initial State（全量成员集合替换）。
-    /// 基线不存在且 <paramref name="expectedFingerprint"/> 为 null → 建立基线；
-    /// 基线存在 → expected 必须匹配当前指纹（null 视为冲突，防止并发建立竞态）。
-    /// 每个成员身份必须 active 且已注册到该 Map（P3⇒P2，R-成员前置）。
-    /// </summary>
     public static MapInitialStateRecord EditInitialState(
         ICoreDomainDatabase database,
         Guid projectId,
         Guid mapId,
-        string? expectedFingerprint,
+        Guid expectedActiveRevisionId,
+        long expectedCursorVersion,
         long baselineSchemaVersion,
         IReadOnlyList<InitialObjectWrite> members,
         long nowUtcMs)
     {
+        ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(members);
 
-        var map = database.FindMap(projectId, mapId)
-            ?? throw new CoreDomainConflictException($"Map {mapId} 不存在或不属于项目 {projectId}，拒绝编辑 Initial State。");
+        _ = database.FindMap(projectId, mapId)
+            ?? throw new CoreDomainConflictException($"Map {mapId} 不存在或不属于当前 Project。");
+        var baseline = database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainDataException($"Map {mapId} 缺少 time-zero baseline/cursor。");
+        ValidateExpectedCursor(baseline, expectedActiveRevisionId, expectedCursorVersion);
+        if (baseline.BaselineSchemaVersion != baselineSchemaVersion)
+            throw new CoreDomainConflictException("Initial State baseline schema version cannot change inside an edit.");
 
-        // 成员身份/注册前置校验（服务层最低要求；事务内重读兜底并发）。
-        var seen = new System.Collections.Generic.HashSet<Guid>();
-        foreach (var member in members)
-        {
-            if (!seen.Add(member.ObjectIdentityId))
-            {
-                throw new CoreDomainConflictException($"成员集合含重复身份 {member.ObjectIdentityId}，拒绝。");
-            }
-
-            var identity = database.FindObject(projectId, member.ObjectIdentityId)
-                ?? throw new CoreDomainConflictException($"成员 {member.ObjectIdentityId} 不存在或不属于项目 {projectId}。");
-
-            ObjectRules.ValidateUsableForMapPresence(identity);
-            if (database.FindMapObjectRef(projectId, mapId, member.ObjectIdentityId) is null)
-            {
-                throw new CoreDomainConflictException(
-                    $"成员 {member.ObjectIdentityId} 缺少 Map {mapId} 的注册行（P3⇒P2），拒绝写入 Initial State。");
-            }
-        }
-
-        var existing = database.FindMapInitialState(projectId, mapId);
-        if (existing is not null)
-        {
-            if (expectedFingerprint is null
-                || !string.Equals(existing.ContentFingerprint, expectedFingerprint.Trim(), StringComparison.Ordinal))
-            {
-                throw new CoreDomainConflictException(
-                    $"Initial State CAS 冲突：expected fingerprint 与 Map {mapId} 当前基线不匹配。");
-            }
-
-            database.EditMapInitialState(new EditInitialStatePlan
-            {
-                ProjectId = projectId,
-                MapId = mapId,
-                InitialStateId = existing.InitialStateId,
-                ExpectedFingerprint = existing.ContentFingerprint,
-                BaselineSchemaVersion = baselineSchemaVersion,
-                Members = members,
-                NowUtcMs = nowUtcMs,
-            });
-
-            return existing with { ContentFingerprint = ReadFingerprint(database, projectId, mapId), UpdatedAtUtcMs = nowUtcMs };
-        }
-
-        if (expectedFingerprint is not null)
-        {
-            throw new CoreDomainConflictException(
-                $"Map {mapId} 尚无 Initial State 基线；建立时 expected fingerprint 必须为 null。");
-        }
-
-        var initialStateId = Guid.NewGuid();
-        database.EditMapInitialState(new EditInitialStatePlan
+        var normalized = ValidateAndNormalizeMembers(database, projectId, mapId, members);
+        var parentMembers = database.ListInitialObjects(projectId, mapId);
+        var revisionId = Guid.NewGuid();
+        var childMembers = normalized.Select(member => new InitialObjectRecord
         {
             ProjectId = projectId,
             MapId = mapId,
-            InitialStateId = initialStateId,
-            ExpectedFingerprint = null,
+            InitialStateId = baseline.InitialStateId,
+            RevisionId = revisionId,
+            ObjectIdentityId = member.ObjectIdentityId,
+            MembershipPayloadJson = member.MembershipPayloadJson,
+            PlacementPayloadJson = member.PlacementPayloadJson,
+            PlacementSchemaVersion = member.PlacementSchemaVersion,
+            CreatedAtUtcMs = nowUtcMs,
+        }).ToArray();
+        var fingerprint = InitialStateFingerprint.Compute(baselineSchemaVersion, childMembers);
+        var operationPayload = InitialStateOperation.ComputePayload(
+            parentMembers, normalized, baseline.ContentFingerprint, fingerprint);
+
+        database.AppendMapInitialStateRevision(new EditInitialStatePlan
+        {
+            ProjectId = projectId,
+            MapId = mapId,
+            ExpectedActiveRevisionId = expectedActiveRevisionId,
+            ExpectedCursorVersion = expectedCursorVersion,
+            NewRevisionId = revisionId,
             BaselineSchemaVersion = baselineSchemaVersion,
-            Members = members,
+            Members = normalized,
+            OperationPayloadJson = operationPayload,
+            ContentFingerprint = fingerprint,
             NowUtcMs = nowUtcMs,
         });
 
-        return new MapInitialStateRecord
-        {
-            InitialStateId = initialStateId,
-            ProjectId = projectId,
-            MapId = mapId,
-            BaselineSchemaVersion = baselineSchemaVersion,
-            ContentFingerprint = ReadFingerprint(database, projectId, mapId),
-            CreatedAtUtcMs = nowUtcMs,
-            UpdatedAtUtcMs = nowUtcMs,
-        };
+        return database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainDataException("Initial State revision 已提交但 active cursor 不可读。");
     }
 
-    /// <summary>编辑后重读权威指纹（适配器事务内计算并写入；此处重读保证返回值与库内一致）。</summary>
-    private static string ReadFingerprint(ICoreDomainDatabase database, Guid projectId, Guid mapId)
+    public static MapInitialStateRecord Undo(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid mapId,
+        Guid expectedActiveRevisionId,
+        long expectedCursorVersion,
+        long nowUtcMs)
     {
-        var updated = database.FindMapInitialState(projectId, mapId)
-            ?? throw new CoreDomainDataException("Initial State 编辑事务已提交但基线行不可读（数据损坏）。");
-        return updated.ContentFingerprint;
+        ArgumentNullException.ThrowIfNull(database);
+        var baseline = database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainConflictException($"Map {mapId} 尚无 Initial State baseline。");
+        ValidateExpectedCursor(baseline, expectedActiveRevisionId, expectedCursorVersion);
+        database.UndoMapInitialStateCursor(new UndoInitialStatePlan
+        {
+            ProjectId = projectId,
+            MapId = mapId,
+            ExpectedActiveRevisionId = expectedActiveRevisionId,
+            ExpectedCursorVersion = expectedCursorVersion,
+            NowUtcMs = nowUtcMs,
+        });
+        return database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainDataException("Undo 已提交但 Initial State cursor 不可读。");
+    }
+
+    public static MapInitialStateRecord Redo(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid mapId,
+        Guid expectedActiveRevisionId,
+        long expectedCursorVersion,
+        Guid selectedChildRevisionId,
+        long nowUtcMs)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        if (selectedChildRevisionId == Guid.Empty)
+            throw new ArgumentException("Redo 必须显式选择一个 revision child。", nameof(selectedChildRevisionId));
+        var baseline = database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainConflictException($"Map {mapId} 尚无 Initial State baseline。");
+        ValidateExpectedCursor(baseline, expectedActiveRevisionId, expectedCursorVersion);
+        database.RedoMapInitialStateCursor(new RedoInitialStatePlan
+        {
+            ProjectId = projectId,
+            MapId = mapId,
+            ExpectedActiveRevisionId = expectedActiveRevisionId,
+            ExpectedCursorVersion = expectedCursorVersion,
+            SelectedChildRevisionId = selectedChildRevisionId,
+            NowUtcMs = nowUtcMs,
+        });
+        return database.FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainDataException("Redo 已提交但 Initial State cursor 不可读。");
+    }
+
+    private static void ValidateExpectedCursor(
+        MapInitialStateRecord baseline,
+        Guid expectedActiveRevisionId,
+        long expectedCursorVersion)
+    {
+        if (baseline.ActiveRevisionId != expectedActiveRevisionId
+            || baseline.CursorVersion != expectedCursorVersion)
+            throw new CoreDomainConflictException(
+                "Initial State cursor stale：expected active revision/cursor version 与当前值不匹配。");
+    }
+
+    private static IReadOnlyList<InitialObjectWrite> ValidateAndNormalizeMembers(
+        ICoreDomainDatabase database,
+        Guid projectId,
+        Guid mapId,
+        IReadOnlyList<InitialObjectWrite> members)
+    {
+        var seen = new System.Collections.Generic.HashSet<Guid>();
+        var normalized = new List<InitialObjectWrite>(members.Count);
+        foreach (var member in members)
+        {
+            if (member.ObjectIdentityId == Guid.Empty || !seen.Add(member.ObjectIdentityId))
+                throw new CoreDomainConflictException("Initial State 成员身份为空或重复。");
+
+            var identity = database.FindObject(projectId, member.ObjectIdentityId)
+                ?? throw new CoreDomainConflictException($"成员 {member.ObjectIdentityId} 不存在或不属于当前 Project。");
+            ObjectRules.ValidateUsableForMapPresence(identity);
+            if (database.FindMapObjectRef(projectId, mapId, member.ObjectIdentityId) is null)
+                throw new CoreDomainConflictException($"成员 {member.ObjectIdentityId} 缺少 Map {mapId} 的注册行。");
+
+            normalized.Add(new InitialObjectWrite
+            {
+                ObjectIdentityId = member.ObjectIdentityId,
+                MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
+                PlacementPayloadJson = member.PlacementPayloadJson is null
+                    ? null
+                    : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
+                PlacementSchemaVersion = member.PlacementSchemaVersion,
+            });
+        }
+
+        return normalized;
     }
 }
