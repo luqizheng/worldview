@@ -121,7 +121,7 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 ### Phase 0 — Establish the project execution baseline
 
-<badge>Completion pending PR #44 merge</badge>
+**Status: completion pending PR #44 merge.**
 
 **Goal:** turn the existing design documents and implementation history into one controlled development programme.
 
