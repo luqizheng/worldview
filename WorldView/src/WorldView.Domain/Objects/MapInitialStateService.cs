@@ -366,6 +366,11 @@ public static class MapInitialStateService
             if (database.FindMapObjectRef(projectId, mapId, member.ObjectIdentityId) is null)
                 throw new CoreDomainConflictException($"成员 {member.ObjectIdentityId} 缺少 Map {mapId} 的注册行。");
 
+            if ((member.PlacementPayloadJson is null) != (member.PlacementSchemaVersion is null))
+                throw new ArgumentException("Placement payload 与 schema version 必须同时存在或同时缺省。", nameof(members));
+            if (member.PlacementSchemaVersion is < 1)
+                throw new ArgumentOutOfRangeException(nameof(members), "Placement schema version 必须 >= 1。");
+
             normalized.Add(new InitialObjectWrite
             {
                 ObjectIdentityId = member.ObjectIdentityId,
