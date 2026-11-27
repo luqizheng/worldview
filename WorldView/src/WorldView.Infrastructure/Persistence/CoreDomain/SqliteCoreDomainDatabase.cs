@@ -260,6 +260,47 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
                     CreatedAtUtcMs = plan.Map.CreatedAtUtcMs,
                     UpdatedAtUtcMs = plan.Map.UpdatedAtUtcMs,
                 });
+
+                var initialState = plan.InitialState;
+                if (initialState.ProjectId != plan.Map.ProjectId || initialState.MapId != plan.Map.MapId)
+                    throw new CoreDomainConflictException("Map creation Initial State identity does not match Map ownership.");
+                var emptyFingerprint = InitialStateFingerprint.Compute(
+                    initialState.BaselineSchemaVersion, Array.Empty<InitialObjectRecord>());
+                if (!string.Equals(emptyFingerprint, initialState.EmptyContentFingerprint, StringComparison.Ordinal))
+                    throw new CoreDomainConflictException("Map creation empty Initial State fingerprint is invalid.");
+
+                db.MapInitialStates.Add(new CoreMapInitialStateEntity
+                {
+                    initial_state_id = initialState.InitialStateId,
+                    project_id = initialState.ProjectId,
+                    map_id = initialState.MapId,
+                    created_at_utc_ms = initialState.NowUtcMs,
+                });
+                db.MapInitialStateRevisions.Add(new CoreMapInitialStateRevisionEntity
+                {
+                    revision_id = initialState.RevisionZeroId,
+                    project_id = initialState.ProjectId,
+                    map_id = initialState.MapId,
+                    initial_state_id = initialState.InitialStateId,
+                    revision_number = 0,
+                    parent_revision_id = null,
+                    baseline_schema_version = initialState.BaselineSchemaVersion,
+                    content_fingerprint = initialState.EmptyContentFingerprint,
+                    operation_kind = null,
+                    operation_payload_json = null,
+                    created_at_utc_ms = initialState.NowUtcMs,
+                });
+                db.MapInitialStateCursors.Add(new CoreMapInitialStateCursorEntity
+                {
+                    project_id = initialState.ProjectId,
+                    map_id = initialState.MapId,
+                    initial_state_id = initialState.InitialStateId,
+                    active_revision_id = initialState.RevisionZeroId,
+                    selected_redo_child_revision_id = null,
+                    cursor_version = 0,
+                    updated_at_utc_ms = initialState.NowUtcMs,
+                });
+
                 db.Histories.Add(new CoreHistoryEntity
                 {
                     history_id = plan.RootHistory.HistoryId,
