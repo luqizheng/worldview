@@ -95,8 +95,18 @@ public sealed partial class SqliteCoreDomainDatabase
                         transaction.Commit();
                         return MapMap(map);
                     }
-                    throw new CoreDomainConflictException(
-                        "Map 的 Spatial Reference 已绑定；更换必须经过坐标转换流程，不能原位重解释现有数据。");
+
+                    var currentEntity = db.SpatialReferences.SingleOrDefault(x =>
+                        x.ProjectId == projectId && x.SpatialReferenceId == map.SpatialReferenceId)
+                        ?? throw new CoreDomainDataException("Map 当前绑定的 Spatial Reference 定义缺失。");
+                    _ = SpatialReferenceRules.ValidateDefaultLocalCartesian(MapSpatialReference(currentEntity), mapId);
+
+                    var hasMapContent = db.MapObjectRefs.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                        || db.MapInitialObjects.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                        || db.FieldDatasets.Any(x => x.ProjectId == projectId && x.MapId == mapId);
+                    if (hasMapContent)
+                        throw new CoreDomainConflictException(
+                            "Map 已有对象、Initial State 成员或 Field Dataset；更换 Spatial Reference 必须经过坐标转换流程。");
                 }
 
                 map.SpatialReferenceId = spatialReferenceId;
