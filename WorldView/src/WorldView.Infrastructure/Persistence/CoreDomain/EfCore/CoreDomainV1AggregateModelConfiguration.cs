@@ -191,21 +191,69 @@ internal static class CoreDomainV1AggregateModelConfiguration
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId }).OnDelete(DeleteBehavior.NoAction);
         });
 
-        modelBuilder.Entity<CoreMapInitialObjectEntity>(e =>
+        modelBuilder.Entity<CoreMapInitialStateRevisionEntity>(e =>
         {
             ConfigureGuidText(e);
-            e.ToTable("core_map_initial_object", t => t.HasCheckConstraint("CK_core_map_initial_object_placement_pair",
-                "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)"));
-            e.HasKey(x => new { x.initial_state_id, x.object_identity_id });
+            e.ToTable("core_map_initial_state_revision", t =>
+            {
+                t.HasCheckConstraint("CK_core_map_initial_state_revision_number", "revision_number >= 0");
+                t.HasCheckConstraint("CK_core_map_initial_state_revision_fingerprint",
+                    "length(content_fingerprint) = 64 AND content_fingerprint NOT GLOB '*[^0-9a-f]*'");
+                t.HasCheckConstraint("CK_core_map_initial_state_revision_root_operation",
+                    "(revision_number = 0 AND parent_revision_id IS NULL AND operation_kind IS NULL AND operation_payload_json IS NULL) OR (revision_number > 0 AND parent_revision_id IS NOT NULL AND operation_kind IS NOT NULL AND operation_payload_json IS NOT NULL)");
+            });
+            e.HasKey(x => x.revision_id);
+            e.HasAlternateKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id });
+            e.HasAlternateKey(x => new { x.project_id, x.initial_state_id, x.revision_id });
+            e.HasIndex(x => new { x.project_id, x.initial_state_id, x.revision_number }).IsUnique();
+            e.HasIndex(x => new { x.project_id, x.map_id, x.parent_revision_id });
             e.HasOne<CoreMapInitialStateEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id })
                 .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id }).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<CoreMapInitialStateRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.parent_revision_id })
+                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id })
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<CoreMapInitialStateRevisionObjectEntity>(e =>
+        {
+            ConfigureGuidText(e);
+            e.ToTable("core_map_initial_state_revision_object", t => t.HasCheckConstraint(
+                "CK_core_map_initial_state_revision_object_placement_pair",
+                "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)"));
+            e.HasKey(x => new { x.revision_id, x.object_identity_id });
+            e.HasOne<CoreMapInitialStateRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id })
+                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id })
+                .OnDelete(DeleteBehavior.NoAction);
             e.HasOne<CoreMapObjectRefEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.map_id, x.object_identity_id })
                 .HasPrincipalKey(x => new { x.project_id, x.map_id, x.object_identity_id }).OnDelete(DeleteBehavior.NoAction);
             e.HasOne<CoreObjectEntity>().WithMany()
                 .HasForeignKey(x => new { x.project_id, x.object_identity_id })
                 .HasPrincipalKey(x => new { x.project_id, x.object_identity_id }).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.project_id, x.map_id, x.revision_id });
+            e.HasIndex(x => new { x.project_id, x.object_identity_id });
+        });
+
+        modelBuilder.Entity<CoreMapInitialStateCursorEntity>(e =>
+        {
+            ConfigureGuidText(e);
+            e.ToTable("core_map_initial_state_cursor", t =>
+                t.HasCheckConstraint("CK_core_map_initial_state_cursor_version", "cursor_version >= 0"));
+            e.HasKey(x => new { x.project_id, x.map_id, x.initial_state_id });
+            e.HasOne<CoreMapInitialStateEntity>().WithMany()
+                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id })
+                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id }).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<CoreMapInitialStateRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.active_revision_id })
+                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id })
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<CoreMapInitialStateRevisionEntity>().WithMany()
+                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.selected_redo_child_revision_id })
+                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id, x.revision_id })
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<CoreObjectDefinitionAssetEntity>(e =>
