@@ -177,6 +177,33 @@ public sealed class Wp20aMapCreationTests : IDisposable
     }
 
     [Fact]
+    public async Task DuplicateSpatialReferenceIdentity_RollsBackEntireMapCreation()
+    {
+        var (session, projectId, _) = await CreateAndOpenAsync("世界A");
+        var core = new SqliteCoreDomainDatabase(session.Database);
+        var project = core.FindProject(projectId)!;
+
+        var first = MapRules.CreateMap(project, "First", nowUtcMs: 10L);
+        core.CreateMapStructure(first);
+        var second = MapRules.CreateMap(project, "Second", nowUtcMs: 11L) with
+        {
+            DefaultSpatialReference = first.DefaultSpatialReference,
+            Map = MapRules.CreateMap(project, "Second", nowUtcMs: 11L).Map with
+            {
+                SpatialReferenceId = first.DefaultSpatialReference.SpatialReferenceId,
+            },
+        };
+
+        Assert.ThrowsAny<Exception>(() => core.CreateMapStructure(second));
+        Assert.Single(core.ListMaps(projectId));
+        Assert.NotNull(core.FindMap(projectId, first.Map.MapId));
+        Assert.Null(core.FindMap(projectId, second.Map.MapId));
+        Assert.NotNull(core.FindSpatialReferenceDefinition(projectId, first.DefaultSpatialReference.SpatialReferenceId));
+
+        await session.CloseAsync();
+    }
+
+    [Fact]
     public async Task SameName_DifferentProjects_NoConflict()
     {
         var (sessionA, projectIdA, _) = await CreateAndOpenAsync("世界A");
