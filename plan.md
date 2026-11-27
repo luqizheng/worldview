@@ -543,8 +543,8 @@ This queue is updated after BASELINE-01 and PR #41. Statuses below are grounded 
 | 2 | BASELINE-01 — Audit master, open PRs, CI, code and docs | COMPLETE — source audit @ `6ec34ea` | Capability/dependency/gap evidence; post-merge addendum tracks PR #41 |
 | 3 | WP-RA-02-A — Desktop presentation integration | COMPLETE — PR #40 | PRA-01 production pipeline connected; implementation evidence audited |
 | 4 | WP-RA-03 — Spatial Chunk & LOD Contract V0.1 | COMPLETE — PR #41, merge `73da06f` | Contract is authoritative design input for PRA-05; no implementation implied |
-| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | IN REVIEW — draft PR | M1/V1 boundary, explicit non-goals and E2E-01 through E2E-09; approval recorded in product baseline |
-| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | PENDING | Approved dependency map and missing-operation list |
+| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | COMPLETE — PR #45, merge `edb978e` | Approved M1/V1 boundary, explicit non-goals and E2E-01 through E2E-09 |
+| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | IN REVIEW — PR #46 | E2E ownership map, actual source status, P0/P1 blockers and bounded M1/V1 vertical slices |
 | 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | PENDING | Project/map vertical-slice foundation proven on Windows/macOS |
 | 8 | PRA-01 — Immutable Presentation Context and Scene Snapshot | COMPLETE — verified by BASELINE-01 | Snapshot, freshness, cancellation and publication tests pass |
 | 9 | PRA-02 / WP-30C — Viewport lifecycle, interaction and camera transforms | PARTIAL / NEXT RENDERER GATE | Complete pan/zoom/input/transform path and obtain platform GUI evidence |
