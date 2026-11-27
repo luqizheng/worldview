@@ -181,27 +181,36 @@ public sealed record MapObjectRefRecord
     public required long CreatedAtUtcMs { get; init; }
 }
 
-/// <summary>
-/// Map Initial State 基线行（core_map_initial_state）：每 Map 恰一个逻辑可变 time-zero
-/// 基线；不是 Command/Event/State Change（CD-02-A §10）。
-/// </summary>
+/// <summary>Map-owned time-zero baseline identity and its authoritative active revision cursor.</summary>
 public sealed record MapInitialStateRecord
 {
     public required Guid InitialStateId { get; init; }
-
     public required Guid ProjectId { get; init; }
-
     public required Guid MapId { get; init; }
-
-    /// <summary>baseline payload 结构版本（typed schema 为 open decision OD-1；V1 结构层 = 1）。</summary>
+    public required Guid ActiveRevisionId { get; init; }
+    public required long ActiveRevisionNumber { get; init; }
     public required long BaselineSchemaVersion { get; init; }
-
-    /// <summary>成员集合规范化序列化的确定性哈希（Domain 计算；不含时间戳/审计字段）。</summary>
     public required string ContentFingerprint { get; init; }
-
+    public required long CursorVersion { get; init; }
+    public Guid? SelectedRedoChildRevisionId { get; init; }
     public required long CreatedAtUtcMs { get; init; }
-
     public required long UpdatedAtUtcMs { get; init; }
+}
+
+/// <summary>Immutable full snapshot revision and its parent/operation metadata.</summary>
+public sealed record MapInitialStateRevisionRecord
+{
+    public required Guid RevisionId { get; init; }
+    public required Guid ProjectId { get; init; }
+    public required Guid MapId { get; init; }
+    public required Guid InitialStateId { get; init; }
+    public required long RevisionNumber { get; init; }
+    public Guid? ParentRevisionId { get; init; }
+    public required long BaselineSchemaVersion { get; init; }
+    public required string ContentFingerprint { get; init; }
+    public string? OperationKind { get; init; }
+    public string? OperationPayloadJson { get; init; }
+    public required long CreatedAtUtcMs { get; init; }
 }
 
 /// <summary>
@@ -216,6 +225,9 @@ public sealed record InitialObjectRecord
     public required Guid MapId { get; init; }
 
     public required Guid InitialStateId { get; init; }
+
+    /// <summary>Immutable revision that owns this snapshot member.</summary>
+    public Guid RevisionId { get; init; }
 
     public required Guid ObjectIdentityId { get; init; }
 
