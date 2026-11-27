@@ -809,14 +809,14 @@ public sealed partial class SqliteCoreDomainDatabase
                         $"Object {objectIdentityId} 未注册到 Map {mapId}，无法取消。");
                 }
 
-                // P3⇒P2：仍有 Initial State 成员行时拒绝（须先经 Initial State 编辑移除成员）。
-                if (db.MapInitialObjects.Any(x =>
+                // Stable historical revisions retain their Object registration; do not orphan any revision snapshot.
+                if (db.MapInitialStateRevisionObjects.Any(x =>
                     x.project_id == projectId
                     && x.map_id == mapId
                     && x.object_identity_id == objectIdentityId))
                 {
                     throw new CoreDomainConflictException(
-                        $"Object {objectIdentityId} 仍是 Map {mapId} Initial State 成员，须先移除成员再取消注册（P3⇒P2）。");
+                        $"Object {objectIdentityId} 仍被 Map {mapId} 的历史 Initial State revision 引用，不能取消注册（P3⇒P2）。");
                 }
 
                 db.MapObjectRefs.Remove(registration);
