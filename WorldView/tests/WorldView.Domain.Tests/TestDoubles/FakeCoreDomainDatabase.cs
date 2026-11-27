@@ -156,13 +156,13 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         if (spatialReference.ProjectId != plan.Map.ProjectId
             || spatialReference.SpatialReferenceId != plan.Map.SpatialReferenceId)
             throw new CoreDomainConflictException("Map 默认 Spatial Reference 与 Map 绑定不一致。");
-        InsertSpatialReferenceDefinition(spatialReference);
         if (plan.InitialState.ProjectId != plan.Map.ProjectId || plan.InitialState.MapId != plan.Map.MapId)
             throw new CoreDomainConflictException("Map creation Initial State identity does not match Map ownership.");
         var emptyFingerprint = InitialStateFingerprint.Compute(
             plan.InitialState.BaselineSchemaVersion, Array.Empty<InitialObjectRecord>());
         if (!string.Equals(emptyFingerprint, plan.InitialState.EmptyContentFingerprint, StringComparison.Ordinal))
             throw new CoreDomainConflictException("Map creation empty Initial State fingerprint is invalid.");
+        InsertSpatialReferenceDefinition(spatialReference);
         Maps.Add(plan.Map);
         InitialStates.Add(new MapInitialStateRecord
         {
