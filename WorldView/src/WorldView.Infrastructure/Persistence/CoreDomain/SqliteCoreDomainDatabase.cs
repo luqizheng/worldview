@@ -216,7 +216,7 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
 
                 // Map 与其不可变坐标框架属于同一个创建事务。先落定义以满足 FK，
                 // 后续任一步失败都会回滚定义、Map、History 与 Calendar 全部结构。
-                var spatialReference = SpatialReferenceRules.Validate(plan.DefaultSpatialReference);
+                var spatialReference = SpatialReferenceRules.ValidateDefaultLocalCartesian(plan.DefaultSpatialReference, plan.Map.MapId);
                 if (spatialReference.ProjectId != plan.Map.ProjectId
                     || !string.Equals(spatialReference.SpatialReferenceId, plan.Map.SpatialReferenceId, StringComparison.Ordinal))
                     throw new CoreDomainConflictException("Map 的默认 Spatial Reference 与 Map 所属 Project/绑定 ID 不一致。");
