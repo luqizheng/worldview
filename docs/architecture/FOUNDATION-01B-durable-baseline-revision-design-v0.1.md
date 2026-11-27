@@ -67,7 +67,8 @@ Required constraints:
 - unique `(project_id,initial_state_id,revision_number)`;
 - composite FK to the owning baseline;
 - composite self-FK `(project_id,initial_state_id,parent_revision_id)` to a revision of the same baseline;
-- revision zero iff parent and operation metadata are NULL; non-root revisions require a parent and complete operation metadata.
+- revision zero iff parent and operation metadata are NULL; non-root revisions require a parent and complete operation metadata;
+- SQLite immutability triggers reject UPDATE/DELETE on committed revision and revision-member rows. Inserts are allowed only through the coordinated Core Domain transaction; the cursor remains the sole mutable row.
 
 ### 3.3 Immutable revision members
 
@@ -102,6 +103,7 @@ The cursor has composite FKs to the baseline and to revisions belonging to that 
 - Revision zero is the baseline root and has no edit operation.
 - Every non-root revision has `operation_kind = 'snapshot_replace'`.
 - `operation_payload_json` is canonical JSON containing deterministic sorted `added`, `removed` and `updated` Object identity sets, plus parent and child fingerprints.
+- The sets are disjoint and sorted by the same canonical UUID ordering as the snapshot. `added` means absent from the parent and present in the child; `removed` means present in the parent and absent from the child; `updated` means present in both but with different canonical membership or placement payload/schema. An identity may appear in exactly one set.
 - The full child snapshot contains the resulting values; the parent snapshot contains the previous values. Together with the operation descriptor they explain the exact transition without making the operation payload a second copy of all state.
 
 This keeps the operation/revision relationship normalized for the V1 one-operation-per-revision invariant. A separate operation table is only justified if a later product decision permits multiple independently addressable operations inside one revision.
@@ -169,6 +171,8 @@ V1 revision content is a canonical manifest:
 Canonical JSON continues to use the existing Domain `CanonicalJson` rules (ordinal object-key ordering, deterministic scalar serialization). The fingerprint is SHA-256 over the canonical manifest and a versioned composition marker.
 
 FOUNDATION-01C will add the accepted geometry-component manifest and typed Asset references to the same revision manifest before geometry authoring is enabled. It must version the fingerprint composition deliberately; it must not silently reinterpret an existing fingerprint.
+
+The revision row stores the fingerprint computed by Domain. Persistence recomputes it from the exact rows being committed and rejects a mismatch. Integrity verification can recompute it from the immutable snapshot. SQLite UPDATE/DELETE triggers protect committed revision and member content from accidental mutation; schema migration is the only mechanism that may replace the storage shape.
 
 ## 8. Typed Geometry Asset link decision for FOUNDATION-01C
 
