@@ -1,6 +1,6 @@
 # World View — Product Development Roadmap
 
-- Version: 1.3
+- Version: 1.4
 - Date: 2026-11-27
 - Status: Project-level execution baseline; phase details are refined through versioned design contracts before implementation
 - Product: World View — local-first desktop software for creating, editing, reconstructing and presenting fictional or historical worlds and maps
@@ -201,22 +201,39 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 ### Phase 3 — Core Domain and persistence completion for map authoring
 
-**Goal:** provide complete authoritative operations needed by the initial map editor.
+**Status: FOUNDATION-01 SOURCE AUDIT AND CONTRACT BASELINE IN REVIEW.** Source audit and time-zero baseline contract are prepared on the active documentation branch; implementation has not started.
 
-**Design work**
-- Review outstanding Core Domain gaps, including commands/events/state changes, relationships, checkpoints, field dataset authority and formal geometry operations where required by the actual source baseline.
-- Define atomic write boundaries and historical reconstruction behavior for each required operation.
-- Define validation/error contracts and stable identity rules.
-- Reassess any interim schema/API that is unused and can be simplified before release.
+**Current work package: FOUNDATION-01**
 
-**Implementation work**
-- Implement missing domain operations in dependency order.
-- Ensure UI and AI paths both call the same Application/Domain Services.
-- Add real database tests, transaction rollback/failure injection, idempotency and reopen/reconstruction tests.
-- Keep migrations and schema changes direct and clean where no released data exists.
+- Source audit and gap matrix: `docs/architecture/FOUNDATION-01-source-audit-and-gap-matrix-v0.1.md`.
+- Authoritative time-zero baseline and geometry publication contract: `docs/core-domain/FOUNDATION-01-time-zero-baseline-contract-v1.0.md`.
+- Binding product decisions remain in `docs/architecture/ARCH-01-decisions-accepted-v1.0.md`.
+
+**Goal:** implement the accepted Map creation, Spatial Reference, durable time-zero baseline revision, Undo/Redo and immutable geometry publication foundations required by the first manual authoring slice.
+
+**Sequential implementation gates**
+1. **FOUNDATION-01A — Default Spatial Reference:** create and bind the immutable 2D Local Cartesian / XY / `world-unit` Map-local definition in the same transaction as Map, root History, Calendar, day-zero configuration, empty baseline and revision zero.
+2. **FOUNDATION-01B — Durable baseline revisions:** replace mutable baseline/member replacement with immutable revisions, durable active cursor and Core Domain-owned deterministic Undo/Redo. Stale cursor/revision requests fail closed.
+3. **FOUNDATION-01C — Geometry Asset publication:** integrate immutable content-addressed Geometry Assets with POI/River/Landmass membership and revision publication in one formal database transaction.
+
+**Design constraints**
+- Use the accepted descriptor types and only their required geometry roles.
+- Workspace layer/group/order/visibility/expanded/active-layer state remains presentation state, not Core Domain data.
+- Precision profile numeric values, tolerances and valid extent remain gated by DESIGN-EXTENT / PRA-03; do not invent them here.
+- No Command/Event is created for time-zero baseline edits.
+- Keep file publication outside short SQLite write transactions; all formal metadata, revision, links and cursor changes commit atomically.
+- This is a single-machine application; do not add distributed or multi-user concurrency infrastructure.
+- The project is unreleased and has no historical customer data; reshape unused schema and migrations directly after dependency/test checks.
+
+**Phase 3 overall goal:** provide complete authoritative operations needed by the initial map editor. FOUNDATION-01 is a prerequisite, not the entirety of Phase 3.
+
+**Remaining Phase 3 design work**
+- Review outstanding commands/events/state changes, relationships, checkpoints and field dataset authority where required by the actual source baseline.
+- Define validation/error contracts and stable identity rules for each subsequent vertical slice.
+- Reassess interim schema/API that is unused and can be simplified before release.
 
 **Exit criteria**
-- All operations required by the basic manual map-authoring scenarios have formal Domain Services.
+- All operations required by basic manual map-authoring scenarios have formal Domain Services.
 - Formal writes are atomic and history behavior is deterministic.
 - No UI-direct persistence path exists.
 - Tests prove success, rejection, rollback, retry and recovery behavior.
