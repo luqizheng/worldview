@@ -147,6 +147,7 @@ The approved M1/V1 scope and E2E-01..09 acceptance baseline is `docs/product/PRO
 **Product decision:** deliver M1 — Basic Map Application as an internal usable gate, then V1 — Basic Map Editor with a minimum complete manual authoring loop. V1 is not satisfied by a map-management shell or blank viewport. See `docs/product/PRODUCT-01-v1-scope-and-acceptance.md` for scope, non-goals and E2E-01 through E2E-09.
 
 **Goal:** define the first usable product, not just subsystem APIs.
+
 **Design work**
 1. Define the V1 user journeys:
    - create a project;
@@ -296,6 +297,7 @@ The renderer currently publishes and draws a real immutable snapshot, but the sn
 - Building interiors remain separate local scenes, not another world-map zoom level.
 - No per-object Avalonia Control/Visual.
 - No dedicated GPU API stack unless measured evidence proves the default path insufficient.
+
 **Implementation and test sequence**
 - Immutable snapshot and stale-result tests first.
 - Viewport lifecycle, resize, DPI, resource disposal and device-loss tests.
@@ -445,7 +447,8 @@ Deliver in thin vertical slices, each including UI + Application + Domain + test
 - Run accessibility, keyboard, high-DPI, localization and large-project tests.
 - Fix all release-blocking defects; do not hide failures behind retries or skipped tests.
 
-**Exit criteria**- No unresolved P0/P1 defect.
+**Exit criteria**
+- No unresolved P0/P1 defect.
 - Required Windows/macOS acceptance matrix passes independently.
 - All shipped capabilities have user-facing behavior, automated tests and recovery/error paths.
 - Release notes clearly state supported features and limitations.
