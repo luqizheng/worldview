@@ -161,7 +161,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Equal(7, migrationIds.Length);
         Assert.Contains("20261122090235_CoreDomainInitial", migrationIds);
         Assert.Contains("20261122140144_MapSpatialReferenceOwnership", migrationIds);
-        Assert.Contains("20261129000000_DurableInitialStateRevisions", migrationIds);
+        Assert.Contains("20261128010000_DurableInitialStateRevisions", migrationIds);
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldRevisionTypedMetadata", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldPayloadStorage", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_ProjectMapSettingsDocuments", StringComparison.Ordinal));
