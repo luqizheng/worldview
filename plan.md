@@ -18,7 +18,7 @@ The repository has accumulated substantial domain, application, map-editor, inte
 This roadmap connects them into a product delivery plan. It defines:
 - what must be designed before code is written;
 - the order in which software capabilities are implemented;
-- which work can safely proceed in parallel;
+- the sequential order in which work packages are designed, implemented, reviewed and integrated;
 - the dependencies and integration gates between work packages;
 - what evidence is required before a phase is considered complete.
 
@@ -62,13 +62,11 @@ Therefore:
 - still protect active developer/test assets, build infrastructure and external dependencies;
 - destructive changes require dependency checks and tests, not assumptions.
 
-### 2.4 Concurrency has two meanings
+### 2.4 Single-machine execution and runtime asynchrony
 
-The plan distinguishes:
+Development and integration work is executed sequentially. Do not plan concurrent multi-agent work, simultaneous implementation branches or parallel work-package lanes as a project requirement. Complete, review and integrate one work package before starting the next dependent package.
 
-**Development-task parallelism:** multiple independent implementation work packages may be developed simultaneously by separate contributors/agents/worktrees after their contracts and file ownership are stable.
-
-**Runtime asynchronous concurrency:** the application is single-user/single-machine, but UI events, background preparation, cancellation, file operations and window lifecycle can interleave. These races must be handled correctly. This is not a requirement for distributed or multi-user concurrency.
+The application is single-user/single-machine. Runtime asynchronous operations still interleave: UI events, background preparation, cancellation, file operations and window lifecycle can race. Handle those lifecycle and thread-safety cases correctly, but do not introduce distributed, multi-user or generalized concurrency infrastructure.
 
 ## 3. Delivery strategy
 
@@ -97,8 +95,8 @@ The following is the planning baseline inferred from the repository documentatio
 | Application Foundation AF-01/AF-02 | Project package, application/session lifecycle and Asset Store foundation are documented as implemented, with platform and integration conditions | Reuse; verify current code and close real gaps |
 | ME-01 through ME-06 | Broad map-editor, terrain, geometry, interaction, Building/Cave and acceptance contracts exist | Reconcile into a product capability sequence; do not blindly re-author |
 | ME-07 / PRA | Rendering architecture and implementation sequencing exist; PRA-01 is the snapshot foundation; PRA-02 onward require evidence and dependency gates | Execute in the order defined below |
-| Spatial Chunk & LOD | A new V0.1 contract was authored on the separate Draft PR #41 branch | Review and reconcile before treating it as merged baseline |
-| WP-RA-02-A | A renderer architecture implementation/review task has been reported in progress in the current project conversation | Review its final delivery and code evidence before dependent implementation; do not assume it is merged or complete |
+| Spatial Chunk & LOD | Contract V0.1 merged by PR #41 at `73da06f0ef143c9a2df9a690aaed0acf1268e6e6`; it is a presentation design contract, not an implementation | Use as PRA-05 design authority; implementation remains gated by PRA-02/03 correctness and representative fixtures |
+| WP-RA-02-A | Desktop presentation integration merged by PR #40 at `6ec34ea`; BASELINE-01 source audit verified the integrated pipeline and test evidence | Reuse the existing implementation; do not reimplement PRA-01/viewport plumbing |
 | macOS | Existing reports identify macOS evidence as incomplete in several foundational areas | Treat macOS as a first-class validation lane, not a late optional check |
 
 At the start of each phase, verify the actual default-branch code, open PRs, CI and relevant implementation reports. Never infer implementation completion from a document's existence.
@@ -123,24 +121,22 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 ### Phase 0 — Establish the project execution baseline
 
-**Goal:** turn the current collection of design documents and active PRs into one controlled development programme.
+**Status: completion pending PR #44 merge.**
 
-**Design and planning**
-- Maintain this root `plan.md` as the top-level sequence.
-- Reconcile the current authoritative docs, accepted decisions, proposals and historical records.
-- Build a dependency map between Core Domain, Application Foundation, Map Engine, Field, Editor UI, Renderer, Map Generation and AI Assistant.
-- Identify open PRs and in-flight work that could overlap with planned tasks.
-- Define a consistent work-package template: objective, baseline SHA, scope, non-goals, design references, file ownership, dependencies, parallel work, implementation, tests, acceptance and handoff.
+**Goal:** turn the existing design documents and implementation history into one controlled development programme.
 
-**Implementation/process**
-- Review WP-RA-02-A and PR #41 as separate in-flight artifacts; do not silently assume either is merged.
-- Review and merge this roadmap through its own PR.
-- Create the first ordered execution queue only after checking current branch/PR state.
+**Completed outputs**
+- Root `plan.md` established as the top-level sequence (PR #42).
+- WP-RA-02-A / desktop presentation integration reconciled as complete (PR #40).
+- Spatial Chunk & LOD Contract V0.1 reviewed and merged as design authority (PR #41).
+- BASELINE-01 source audit and capability/dependency/gap evidence produced against `6ec34ea`.
+- Post-PR #41 baseline and PRA-05 admission gates recorded in this PR.
+- Execution policy corrected to one work package at a time, retaining required runtime async/lifecycle correctness.
 
 **Exit criteria**
-- One agreed roadmap exists in the default branch.
-- In-flight tasks have explicit status and do not conflict with new work.
-- The next executable work package has a known baseline and acceptance criteria.
+- The baseline synchronization in PR #44 is merged to the default branch.
+- The next work package and its prerequisites are explicit.
+
 
 ### Phase 1 — Product requirements and end-to-end UX design
 
@@ -273,8 +269,18 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 7. Integrate Field Package raster presentation (PRA-07) when Field read contracts are ready.
 8. Complete symbols, decorations and scene composition (PRA-08).
 
+**Post-PR #41 implementation checkpoint (2026-11-27; source audit @ `6ec34ea`, current master @ `73da06f`)**
+
+- PRA-01: IMPLEMENTED and connected to the production workspace path (PR #40); snapshot/publication/lifecycle tests exist.
+- PRA-02: Avalonia/Skia viewport integration skeleton and lifecycle path are implemented; actual GUI acceptance evidence remains incomplete, especially macOS local execution.
+- PRA-03: NOT READY / NOT IMPLEMENTED as a complete capability. Coordinate transform mathematics, spatial index, geometry hit testing and snapping are absent.
+- PRA-04: NOT STARTED. Text shaping, glyph drawing and viewport-wide label layout are absent.
+- PRA-05: DESIGN INPUT READY (Spatial Chunk & LOD Contract V0.1 merged in PR #41); IMPLEMENTATION BLOCKED until PRA-02/03 correctness and representative map fixtures are demonstrated. PRA-04 label-shaping outputs must be integrated where labels participate in chunk/LOD presentation.
+
+The renderer currently publishes and draws a real immutable snapshot, but the snapshot is a blank-scene presentation and the renderer clears the background only. Do not interpret PRA-01/PRA-02 integration as map-content rendering completion. Close viewport interaction/coordinate and content-pipeline prerequisites before Chunk/LOD implementation.
+
 **Design constraints**
-- Follow the Spatial Chunk & LOD contract after its review/merge; it is a presentation contract, not Domain storage.
+- Follow the merged Spatial Chunk & LOD Contract V0.1 (`73da06f`); it is a presentation contract, not Domain storage.
 - Keep Field Package Tiles, Spatial Index entries, Render Chunks and LOD representations separate.
 - Use a fixed-grid Render Chunk baseline first; defer numeric sizes to benchmarks.
 - Use four conceptual display levels: World, Region, Settlement and Local Detail.
@@ -437,70 +443,33 @@ Deliver in thin vertical slices, each including UI + Application + Domain + test
 - All shipped capabilities have user-facing behavior, automated tests and recovery/error paths.
 - Release notes clearly state supported features and limitations.
 
-## 7. Parallel work and integration model
+## 7. Single-work-package execution and runtime lifecycle
 
-Parallel work is encouraged only after contracts and ownership boundaries are stable. The project is single-user/single-machine; parallel development does not imply multi-user product architecture.
+### 7.1 Development execution
 
-### 7.1 Safe parallel workstreams
+- Execute one work package at a time. Finish its design, implementation, tests, independent review and integration before starting the next dependent package.
+- Do not create parallel agent/worktree lanes as a project requirement. A short-lived branch is permitted for the active work package and its review; merge it before the next package.
+- Keep file ownership and scope explicit so the active change remains reviewable.
+- The project is a local-first, single-user desktop application. Do not add distributed coordination, multi-user collaboration or concurrency infrastructure without a separately approved product need.
 
-| Workstream | Can proceed in parallel when | Must not overlap with |
-|---|---|---|
-| Product UX/design | Domain operations and UI boundaries are understood | Competing changes to the same interaction contract |
-| Core Domain operations | Command/transaction contract is frozen | Another task changing the same aggregate, migration chain or persistence boundary |
-| Renderer viewport/backend | PRA-01 snapshot contract and package matrix are stable | Scene identity/snapshot contract changes |
-| Spatial services | Coordinate/geometry contracts are stable | Concurrent edits to the same geometry semantics |
-| Field Package | Field Dataset/Revision and package contracts are stable | Concurrent changes to the same package format or migrations |
-| UI shell/panels | View models and Application interfaces are stable | Competing edits to the same shell/navigation files |
-| Test/benchmark harness | Input fixtures and metric definitions are agreed | Changes to fixture semantics without versioning |
+### 7.2 Runtime asynchronous correctness
 
-### 7.2 Dependency-aware parallel lanes
+Single-user does not mean that the UI runtime is synchronous. UI events, background scene preparation, cancellation, file operations, window close and renderer resource disposal can interleave. The application must still prove:
 
-After Phase 2 architecture reconciliation, the following lanes may run concurrently when their contracts are frozen:
+- stale or cancelled work cannot publish after a newer request or after close;
+- one frame consumes one complete immutable snapshot;
+- UI/render thread affinity is respected;
+- cancellation and disposal are deterministic and do not leak resources;
+- file writes and project lifecycle transitions remain atomic and recoverable.
 
-- **Lane A — Core Domain:** missing formal operations, persistence and history.
-- **Lane B — Renderer foundation:** PRA-01 onward, but only when its input/context contracts are stable.
-- **Lane C — UX and UI design:** wireframes, interaction flows and accessibility specifications; production UI code waits for stable Application interfaces.
-- **Lane D — Field/terrain design:** Field contracts and test fixtures; Field runtime implementation waits for Domain and Asset integration.
-- **Lane E — Verification infrastructure:** CI, Windows/macOS smoke tests, deterministic fixtures and benchmark harness.
+Use the smallest in-process mechanisms that satisfy these guarantees. Do not introduce a generalized scheduler, distributed queue, event bus or multi-user locking model.
 
-These lanes are not permission to start all implementation simultaneously. Their entry gates must be satisfied independently.
+### 7.3 Integration cadence
 
-### 7.3 Required task isolation
-
-Every parallel implementation task must:
-- use its own branch and preferably its own Git worktree;
-- declare exact files/directories it owns;
-- declare files it must not modify;
-- pin a baseline commit SHA;
-- consume versioned contracts rather than inventing parallel interfaces;
-- avoid modifying the same migration sequence or central project files as another active task;
-- provide tests and a complete delivery report;
-- rebase/integrate only after the owning reviewer confirms compatibility.
-
-Do not have two agents edit the same files or migrations concurrently. If a shared interface must change, stop dependent work, update the contract first, then rebase consumers.
-
-### 7.4 Integration cadence
-
-- Keep integration serial even when implementation is parallel.
-- Merge one coherent work package at a time.
-- Run the owning test suite, impacted integration suites and full CI after integration.
-- Reconcile changes against the latest default branch before starting the next dependent package.
-- Do not build long-lived parallel branches on top of unmerged assumptions.
-
-### 7.5 Runtime asynchronous concurrency requirements
-
-Even without multi-user concurrency, implement and test:
-- latest-request-wins for viewport/scene preparation;
-- cancellation propagation and cancellation-safe cleanup;
-- stale-result rejection using context/generation/version tokens;
-- atomic publication of complete immutable snapshots;
-- no late publication after a view/session closes;
-- serialized or transactionally coordinated access to a single SQLite connection;
-- idempotent handling of retryable operations where an outcome may be unknown;
-- explicit resource lifetime and UI/render-thread affinity;
-- bounded background work and memory/cache budgets.
-
-Do not introduce distributed locks, server queues, multi-tenant isolation, event streaming infrastructure or generalized schedulers without a demonstrated local product need.
+- Each work package is based on the latest integrated default-branch SHA.
+- Run package-specific tests, then the full solution build/test matrix before merge.
+- Review the diff and verify that unrelated working-tree content is untouched.
+- Update this plan and the relevant contract only when a decision or dependency changes.
 
 ## 8. Standard work-package lifecycle
 
@@ -508,7 +477,7 @@ Every implementation package follows this lifecycle:
 
 1. **Baseline audit** — inspect current code, docs, tests, PRs and actual branch SHA.
 2. **Design** — state the problem, ownership, contracts, alternatives, decision and non-goals.
-3. **Dependency review** — list prerequisites, consumers, files and safe parallel work.
+3. **Dependency review** — list prerequisites, consumers, owned files and integration order.
 4. **Implementation plan** — split into small independently testable changes.
 5. **Implementation** — use isolated branch/worktree; do not expand scope silently.
 6. **Verification** — unit, integration, failure-injection, platform and performance tests appropriate to the change.
@@ -558,29 +527,29 @@ Every implementation package follows this lifecycle:
 
 ## 10. First execution queue
 
-The following is the initial order. Refresh statuses from GitHub before starting each item.
+This queue is updated after BASELINE-01 and PR #41. Statuses below are grounded in the 2026-11-27 audit and current GitHub state. Continue sequentially; refresh the default-branch SHA before each work package.
 
-| Order | Work package | Type | Deliverable / gate |
+| Order | Work package | Status | Deliverable / gate |
 |---:|---|---|---|
-| 1 | ROADMAP-01 — Review and merge this plan | Planning | Root `plan.md` is the project execution baseline |
-| 2 | BASELINE-01 — Audit current master, open PRs, CI, code and docs | Audit | Accurate capability/dependency/status matrix; identify conflicts and obsolete assumptions |
-| 3 | WP-RA-02-A — Complete independent review of current renderer architecture work | Review | Confirm final status and close outstanding findings; do not assume completion |
-| 4 | WP-RA-03 — Review Spatial Chunk & LOD Contract PR #41 | Design review | Accept, amend or reject the contract; merge only after review |
-| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | Product design | Prioritized V1 journeys, feature boundaries and acceptance matrix |
-| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | Architecture | Approved dependency map and missing-operation list |
-| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | Design + code | Project/map vertical-slice foundation proven on Windows/macOS |
-| 8 | PRA-01 — Verify/complete immutable Presentation Context and Scene Snapshot | Design + code | Snapshot, freshness, cancellation and publication tests pass |
-| 9 | PRA-02 / PRA-03 — Viewport host and spatial presentation integration | Design + code | Cross-platform viewport lifecycle and spatial correctness proven |
-| 10 | EDITOR-01 — Basic map workspace and manual editing vertical slice | UX + code | Create/select/edit/save/reopen basic map |
-| 11 | PRA-04 / PRA-05 — Text, labels, batching, chunks, LOD and benchmark | Design + code | Correct multi-scale high-density rendering with measured parameters |
-| 12 | TERRAIN-01 — Field and natural geography vertical slices | Design + code | Versioned field authoring and viewport presentation |
-| 13 | BUILT-01 — Settlement, road, Building and interior slices | Design + code | Exterior/interior authoring flows |
-| 14 | GENERATION-01 — Guided initialization and map generation | Design + code | Validated candidate workflow |
-| 15 | AI-01 — Optional AI Assistant integration | Design + code | Safe provider/tool flow; manual workflows remain independent |
-| 16 | OUTPUT-01 — Layout, export, import and recovery | Design + code | Stable snapshot export and project interchange |
-| 17 | RELEASE-01 — Windows/macOS stabilization and V1 acceptance | Release | Evidence-backed release candidate |
+| 1 | ROADMAP-01 — Review and merge this plan | COMPLETE — PR #42 | Root `plan.md` is the project execution baseline |
+| 2 | BASELINE-01 — Audit master, open PRs, CI, code and docs | COMPLETE — source audit @ `6ec34ea` | Capability/dependency/gap evidence; post-merge addendum tracks PR #41 |
+| 3 | WP-RA-02-A — Desktop presentation integration | COMPLETE — PR #40 | PRA-01 production pipeline connected; implementation evidence audited |
+| 4 | WP-RA-03 — Spatial Chunk & LOD Contract V0.1 | COMPLETE — PR #41, merge `73da06f` | Contract is authoritative design input for PRA-05; no implementation implied |
+| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | PENDING | Prioritized V1 journeys, feature boundaries and acceptance matrix |
+| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | PENDING | Approved dependency map and missing-operation list |
+| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | PENDING | Project/map vertical-slice foundation proven on Windows/macOS |
+| 8 | PRA-01 — Immutable Presentation Context and Scene Snapshot | COMPLETE — verified by BASELINE-01 | Snapshot, freshness, cancellation and publication tests pass |
+| 9 | PRA-02 / WP-30C — Viewport lifecycle, interaction and camera transforms | PARTIAL / NEXT RENDERER GATE | Complete pan/zoom/input/transform path and obtain platform GUI evidence |
+| 10 | DESIGN-EXTENT + DESIGN-SCENE — Map bounds and immutable SceneItem/style contract | PENDING | Freeze authoritative spatial extent and the minimal point/line/polygon scene schema |
+| 11 | WP-40-B1 — Time-zero content projection and minimal geometry rendering | PENDING | Real Domain map content becomes immutable scene items and visible Skia geometry |
+| 12 | PRA-03 — Projection, spatial index and geometry interaction | PENDING | Coordinate transforms, broad/narrow phase, hit-test/snap correctness |
+| 13 | PRA-04 — Text shaping, glyph drawing and viewport-wide labels | PENDING | HarfBuzz/package proof, CJK/mixed-script shaping and deterministic label layout |
+| 14 | PRA-05 — Batching, Spatial Chunks, LOD, caches and performance | DESIGN READY / IMPLEMENTATION BLOCKED | Implement only after PRA-02/03 correctness and representative fixtures; consume PRA-04 label capabilities where applicable |
+| 15 | TERRAIN-01 — Field and natural geography vertical slices | PENDING | Versioned field authoring and viewport presentation |
+| 16 | BUILT-01 — Settlement, road, Building and interior slices | PENDING | Exterior/interior authoring flows |
+| 17 | GENERATION-01 / AI-01 / OUTPUT-01 / RELEASE-01 | PENDING | Guided generation, optional AI, export/recovery and Windows/macOS release acceptance |
 
-Orders 8–10 may overlap only after their interfaces are agreed: PRA-01 is a hard prerequisite for renderer integration; editor UX design can proceed earlier, but editor code must consume stable Application/Domain contracts. Orders 11–13 may use independent branches after the shared contracts and integration points are frozen. No later work package may bypass a failed prerequisite gate.
+No work package may bypass a failed prerequisite. PR #41 being merged closes only the PRA-05 design-input gate; it does not authorize PRA-05 implementation.
 
 ## 11. Change control and status reporting
 
@@ -594,4 +563,4 @@ Orders 8–10 may overlap only after their interfaces are agreed: PRA-01 is a ha
 
 ## 12. Immediate next action
 
-After this roadmap is merged, execute **BASELINE-01**: inspect the latest default branch, all open map-related PRs (including the renderer work), current build/test state and the actual source tree. Produce a dependency/status matrix and identify the single next implementation package. Do not start broad parallel coding before this audit is complete.
+After PR #44 is merged, start **PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios** from execution-queue order 5. Establish the first usable Windows/macOS desktop product journeys, prioritize the minimum manual map-authoring slice, and define observable acceptance criteria before starting implementation. BASELINE-01 is complete; do not repeat the audit unless the source baseline materially changes.
