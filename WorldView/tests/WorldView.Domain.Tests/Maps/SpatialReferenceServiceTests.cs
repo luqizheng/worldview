@@ -54,22 +54,51 @@ public sealed class SpatialReferenceServiceTests
         var mapPlan = MapRules.CreateMap(project, "World", Now + 1);
         database.CreateMapStructure(mapPlan);
 
-        var bound = MapSpatialReferenceService.BindInitial(
-            database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2);
+        var bound = database.FindMap(project.ProjectId, mapPlan.Map.MapId)!;
+        var defaultDefinition = SpatialReferenceService.FindDefinition(
+            database, project.ProjectId, bound.SpatialReferenceId!)!;
 
         Assert.True(Guid.TryParseExact(bound.MapSpaceId, "D", out _));
-        Assert.Equal(definition.SpatialReferenceId, bound.SpatialReferenceId);
+        Assert.Equal(mapPlan.DefaultSpatialReference.SpatialReferenceId, bound.SpatialReferenceId);
+        Assert.Equal(SpatialReferenceKind.LocalCartesian, defaultDefinition.Kind);
+        Assert.Equal("world-unit", defaultDefinition.CoordinateUnit);
+        Assert.Null(defaultDefinition.PrecisionProfile);
+        var initiallySelected = MapSpatialReferenceService.BindInitial(
+            database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2);
+        Assert.Equal(definition.SpatialReferenceId, initiallySelected.SpatialReferenceId);
         Assert.Equal(definition.DefinitionFingerprint,
             SpatialReferenceService.FindDefinition(database, project.ProjectId, definition.SpatialReferenceId)!.DefinitionFingerprint);
         Assert.Throws<CoreDomainConflictException>(() =>
             SpatialReferenceService.RegisterDefinition(database, Candidate(project.ProjectId, "local:world-v1") with
             {
                 CoordinateUnit = "ft",
-                PrecisionProfile = Candidate(project.ProjectId, "local:world-v1").PrecisionProfile with
+                PrecisionProfile = (Candidate(project.ProjectId, "local:world-v1").PrecisionProfile!) with
                 {
                     CoordinateUnit = "ft",
                 },
             }));
+    }
+
+    [Fact]
+    public void MapCreation_RejectsNonCanonicalDefaultCoordinateFrame()
+    {
+        var database = new FakeCoreDomainDatabase();
+        var project = ProjectRules.CreateProject("Spatial", Now);
+        database.InsertProject(ProjectCreationPlan.Create(project));
+        var plan = MapRules.CreateMap(project, "World", Now + 1);
+        var invalidDefinition = SpatialReferenceRules.Create(plan.DefaultSpatialReference with
+        {
+            CoordinateUnit = "m",
+        });
+        var invalidPlan = plan with
+        {
+            DefaultSpatialReference = invalidDefinition,
+            Map = plan.Map with { SpatialReferenceId = invalidDefinition.SpatialReferenceId },
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => database.CreateMapStructure(invalidPlan));
+        Assert.Empty(database.Maps);
+        Assert.Empty(database.SpatialReferenceDefinitions);
     }
 
     [Fact]
@@ -83,7 +112,8 @@ public sealed class SpatialReferenceServiceTests
         var map = MapRules.CreateMap(project, "World", Now + 1);
         database.CreateMapStructure(map);
 
-        _ = MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId, first.SpatialReferenceId, Now + 2);
+        _ = MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId,
+            first.SpatialReferenceId, Now + 2);
 
         Assert.Throws<CoreDomainConflictException>(() =>
             MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId, second.SpatialReferenceId, Now + 3));

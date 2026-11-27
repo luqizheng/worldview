@@ -120,7 +120,13 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         if (map.SpatialReferenceId is not null)
         {
             if (map.SpatialReferenceId == spatialReferenceId) return map;
-            throw new CoreDomainConflictException("Map 的 Spatial Reference 已绑定；更换必须经过坐标转换流程。");
+            var current = FindSpatialReferenceDefinition(projectId, map.SpatialReferenceId)
+                ?? throw new CoreDomainDataException("Map 当前绑定的 Spatial Reference 定义缺失。");
+            _ = SpatialReferenceRules.ValidateDefaultLocalCartesian(current, mapId);
+            if (MapObjectRefs.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                || InitialObjects.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                || FieldDatasets.Any(x => x.ProjectId == projectId && x.MapId == mapId))
+                throw new CoreDomainConflictException("Map 已有内容；更换 Spatial Reference 必须经过坐标转换流程。");
         }
         var bound = map with { SpatialReferenceId = spatialReferenceId, UpdatedAtUtcMs = nowUtcMs };
         Maps.Remove(map);
@@ -144,6 +150,11 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
                 $"同一项目内已存在同名地图「{plan.Map.MapName}」（名称唯一，不区分大小写）。");
         }
 
+        var spatialReference = SpatialReferenceRules.ValidateDefaultLocalCartesian(plan.DefaultSpatialReference, plan.Map.MapId);
+        if (spatialReference.ProjectId != plan.Map.ProjectId
+            || spatialReference.SpatialReferenceId != plan.Map.SpatialReferenceId)
+            throw new CoreDomainConflictException("Map 默认 Spatial Reference 与 Map 绑定不一致。");
+        InsertSpatialReferenceDefinition(spatialReference);
         Maps.Add(plan.Map);
         Histories.Add(plan.RootHistory);
         Calendars.Add(plan.DefaultCalendar);

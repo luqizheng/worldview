@@ -214,6 +214,41 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
                         $"同一项目内已存在同名地图「{plan.Map.MapName}」（名称唯一，不区分大小写）。");
                 }
 
+                // Map 与其不可变坐标框架属于同一个创建事务。先落定义以满足 FK，
+                // 后续任一步失败都会回滚定义、Map、History 与 Calendar 全部结构。
+                var spatialReference = SpatialReferenceRules.ValidateDefaultLocalCartesian(plan.DefaultSpatialReference, plan.Map.MapId);
+                if (spatialReference.ProjectId != plan.Map.ProjectId
+                    || !string.Equals(spatialReference.SpatialReferenceId, plan.Map.SpatialReferenceId, StringComparison.Ordinal))
+                    throw new CoreDomainConflictException("Map 的默认 Spatial Reference 与 Map 所属 Project/绑定 ID 不一致。");
+                db.SpatialReferences.Add(new CoreSpatialReferenceEntity
+                {
+                    ProjectId = spatialReference.ProjectId,
+                    SpatialReferenceId = spatialReference.SpatialReferenceId,
+                    DefinitionVersion = spatialReference.DefinitionVersion,
+                    ReferenceKind = spatialReference.Kind.ToString(),
+                    CoordinateUnit = spatialReference.CoordinateUnit,
+                    AxisOrder = spatialReference.AxisOrder.ToString(),
+                    Dimension = spatialReference.Dimension,
+                    ValidDomainJson = spatialReference.ValidDomainJson,
+                    WrapBehavior = spatialReference.WrapBehavior.ToString(),
+                    VerticalReferenceId = spatialReference.VerticalReferenceId,
+                    PrecisionProfileId = null,
+                    PrecisionProfileVersion = null,
+                    PrecisionCoordinateUnit = null,
+                    PrecisionAxisOrder = null,
+                    NumericRepresentation = null,
+                    MaximumAbsoluteQuantizationError = null,
+                    RoundingMode = null,
+                    MinimumAuthoringTolerance = null,
+                    SmallestMeaningfulFeatureSize = null,
+                    DefinitionParametersJson = spatialReference.DefinitionParametersJson,
+                    MeasurementCapabilitiesJson = spatialReference.MeasurementCapabilitiesJson,
+                    ProvenanceJson = spatialReference.ProvenanceJson,
+                    DefinitionFingerprint = spatialReference.DefinitionFingerprint,
+                    CreatedAtUtcMs = spatialReference.CreatedAtUtcMs,
+                });
+                db.SaveChanges();
+
                 db.Maps.Add(new CoreMapEntity
                 {
                     MapId = plan.Map.MapId,

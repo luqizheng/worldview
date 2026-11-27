@@ -49,8 +49,8 @@ public interface ICoreDomainDatabase
     IReadOnlyList<MapRecord> ListMaps(Guid projectId);
 
     /// <summary>
-    /// 事务：一次写入 Map 创建计划的全部结构（Map、根 History、default Calendar、
-    /// day-zero Configuration）；任一失败整体回滚（P2-09-11 §4.1 不变量）。
+    /// 事务：一次写入 Map 创建计划的全部结构（不可变默认 Spatial Reference 定义及 Map 绑定、
+    /// Map、根 History、default Calendar、day-zero Configuration）；任一失败整体回滚。
     /// </summary>
     void CreateMapStructure(MapCreationPlan plan);
 

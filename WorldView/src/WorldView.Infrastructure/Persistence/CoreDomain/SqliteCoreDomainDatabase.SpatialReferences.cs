@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using WorldView.Domain.Maps;
@@ -45,15 +46,15 @@ public sealed partial class SqliteCoreDomainDatabase
                     ValidDomainJson = validated.ValidDomainJson,
                     WrapBehavior = validated.WrapBehavior.ToString(),
                     VerticalReferenceId = validated.VerticalReferenceId,
-                    PrecisionProfileId = validated.PrecisionProfile.ProfileId,
-                    PrecisionProfileVersion = validated.PrecisionProfile.Version,
-                    PrecisionCoordinateUnit = validated.PrecisionProfile.CoordinateUnit,
-                    PrecisionAxisOrder = validated.PrecisionProfile.AxisOrder.ToString(),
-                    NumericRepresentation = validated.PrecisionProfile.NumericRepresentation,
-                    MaximumAbsoluteQuantizationError = FormatDecimal(validated.PrecisionProfile.MaximumAbsoluteQuantizationError),
-                    RoundingMode = validated.PrecisionProfile.RoundingMode.ToString(),
-                    MinimumAuthoringTolerance = FormatDecimal(validated.PrecisionProfile.MinimumAuthoringTolerance),
-                    SmallestMeaningfulFeatureSize = FormatDecimal(validated.PrecisionProfile.SmallestMeaningfulFeatureSize),
+                    PrecisionProfileId = validated.PrecisionProfile?.ProfileId,
+                    PrecisionProfileVersion = validated.PrecisionProfile?.Version,
+                    PrecisionCoordinateUnit = validated.PrecisionProfile?.CoordinateUnit,
+                    PrecisionAxisOrder = validated.PrecisionProfile?.AxisOrder.ToString(),
+                    NumericRepresentation = validated.PrecisionProfile?.NumericRepresentation,
+                    MaximumAbsoluteQuantizationError = validated.PrecisionProfile is null ? null : FormatDecimal(validated.PrecisionProfile.MaximumAbsoluteQuantizationError),
+                    RoundingMode = validated.PrecisionProfile?.RoundingMode.ToString(),
+                    MinimumAuthoringTolerance = validated.PrecisionProfile is null ? null : FormatDecimal(validated.PrecisionProfile.MinimumAuthoringTolerance),
+                    SmallestMeaningfulFeatureSize = validated.PrecisionProfile is null ? null : FormatDecimal(validated.PrecisionProfile.SmallestMeaningfulFeatureSize),
                     DefinitionParametersJson = validated.DefinitionParametersJson,
                     MeasurementCapabilitiesJson = validated.MeasurementCapabilitiesJson,
                     ProvenanceJson = validated.ProvenanceJson,
@@ -94,8 +95,18 @@ public sealed partial class SqliteCoreDomainDatabase
                         transaction.Commit();
                         return MapMap(map);
                     }
-                    throw new CoreDomainConflictException(
-                        "Map 的 Spatial Reference 已绑定；更换必须经过坐标转换流程，不能原位重解释现有数据。");
+
+                    var currentEntity = db.SpatialReferences.SingleOrDefault(x =>
+                        x.ProjectId == projectId && x.SpatialReferenceId == map.SpatialReferenceId)
+                        ?? throw new CoreDomainDataException("Map 当前绑定的 Spatial Reference 定义缺失。");
+                    _ = SpatialReferenceRules.ValidateDefaultLocalCartesian(MapSpatialReference(currentEntity), mapId);
+
+                    var hasMapContent = db.MapObjectRefs.Any(x => x.project_id == projectId && x.map_id == mapId)
+                        || db.MapInitialObjects.Any(x => x.project_id == projectId && x.map_id == mapId)
+                        || db.FieldDatasets.Any(x => x.ProjectId == projectId && x.MapId == mapId);
+                    if (hasMapContent)
+                        throw new CoreDomainConflictException(
+                            "Map 已有对象、Initial State 成员或 Field Dataset；更换 Spatial Reference 必须经过坐标转换流程。");
                 }
 
                 map.SpatialReferenceId = spatialReferenceId;
@@ -118,62 +129,50 @@ public sealed partial class SqliteCoreDomainDatabase
 
     private static SpatialReferenceDefinitionRecord MapSpatialReference(CoreSpatialReferenceEntity entity)
     {
-        if (!Enum.TryParse<SpatialReferenceKind>(entity.ReferenceKind, ignoreCase: false, out var kind)
+        if (!Enum.TryParse<SpatialReferenceKind>(entity.ReferenceKind, false, out var kind)
             || !Enum.IsDefined(kind)
-            || !Enum.TryParse<SpatialAxisOrder>(entity.AxisOrder, ignoreCase: false, out var axisOrder)
+            || !Enum.TryParse<SpatialAxisOrder>(entity.AxisOrder, false, out var axisOrder)
             || !Enum.IsDefined(axisOrder)
-            || !Enum.TryParse<SpatialWrapBehavior>(entity.WrapBehavior, ignoreCase: false, out var wrapBehavior)
-            || !Enum.IsDefined(wrapBehavior)
-            || !Enum.TryParse<SpatialAxisOrder>(entity.PrecisionAxisOrder, ignoreCase: false, out var precisionAxisOrder)
-            || !Enum.IsDefined(precisionAxisOrder)
-            || !Enum.TryParse<MidpointRounding>(entity.RoundingMode, ignoreCase: false, out var roundingMode)
-            || !Enum.IsDefined(roundingMode)
-            || !decimal.TryParse(entity.MaximumAbsoluteQuantizationError, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxError)
-            || !decimal.TryParse(entity.MinimumAuthoringTolerance, NumberStyles.Float, CultureInfo.InvariantCulture, out var minTolerance)
-            || !decimal.TryParse(entity.SmallestMeaningfulFeatureSize, NumberStyles.Float, CultureInfo.InvariantCulture, out var minFeature))
-            throw new CoreDomainDataException(
-                $"Spatial Reference {entity.SpatialReferenceId} contains invalid values: kind='{entity.ReferenceKind}', axis='{entity.AxisOrder}', wrap='{entity.WrapBehavior}', precisionAxis='{entity.PrecisionAxisOrder}', rounding='{entity.RoundingMode}', maxError='{entity.MaximumAbsoluteQuantizationError}', tolerance='{entity.MinimumAuthoringTolerance}', feature='{entity.SmallestMeaningfulFeatureSize}'.");
+            || !Enum.TryParse<SpatialWrapBehavior>(entity.WrapBehavior, false, out var wrapBehavior)
+            || !Enum.IsDefined(wrapBehavior))
+            throw new CoreDomainDataException($"Spatial Reference {entity.SpatialReferenceId} contains invalid coordinate-frame values.");
+
+        CoordinatePrecisionProfileRecord? profile = null;
+        var precisionValues = new[] { entity.PrecisionProfileId, entity.PrecisionCoordinateUnit, entity.PrecisionAxisOrder,
+            entity.NumericRepresentation, entity.MaximumAbsoluteQuantizationError, entity.RoundingMode,
+            entity.MinimumAuthoringTolerance, entity.SmallestMeaningfulFeatureSize };
+        var hasAnyPrecisionValue = precisionValues.Any(x => x is not null) || entity.PrecisionProfileVersion is not null;
+        if (hasAnyPrecisionValue)
+        {
+            if (precisionValues.Any(x => x is null) || entity.PrecisionProfileVersion is null
+                || !Enum.TryParse<SpatialAxisOrder>(entity.PrecisionAxisOrder, false, out var precisionAxisOrder)
+                || !Enum.IsDefined(precisionAxisOrder)
+                || !Enum.TryParse<MidpointRounding>(entity.RoundingMode, false, out var roundingMode)
+                || !Enum.IsDefined(roundingMode)
+                || !decimal.TryParse(entity.MaximumAbsoluteQuantizationError, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxError)
+                || !decimal.TryParse(entity.MinimumAuthoringTolerance, NumberStyles.Float, CultureInfo.InvariantCulture, out var minTolerance)
+                || !decimal.TryParse(entity.SmallestMeaningfulFeatureSize, NumberStyles.Float, CultureInfo.InvariantCulture, out var minFeature))
+                throw new CoreDomainDataException($"Spatial Reference {entity.SpatialReferenceId} contains an incomplete or invalid precision profile.");
+            profile = new CoordinatePrecisionProfileRecord
+            {
+                ProfileId = entity.PrecisionProfileId!, Version = entity.PrecisionProfileVersion.Value,
+                CoordinateUnit = entity.PrecisionCoordinateUnit!, AxisOrder = precisionAxisOrder,
+                NumericRepresentation = entity.NumericRepresentation!, MaximumAbsoluteQuantizationError = maxError,
+                RoundingMode = roundingMode, MinimumAuthoringTolerance = minTolerance, SmallestMeaningfulFeatureSize = minFeature,
+            };
+        }
 
         var definition = new SpatialReferenceDefinitionRecord
         {
-            ProjectId = entity.ProjectId,
-            SpatialReferenceId = entity.SpatialReferenceId,
-            DefinitionVersion = entity.DefinitionVersion,
-            Kind = kind,
-            CoordinateUnit = entity.CoordinateUnit,
-            AxisOrder = axisOrder,
-            Dimension = entity.Dimension,
-            ValidDomainJson = entity.ValidDomainJson,
-            WrapBehavior = wrapBehavior,
-            VerticalReferenceId = entity.VerticalReferenceId,
-            PrecisionProfile = new CoordinatePrecisionProfileRecord
-            {
-                ProfileId = entity.PrecisionProfileId,
-                Version = entity.PrecisionProfileVersion,
-                CoordinateUnit = entity.PrecisionCoordinateUnit,
-                AxisOrder = precisionAxisOrder,
-                NumericRepresentation = entity.NumericRepresentation,
-                MaximumAbsoluteQuantizationError = maxError,
-                RoundingMode = roundingMode,
-                MinimumAuthoringTolerance = minTolerance,
-                SmallestMeaningfulFeatureSize = minFeature,
-            },
-            DefinitionParametersJson = entity.DefinitionParametersJson,
-            MeasurementCapabilitiesJson = entity.MeasurementCapabilitiesJson,
-            ProvenanceJson = entity.ProvenanceJson,
-            DefinitionFingerprint = entity.DefinitionFingerprint,
-            CreatedAtUtcMs = entity.CreatedAtUtcMs,
+            ProjectId = entity.ProjectId, SpatialReferenceId = entity.SpatialReferenceId,
+            DefinitionVersion = entity.DefinitionVersion, Kind = kind, CoordinateUnit = entity.CoordinateUnit,
+            AxisOrder = axisOrder, Dimension = entity.Dimension, ValidDomainJson = entity.ValidDomainJson,
+            WrapBehavior = wrapBehavior, VerticalReferenceId = entity.VerticalReferenceId, PrecisionProfile = profile,
+            DefinitionParametersJson = entity.DefinitionParametersJson, MeasurementCapabilitiesJson = entity.MeasurementCapabilitiesJson,
+            ProvenanceJson = entity.ProvenanceJson, DefinitionFingerprint = entity.DefinitionFingerprint, CreatedAtUtcMs = entity.CreatedAtUtcMs,
         };
-
-        try
-        {
-            return SpatialReferenceRules.Validate(definition);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new CoreDomainDataException(
-                $"Spatial Reference {entity.SpatialReferenceId} violates its immutable definition contract.", ex);
-        }
+        try { return SpatialReferenceRules.Validate(definition); }
+        catch (ArgumentException ex) { throw new CoreDomainDataException($"Spatial Reference {entity.SpatialReferenceId} violates its immutable definition contract.", ex); }
     }
 
     private static string FormatDecimal(decimal value) => value.ToString("G29", CultureInfo.InvariantCulture);

@@ -6,13 +6,15 @@ namespace WorldView.Domain.Maps;
 
 /// <summary>
 /// Map 创建计划：一次 Core Domain 创建事务必须写入的全部结构
-/// （P2-09-11 §4.1 不变量：恰好一条根 History、一个 default Calendar、
-/// 该 Calendar 的 day-zero Configuration，缺一即完整性错误）。
+/// （默认不可变 Spatial Reference 及其 Map 绑定、Map、恰好一条根 History、
+/// 一个 default Calendar、该 Calendar 的 day-zero Configuration）。
 /// 所有 ID 预生成，持久化适配器在同一事务内按依赖序写入。
 /// </summary>
 public sealed record MapCreationPlan
 {
     public required MapRecord Map { get; init; }
+
+    public required SpatialReferenceDefinitionRecord DefaultSpatialReference { get; init; }
 
     public required HistoryRecord RootHistory { get; init; }
 
@@ -49,8 +51,8 @@ public static class MapRules
     }
 
     /// <summary>
-    /// 构建 Map 创建计划：生成 Map/根 History/default Calendar/day-zero Configuration 的
-    /// 全部权威 UUID。分支时间轴（含 day zero）由此根结构确立；Branch 不创建独立时间轴。
+    /// 构建 Map 创建计划：生成 Map/默认 Spatial Reference/根 History/default Calendar/day-zero Configuration
+    /// 的全部权威身份。分支时间轴（含 day zero）由此根结构确立；Branch 不创建独立时间轴。
     /// </summary>
     public static MapCreationPlan CreateMap(ProjectRecord project, string mapName, long nowUtcMs)
     {
@@ -59,15 +61,17 @@ public static class MapRules
         var rootHistoryId = Guid.NewGuid();
         var calendarId = Guid.NewGuid();
         var configurationId = Guid.NewGuid();
+        var spatialReference = SpatialReferenceRules.CreateDefaultLocalCartesian(project.ProjectId, mapId, nowUtcMs);
 
         return new MapCreationPlan
         {
+            DefaultSpatialReference = spatialReference,
             Map = new MapRecord
             {
                 MapId = mapId,
                 ProjectId = project.ProjectId,
                 MapSpaceId = Guid.NewGuid().ToString("D"),
-                SpatialReferenceId = null,
+                SpatialReferenceId = spatialReference.SpatialReferenceId,
                 MapName = name,
                 LifecycleStatus = MapLifecycle.ActiveStatus,
                 CreatedAtUtcMs = nowUtcMs,

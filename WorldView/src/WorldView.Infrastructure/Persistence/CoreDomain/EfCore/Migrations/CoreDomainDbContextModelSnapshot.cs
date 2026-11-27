@@ -14,7 +14,7 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123090000_ProjectMapSettingsDocuments";
+    public override string LastMigrationId => "20261128000000_OptionalSpatialReferencePrecisionPolicy";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -1391,7 +1391,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("dimension");
 
                 b.Property<string>("MaximumAbsoluteQuantizationError")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("maximum_absolute_quantization_error");
 
@@ -1401,31 +1400,26 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("measurement_capabilities_json");
 
                 b.Property<string>("MinimumAuthoringTolerance")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("minimum_authoring_tolerance");
 
                 b.Property<string>("NumericRepresentation")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("numeric_representation");
 
                 b.Property<string>("PrecisionAxisOrder")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("precision_axis_order");
 
                 b.Property<string>("PrecisionCoordinateUnit")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("precision_coordinate_unit");
 
                 b.Property<string>("PrecisionProfileId")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("precision_profile_id");
 
-                b.Property<int>("PrecisionProfileVersion")
+                b.Property<int?>("PrecisionProfileVersion")
                     .HasColumnType("INTEGER")
                     .HasColumnName("precision_profile_version");
 
@@ -1440,12 +1434,10 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("reference_kind");
 
                 b.Property<string>("RoundingMode")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("rounding_mode");
 
                 b.Property<string>("SmallestMeaningfulFeatureSize")
-                    .IsRequired()
                     .HasColumnType("TEXT")
                     .HasColumnName("smallest_meaningful_feature_size");
 
@@ -1475,7 +1467,9 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("CK_core_spatial_reference_kind", "reference_kind IN ('Geographic', 'Projected', 'LocalCartesian')");
 
-                        t.HasCheckConstraint("CK_core_spatial_reference_precision_version", "precision_profile_version >= 1");
+                        t.HasCheckConstraint("CK_core_spatial_reference_precision_version", "precision_profile_version IS NULL OR precision_profile_version >= 1");
+
+                        t.HasCheckConstraint("CK_core_spatial_reference_precision_profile_complete", "(precision_profile_id IS NULL AND precision_profile_version IS NULL AND precision_coordinate_unit IS NULL AND precision_axis_order IS NULL AND numeric_representation IS NULL AND maximum_absolute_quantization_error IS NULL AND rounding_mode IS NULL AND minimum_authoring_tolerance IS NULL AND smallest_meaningful_feature_size IS NULL) OR (precision_profile_id IS NOT NULL AND precision_profile_version IS NOT NULL AND precision_coordinate_unit IS NOT NULL AND precision_axis_order IS NOT NULL AND numeric_representation IS NOT NULL AND maximum_absolute_quantization_error IS NOT NULL AND rounding_mode IS NOT NULL AND minimum_authoring_tolerance IS NOT NULL AND smallest_meaningful_feature_size IS NOT NULL)");
 
                         t.HasCheckConstraint("CK_core_spatial_reference_wrap", "wrap_behavior IN ('None', 'WrapX', 'WrapY', 'WrapXY')");
                     });

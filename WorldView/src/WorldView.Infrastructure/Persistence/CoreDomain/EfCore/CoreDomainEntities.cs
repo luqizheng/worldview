@@ -139,15 +139,15 @@ internal sealed class CoreSpatialReferenceEntity
     public required string ValidDomainJson { get; set; }
     public required string WrapBehavior { get; set; }
     public string? VerticalReferenceId { get; set; }
-    public required string PrecisionProfileId { get; set; }
-    public int PrecisionProfileVersion { get; set; }
-    public required string PrecisionCoordinateUnit { get; set; }
-    public required string PrecisionAxisOrder { get; set; }
-    public required string NumericRepresentation { get; set; }
-    public required string MaximumAbsoluteQuantizationError { get; set; }
-    public required string RoundingMode { get; set; }
-    public required string MinimumAuthoringTolerance { get; set; }
-    public required string SmallestMeaningfulFeatureSize { get; set; }
+    public string? PrecisionProfileId { get; set; }
+    public int? PrecisionProfileVersion { get; set; }
+    public string? PrecisionCoordinateUnit { get; set; }
+    public string? PrecisionAxisOrder { get; set; }
+    public string? NumericRepresentation { get; set; }
+    public string? MaximumAbsoluteQuantizationError { get; set; }
+    public string? RoundingMode { get; set; }
+    public string? MinimumAuthoringTolerance { get; set; }
+    public string? SmallestMeaningfulFeatureSize { get; set; }
     public required string DefinitionParametersJson { get; set; }
     public required string MeasurementCapabilitiesJson { get; set; }
     public required string ProvenanceJson { get; set; }

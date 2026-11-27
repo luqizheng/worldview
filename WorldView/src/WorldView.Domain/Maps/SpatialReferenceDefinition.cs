@@ -23,7 +23,7 @@ public sealed record SpatialReferenceDefinitionRecord
     public required string ValidDomainJson { get; init; }
     public required SpatialWrapBehavior WrapBehavior { get; init; }
     public string? VerticalReferenceId { get; init; }
-    public required CoordinatePrecisionProfileRecord PrecisionProfile { get; init; }
+    public CoordinatePrecisionProfileRecord? PrecisionProfile { get; init; }
     public required string DefinitionParametersJson { get; init; }
     public required string MeasurementCapabilitiesJson { get; init; }
     public required string ProvenanceJson { get; init; }
@@ -79,6 +79,53 @@ public static class SpatialReferenceRules
         return normalized with { DefinitionFingerprint = ComputeFingerprint(normalized) };
     }
 
+
+    /// <summary>Creates the built-in Map-local 2D Cartesian frame without inventing a precision policy.</summary>
+    public static SpatialReferenceDefinitionRecord CreateDefaultLocalCartesian(Guid projectId, Guid mapId, long nowUtcMs)
+    {
+        if (mapId == Guid.Empty) throw new ArgumentException("Map ID must be non-empty.", nameof(mapId));
+        return Create(new SpatialReferenceDefinitionRecord
+        {
+            ProjectId = projectId,
+            SpatialReferenceId = $"local-cartesian-2d-world-unit-{mapId:N}",
+            DefinitionVersion = 1,
+            Kind = SpatialReferenceKind.LocalCartesian,
+            CoordinateUnit = "world-unit",
+            AxisOrder = SpatialAxisOrder.XY,
+            Dimension = 2,
+            ValidDomainJson = "{}",
+            WrapBehavior = SpatialWrapBehavior.None,
+            VerticalReferenceId = null,
+            PrecisionProfile = null,
+            DefinitionParametersJson = "{\"origin\":\"map-local\"}",
+            MeasurementCapabilitiesJson = "{}",
+            ProvenanceJson = "{\"kind\":\"builtin\",\"name\":\"WorldView default\"}",
+            DefinitionFingerprint = string.Empty,
+            CreatedAtUtcMs = nowUtcMs,
+        });
+    }
+
+    public static SpatialReferenceDefinitionRecord ValidateDefaultLocalCartesian(
+        SpatialReferenceDefinitionRecord definition,
+        Guid mapId)
+    {
+        var validated = Validate(definition);
+        var expectedId = $"local-cartesian-2d-world-unit-{mapId:N}";
+        if (mapId == Guid.Empty
+            || !string.Equals(validated.SpatialReferenceId, expectedId, StringComparison.Ordinal)
+            || validated.Kind != SpatialReferenceKind.LocalCartesian
+            || !string.Equals(validated.CoordinateUnit, "world-unit", StringComparison.Ordinal)
+            || validated.AxisOrder != SpatialAxisOrder.XY
+            || validated.Dimension != 2
+            || validated.WrapBehavior != SpatialWrapBehavior.None
+            || validated.VerticalReferenceId is not null
+            || validated.PrecisionProfile is not null
+            || !string.Equals(validated.ValidDomainJson, "{}", StringComparison.Ordinal)
+            || !string.Equals(validated.DefinitionParametersJson, "{\"origin\":\"map-local\"}", StringComparison.Ordinal))
+            throw new CoreDomainConflictException("Map creation requires its canonical 2D Local Cartesian / XY / world-unit Map-local Spatial Reference without an invented precision profile or finite extent.");
+        return validated;
+    }
+
     public static void ValidateFieldOwnerContext(
         MapRecord map,
         SpatialReferenceDefinitionRecord spatialReference,
@@ -96,8 +143,10 @@ public static class SpatialReferenceRules
             || !string.Equals(metadata.SpatialReferenceId, map.SpatialReferenceId, StringComparison.Ordinal)
             || !string.Equals(spatialReference.SpatialReferenceId, map.SpatialReferenceId, StringComparison.Ordinal))
             throw new CoreDomainConflictException("Field Revision Spatial Reference ID does not match the Map's active definition.");
+        var precisionProfile = spatialReference.PrecisionProfile
+            ?? throw new CoreDomainConflictException("Spatial Reference precision policy is not defined; Field Revision publication is unavailable until DESIGN-EXTENT/PRA-03 establishes a precision profile.");
         if (!string.Equals(metadata.CoordinatePrecisionProfileId,
-                spatialReference.PrecisionProfile.ProfileId, StringComparison.Ordinal))
+                precisionProfile.ProfileId, StringComparison.Ordinal))
             throw new CoreDomainConflictException("Field Revision coordinate precision profile does not match its Spatial Reference.");
         if (metadata.FieldKey == "elevation")
         {
@@ -138,21 +187,24 @@ public static class SpatialReferenceRules
         if (value.VerticalReferenceId is not null)
             RequireIdentifier(value.VerticalReferenceId, 512, "vertical_reference_id");
 
-        var profile = value.PrecisionProfile ?? throw new ArgumentException("Coordinate precision profile is required.", nameof(value));
-        RequireIdentifier(profile.ProfileId, 160, "coordinate_precision_profile_id");
-        if (profile.Version < 1)
-            throw new ArgumentOutOfRangeException(nameof(value), "Coordinate precision profile version must be >= 1.");
-        RequireIdentifier(profile.CoordinateUnit, 64, "precision_coordinate_unit");
-        if (profile.AxisOrder != value.AxisOrder
-            || !string.Equals(profile.CoordinateUnit, value.CoordinateUnit, StringComparison.Ordinal))
-            throw new ArgumentException("Coordinate precision profile unit/axis must match its Spatial Reference.", nameof(value));
-        RequireIdentifier(profile.NumericRepresentation, 64, "numeric_representation");
-        if (!Enum.IsDefined(profile.RoundingMode))
-            throw new ArgumentException("Coordinate precision rounding mode is unsupported.", nameof(value));
-        if (profile.MaximumAbsoluteQuantizationError <= 0
-            || profile.MinimumAuthoringTolerance <= 0
-            || profile.SmallestMeaningfulFeatureSize <= 0)
-            throw new ArgumentException("Coordinate precision profile values must be positive.", nameof(value));
+        var profile = value.PrecisionProfile;
+        if (profile is not null)
+        {
+            RequireIdentifier(profile.ProfileId, 160, "coordinate_precision_profile_id");
+            if (profile.Version < 1)
+                throw new ArgumentOutOfRangeException(nameof(value), "Coordinate precision profile version must be >= 1.");
+            RequireIdentifier(profile.CoordinateUnit, 64, "precision_coordinate_unit");
+            if (profile.AxisOrder != value.AxisOrder
+                || !string.Equals(profile.CoordinateUnit, value.CoordinateUnit, StringComparison.Ordinal))
+                throw new ArgumentException("Coordinate precision profile unit/axis must match its Spatial Reference.", nameof(value));
+            RequireIdentifier(profile.NumericRepresentation, 64, "numeric_representation");
+            if (!Enum.IsDefined(profile.RoundingMode))
+                throw new ArgumentException("Coordinate precision rounding mode is unsupported.", nameof(value));
+            if (profile.MaximumAbsoluteQuantizationError <= 0
+                || profile.MinimumAuthoringTolerance <= 0
+                || profile.SmallestMeaningfulFeatureSize <= 0)
+                throw new ArgumentException("Coordinate precision profile values must be positive.", nameof(value));
+        }
 
         return value with
         {
@@ -196,7 +248,7 @@ public static class SpatialReferenceRules
             valid_domain = JsonDocument.Parse(value.ValidDomainJson).RootElement,
             wrap_behavior = value.WrapBehavior.ToString(),
             vertical_reference_id = value.VerticalReferenceId,
-            precision_profile = new
+            precision_profile = profile is null ? null : new
             {
                 profile_id = profile.ProfileId,
                 version = profile.Version,
