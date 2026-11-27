@@ -72,7 +72,7 @@ public sealed class SpatialReferenceServiceTests
             SpatialReferenceService.RegisterDefinition(database, Candidate(project.ProjectId, "local:world-v1") with
             {
                 CoordinateUnit = "ft",
-                PrecisionProfile = Candidate(project.ProjectId, "local:world-v1").PrecisionProfile with
+                PrecisionProfile = (Candidate(project.ProjectId, "local:world-v1").PrecisionProfile!) with
                 {
                     CoordinateUnit = "ft",
                 },
