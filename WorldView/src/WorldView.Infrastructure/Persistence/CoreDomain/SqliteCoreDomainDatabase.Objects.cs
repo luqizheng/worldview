@@ -1087,8 +1087,8 @@ public sealed partial class SqliteCoreDomainDatabase
     }
 
     /// <summary>
-    /// Initial State 成员追加（InsertObject 路径）：基线缺失则同事务建立；成员行插入后
-    /// 按全量成员集合重算指纹（Domain 计算并写回基线行）。
+    /// InsertObject membership is one atomic snapshot append in the caller's transaction.
+    /// The just-created identity may still be draft here; the caller activates it before commit.
     /// </summary>
     private static void AppendInitialMemberInDbContext(
         CoreDomainDbContext db,
@@ -1098,50 +1098,84 @@ public sealed partial class SqliteCoreDomainDatabase
         InitialObjectWrite member,
         long nowUtcMs)
     {
-        var baseline = db.MapInitialStates.SingleOrDefault(x =>
-            x.project_id == projectId && x.map_id == mapId);
-        var baselineVersion = baseline?.baseline_schema_version ?? MapInitialStateService.StructuralBaselineSchemaVersion;
-        if (baseline is null)
+        var baseline = db.MapInitialStates.SingleOrDefault(x => x.project_id == projectId && x.map_id == mapId)
+            ?? throw new CoreDomainDataException($"Map {mapId} is missing its Initial State baseline.");
+        var cursor = db.MapInitialStateCursors.SingleOrDefault(x =>
+            x.project_id == projectId && x.map_id == mapId && x.initial_state_id == baseline.initial_state_id)
+            ?? throw new CoreDomainDataException($"Map {mapId} is missing its Initial State cursor.");
+        var parent = db.MapInitialStateRevisions.SingleOrDefault(x =>
+            x.project_id == projectId && x.map_id == mapId
+            && x.initial_state_id == baseline.initial_state_id && x.revision_id == cursor.active_revision_id)
+            ?? throw new CoreDomainDataException("Active Initial State revision is missing.");
+
+        var parentMembers = ReadInitialStateRevisionObjects(
+            db, projectId, mapId, baseline.initial_state_id, cursor.active_revision_id);
+        if (parentMembers.Any(x => x.ObjectIdentityId == objectIdentityId))
+            throw new CoreDomainConflictException("Object already exists in the active Initial State revision.");
+
+        var writes = parentMembers.Select(x => new InitialObjectWrite
         {
-            baseline = new CoreMapInitialStateEntity
+            ObjectIdentityId = x.ObjectIdentityId,
+            MembershipPayloadJson = x.MembershipPayloadJson,
+            PlacementPayloadJson = x.PlacementPayloadJson,
+            PlacementSchemaVersion = x.PlacementSchemaVersion,
+        }).Append(member).ToArray();
+        var revisionId = Guid.NewGuid();
+        var snapshot = writes.Select(x => new InitialObjectRecord
+        {
+            ProjectId = projectId, MapId = mapId, InitialStateId = baseline.initial_state_id,
+            RevisionId = revisionId, ObjectIdentityId = x.ObjectIdentityId,
+            MembershipPayloadJson = CanonicalJson.Canonicalize(x.MembershipPayloadJson),
+            PlacementPayloadJson = x.PlacementPayloadJson is null ? null : CanonicalJson.Canonicalize(x.PlacementPayloadJson),
+            PlacementSchemaVersion = x.PlacementSchemaVersion, CreatedAtUtcMs = nowUtcMs,
+        }).ToArray();
+        var fingerprint = InitialStateFingerprint.Compute(parent.baseline_schema_version, snapshot);
+        var operationPayload = InitialStateOperation.ComputePayload(
+            parentMembers, writes, parent.content_fingerprint, fingerprint);
+        var nextRevisionNumber = db.MapInitialStateRevisions
+            .Where(x => x.project_id == projectId && x.initial_state_id == baseline.initial_state_id)
+            .Select(x => x.revision_number).ToArray().DefaultIfEmpty(-1).Max() + 1;
+
+        db.MapInitialStateRevisions.Add(new CoreMapInitialStateRevisionEntity
+        {
+            revision_id = revisionId, project_id = projectId, map_id = mapId,
+            initial_state_id = baseline.initial_state_id, revision_number = nextRevisionNumber,
+            parent_revision_id = parent.revision_id, baseline_schema_version = parent.baseline_schema_version,
+            content_fingerprint = fingerprint, operation_kind = InitialStateOperation.SnapshotReplaceKind,
+            operation_payload_json = operationPayload, created_at_utc_ms = nowUtcMs,
+        });
+        foreach (var item in snapshot)
+        {
+            db.MapInitialStateRevisionObjects.Add(new CoreMapInitialStateRevisionObjectEntity
             {
-                initial_state_id = Guid.NewGuid(),
-                project_id = projectId,
-                map_id = mapId,
-                baseline_schema_version = baselineVersion,
-                content_fingerprint = "-",
-                created_at_utc_ms = nowUtcMs,
-                updated_at_utc_ms = nowUtcMs,
-            };
-            db.MapInitialStates.Add(baseline);
-            db.SaveChanges();
+                project_id = item.ProjectId, map_id = item.MapId, initial_state_id = item.InitialStateId,
+                revision_id = item.RevisionId, object_identity_id = item.ObjectIdentityId,
+                initial_membership_payload_json = item.MembershipPayloadJson,
+                initial_placement_payload_json = item.PlacementPayloadJson,
+                initial_placement_schema_version = item.PlacementSchemaVersion,
+                created_at_utc_ms = item.CreatedAtUtcMs,
+            });
         }
 
-        db.MapInitialObjects.Add(new CoreMapInitialObjectEntity
-        {
-            project_id = projectId,
-            map_id = mapId,
-            initial_state_id = baseline.initial_state_id,
-            object_identity_id = objectIdentityId,
-            initial_membership_payload_json = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-            initial_placement_payload_json = member.PlacementPayloadJson is null
-                ? null
-                : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-            initial_placement_schema_version = member.PlacementSchemaVersion,
-            created_at_utc_ms = nowUtcMs,
-        });
-        db.SaveChanges();
+        cursor.active_revision_id = revisionId;
+        cursor.selected_redo_child_revision_id = null;
+        cursor.cursor_version = checked(cursor.cursor_version + 1);
+        cursor.updated_at_utc_ms = nowUtcMs;
+    }
 
-        var members = db.MapInitialObjects.AsNoTracking()
-            .Where(x => x.project_id == projectId && x.map_id == mapId)
+    private static IReadOnlyList<InitialObjectRecord> ReadInitialStateRevisionObjects(
+        CoreDomainDbContext db,
+        Guid projectId,
+        Guid mapId,
+        Guid initialStateId,
+        Guid revisionId) =>
+        db.MapInitialStateRevisionObjects.AsNoTracking()
+            .Where(x => x.project_id == projectId && x.map_id == mapId
+                && x.initial_state_id == initialStateId && x.revision_id == revisionId)
             .OrderBy(x => x.object_identity_id)
             .AsEnumerable()
             .Select(MapInitialObject)
             .ToArray();
-        baseline.content_fingerprint = InitialStateFingerprint.Compute(baselineVersion, members);
-        baseline.updated_at_utc_ms = nowUtcMs;
-        SaveChangesOrThrowSqlite(db);
-    }
 
     private static ObjectTypeRecord MapObjectType(CoreObjectTypeEntity entity) => new()
     {
