@@ -130,7 +130,9 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Contains("core_object_id_reservation", tables);
         Assert.Contains("core_map_object_ref", tables);
         Assert.Contains("core_map_initial_state", tables);
-        Assert.Contains("core_map_initial_object", tables);
+        Assert.Contains("core_map_initial_state_revision", tables);
+        Assert.Contains("core_map_initial_state_revision_object", tables);
+        Assert.Contains("core_map_initial_state_cursor", tables);
         Assert.Contains("core_asset", tables);
         Assert.Contains("core_object_definition_asset", tables);
         Assert.Contains("core_map_field_dataset", tables);
@@ -156,9 +158,10 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(6, migrationIds.Length);
+        Assert.Equal(7, migrationIds.Length);
         Assert.Contains("20261122090235_CoreDomainInitial", migrationIds);
         Assert.Contains("20261122140144_MapSpatialReferenceOwnership", migrationIds);
+        Assert.Contains("20261129000000_DurableInitialStateRevisions", migrationIds);
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldRevisionTypedMetadata", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldPayloadStorage", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_ProjectMapSettingsDocuments", StringComparison.Ordinal));
