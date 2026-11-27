@@ -54,11 +54,18 @@ public sealed class SpatialReferenceServiceTests
         var mapPlan = MapRules.CreateMap(project, "World", Now + 1);
         database.CreateMapStructure(mapPlan);
 
-        var bound = MapSpatialReferenceService.BindInitial(
-            database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2);
+        var bound = database.FindMap(project.ProjectId, mapPlan.Map.MapId)!;
+        var defaultDefinition = SpatialReferenceService.FindDefinition(
+            database, project.ProjectId, bound.SpatialReferenceId!)!;
 
         Assert.True(Guid.TryParseExact(bound.MapSpaceId, "D", out _));
-        Assert.Equal(definition.SpatialReferenceId, bound.SpatialReferenceId);
+        Assert.Equal(mapPlan.DefaultSpatialReference.SpatialReferenceId, bound.SpatialReferenceId);
+        Assert.Equal(SpatialReferenceKind.LocalCartesian, defaultDefinition.Kind);
+        Assert.Equal("world-unit", defaultDefinition.CoordinateUnit);
+        Assert.Null(defaultDefinition.PrecisionProfile);
+        Assert.Throws<CoreDomainConflictException>(() =>
+            MapSpatialReferenceService.BindInitial(
+                database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2));
         Assert.Equal(definition.DefinitionFingerprint,
             SpatialReferenceService.FindDefinition(database, project.ProjectId, definition.SpatialReferenceId)!.DefinitionFingerprint);
         Assert.Throws<CoreDomainConflictException>(() =>
