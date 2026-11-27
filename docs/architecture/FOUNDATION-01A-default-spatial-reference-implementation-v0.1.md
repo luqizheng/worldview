@@ -51,7 +51,7 @@ The profile remains gated by DESIGN-EXTENT / PRA-03. Once that work is accepted,
 
 Any failure rolls back the Spatial Reference and all Map structure rows. The definition is inserted before the Map only to satisfy the immediate SQLite foreign key; it is not independently committed.
 
-The existing standalone definition-registration and initial-bind APIs remain available for explicitly authored definitions, but they cannot replace an already bound Map coordinate frame.
+The existing definition-registration and initial-bind APIs remain available for explicitly authored definitions. Before any Map objects, Initial State members, or Field Datasets exist, the initial-bind operation may replace the built-in default frame with an explicitly selected definition. Once Map content exists, the binding is immutable through this API and any coordinate-system change requires a separate coordinate-conversion workflow.
 
 ## 5. Persistence changes
 
