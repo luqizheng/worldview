@@ -121,7 +121,7 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 ### Phase 0 — Establish the project execution baseline
 
-**Status: completion pending PR #44 merge.**
+**Status: COMPLETE — PR #44 merged at `89fb266` (2026-11-27).**
 
 **Goal:** turn the existing design documents and implementation history into one controlled development programme.
 
@@ -135,10 +135,14 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 **Exit criteria**
 - The baseline synchronization in PR #44 is merged to the default branch.
-- The next work package and its prerequisites are explicit.
+- PRODUCT-01 is the next work package and its prerequisites are explicit.
 
 
 ### Phase 1 — Product requirements and end-to-end UX design
+
+**Status: PRODUCT-01 scope baseline drafted and user-approved; PR review pending.**
+
+**Product decision:** deliver M1 — Basic Map Application as an internal usable gate, then V1 — Basic Map Editor with a minimum complete manual authoring loop. V1 is not satisfied by a map-management shell or blank viewport. See `docs/product/PRODUCT-01-v1-scope-and-acceptance.md` for scope, non-goals and E2E-01 through E2E-09.
 
 **Goal:** define the first usable product, not just subsystem APIs.
 
@@ -535,7 +539,7 @@ This queue is updated after BASELINE-01 and PR #41. Statuses below are grounded 
 | 2 | BASELINE-01 — Audit master, open PRs, CI, code and docs | COMPLETE — source audit @ `6ec34ea` | Capability/dependency/gap evidence; post-merge addendum tracks PR #41 |
 | 3 | WP-RA-02-A — Desktop presentation integration | COMPLETE — PR #40 | PRA-01 production pipeline connected; implementation evidence audited |
 | 4 | WP-RA-03 — Spatial Chunk & LOD Contract V0.1 | COMPLETE — PR #41, merge `73da06f` | Contract is authoritative design input for PRA-05; no implementation implied |
-| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | PENDING | Prioritized V1 journeys, feature boundaries and acceptance matrix |
+| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | IN REVIEW — draft PR | M1/V1 boundary, explicit non-goals and E2E-01 through E2E-09; approval recorded in product baseline |
 | 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | PENDING | Approved dependency map and missing-operation list |
 | 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | PENDING | Project/map vertical-slice foundation proven on Windows/macOS |
 | 8 | PRA-01 — Immutable Presentation Context and Scene Snapshot | COMPLETE — verified by BASELINE-01 | Snapshot, freshness, cancellation and publication tests pass |
