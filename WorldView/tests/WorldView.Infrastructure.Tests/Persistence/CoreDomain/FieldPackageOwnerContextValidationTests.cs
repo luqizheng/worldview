@@ -302,7 +302,7 @@ public sealed class FieldPackageOwnerContextValidationTests : IDisposable
     }
 
     [Fact]
-    public void Validate_RejectsUnboundTargetMap()
+    public void Validate_RejectsTargetMapWithDifferentInitialSpatialReference()
     {
         var (project, mapId) = SeedMap(bindSpatialReference: false);
 
