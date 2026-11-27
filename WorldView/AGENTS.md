@@ -77,6 +77,10 @@ World View 是 Windows 和 macOS 双平台的**专业地图编辑与 AI 辅助�
 - 完成任务必须执行构建和测试：`scripts/build.ps1|sh` + `scripts/test.ps1|sh`。
 - 交付必须列出修改文件、测试结果和遗留问题。
 - 不得擅自提交或推送 Git；不得执行破坏性操作。
+- 多会话并发规则（2026-11-25 用户追加）：若已有另一个 session（Agent 会话）正在本仓库
+  执行任务，当前 session 不得直接在原工作目录操作，必须先创建独立的 git worktree
+  （`git worktree add ../worldview-wt-<任务名> <branch>`）在隔离目录内工作，
+  避免并发修改冲突与构建产物互相污染；合并回主工作目录前须经用户裁决。
 - 环境注意：本机 Windows Smart App Control 已于 2026-11-20 关闭（注册表写入，重启后生效）。
   在重启完成前，git、`dotnet test`、Avalonia XAML 构建与桌面应用运行均不可用；
   详见 `docs/development/dev-environment.md`。
