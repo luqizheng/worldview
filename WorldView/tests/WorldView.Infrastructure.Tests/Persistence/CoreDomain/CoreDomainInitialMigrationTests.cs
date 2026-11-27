@@ -156,7 +156,7 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(5, migrationIds.Length);
+        Assert.Equal(6, migrationIds.Length);
         Assert.Contains("20261122090235_CoreDomainInitial", migrationIds);
         Assert.Contains("20261122140144_MapSpatialReferenceOwnership", migrationIds);
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldRevisionTypedMetadata", StringComparison.Ordinal));
