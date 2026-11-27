@@ -51,3 +51,12 @@
 ## 5. Implementation readiness
 
 **Not ready for full implementation.** P2-09-11 V0.7 is a detailed relational proposal, AI Schema V1.16 is logical, P2-09-13 is an integrated inventory, and P2-09-12 is a test specification. No provider integration test, cross-module transaction proof, final migration set or integrated Schema V2.0 has been approved. Development implementation remains the responsibility of the development team after design gates and authorization are complete.
+
+## BASELINE-01 — 2026-11-27 Master audit
+
+- [Audit report](BASELINE-01_AUDIT_REPORT.md)
+- [Capability matrix](BASELINE-01_CAPABILITY_MATRIX.md)
+- [Dependency map](BASELINE-01_DEPENDENCY_MAP.md)
+- [Gap register](BASELINE-01_GAP_REGISTER.md)
+- [Execution proposal](BASELINE-01_EXECUTION_PROPOSAL.md)
+- [Post-merge update and PRA-05 readiness](BASELINE-01_POST_MERGE_UPDATE.md)
