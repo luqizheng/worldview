@@ -1734,8 +1734,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
                     .OnDelete(DeleteBehavior.NoAction);
 
-                b.Navigation("CoreMapInitialStateEntity");
-                b.Navigation("CoreMapInitialStateRevisionEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateRevisionObjectEntity", b =>
@@ -1761,9 +1759,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
 
-                b.Navigation("CoreMapObjectRefEntity");
-                b.Navigation("CoreMapInitialStateRevisionEntity");
-                b.Navigation("CoreObjectEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateCursorEntity", b =>
@@ -1788,9 +1783,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .HasPrincipalKey("project_id", "map_id", "initial_state_id", "revision_id")
                     .OnDelete(DeleteBehavior.NoAction);
 
-                b.Navigation("CoreMapInitialStateEntity");
-                b.Navigation("CoreMapInitialStateRevisionEntity");
-                b.Navigation("CoreMapInitialStateRevisionEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapInitialStateEntity", b =>
@@ -1802,7 +1794,6 @@ partial class CoreDomainDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.NoAction)
                     .IsRequired();
 
-                b.Navigation("CoreMapEntity");
             });
 
         modelBuilder.Entity("WorldView.Infrastructure.Persistence.CoreDomain.EfCore.CoreMapObjectRefEntity", b =>
