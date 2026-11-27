@@ -80,6 +80,28 @@ public sealed class SpatialReferenceServiceTests
     }
 
     [Fact]
+    public void MapCreation_RejectsNonCanonicalDefaultCoordinateFrame()
+    {
+        var database = new FakeCoreDomainDatabase();
+        var project = ProjectRules.CreateProject("Spatial", Now);
+        database.InsertProject(ProjectCreationPlan.Create(project));
+        var plan = MapRules.CreateMap(project, "World", Now + 1);
+        var invalidDefinition = SpatialReferenceRules.Create(plan.DefaultSpatialReference with
+        {
+            CoordinateUnit = "m",
+        });
+        var invalidPlan = plan with
+        {
+            DefaultSpatialReference = invalidDefinition,
+            Map = plan.Map with { SpatialReferenceId = invalidDefinition.SpatialReferenceId },
+        };
+
+        Assert.Throws<CoreDomainConflictException>(() => database.CreateMapStructure(invalidPlan));
+        Assert.Empty(database.Maps);
+        Assert.Empty(database.SpatialReferenceDefinitions);
+    }
+
+    [Fact]
     public void BindInitial_DoesNotReplaceAnExistingSpatialReference()
     {
         var database = new FakeCoreDomainDatabase();
