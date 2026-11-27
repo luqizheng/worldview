@@ -197,6 +197,7 @@ public sealed record EditInitialStatePlan
     public required long BaselineSchemaVersion { get; init; }
     public required IReadOnlyList<InitialObjectWrite> Members { get; init; }
     public required string OperationPayloadJson { get; init; }
+    public required string ContentFingerprint { get; init; }
     public required long NowUtcMs { get; init; }
 }
 
