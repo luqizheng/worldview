@@ -121,24 +121,22 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 
 ### Phase 0 — Establish the project execution baseline
 
-**Goal:** turn the current collection of design documents and active PRs into one controlled development programme.
+<badge>Completion pending PR #44 merge</badge>
 
-**Design and planning**
-- Maintain this root `plan.md` as the top-level sequence.
-- Reconcile the current authoritative docs, accepted decisions, proposals and historical records.
-- Build a dependency map between Core Domain, Application Foundation, Map Engine, Field, Editor UI, Renderer, Map Generation and AI Assistant.
-- Identify open PRs and in-flight work that could overlap with planned tasks.
-- Define a consistent work-package template: objective, baseline SHA, scope, non-goals, design references, file ownership, dependencies, implementation, tests, acceptance and handoff.
+**Goal:** turn the existing design documents and implementation history into one controlled development programme.
 
-**Implementation/process**
-- Reconcile the completed WP-RA-02-A / PR #40 integration, the merged PR #41 contract and BASELINE-01 audit as the current baseline.
-- Review and merge this roadmap through its own PR.
-- Create the first ordered execution queue only after checking current branch/PR state.
+**Completed outputs**
+- Root `plan.md` established as the top-level sequence (PR #42).
+- WP-RA-02-A / desktop presentation integration reconciled as complete (PR #40).
+- Spatial Chunk & LOD Contract V0.1 reviewed and merged as design authority (PR #41).
+- BASELINE-01 source audit and capability/dependency/gap evidence produced against `6ec34ea`.
+- Post-PR #41 baseline and PRA-05 admission gates recorded in this PR.
+- Execution policy corrected to one work package at a time, retaining required runtime async/lifecycle correctness.
 
 **Exit criteria**
-- One agreed roadmap exists in the default branch.
-- In-flight tasks have explicit status and do not conflict with new work.
-- The next executable work package has a known baseline and acceptance criteria.
+- The baseline synchronization in PR #44 is merged to the default branch.
+- The next work package and its prerequisites are explicit.
+
 
 ### Phase 1 — Product requirements and end-to-end UX design
 
@@ -565,4 +563,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-After this roadmap is merged, execute **BASELINE-01**: inspect the latest default branch, all open map-related PRs (including renderer work), current build/test state and the actual source tree. Produce a dependency/status matrix and identify the single next work package. Do not start implementation before this audit is complete.
+After PR #44 is merged, start **PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios** from execution-queue order 5. Establish the first usable Windows/macOS desktop product journeys, prioritize the minimum manual map-authoring slice, and define observable acceptance criteria before starting implementation. BASELINE-01 is complete; do not repeat the audit unless the source baseline materially changes.
