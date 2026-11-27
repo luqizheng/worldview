@@ -1,8 +1,9 @@
 # World View — Spatial Chunk & Level-of-Detail Contract
 
 - Version: 0.1
-- Date: 2026-11-26
+- Date: 2026-11-27
 - Status: Architecture design baseline; implementation parameters and performance thresholds require benchmark evidence
+- Revision R1 (2026-11-27): clarified that the Spatial Index is a planned Map Engine service with a scoped interim-query boundary (§4.5); defined the complete deterministic input set of the LOD selector including Previous LOD State and LOD Policy Version (§7.4); scoped the Units/moving-entities display row as a future extension example (§7.3); documented the PRA-04/PRA-05 label responsibility split (§8)
 - Scope: Vector presentation partitioning, render-fragment lifecycle, multi-scale visual representation, LOD selection, label density, cache invalidation and validation
 - Target: C# desktop application, Avalonia host, replaceable 2D renderer backend, Windows/macOS, single-user/local-first
 - Depends on: Map Rendering & Visualization Architecture V0.3; ME-05 coordinate, geometry and Field Package contracts; ME-06 spatial presentation/interaction contracts; ME-07 Rendering & Technical Architecture; PRA-01 Presentation Context & Immutable Scene Snapshot Contract
@@ -27,7 +28,7 @@ This is a companion contract to the existing rendering architecture, not a secon
 - **Render Chunk**: one region of a Spatial Partition used to organize presentation preparation and static render caches.
 - **Source Feature**: a formal Domain Object or Geometry Component that contributes to map presentation.
 - **Render Fragment**: a derived, local presentation representation of part of a Source Feature.
-- **Spatial Index**: a broad-phase query structure over authoritative or derived geometry bounds.
+- **Spatial Index**: a broad-phase query structure over authoritative or derived geometry bounds. It is a planned Map Engine-provided service, not an existing implementation (see §4.5).
 - **LOD**: a presentation policy selecting geometric detail, symbols, visibility and labels for a view scale.
 - **Scale Bucket**: a stable range of effective map-to-viewport scale used for cache reuse and transition control.
 - **Large Feature**: a feature whose extent or chunk intersection count makes ordinary per-chunk handling inefficient.
@@ -50,7 +51,7 @@ They must not share identity or lifecycle merely because all can be described us
 | Formal geometry and topology | Core Domain + Geometry Services | Never replaced by render fragments |
 | Map Space and coordinate reference | Map/Core spatial contracts | Chunk addressing is interpreted in an explicit Map Space |
 | Spatial predicates and exact hit testing | Spatial/Geometry Services | Renderer does not define semantic hit behavior |
-| Spatial index | Spatial Services | Derived query structure; rebuildable |
+| Spatial index | Map Engine Spatial Services (planned service; not yet implemented) | Derived query structure; rebuildable; Render Chunks own no independent general-purpose spatial index authority (§4.5) |
 | Partition scheme and Render Chunk assignment | Presentation Spatial Services | Derived from Map Space and source geometry |
 | Render Fragments and LOD representations | Scene Builder / Presentation | Immutable, derived and context-bound |
 | Label placement | Label Layout subsystem | Independent of drawing and formal label semantics |
@@ -137,11 +138,20 @@ The Spatial Index and Render Chunk partition solve different problems.
 - Chunk assignment: determine which local presentation regions may contain derived fragments.
 - Chunk cache: reuse prepared static presentation products for a region.
 
-V1 should reuse the existing spatial-service indexing strategy (R-tree/STRtree-style where appropriate) rather than introducing a second general-purpose spatial index solely for chunks.
+The Spatial Index is a follow-up Map Engine service. It is **not** part of the current code baseline, and this contract does not describe it as an existing capability. Render Chunks do not own an independent, general-purpose spatial index authority.
+
+While the Map Engine Spatial Index is not yet available, an implementation package may use a scoped interim candidate query instead, subject to **all** of the following constraints:
+
+- the interim query lives entirely inside the corresponding implementation package;
+- it does not become a second, long-term spatial index architecture;
+- it preserves an explicit replacement boundary for the future Map Engine Spatial Index: call sites must be swappable to the real service without changing this contract;
+- it does not change where precise geometric judgment, object identity or coordinate semantics are decided; those authorities remain with Geometry/Spatial Services and Core Domain.
+
+The interim query stores conservative bounds only and must be rebuildable from source geometry and partition configuration.
 
 The chunk-to-feature membership structure may be a compact derived lookup. It must be rebuildable from source geometry and partition configuration.
 
-The index stores conservative bounds. Precise geometry intersection, hit testing, snapping and topology decisions remain in the Geometry/Spatial Services.
+The index (or interim query) stores conservative bounds. Precise geometry intersection, hit testing, snapping and topology decisions remain in the Geometry/Spatial Services.
 
 ## 5. Render Fragment contract
 
@@ -195,7 +205,7 @@ For strokes, the implementation may use overlap/expanded fragment bounds or a ce
 A feature whose extent intersects a large number of chunks must not cause full geometry duplication in every chunk.
 
 V1 supports a Large Feature path:
-- retain the feature once in the source spatial index;
+- retain the feature once in the spatial index, or in the scoped interim candidate query per §4.5 while the Spatial Index is not yet available;
 - identify it as a large-feature candidate based on measured extent/intersection cost;
 - query it through a dedicated candidate list for visible viewports/chunks;
 - clip or derive only the portion needed for the current viewport;
@@ -210,7 +220,7 @@ For each Scene preparation request:
 1. Capture one immutable Presentation Context.
 2. Convert the viewport's visible bounds into the relevant Map Space.
 3. Expand the query bounds by a conservative presentation margin for stroke width, symbols, shadows, labels and other offscreen anchors that may still affect visible output.
-4. Query the Spatial Index for candidate source features.
+4. Query the Spatial Index — or, while it is not yet available, the scoped interim candidate query defined in §4.5 — for candidate source features.
 5. Resolve candidate features to intersecting Render Chunks.
 6. Select the required LOD/Scale Bucket for the captured view.
 7. Reuse compatible cached fragments/chunk products.
@@ -277,20 +287,30 @@ Feature classes need explicit scale policies. Initial policy guidance:
 | Buildings | Settlement density / area impression | Settlement footprint or landmarks | Building groups + landmarks | Individual buildings |
 | Vegetation / terrain | Broad field/biome expression | Regional texture and contours | Local terrain expression | Detailed derived presentation |
 | Point features | Major landmarks only | Important POIs | More POIs | Full eligible symbol set |
-| Units / moving entities | Aggregated or hidden by policy | Individual important units or groups | Individual units | Individual units and trails |
+| Units / moving entities *(extension example, see note)* | Aggregated or hidden by policy | Individual important units or groups | Individual units | Individual units and trails |
 
 These are starting display policies. Exact class thresholds, symbol definitions and visibility ranges belong to the style/scale configuration, not renderer code.
 
+The **Units / moving entities** row is an illustrative display policy for a future dynamic-presentation extension. It is **not** a delivery commitment of the first usable map editor, and it does not justify introducing a dynamic simulation system in V1. If such display is added later, it must reuse the existing Dynamic/Overlay scene scopes (§10.2) rather than introducing a new scene kind.
+
 ### 7.4 Scale selection and hysteresis
 
-The LOD selector uses effective map-to-viewport scale derived from the active view transform and logical viewport pixels. It must not use device pixels as a semantic scale input.
+The LOD selector is a pure, deterministic function of the following inputs:
 
-- Scale thresholds are configurable and versioned.
-- The same Presentation Context and view scale must resolve to the same LOD policy.
-- Use hysteresis around LOD transition boundaries to prevent rapid flicker when the user pans/zooms around a threshold.
-- Hysteresis state is viewport presentation state, not formal map data.
+- **Presentation Context**;
+- **View Scale** — the effective map-to-viewport scale derived from the active view transform and logical viewport pixels. Device pixels are never a semantic scale input;
+- **Previous LOD State** — the LOD previously selected for this viewport, used for hysteresis;
+- **LOD Policy Version**.
+
+Selection rules:
+
+- For identical complete inputs, the LOD selection result must be identical. Selection must not depend on set traversal order, dictionary enumeration order or thread completion order.
+- Previous LOD State belongs to viewport presentation state. It is not formal map data and must not be persisted as such.
+- A newly created viewport, or a viewport without a valid Previous LOD State, applies an explicit initial-selection rule: select the LOD for the current View Scale directly, without hysteresis.
+- Scale thresholds are configurable and versioned. The same Presentation Context and View Scale resolve to the same LOD policy.
+- Use hysteresis around LOD transition boundaries to prevent rapid flicker when the user pans/zooms around a threshold. Hysteresis behavior is defined entirely by the inputs above; hysteresis state is viewport presentation state, not formal map data.
 - If a viewport jumps across multiple levels, the selector may directly choose the target LOD without preparing every intermediate level.
-- LOD selection must be deterministic for pinned inputs and policy version.
+- When the LOD Policy Version changes, all existing Previous LOD States are invalidated and reinitialized through the initial-selection rule. No stale-state hysteresis may survive a policy version change.
 
 Numeric scale thresholds are deliberately deferred until representative map fixtures and viewport measurements exist.
 
@@ -330,6 +350,13 @@ The label pipeline is:
 3. calculate candidate placements in viewport-aware coordinates;
 4. apply priority, collision and decluttering rules across the viewport;
 5. publish final immutable label placements with the same Presentation Context as the scene.
+
+Responsibility split with PRA-04:
+
+- **PRA-04** owns text shaping, font metrics, glyph drawing and the label-layout foundation capabilities.
+- **PRA-05** (the implementation package for this contract) consumes those capabilities; it organizes label candidates and collaborates on caching in Chunk/LOD scenarios.
+- PRA-05 must not rebuild a full text system inside the chunk/LOD pipeline.
+- Final label placement is always decided by the viewport-wide layout pass; no chunk may generate final labels independently.
 
 Rules:
 - Semantic label text, language and priority remain separate from placement.
@@ -384,7 +411,7 @@ Caches are disposable, bounded and rebuildable. No cache is a formal source of m
 | Layer visibility/order | Scene composition and visible set; source geometry cache remains reusable |
 | Projection / Map Space change | Projected geometry, index bounds, chunk assignment, fragments and affected scene products |
 | Partition scheme change | Chunk membership, fragments and chunk caches |
-| LOD policy change | Simplified geometry, scale-dependent fragments, chunk scene and label layout |
+| LOD policy change | Simplified geometry, scale-dependent fragments, chunk scene and label layout; viewport Previous LOD States are invalidated and reinitialized (§7.4) |
 | Pan | Visible chunk set and viewport-dependent labels; do not clear static source caches |
 | Zoom | LOD/scale selection, scale-dependent geometry/symbol/label products; preserve unrelated source caches |
 | Unit movement / animation time | Dynamic Scene only |
@@ -521,17 +548,18 @@ The following are the V1 architecture baseline:
 2. Field Package Tiles, Spatial Index Entries, Render Chunks and LOD representations are separate concepts.
 3. V1 starts with a fixed regular grid in Map Space, one partition level.
 4. Chunk identity is deterministic and independent of viewport, zoom, DPI, style and renderer backend.
-5. Spatial Index performs broad-phase candidate lookup; Geometry Services perform exact spatial operations.
+5. Spatial Index performs broad-phase candidate lookup; Geometry Services perform exact spatial operations. The Spatial Index is a planned Map Engine service; §4.5 governs the scoped interim-query boundary until it is available.
 6. One formal feature may produce multiple immutable Render Fragments; fragments preserve source identity and revision.
 7. Large Features use a bounded special query/preparation path rather than unbounded per-chunk duplication.
 8. LOD changes visual representation only and never changes formal identity or semantics.
 9. V1 conceptual LOD levels are World, Region, Settlement and Local Detail; Building interiors remain separate scenes.
-10. Geometry simplification is derived, view-dependent and topology-aware where required.
-11. Label layout is viewport-wide and independent of chunk drawing.
-12. Static, Dynamic, Edit and Overlay scene products have separate invalidation scopes.
-13. Every derived product is bound to a Presentation Context; only a complete compatible snapshot may be published.
-14. Caches are bounded, disposable and rebuildable.
-15. Performance parameters are benchmark-selected; no arbitrary chunk size, FPS target or cache budget is frozen here.
+10. The LOD selector is a deterministic function of Presentation Context, View Scale, Previous LOD State and LOD Policy Version (§7.4); Previous LOD State is viewport presentation state, not formal map data.
+11. Geometry simplification is derived, view-dependent and topology-aware where required.
+12. Label layout is viewport-wide and independent of chunk drawing.
+13. Static, Dynamic, Edit and Overlay scene products have separate invalidation scopes.
+14. Every derived product is bound to a Presentation Context; only a complete compatible snapshot may be published.
+15. Caches are bounded, disposable and rebuildable.
+16. Performance parameters are benchmark-selected; no arbitrary chunk size, FPS target or cache budget is frozen here.
 
 ## 15. Deferred implementation parameters
 
@@ -558,7 +586,7 @@ Recommended implementation order:
 1. Implement/verify PRA-01 immutable Presentation Context and Scene Snapshot foundation.
 2. Complete framework/package and Avalonia/Skia lifecycle proof required by ME-07.
 3. Implement deterministic Map Space partition addressing and chunk membership from source geometry.
-4. Implement viewport candidate query and a minimal fixed-grid chunk scene.
+4. Implement viewport candidate query and a minimal fixed-grid chunk scene. If the Map Engine Spatial Index is not yet available, the candidate query must follow the scoped interim-query constraints of §4.5 and preserve the replacement boundary for the future service.
 5. Prove cross-chunk clipping, seam correctness, source identity and exact hit-test resolution.
 6. Implement the four conceptual LOD policies with configurable thresholds.
 7. Add topology-aware simplification and viewport-wide label layout.
