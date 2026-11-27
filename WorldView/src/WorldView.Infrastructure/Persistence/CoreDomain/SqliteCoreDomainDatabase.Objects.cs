@@ -933,7 +933,13 @@ public sealed partial class SqliteCoreDomainDatabase
                 var fingerprint = InitialStateFingerprint.Compute(plan.BaselineSchemaVersion, writes);
                 if (!string.Equals(fingerprint, plan.ContentFingerprint, StringComparison.Ordinal))
                     throw new CoreDomainConflictException("Initial State revision fingerprint does not match its canonical snapshot.");
+                var parentMembers = ReadInitialStateRevisionObjects(
+                    db, plan.ProjectId, plan.MapId, baseline.initial_state_id, parent.revision_id);
+                var expectedOperationPayload = InitialStateOperation.ComputePayload(
+                    parentMembers, plan.Members, parent.content_fingerprint, fingerprint);
                 var operationPayload = CanonicalJson.Canonicalize(plan.OperationPayloadJson);
+                if (!string.Equals(operationPayload, expectedOperationPayload, StringComparison.Ordinal))
+                    throw new CoreDomainConflictException("Initial State operation summary does not match its parent/child snapshots.");
                 var nextRevisionNumber = db.MapInitialStateRevisions
                     .Where(x => x.project_id == plan.ProjectId && x.initial_state_id == baseline.initial_state_id)
                     .Select(x => x.revision_number).ToArray().DefaultIfEmpty(-1).Max() + 1;
