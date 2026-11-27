@@ -410,61 +410,88 @@ public sealed class ObjectDomainServiceTests
         Assert.Null(db.FindMapObjectRef(project.ProjectId, map.Map.MapId, identityId));
     }
 
-    // ---- Initial State ----
+    // ---- Initial State revisions / cursor ----
 
     [Fact]
-    public void InitialState_CreateEditCasReplaceAll()
+    public void InitialState_AppendsImmutableSnapshotsAndSupportsUndoRedoBranching()
     {
         var (db, project, map) = Seed();
         var mapId = map.Map.MapId;
         var obj1 = CreateActiveObject(db, project.ProjectId, mapId);
         var obj2 = CreateActiveObject(db, project.ProjectId, mapId);
 
-        // 建立（expected=null）。
-        var baseline = MapInitialStateService.EditInitialState(
-            db, project.ProjectId, mapId, null,
+        var revisionZero = db.FindMapInitialState(project.ProjectId, mapId)!;
+        Assert.Equal(0, revisionZero.ActiveRevisionNumber);
+        Assert.Empty(db.ListInitialObjects(project.ProjectId, mapId));
+
+        var revisionOne = MapInitialStateService.EditInitialState(
+            db, project.ProjectId, mapId, revisionZero.ActiveRevisionId, revisionZero.CursorVersion,
             MapInitialStateService.StructuralBaselineSchemaVersion,
             new List<InitialObjectWrite>
             {
                 new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"a":1}""" },
             },
-            Now);
+            Now + 1);
+        Assert.Equal(1, revisionOne.ActiveRevisionNumber);
         Assert.Single(db.ListInitialObjects(project.ProjectId, mapId));
+        Assert.Empty(db.ListInitialStateRevisionObjects(project.ProjectId, mapId, revisionZero.ActiveRevisionId));
 
-        // CAS 编辑（全量替换：obj1 出、obj2 入）。
-        var updated = MapInitialStateService.EditInitialState(
-            db, project.ProjectId, mapId, baseline.ContentFingerprint,
+        var revisionTwo = MapInitialStateService.EditInitialState(
+            db, project.ProjectId, mapId, revisionOne.ActiveRevisionId, revisionOne.CursorVersion,
             MapInitialStateService.StructuralBaselineSchemaVersion,
             new List<InitialObjectWrite>
             {
                 new() { ObjectIdentityId = obj2, MembershipPayloadJson = """{"b":2}""" },
             },
-            Now + 1);
-        var members = db.ListInitialObjects(project.ProjectId, mapId);
-        Assert.Single(members);
-        Assert.Equal(obj2, members[0].ObjectIdentityId);
-        Assert.NotEqual(baseline.ContentFingerprint, updated.ContentFingerprint);
-        Assert.Equal(
-            InitialStateFingerprint.Compute(updated.BaselineSchemaVersion, members),
-            updated.ContentFingerprint);
+            Now + 2);
+        Assert.Equal(2, revisionTwo.ActiveRevisionNumber);
+        Assert.Equal(obj2, db.ListInitialObjects(project.ProjectId, mapId).Single().ObjectIdentityId);
+        Assert.Equal(obj1, db.ListInitialStateRevisionObjects(project.ProjectId, mapId, revisionOne.ActiveRevisionId).Single().ObjectIdentityId);
 
-        // 旧凭据再编辑 → CAS 冲突。
-        Assert.Throws<CoreDomainConflictException>(
-            () => MapInitialStateService.EditInitialState(
-                db, project.ProjectId, mapId, baseline.ContentFingerprint,
+        // A stale active revision/cursor pair cannot append.
+        Assert.Throws<CoreDomainConflictException>(() =>
+            MapInitialStateService.EditInitialState(
+                db, project.ProjectId, mapId, revisionOne.ActiveRevisionId, revisionOne.CursorVersion,
                 MapInitialStateService.StructuralBaselineSchemaVersion,
-                new List<InitialObjectWrite>
-                {
-                    new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"c":3}""" },
-                },
-                Now + 2));
+                new List<InitialObjectWrite> { new() { ObjectIdentityId = obj1, MembershipPayloadJson = "{}" } },
+                Now + 3));
 
-        // 建立后 expected=null 再用 → 冲突（防并发建立竞态）。
-        Assert.Throws<CoreDomainConflictException>(
-            () => MapInitialStateService.EditInitialState(
-                db, project.ProjectId, mapId, null,
-                MapInitialStateService.StructuralBaselineSchemaVersion,
-                new List<InitialObjectWrite>(), Now + 3));
+        var undone = MapInitialStateService.Undo(
+            db, project.ProjectId, mapId, revisionTwo.ActiveRevisionId, revisionTwo.CursorVersion, Now + 4);
+        Assert.Equal(revisionOne.ActiveRevisionId, undone.ActiveRevisionId);
+        Assert.Equal(revisionTwo.ActiveRevisionId, undone.SelectedRedoChildRevisionId);
+        Assert.Equal(obj1, db.ListInitialObjects(project.ProjectId, mapId).Single().ObjectIdentityId);
+
+        var redone = MapInitialStateService.Redo(
+            db, project.ProjectId, mapId, undone.ActiveRevisionId, undone.CursorVersion,
+            revisionTwo.ActiveRevisionId, Now + 5);
+        Assert.Equal(revisionTwo.ActiveRevisionId, redone.ActiveRevisionId);
+        Assert.Equal(obj2, db.ListInitialObjects(project.ProjectId, mapId).Single().ObjectIdentityId);
+
+        // Undo and edit again: create a sibling revision, preserving the abandoned descendant.
+        var backAtOne = MapInitialStateService.Undo(
+            db, project.ProjectId, mapId, redone.ActiveRevisionId, redone.CursorVersion, Now + 6);
+        var revisionThree = MapInitialStateService.EditInitialState(
+            db, project.ProjectId, mapId, backAtOne.ActiveRevisionId, backAtOne.CursorVersion,
+            MapInitialStateService.StructuralBaselineSchemaVersion,
+            new List<InitialObjectWrite>
+            {
+                new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"a":3}""" },
+            },
+            Now + 7);
+        var revisions = db.ListMapInitialStateRevisions(project.ProjectId, mapId);
+        Assert.Equal(new long[] { 0, 1, 2, 3 }, revisions.Select(x => x.RevisionNumber));
+        Assert.Equal(revisionOne.ActiveRevisionId, revisions.Single(x => x.RevisionId == revisionTwo.ActiveRevisionId).ParentRevisionId);
+        Assert.Equal(revisionOne.ActiveRevisionId, revisions.Single(x => x.RevisionId == revisionThree.ActiveRevisionId).ParentRevisionId);
+
+        // The abandoned branch remains redoable after reopening the logical cursor.
+        var undoneBranch = MapInitialStateService.Undo(
+            db, project.ProjectId, mapId, revisionThree.ActiveRevisionId, revisionThree.CursorVersion, Now + 8);
+        var selectedOldBranch = MapInitialStateService.Redo(
+            db, project.ProjectId, mapId, undoneBranch.ActiveRevisionId, undoneBranch.CursorVersion,
+            revisionTwo.ActiveRevisionId, Now + 9);
+        Assert.Equal(revisionTwo.ActiveRevisionId, selectedOldBranch.ActiveRevisionId);
+        Assert.Equal(obj2, db.ListInitialObjects(project.ProjectId, mapId).Single().ObjectIdentityId);
     }
 
     [Fact]
@@ -472,9 +499,10 @@ public sealed class ObjectDomainServiceTests
     {
         var (db, project, map) = Seed();
         var orphan = CreateActiveObject(db, project.ProjectId); // 未注册
+        var baseline = db.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
         Assert.Throws<CoreDomainConflictException>(
             () => MapInitialStateService.EditInitialState(
-                db, project.ProjectId, map.Map.MapId, null,
+                db, project.ProjectId, map.Map.MapId, baseline.ActiveRevisionId, baseline.CursorVersion,
                 MapInitialStateService.StructuralBaselineSchemaVersion,
                 new List<InitialObjectWrite>
                 {
@@ -488,9 +516,10 @@ public sealed class ObjectDomainServiceTests
     {
         var (db, project, map) = Seed();
         var obj = CreateActiveObject(db, project.ProjectId, map.Map.MapId);
+        var baseline = db.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
         Assert.Throws<CoreDomainConflictException>(
             () => MapInitialStateService.EditInitialState(
-                db, project.ProjectId, map.Map.MapId, null,
+                db, project.ProjectId, map.Map.MapId, baseline.ActiveRevisionId, baseline.CursorVersion,
                 MapInitialStateService.StructuralBaselineSchemaVersion,
                 new List<InitialObjectWrite>
                 {
