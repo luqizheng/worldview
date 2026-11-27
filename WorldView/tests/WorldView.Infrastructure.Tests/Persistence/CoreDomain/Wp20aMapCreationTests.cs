@@ -177,7 +177,7 @@ public sealed class Wp20aMapCreationTests : IDisposable
     }
 
     [Fact]
-    public async Task DuplicateSpatialReferenceIdentity_RollsBackEntireMapCreation()
+    public async Task MapInsertFailure_RollsBackDefaultSpatialReferenceCreation()
     {
         var (session, projectId, _) = await CreateAndOpenAsync("世界A");
         var core = new SqliteCoreDomainDatabase(session.Database);
@@ -188,11 +188,8 @@ public sealed class Wp20aMapCreationTests : IDisposable
         var secondCandidate = MapRules.CreateMap(project, "Second", nowUtcMs: 11L);
         var second = secondCandidate with
         {
-            DefaultSpatialReference = first.DefaultSpatialReference,
-            Map = secondCandidate.Map with
-            {
-                SpatialReferenceId = first.DefaultSpatialReference.SpatialReferenceId,
-            },
+            Map = secondCandidate.Map with { MapId = first.Map.MapId },
+            RootHistory = secondCandidate.RootHistory with { OwnerMapId = first.Map.MapId },
         };
 
         Assert.ThrowsAny<Exception>(() => core.CreateMapStructure(second));
@@ -200,6 +197,7 @@ public sealed class Wp20aMapCreationTests : IDisposable
         Assert.NotNull(core.FindMap(projectId, first.Map.MapId));
         Assert.Null(core.FindMap(projectId, second.Map.MapId));
         Assert.NotNull(core.FindSpatialReferenceDefinition(projectId, first.DefaultSpatialReference.SpatialReferenceId));
+        Assert.Null(core.FindSpatialReferenceDefinition(projectId, second.DefaultSpatialReference.SpatialReferenceId));
 
         await session.CloseAsync();
     }
