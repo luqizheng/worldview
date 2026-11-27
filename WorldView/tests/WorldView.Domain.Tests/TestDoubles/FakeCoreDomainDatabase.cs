@@ -960,39 +960,45 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     private void AppendInitialMember(Guid projectId, Guid mapId, Guid objectIdentityId, InitialObjectWrite member, long nowUtcMs)
     {
-        var baseline = FindMapInitialState(projectId, mapId);
-        if (baseline is null)
+        var baseline = FindMapInitialState(projectId, mapId)
+            ?? throw new CoreDomainDataException("Map is missing its Initial State baseline/cursor.");
+        var parentMembers = ListInitialObjects(projectId, mapId);
+        var writes = parentMembers.Select(x => new InitialObjectWrite
         {
-            baseline = new MapInitialStateRecord
-            {
-                InitialStateId = Guid.NewGuid(),
-                ProjectId = projectId,
-                MapId = mapId,
-                BaselineSchemaVersion = MapInitialStateService.StructuralBaselineSchemaVersion,
-                ContentFingerprint = "-",
-                CreatedAtUtcMs = nowUtcMs,
-                UpdatedAtUtcMs = nowUtcMs,
-            };
-            InitialStates.Add(baseline);
-        }
-
-        InitialObjects.Add(new InitialObjectRecord
+            ObjectIdentityId = x.ObjectIdentityId,
+            MembershipPayloadJson = x.MembershipPayloadJson,
+            PlacementPayloadJson = x.PlacementPayloadJson,
+            PlacementSchemaVersion = x.PlacementSchemaVersion,
+        }).Append(member).ToArray();
+        var revisionId = Guid.NewGuid();
+        var childMembers = writes.Select(x => new InitialObjectRecord
         {
-            ProjectId = projectId,
-            MapId = mapId,
-            InitialStateId = baseline.InitialStateId,
-            ObjectIdentityId = objectIdentityId,
-            MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-            PlacementPayloadJson = member.PlacementPayloadJson is null
-                ? null
-                : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-            PlacementSchemaVersion = member.PlacementSchemaVersion,
+            ProjectId = projectId, MapId = mapId, InitialStateId = baseline.InitialStateId,
+            RevisionId = revisionId, ObjectIdentityId = x.ObjectIdentityId,
+            MembershipPayloadJson = CanonicalJson.Canonicalize(x.MembershipPayloadJson),
+            PlacementPayloadJson = x.PlacementPayloadJson is null ? null : CanonicalJson.Canonicalize(x.PlacementPayloadJson),
+            PlacementSchemaVersion = x.PlacementSchemaVersion, CreatedAtUtcMs = nowUtcMs,
+        }).ToArray();
+        var fingerprint = InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, childMembers);
+        var operation = InitialStateOperation.ComputePayload(
+            parentMembers, writes, baseline.ContentFingerprint, fingerprint);
+        var revisionNumber = InitialStateRevisions.Where(x => x.InitialStateId == baseline.InitialStateId)
+            .Max(x => x.RevisionNumber) + 1;
+        InitialStateRevisions.Add(new MapInitialStateRevisionRecord
+        {
+            RevisionId = revisionId, ProjectId = projectId, MapId = mapId, InitialStateId = baseline.InitialStateId,
+            RevisionNumber = revisionNumber, ParentRevisionId = baseline.ActiveRevisionId,
+            BaselineSchemaVersion = baseline.BaselineSchemaVersion, ContentFingerprint = fingerprint,
+            OperationKind = InitialStateOperation.SnapshotReplaceKind, OperationPayloadJson = operation,
             CreatedAtUtcMs = nowUtcMs,
         });
-
-        var members = ListInitialObjects(projectId, mapId);
-        var fingerprint = InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, members);
-        InitialStates.Remove(baseline);
-        InitialStates.Add(baseline with { ContentFingerprint = fingerprint, UpdatedAtUtcMs = nowUtcMs });
+        InitialObjects.AddRange(childMembers);
+        var index = InitialStates.IndexOf(baseline);
+        InitialStates[index] = baseline with
+        {
+            ActiveRevisionId = revisionId, ActiveRevisionNumber = revisionNumber,
+            ContentFingerprint = fingerprint, CursorVersion = baseline.CursorVersion + 1,
+            SelectedRedoChildRevisionId = null, UpdatedAtUtcMs = nowUtcMs,
+        };
     }
 }
