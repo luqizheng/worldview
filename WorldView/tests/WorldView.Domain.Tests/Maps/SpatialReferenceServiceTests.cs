@@ -63,9 +63,9 @@ public sealed class SpatialReferenceServiceTests
         Assert.Equal(SpatialReferenceKind.LocalCartesian, defaultDefinition.Kind);
         Assert.Equal("world-unit", defaultDefinition.CoordinateUnit);
         Assert.Null(defaultDefinition.PrecisionProfile);
-        Assert.Throws<CoreDomainConflictException>(() =>
-            MapSpatialReferenceService.BindInitial(
-                database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2));
+        var initiallySelected = MapSpatialReferenceService.BindInitial(
+            database, project.ProjectId, mapPlan.Map.MapId, definition.SpatialReferenceId, Now + 2);
+        Assert.Equal(definition.SpatialReferenceId, initiallySelected.SpatialReferenceId);
         Assert.Equal(definition.DefinitionFingerprint,
             SpatialReferenceService.FindDefinition(database, project.ProjectId, definition.SpatialReferenceId)!.DefinitionFingerprint);
         Assert.Throws<CoreDomainConflictException>(() =>
@@ -113,7 +113,7 @@ public sealed class SpatialReferenceServiceTests
         database.CreateMapStructure(map);
 
         _ = MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId,
-            map.Map.SpatialReferenceId!, Now + 2);
+            first.SpatialReferenceId, Now + 2);
 
         Assert.Throws<CoreDomainConflictException>(() =>
             MapSpatialReferenceService.BindInitial(database, project.ProjectId, map.Map.MapId, second.SpatialReferenceId, Now + 3));
