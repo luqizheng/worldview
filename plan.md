@@ -18,7 +18,7 @@ The repository has accumulated substantial domain, application, map-editor, inte
 This roadmap connects them into a product delivery plan. It defines:
 - what must be designed before code is written;
 - the order in which software capabilities are implemented;
-- which work can safely proceed in parallel;
+- the sequential order in which work packages are designed, implemented, reviewed and integrated;
 - the dependencies and integration gates between work packages;
 - what evidence is required before a phase is considered complete.
 
@@ -62,13 +62,11 @@ Therefore:
 - still protect active developer/test assets, build infrastructure and external dependencies;
 - destructive changes require dependency checks and tests, not assumptions.
 
-### 2.4 Concurrency has two meanings
+### 2.4 Single-machine execution and runtime asynchrony
 
-The plan distinguishes:
+Development and integration work is executed sequentially. Do not plan concurrent multi-agent work, simultaneous implementation branches or parallel work-package lanes as a project requirement. Complete, review and integrate one work package before starting the next dependent package.
 
-**Development-task parallelism:** multiple independent implementation work packages may be developed simultaneously by separate contributors/agents/worktrees after their contracts and file ownership are stable.
-
-**Runtime asynchronous concurrency:** the application is single-user/single-machine, but UI events, background preparation, cancellation, file operations and window lifecycle can interleave. These races must be handled correctly. This is not a requirement for distributed or multi-user concurrency.
+The application is single-user/single-machine. Runtime asynchronous operations still interleave: UI events, background preparation, cancellation, file operations and window lifecycle can race. Handle those lifecycle and thread-safety cases correctly, but do not introduce distributed, multi-user or generalized concurrency infrastructure.
 
 ## 3. Delivery strategy
 
@@ -97,8 +95,8 @@ The following is the planning baseline inferred from the repository documentatio
 | Application Foundation AF-01/AF-02 | Project package, application/session lifecycle and Asset Store foundation are documented as implemented, with platform and integration conditions | Reuse; verify current code and close real gaps |
 | ME-01 through ME-06 | Broad map-editor, terrain, geometry, interaction, Building/Cave and acceptance contracts exist | Reconcile into a product capability sequence; do not blindly re-author |
 | ME-07 / PRA | Rendering architecture and implementation sequencing exist; PRA-01 is the snapshot foundation; PRA-02 onward require evidence and dependency gates | Execute in the order defined below |
-| Spatial Chunk & LOD | A new V0.1 contract was authored on the separate Draft PR #41 branch | Review and reconcile before treating it as merged baseline |
-| WP-RA-02-A | A renderer architecture implementation/review task has been reported in progress in the current project conversation | Review its final delivery and code evidence before dependent implementation; do not assume it is merged or complete |
+| Spatial Chunk & LOD | Contract V0.1 merged by PR #41 at `73da06f0ef143c9a2df9a690aaed0acf1268e6e6`; it is a presentation design contract, not an implementation | Use as PRA-05 design authority; implementation remains gated by PRA-02/03 correctness and representative fixtures |
+| WP-RA-02-A | Desktop presentation integration merged by PR #40 at `6ec34ea`; BASELINE-01 source audit verified the integrated pipeline and test evidence | Reuse the existing implementation; do not reimplement PRA-01/viewport plumbing |
 | macOS | Existing reports identify macOS evidence as incomplete in several foundational areas | Treat macOS as a first-class validation lane, not a late optional check |
 
 At the start of each phase, verify the actual default-branch code, open PRs, CI and relevant implementation reports. Never infer implementation completion from a document's existence.
@@ -133,7 +131,7 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 - Define a consistent work-package template: objective, baseline SHA, scope, non-goals, design references, file ownership, dependencies, parallel work, implementation, tests, acceptance and handoff.
 
 **Implementation/process**
-- Review WP-RA-02-A and PR #41 as separate in-flight artifacts; do not silently assume either is merged.
+- Reconcile the completed WP-RA-02-A / PR #40 integration, the merged PR #41 contract and BASELINE-01 audit as the current baseline.
 - Review and merge this roadmap through its own PR.
 - Create the first ordered execution queue only after checking current branch/PR state.
 
@@ -273,8 +271,18 @@ Milestones are capability outcomes, not calendar promises. A milestone may conta
 7. Integrate Field Package raster presentation (PRA-07) when Field read contracts are ready.
 8. Complete symbols, decorations and scene composition (PRA-08).
 
+**Post-PR #41 implementation checkpoint (2026-11-27; source audit @ `6ec34ea`, current master @ `73da06f`)**
+
+- PRA-01: IMPLEMENTED and connected to the production workspace path (PR #40); snapshot/publication/lifecycle tests exist.
+- PRA-02: Avalonia/Skia viewport integration skeleton and lifecycle path are implemented; actual GUI acceptance evidence remains incomplete, especially macOS local execution.
+- PRA-03: NOT READY / NOT IMPLEMENTED as a complete capability. Coordinate transform mathematics, spatial index, geometry hit testing and snapping are absent.
+- PRA-04: NOT STARTED. Text shaping, glyph drawing and viewport-wide label layout are absent.
+- PRA-05: DESIGN INPUT READY (Spatial Chunk & LOD Contract V0.1 merged in PR #41); IMPLEMENTATION BLOCKED until PRA-02/03 correctness and representative map fixtures are demonstrated. PRA-04 label-shaping outputs must be integrated where labels participate in chunk/LOD presentation.
+
+The renderer currently publishes and draws a real immutable snapshot, but the snapshot is a blank-scene presentation and the renderer clears the background only. Do not interpret PRA-01/PRA-02 integration as map-content rendering completion. Close viewport interaction/coordinate and content-pipeline prerequisites before Chunk/LOD implementation.
+
 **Design constraints**
-- Follow the Spatial Chunk & LOD contract after its review/merge; it is a presentation contract, not Domain storage.
+- Follow the merged Spatial Chunk & LOD Contract V0.1 (`73da06f`); it is a presentation contract, not Domain storage.
 - Keep Field Package Tiles, Spatial Index entries, Render Chunks and LOD representations separate.
 - Use a fixed-grid Render Chunk baseline first; defer numeric sizes to benchmarks.
 - Use four conceptual display levels: World, Region, Settlement and Local Detail.
@@ -558,29 +566,29 @@ Every implementation package follows this lifecycle:
 
 ## 10. First execution queue
 
-The following is the initial order. Refresh statuses from GitHub before starting each item.
+This queue is updated after BASELINE-01 and PR #41. Statuses below are grounded in the 2026-11-27 audit and current GitHub state. Continue sequentially; refresh the default-branch SHA before each work package.
 
-| Order | Work package | Type | Deliverable / gate |
+| Order | Work package | Status | Deliverable / gate |
 |---:|---|---|---|
-| 1 | ROADMAP-01 — Review and merge this plan | Planning | Root `plan.md` is the project execution baseline |
-| 2 | BASELINE-01 — Audit current master, open PRs, CI, code and docs | Audit | Accurate capability/dependency/status matrix; identify conflicts and obsolete assumptions |
-| 3 | WP-RA-02-A — Complete independent review of current renderer architecture work | Review | Confirm final status and close outstanding findings; do not assume completion |
-| 4 | WP-RA-03 — Review Spatial Chunk & LOD Contract PR #41 | Design review | Accept, amend or reject the contract; merge only after review |
-| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | Product design | Prioritized V1 journeys, feature boundaries and acceptance matrix |
-| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | Architecture | Approved dependency map and missing-operation list |
-| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | Design + code | Project/map vertical-slice foundation proven on Windows/macOS |
-| 8 | PRA-01 — Verify/complete immutable Presentation Context and Scene Snapshot | Design + code | Snapshot, freshness, cancellation and publication tests pass |
-| 9 | PRA-02 / PRA-03 — Viewport host and spatial presentation integration | Design + code | Cross-platform viewport lifecycle and spatial correctness proven |
-| 10 | EDITOR-01 — Basic map workspace and manual editing vertical slice | UX + code | Create/select/edit/save/reopen basic map |
-| 11 | PRA-04 / PRA-05 — Text, labels, batching, chunks, LOD and benchmark | Design + code | Correct multi-scale high-density rendering with measured parameters |
-| 12 | TERRAIN-01 — Field and natural geography vertical slices | Design + code | Versioned field authoring and viewport presentation |
-| 13 | BUILT-01 — Settlement, road, Building and interior slices | Design + code | Exterior/interior authoring flows |
-| 14 | GENERATION-01 — Guided initialization and map generation | Design + code | Validated candidate workflow |
-| 15 | AI-01 — Optional AI Assistant integration | Design + code | Safe provider/tool flow; manual workflows remain independent |
-| 16 | OUTPUT-01 — Layout, export, import and recovery | Design + code | Stable snapshot export and project interchange |
-| 17 | RELEASE-01 — Windows/macOS stabilization and V1 acceptance | Release | Evidence-backed release candidate |
+| 1 | ROADMAP-01 — Review and merge this plan | COMPLETE — PR #42 | Root `plan.md` is the project execution baseline |
+| 2 | BASELINE-01 — Audit master, open PRs, CI, code and docs | COMPLETE — source audit @ `6ec34ea` | Capability/dependency/gap evidence; post-merge addendum tracks PR #41 |
+| 3 | WP-RA-02-A — Desktop presentation integration | COMPLETE — PR #40 | PRA-01 production pipeline connected; implementation evidence audited |
+| 4 | WP-RA-03 — Spatial Chunk & LOD Contract V0.1 | COMPLETE — PR #41, merge `73da06f` | Contract is authoritative design input for PRA-05; no implementation implied |
+| 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | PENDING | Prioritized V1 journeys, feature boundaries and acceptance matrix |
+| 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | PENDING | Approved dependency map and missing-operation list |
+| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | PENDING | Project/map vertical-slice foundation proven on Windows/macOS |
+| 8 | PRA-01 — Immutable Presentation Context and Scene Snapshot | COMPLETE — verified by BASELINE-01 | Snapshot, freshness, cancellation and publication tests pass |
+| 9 | PRA-02 / WP-30C — Viewport lifecycle, interaction and camera transforms | PARTIAL / NEXT RENDERER GATE | Complete pan/zoom/input/transform path and obtain platform GUI evidence |
+| 10 | DESIGN-EXTENT + DESIGN-SCENE — Map bounds and immutable SceneItem/style contract | PENDING | Freeze authoritative spatial extent and the minimal point/line/polygon scene schema |
+| 11 | WP-40-B1 — Time-zero content projection and minimal geometry rendering | PENDING | Real Domain map content becomes immutable scene items and visible Skia geometry |
+| 12 | PRA-03 — Projection, spatial index and geometry interaction | PENDING | Coordinate transforms, broad/narrow phase, hit-test/snap correctness |
+| 13 | PRA-04 — Text shaping, glyph drawing and viewport-wide labels | PENDING | HarfBuzz/package proof, CJK/mixed-script shaping and deterministic label layout |
+| 14 | PRA-05 — Batching, Spatial Chunks, LOD, caches and performance | DESIGN READY / IMPLEMENTATION BLOCKED | Implement only after PRA-02/03 correctness and representative fixtures; consume PRA-04 label capabilities where applicable |
+| 15 | TERRAIN-01 — Field and natural geography vertical slices | PENDING | Versioned field authoring and viewport presentation |
+| 16 | BUILT-01 — Settlement, road, Building and interior slices | PENDING | Exterior/interior authoring flows |
+| 17 | GENERATION-01 / AI-01 / OUTPUT-01 / RELEASE-01 | PENDING | Guided generation, optional AI, export/recovery and Windows/macOS release acceptance |
 
-Orders 8–10 may overlap only after their interfaces are agreed: PRA-01 is a hard prerequisite for renderer integration; editor UX design can proceed earlier, but editor code must consume stable Application/Domain contracts. Orders 11–13 may use independent branches after the shared contracts and integration points are frozen. No later work package may bypass a failed prerequisite gate.
+No work package may bypass a failed prerequisite. PR #41 being merged closes only the PRA-05 design-input gate; it does not authorize PRA-05 implementation.
 
 ## 11. Change control and status reporting
 
