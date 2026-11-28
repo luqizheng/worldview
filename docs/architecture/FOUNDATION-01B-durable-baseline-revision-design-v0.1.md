@@ -67,7 +67,8 @@ Required constraints:
 - unique `(project_id,initial_state_id,revision_number)`;
 - composite FK to the owning baseline;
 - composite self-FK `(project_id,initial_state_id,parent_revision_id)` to a revision of the same baseline;
-- revision zero iff parent and operation metadata are NULL; non-root revisions require a parent and complete operation metadata.
+- revision zero iff parent and operation metadata are NULL; non-root revisions require a parent and complete operation metadata;
+- SQLite immutability triggers reject UPDATE/DELETE on committed revision and revision-member rows. Insert ownership is enforced by the Core Domain persistence port and adapter transaction boundary, with relational constraints validating ownership; SQLite triggers do not attempt to identify the application caller. The cursor remains the sole mutable row.
 
 ### 3.3 Immutable revision members
 
@@ -90,10 +91,10 @@ Add `core_map_initial_state_cursor`, one row per baseline:
 - `project_id`, `map_id`, `initial_state_id`;
 - `active_revision_id`;
 - nullable `selected_redo_child_revision_id`;
-- `cursor_version` (starts at 0 and increments on every append/Undo/Redo transition);
+- `cursor_version` (starts at 0 and increments on every append/Undo/Redo/redo-selection transition);
 - `updated_at_utc_ms`.
 
-The cursor has composite FKs to the baseline and to revisions belonging to that same baseline. It is the only mutable authoritative row in the revision model.
+The cursor has composite FKs to the baseline and to revisions belonging to that same baseline. In addition, `selected_redo_child_revision_id` must either be NULL or identify a direct child of `active_revision_id` in the same baseline; this cross-row predicate is validated in every cursor transaction. It is the only mutable authoritative row in the revision model.
 
 ## 4. Operation representation and normalization
 
@@ -102,6 +103,7 @@ The cursor has composite FKs to the baseline and to revisions belonging to that 
 - Revision zero is the baseline root and has no edit operation.
 - Every non-root revision has `operation_kind = 'snapshot_replace'`.
 - `operation_payload_json` is canonical JSON containing deterministic sorted `added`, `removed` and `updated` Object identity sets, plus parent and child fingerprints.
+- The sets are disjoint and sorted by the same canonical UUID ordering as the snapshot. `added` means absent from the parent and present in the child; `removed` means present in the parent and absent from the child; `updated` means present in both but with different canonical membership or placement payload/schema. An identity may appear in exactly one set.
 - The full child snapshot contains the resulting values; the parent snapshot contains the previous values. Together with the operation descriptor they explain the exact transition without making the operation payload a second copy of all state.
 
 This keeps the operation/revision relationship normalized for the V1 one-operation-per-revision invariant. A separate operation table is only justified if a later product decision permits multiple independently addressable operations inside one revision.
@@ -122,7 +124,7 @@ The current lazy baseline creation path will be removed. A Map without a baselin
 
 ## 6. Cursor and Undo/Redo semantics
 
-Every transition requires both:
+Every cursor mutation requires both:
 
 - `expected_active_revision_id`;
 - `expected_cursor_version`.
@@ -152,7 +154,7 @@ Both are checked inside the same SQLite write transaction. A mismatch is a typed
 - Require the expected active revision/cursor version and an explicit selected child revision ID.
 - Validate that the selected revision is a direct child of the current active revision and belongs to the same baseline.
 - Move active revision to that child, clear selected redo child and increment cursor version.
-- When multiple children exist, the caller must select one explicitly. The current selected redo child is persisted so reopening can restore the visible redo choice.
+- When multiple children exist, the caller must select one explicitly. Undo sets the selected redo child to the revision just left. A dedicated `SelectRedoChild(expectedActiveRevisionId, expectedCursorVersion, childRevisionId)` operation persists a user's explicit branch choice without moving the active revision; it requires the target to be a direct child and increments `cursor_version`. Redo consumes the selected child (or accepts an explicit child ID in the same request), moves the active pointer and clears the selection. This makes a branch choice made in the history UI survive close/reopen. If there is only one child, the UI may offer a direct Redo action; if there are multiple children and no selected child, it must require an explicit choice.
 
 A new edit after Undo creates another child and preserves the old descendants. No revision is deleted or overwritten.
 
@@ -169,6 +171,8 @@ V1 revision content is a canonical manifest:
 Canonical JSON continues to use the existing Domain `CanonicalJson` rules (ordinal object-key ordering, deterministic scalar serialization). The fingerprint is SHA-256 over the canonical manifest and a versioned composition marker.
 
 FOUNDATION-01C will add the accepted geometry-component manifest and typed Asset references to the same revision manifest before geometry authoring is enabled. It must version the fingerprint composition deliberately; it must not silently reinterpret an existing fingerprint.
+
+The revision row stores the fingerprint computed by Domain. Persistence recomputes it from the exact rows being committed and rejects a mismatch. Integrity verification can recompute it from the immutable snapshot. SQLite UPDATE/DELETE triggers protect committed revision and member content from accidental mutation; schema migration is the only mechanism that may replace the storage shape.
 
 ## 8. Typed Geometry Asset link decision for FOUNDATION-01C
 
@@ -200,7 +204,8 @@ Core Domain will expose intent-level operations to:
 - list revision metadata/children for history presentation;
 - append a complete time-zero snapshot against expected revision and cursor;
 - Undo against expected revision and cursor;
-- Redo to an explicitly selected child against expected revision and cursor;
+- persist an explicit redo-child selection against expected revision and cursor;
+- Redo to the selected or explicitly supplied direct child against expected revision and cursor;
 - read any immutable revision snapshot.
 
 Application/UI code will not read or mutate revision/cursor tables directly and will not maintain an authoritative local Undo stack.
@@ -213,8 +218,8 @@ The existing Object insertion path that adds an Initial State membership must ap
 - Failure at each Map-creation stage leaves no partial Map-owned rows.
 - First membership edit creates revision one; revision zero remains unchanged.
 - Append/Undo/Redo preserve the complete revision tree and exact fingerprints.
-- Multiple redo children require explicit selection; selected redo choice survives reopen.
-- Stale expected revision or cursor version is rejected with no partial writes.
+- Multiple redo children require explicit selection; a selection made in the history UI is persisted and survives reopen.
+- Stale expected revision or cursor version is rejected with no partial writes, including redo-child selection.
 - Edit-after-Undo creates a new child and preserves the abandoned descendants.
 - Object insertion with Initial Membership appends a revision atomically with identity/registration/reservation changes.
 - Existing development baseline data is migrated into revision zero without loss.
