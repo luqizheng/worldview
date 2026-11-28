@@ -345,6 +345,69 @@ internal static class CoreDomainInitialSql
     /// 永不进入 core_asset（P2-09-06 §5/§6：正式引用前必须已发布）。
     /// integrity_state 由完整性扫描服务管理（verified/unverified/corrupt/missing）。
     /// </summary>
+
+    /// <summary>Immutable complete snapshots and the single mutable active cursor for time-zero authoring.</summary>
+    public const string CoreMapInitialStateRevisionTablesSql = """
+        CREATE TABLE core_map_initial_state_revision (
+            revision_id TEXT NOT NULL PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            map_id TEXT NOT NULL,
+            initial_state_id TEXT NOT NULL,
+            revision_number INTEGER NOT NULL CHECK (revision_number >= 0),
+            parent_revision_id TEXT NULL,
+            baseline_schema_version INTEGER NOT NULL,
+            content_fingerprint TEXT NOT NULL CHECK (length(content_fingerprint) = 64 AND content_fingerprint NOT GLOB '*[^0-9a-f]*'),
+            operation_kind TEXT NULL,
+            operation_payload_json TEXT NULL,
+            created_at_utc_ms INTEGER NOT NULL,
+            CHECK ((operation_kind IS NULL AND operation_payload_json IS NULL) OR (operation_kind IS NOT NULL AND operation_payload_json IS NOT NULL)),
+            CHECK ((revision_number = 0 AND parent_revision_id IS NULL AND operation_kind IS NULL) OR (revision_number > 0 AND parent_revision_id IS NOT NULL AND operation_kind IS NOT NULL)),
+            UNIQUE (project_id, map_id, initial_state_id, revision_id),
+            UNIQUE (project_id, map_id, initial_state_id, revision_number),
+            FOREIGN KEY (project_id, map_id, initial_state_id) REFERENCES core_map_initial_state (project_id, map_id, initial_state_id),
+            FOREIGN KEY (project_id, map_id, initial_state_id, parent_revision_id) REFERENCES core_map_initial_state_revision (project_id, map_id, initial_state_id, revision_id)
+        );
+
+        CREATE TABLE core_map_initial_state_revision_member (
+            project_id TEXT NOT NULL,
+            map_id TEXT NOT NULL,
+            initial_state_id TEXT NOT NULL,
+            revision_id TEXT NOT NULL,
+            object_identity_id TEXT NOT NULL,
+            initial_membership_payload_json TEXT NOT NULL,
+            initial_placement_payload_json TEXT NULL,
+            initial_placement_schema_version INTEGER NULL,
+            created_at_utc_ms INTEGER NOT NULL,
+            PRIMARY KEY (revision_id, object_identity_id),
+            CHECK ((initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)),
+            FOREIGN KEY (project_id, map_id, initial_state_id, revision_id) REFERENCES core_map_initial_state_revision (project_id, map_id, initial_state_id, revision_id),
+            FOREIGN KEY (project_id, map_id, object_identity_id) REFERENCES core_map_object_ref (project_id, map_id, object_identity_id),
+            FOREIGN KEY (project_id, object_identity_id) REFERENCES core_object (project_id, object_identity_id)
+        );
+
+        CREATE TABLE core_map_initial_state_cursor (
+            project_id TEXT NOT NULL,
+            map_id TEXT NOT NULL,
+            initial_state_id TEXT NOT NULL,
+            active_revision_id TEXT NOT NULL,
+            selected_redo_child_revision_id TEXT NULL,
+            cursor_version INTEGER NOT NULL CHECK (cursor_version >= 0),
+            updated_at_utc_ms INTEGER NOT NULL,
+            PRIMARY KEY (project_id, map_id),
+            FOREIGN KEY (project_id, map_id, initial_state_id) REFERENCES core_map_initial_state (project_id, map_id, initial_state_id),
+            FOREIGN KEY (project_id, map_id, initial_state_id, active_revision_id) REFERENCES core_map_initial_state_revision (project_id, map_id, initial_state_id, revision_id)
+        );
+
+        CREATE TRIGGER trg_core_map_initial_state_revision_no_update BEFORE UPDATE ON core_map_initial_state_revision
+        BEGIN SELECT RAISE(ABORT, 'baseline revisions are immutable'); END;
+        CREATE TRIGGER trg_core_map_initial_state_revision_no_delete BEFORE DELETE ON core_map_initial_state_revision
+        BEGIN SELECT RAISE(ABORT, 'baseline revisions are immutable'); END;
+        CREATE TRIGGER trg_core_map_initial_state_revision_member_no_update BEFORE UPDATE ON core_map_initial_state_revision_member
+        BEGIN SELECT RAISE(ABORT, 'baseline revision members are immutable'); END;
+        CREATE TRIGGER trg_core_map_initial_state_revision_member_no_delete BEFORE DELETE ON core_map_initial_state_revision_member
+        BEGIN SELECT RAISE(ABORT, 'baseline revision members are immutable'); END;
+        """;
+
     public const string CoreAssetTableSql = """
         CREATE TABLE core_asset (
             asset_id          TEXT    NOT NULL PRIMARY KEY,
