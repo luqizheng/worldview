@@ -77,7 +77,7 @@ public sealed class CoreDomainPersistenceTests : IDisposable
     [Fact]
     public void FreshBootstrap_AppliesCoreDomainMigrations()
     {
-        Assert.Equal(6, CountRows("__EFMigrationsHistory"));
+        Assert.Equal(7, CountRows("__EFMigrationsHistory"));
         foreach (var table in new[]
                  {
                      "core_project", "core_map", "core_history", "core_branch",
@@ -85,6 +85,8 @@ public sealed class CoreDomainPersistenceTests : IDisposable
                      "core_object_type", "core_object", "core_object_definition",
                      "core_object_id_allocator", "core_object_id_reservation",
                      "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
+                     "core_map_initial_state_revision", "core_map_initial_state_revision_member",
+                     "core_map_initial_state_cursor",
                      "core_project_settings_revision", "core_project_settings_current",
                      "core_map_settings_revision", "core_map_settings_current",
                      "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision", "core_field_payload",
