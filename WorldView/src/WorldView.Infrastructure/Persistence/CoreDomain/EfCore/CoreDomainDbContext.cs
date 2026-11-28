@@ -35,6 +35,9 @@ public class CoreDomainDbContext(DbContextOptions<CoreDomainDbContext> options) 
     internal DbSet<CoreMapObjectRefEntity> MapObjectRefs => Set<CoreMapObjectRefEntity>();
     internal DbSet<CoreMapInitialStateEntity> MapInitialStates => Set<CoreMapInitialStateEntity>();
     internal DbSet<CoreMapInitialObjectEntity> MapInitialObjects => Set<CoreMapInitialObjectEntity>();
+    internal DbSet<CoreMapInitialStateRevisionEntity> MapInitialStateRevisions => Set<CoreMapInitialStateRevisionEntity>();
+    internal DbSet<CoreMapInitialStateRevisionMemberEntity> MapInitialStateRevisionMembers => Set<CoreMapInitialStateRevisionMemberEntity>();
+    internal DbSet<CoreMapInitialStateCursorEntity> MapInitialStateCursors => Set<CoreMapInitialStateCursorEntity>();
     internal DbSet<CoreObjectDefinitionAssetEntity> ObjectDefinitionAssets => Set<CoreObjectDefinitionAssetEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
