@@ -1,6 +1,6 @@
 # World View — Product Development Roadmap
 
-- Version: 1.7
+- Version: 1.8
 - Date: 2026-11-28
 - Status: Project-level execution baseline; phase details are refined through versioned design contracts before implementation
 - Product: World View — local-first desktop software for creating, editing, reconstructing and presenting fictional or historical worlds and maps
@@ -201,13 +201,15 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 ### Phase 3 — Core Domain and persistence completion for map authoring
 
-**Status: FOUNDATION-01A COMPLETE; FOUNDATION-01B READY FOR INDEPENDENT REVIEW.** Default Spatial Reference implementation is merged (PR #50). The durable baseline revision/cursor implementation is complete on PR #54 (design gate merged in PR #53) and awaits independent review and acceptance.
+**Status: FOUNDATION-01A COMPLETE; FOUNDATION-01B COMPLETE — PR #54 merged at `671cd862` (2026-11-28); FOUNDATION-01C DESIGN IN REVIEW.** Default Spatial Reference and durable baseline revision foundations are integrated. The current work package is the source-audited Geometry Asset publication design.
 
-**Current work package: FOUNDATION-01B**
+**Current work package: FOUNDATION-01C**
 
 - Source audit and gap matrix: `docs/architecture/FOUNDATION-01-source-audit-and-gap-matrix-v0.1.md`.
 - FOUNDATION-01A implementation contract: `docs/architecture/FOUNDATION-01A-default-spatial-reference-implementation-v0.1.md`.
 - FOUNDATION-01B revision/cursor design: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`.
+- FOUNDATION-01B implementation report: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-implementation-v0.1.md`.
+- FOUNDATION-01C source audit and geometry publication design: `docs/architecture/FOUNDATION-01C-geometry-asset-publication-design-v0.1.md`.
 - Authoritative time-zero baseline and geometry publication contract: `docs/core-domain/FOUNDATION-01-time-zero-baseline-contract-v1.0.md`.
 - Binding product decisions remain in `docs/architecture/ARCH-01-decisions-accepted-v1.0.md`.
 
@@ -215,8 +217,8 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 **Sequential implementation gates**
 1. **FOUNDATION-01A — Default Spatial Reference:** COMPLETE — merged in PR #50 (`02adf552`). Create and bind the immutable 2D Local Cartesian / XY / `world-unit` Map-local definition in the same transaction as Map, root History, Calendar and day-zero configuration. Precision policy remains unspecified; Field Revision publication that requires it must fail closed.
-2. **FOUNDATION-01B — Durable baseline revisions:** READY FOR INDEPENDENT REVIEW — implemented on PR #54 (design: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`; implementation report: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-implementation-v0.1.md`). Map creation atomically establishes the baseline identity, empty revision zero and active cursor; the mutable baseline/member storage is retired by the convergence migration (design §9); all authoritative reads resolve through immutable revision snapshots and all edits append immutable revisions behind expected active-revision/cursor CAS checks with deterministic Core Domain Undo/Redo/redo-branch selection. Stale cursor/revision requests fail closed. Not accepted until independently reviewed and merged.
-3. **FOUNDATION-01C — Geometry Asset publication:** integrate immutable content-addressed Geometry Assets with POI/River/Landmass membership and revision publication in one formal database transaction.
+2. **FOUNDATION-01B — Durable baseline revisions:** COMPLETE — PR #54 merged at `671cd862`. Map creation atomically establishes the baseline identity, empty revision zero and active cursor; mutable baseline/member storage is retired by the convergence migration; authoritative reads resolve through immutable revision snapshots and edits append immutable revisions behind expected active-revision/cursor CAS checks with deterministic Core Domain Undo/Redo/redo-branch selection.
+3. **FOUNDATION-01C — Geometry Asset publication:** DESIGN IN REVIEW — source audit and proposed contract in `docs/architecture/FOUNDATION-01C-geometry-asset-publication-design-v0.1.md`. Add revision-scoped typed Asset references, Geometry Component manifests, v2 fingerprint composition, and atomic publication for POI/River/Landmass membership and Object insertion. Implementation follows independent design review.
 
 **Design constraints**
 - Use the accepted descriptor types and only their required geometry roles.
@@ -566,7 +568,7 @@ This queue is updated after BASELINE-01 and PR #41. Statuses below are grounded 
 | 4 | WP-RA-03 — Spatial Chunk & LOD Contract V0.1 | COMPLETE — PR #41, merge `73da06f` | Contract is authoritative design input for PRA-05; no implementation implied |
 | 5 | PRODUCT-01 — V1 product scope and end-to-end acceptance scenarios | COMPLETE — PR #45, merge `edb978e` | Approved M1/V1 boundary, explicit non-goals and E2E-01 through E2E-09 |
 | 6 | ARCH-01 — Cross-domain dependency and architecture reconciliation | COMPLETE — audit PR #46 merged; decisions accepted 2026-11-27 | Source-backed E2E ownership map and four binding product decisions recorded |
-| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | IN PROGRESS — product gate cleared | Re-audit latest master; define and verify only the Project/Map/Spatial Reference/Application gaps required by the first vertical slice |
+| 7 | FOUNDATION-01 — Close only blocking Core Domain/Application gaps | IN PROGRESS — 01A/01B integrated; 01C design in review | Complete revision-scoped Geometry Asset publication and required verification before moving to dependent authoring slices |
 | 8 | PRA-01 — Immutable Presentation Context and Scene Snapshot | COMPLETE — verified by BASELINE-01 | Snapshot, freshness, cancellation and publication tests pass |
 | 9 | PRA-02 / WP-30C — Viewport lifecycle, interaction and camera transforms | PARTIAL / NEXT RENDERER GATE | Complete pan/zoom/input/transform path and obtain platform GUI evidence |
 | 10 | DESIGN-EXTENT + DESIGN-SCENE — Map bounds and immutable SceneItem/style contract | PENDING | Freeze authoritative spatial extent and the minimal point/line/polygon scene schema |
@@ -592,4 +594,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-PRODUCT-01 is complete (PR #45); ARCH-01 audit and accepted product decisions are merged (PRs #46–48). FOUNDATION-01A is implemented and merged (PR #50); the FOUNDATION-01B design gate is merged (PR #53). The current gate is independent review and acceptance of PR #54 (FOUNDATION-01B implementation): verify the immutable full-snapshot storage, revision-tree lineage, durable cursor/redo selection, atomic Map creation and Object insertion membership, the §9 convergence migration of existing development data, and close/reopen behavior against the design and the authoritative time-zero contract. After PR #54 is accepted and merged, begin FOUNDATION-01C (Geometry Asset publication). Keep DESIGN-EXTENT/PRA-03 as the gate for numeric precision, tolerances and valid extent; do not enable geometry publication without that policy. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.
+PRODUCT-01 is complete (PR #45); ARCH-01 audit and accepted product decisions are merged (PRs #46–48). FOUNDATION-01A is complete (PR #50) and FOUNDATION-01B is complete (PR #54, merge `671cd862`). The current gate is independent review of the FOUNDATION-01C source audit/design at `docs/architecture/FOUNDATION-01C-geometry-asset-publication-design-v0.1.md`. Review the revision-scoped per-component Asset link model, Object-insertion atomicity, mixed v1/v2 immutable fingerprint history, component identity no-reuse across branches, and Asset orphan reconciliation. After the design is accepted, implement 01C on the latest integrated master. Keep DESIGN-EXTENT/PRA-03 as the gate for numeric precision, tolerances and valid extent; geometry publication must fail closed until a valid precision policy is adopted. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.
