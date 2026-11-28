@@ -26,6 +26,9 @@ public static class InitialStateRevisionRules
         ArgumentNullException.ThrowIfNull(parentMembers);
         ArgumentNullException.ThrowIfNull(childMembers);
 
+        EnsureUniqueIdentities(parentMembers.Select(x => x.ObjectIdentityId));
+        EnsureUniqueIdentities(childMembers.Select(x => x.ObjectIdentityId));
+
         var parent = parentMembers.ToDictionary(x => x.ObjectIdentityId, SnapshotMember.From);
         var child = childMembers.ToDictionary(x => x.ObjectIdentityId, SnapshotMember.From);
 
@@ -46,7 +49,9 @@ public static class InitialStateRevisionRules
             ChildFingerprint = childFingerprint,
         };
 
-        return CanonicalJson.Canonicalize(JsonSerializer.Serialize(payload));
+        return CanonicalJson.Canonicalize(JsonSerializer.Serialize(
+            payload,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
     }
 
     /// <summary>Validate that a candidate redo target is a direct child of the active revision.</summary>
@@ -90,6 +95,19 @@ public static class InitialStateRevisionRules
             _ => throw new Persistence.CoreDomainConflictException(
                 "Multiple redo branches exist; an explicit child revision must be selected."),
         };
+    }
+
+    private static void EnsureUniqueIdentities(IEnumerable<Guid> identities)
+    {
+        var seen = new HashSet<Guid>();
+        foreach (var identity in identities)
+        {
+            if (identity == Guid.Empty || !seen.Add(identity))
+            {
+                throw new Persistence.CoreDomainConflictException(
+                    "A baseline revision snapshot must contain unique, non-empty Object identities.");
+            }
+        }
     }
 
     private static string IdKey(Guid id) => id.ToString("D");
