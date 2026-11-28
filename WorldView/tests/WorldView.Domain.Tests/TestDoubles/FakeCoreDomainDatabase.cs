@@ -59,9 +59,13 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
 
     public Dictionary<Guid, byte[]> FieldPayloadBlobs { get; } = new();
 
-    public List<MapInitialStateRecord> InitialStates { get; } = new();
+    public List<MapInitialStateBaselineRecord> InitialStateBaselines { get; } = new();
 
-    public List<InitialObjectRecord> InitialObjects { get; } = new();
+    public List<MapInitialStateRevisionRecord> InitialStateRevisions { get; } = new();
+
+    public List<InitialObjectRecord> InitialStateRevisionMembers { get; } = new();
+
+    public List<MapInitialStateCursorRecord> InitialStateCursors { get; } = new();
 
     public ProjectRecord? FindProject(Guid projectId) => Projects.FirstOrDefault(p => p.ProjectId == projectId);
 
@@ -124,7 +128,7 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
                 ?? throw new CoreDomainDataException("Map 当前绑定的 Spatial Reference 定义缺失。");
             _ = SpatialReferenceRules.ValidateDefaultLocalCartesian(current, mapId);
             if (MapObjectRefs.Any(x => x.ProjectId == projectId && x.MapId == mapId)
-                || InitialObjects.Any(x => x.ProjectId == projectId && x.MapId == mapId)
+                || InitialStateRevisionMembers.Any(x => x.ProjectId == projectId && x.MapId == mapId)
                 || FieldDatasets.Any(x => x.ProjectId == projectId && x.MapId == mapId))
                 throw new CoreDomainConflictException("Map 已有内容；更换 Spatial Reference 必须经过坐标转换流程。");
         }
@@ -159,6 +163,49 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         Histories.Add(plan.RootHistory);
         Calendars.Add(plan.DefaultCalendar);
         CalendarConfigurations.Add(plan.DayZeroConfiguration);
+
+        // FOUNDATION-01B §5：baseline identity + revision zero + cursor 同事务建立。
+        var baseline = plan.InitialStateBaseline;
+        if (baseline.BaselineSchemaVersion != MapInitialStateService.StructuralBaselineSchemaVersion
+            || !string.Equals(
+                baseline.RevisionZeroFingerprint,
+                InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, []),
+                StringComparison.Ordinal))
+        {
+            throw new CoreDomainDataException("revision zero 计划指纹与 Domain 空快照重算值不一致。");
+        }
+
+        InitialStateBaselines.Add(new MapInitialStateBaselineRecord
+        {
+            InitialStateId = baseline.InitialStateId,
+            ProjectId = plan.Map.ProjectId,
+            MapId = plan.Map.MapId,
+            CreatedAtUtcMs = plan.Map.CreatedAtUtcMs,
+        });
+        InitialStateRevisions.Add(new MapInitialStateRevisionRecord
+        {
+            RevisionId = baseline.RevisionZeroId,
+            ProjectId = plan.Map.ProjectId,
+            MapId = plan.Map.MapId,
+            InitialStateId = baseline.InitialStateId,
+            RevisionNumber = 0,
+            ParentRevisionId = null,
+            BaselineSchemaVersion = baseline.BaselineSchemaVersion,
+            ContentFingerprint = baseline.RevisionZeroFingerprint,
+            OperationKind = null,
+            OperationPayloadJson = null,
+            CreatedAtUtcMs = plan.Map.CreatedAtUtcMs,
+        });
+        InitialStateCursors.Add(new MapInitialStateCursorRecord
+        {
+            ProjectId = plan.Map.ProjectId,
+            MapId = plan.Map.MapId,
+            InitialStateId = baseline.InitialStateId,
+            ActiveRevisionId = baseline.RevisionZeroId,
+            SelectedRedoChildRevisionId = null,
+            CursorVersion = 0,
+            UpdatedAtUtcMs = plan.Map.CreatedAtUtcMs,
+        });
     }
 
     public HistoryRecord? FindHistory(Guid projectId, Guid historyId) =>
@@ -382,20 +429,22 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         if (plan.InitialMembership is not null)
         {
             if (plan.Registration is null
+                || plan.InitialRevisionAppend is null
                 || !MapObjectRefs.Any(r =>
                     r.ProjectId == plan.ProjectId && r.MapId == plan.Registration.MapId
                     && r.ObjectIdentityId == plan.ObjectIdentityId))
             {
-                throw new CoreDomainConflictException("Initial State 成员缺少同 Map 注册行（P3⇒P2）。");
+                throw new CoreDomainConflictException("Initial State 成员缺少同 Map 注册行或 revision 追加上下文（P3⇒P2）。");
             }
 
-            AppendInitialMember(plan.ProjectId, plan.Registration.MapId, plan.ObjectIdentityId, new InitialObjectWrite
-            {
-                ObjectIdentityId = plan.ObjectIdentityId,
-                MembershipPayloadJson = plan.InitialMembership.MembershipPayloadJson,
-                PlacementPayloadJson = plan.InitialMembership.PlacementPayloadJson,
-                PlacementSchemaVersion = plan.InitialMembership.PlacementSchemaVersion,
-            }, plan.NowUtcMs);
+            AppendRevisionForInsertObject(
+                plan, plan.Registration.MapId, new InitialObjectWrite
+                {
+                    ObjectIdentityId = plan.ObjectIdentityId,
+                    MembershipPayloadJson = plan.InitialMembership.MembershipPayloadJson,
+                    PlacementPayloadJson = plan.InitialMembership.PlacementPayloadJson,
+                    PlacementSchemaVersion = plan.InitialMembership.PlacementSchemaVersion,
+                });
         }
 
         Objects.Remove(identity);
@@ -567,110 +616,171 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
     {
         var reference = FindMapObjectRef(projectId, mapId, objectIdentityId)
             ?? throw new CoreDomainConflictException("注册行不存在。");
-        if (InitialObjects.Any(m =>
+        if (InitialStateRevisionMembers.Any(m =>
                 m.ProjectId == projectId && m.MapId == mapId && m.ObjectIdentityId == objectIdentityId))
         {
-            throw new CoreDomainConflictException("仍有 Initial State 成员行，须先移除成员（P3⇒P2）。");
+            throw new CoreDomainConflictException("仍是某个 Initial State revision 的成员，取消注册被拒绝（P3⇒P2）。");
         }
 
         MapObjectRefs.Remove(reference);
     }
 
-    // ---- Initial State ----
+    // ---- Initial State 修订（FOUNDATION-01B §3/§6） ----
 
-    public MapInitialStateRecord? FindMapInitialState(Guid projectId, Guid mapId) =>
-        InitialStates.FirstOrDefault(s => s.ProjectId == projectId && s.MapId == mapId);
+    public MapInitialStateBaselineRecord? FindMapInitialStateBaseline(Guid projectId, Guid mapId) =>
+        InitialStateBaselines.FirstOrDefault(s => s.ProjectId == projectId && s.MapId == mapId);
 
-    public IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId) =>
-        InitialObjects.Where(m => m.ProjectId == projectId && m.MapId == mapId)
-            .OrderBy(m => m.ObjectIdentityId)
+    public MapInitialStateRevisionSnapshot? FindMapInitialStateRevisionSnapshot(
+        Guid projectId, Guid mapId, Guid revisionId)
+    {
+        var revision = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == projectId && x.MapId == mapId && x.RevisionId == revisionId);
+        if (revision is null)
+        {
+            return null;
+        }
+
+        return new MapInitialStateRevisionSnapshot
+        {
+            Revision = revision,
+            Members = ListRevisionMembers(projectId, mapId, revisionId),
+        };
+    }
+
+    public IReadOnlyList<MapInitialStateRevisionRecord> ListMapInitialStateRevisions(Guid projectId, Guid mapId) =>
+        InitialStateRevisions.Where(x => x.ProjectId == projectId && x.MapId == mapId)
+            .OrderBy(x => x.RevisionNumber)
             .ToArray();
 
-    public void EditMapInitialState(EditInitialStatePlan plan)
+    public MapInitialStateRevisionState? FindMapInitialStateRevisionState(Guid projectId, Guid mapId)
     {
-        var baseline = FindMapInitialState(plan.ProjectId, plan.MapId);
-        if (baseline is not null)
+        var baseline = FindMapInitialStateBaseline(projectId, mapId);
+        if (baseline is null)
         {
-            if (plan.ExpectedFingerprint is null
-                || !string.Equals(baseline.ContentFingerprint, plan.ExpectedFingerprint, StringComparison.Ordinal))
-            {
-                throw new CoreDomainConflictException("Initial State CAS 冲突。");
-            }
-
-            if (baseline.InitialStateId != plan.InitialStateId)
-            {
-                throw new CoreDomainDataException("编辑计划基线与既有基线不一致。");
-            }
+            return null;
         }
-        else if (plan.ExpectedFingerprint is not null)
+
+        var cursor = InitialStateCursors.FirstOrDefault(x =>
+            x.ProjectId == projectId && x.MapId == mapId)
+            ?? throw new CoreDomainDataException("存在 baseline 但缺少 cursor 行（数据损坏）。");
+
+        var activeRevision = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == projectId
+            && x.MapId == mapId
+            && x.InitialStateId == cursor.InitialStateId
+            && x.RevisionId == cursor.ActiveRevisionId)
+            ?? throw new CoreDomainDataException("cursor 指向不存在的 active revision（数据损坏）。");
+
+        return new MapInitialStateRevisionState
         {
-            throw new CoreDomainConflictException("尚无基线；expected fingerprint 必须为 null。");
+            Snapshot = new MapInitialStateRevisionSnapshot
+            {
+                Revision = activeRevision,
+                Members = ListRevisionMembers(projectId, mapId, cursor.ActiveRevisionId),
+            },
+            Cursor = cursor,
+            RedoChildren = InitialStateRevisions
+                .Where(x => x.ProjectId == projectId
+                    && x.MapId == mapId
+                    && x.InitialStateId == cursor.InitialStateId
+                    && x.ParentRevisionId == cursor.ActiveRevisionId)
+                .OrderBy(x => x.RevisionNumber)
+                .ToArray(),
+        };
+    }
+
+    public void AppendMapInitialStateRevision(AppendMapInitialStateRevisionPlan plan)
+    {
+        var cursor = RequireCursor(plan.ProjectId, plan.MapId);
+        ValidateExpectedCursor(cursor, plan.ExpectedActiveRevisionId, plan.ExpectedCursorVersion);
+        if (cursor.InitialStateId != plan.InitialStateId)
+        {
+            throw new CoreDomainDataException("追加计划 baseline 与既有 baseline 不一致（fail-closed）。");
+        }
+
+        var parent = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == plan.ProjectId
+            && x.MapId == plan.MapId
+            && x.InitialStateId == cursor.InitialStateId
+            && x.RevisionId == cursor.ActiveRevisionId)
+            ?? throw new CoreDomainDataException("cursor 指向不存在的 active revision（数据损坏）。");
+
+        var parentMembers = ListRevisionMembers(plan.ProjectId, plan.MapId, parent.RevisionId);
+        var childMembers = CanonicalizeMembers(plan.ProjectId, plan.MapId, plan.Members);
+        var childFingerprint = InitialStateFingerprint.Compute(parent.BaselineSchemaVersion, childMembers);
+        if (!string.Equals(childFingerprint, plan.ContentFingerprint, StringComparison.Ordinal))
+        {
+            throw new CoreDomainDataException("fingerprint 与 Domain 计划不一致（fail-closed）。");
+        }
+
+        var operationPayload = InitialStateRevisionRules.BuildOperationPayload(
+            parent.ContentFingerprint, childFingerprint, parentMembers, childMembers);
+        if (!string.Equals(operationPayload, plan.OperationPayloadJson, StringComparison.Ordinal))
+        {
+            throw new CoreDomainDataException("operation payload 与 Domain 计划不一致（fail-closed）。");
+        }
+
+        InsertRevisionInMemory(plan.ProjectId, plan.MapId, cursor.InitialStateId, parent.RevisionId,
+            plan.RevisionId, parent.BaselineSchemaVersion, childFingerprint, operationPayload, childMembers, plan.NowUtcMs);
+        SetCursor(cursor, plan.RevisionId, null, plan.ExpectedCursorVersion + 1, plan.NowUtcMs);
+    }
+
+    public void MoveMapInitialStateCursor(MoveMapInitialStateCursorPlan plan)
+    {
+        var cursor = RequireCursor(plan.ProjectId, plan.MapId);
+        ValidateExpectedCursor(cursor, plan.ExpectedActiveRevisionId, plan.ExpectedCursorVersion);
+        if (cursor.InitialStateId != plan.InitialStateId)
+        {
+            throw new CoreDomainDataException("cursor 计划 baseline 与既有 baseline 不一致（fail-closed）。");
+        }
+
+        var current = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == plan.ProjectId
+            && x.MapId == plan.MapId
+            && x.InitialStateId == cursor.InitialStateId
+            && x.RevisionId == cursor.ActiveRevisionId)
+            ?? throw new CoreDomainDataException("cursor 指向不存在的 active revision（数据损坏）。");
+
+        if (plan.IsRedo)
+        {
+            var target = InitialStateRevisions.FirstOrDefault(x =>
+                x.ProjectId == plan.ProjectId
+                && x.MapId == plan.MapId
+                && x.InitialStateId == cursor.InitialStateId
+                && x.RevisionId == plan.TargetRevisionId);
+            InitialStateRevisionRules.ValidateDirectChild(current.RevisionId, plan.TargetRevisionId, target?.ParentRevisionId);
+            SetCursor(cursor, plan.TargetRevisionId, null, plan.ExpectedCursorVersion + 1, plan.NowUtcMs);
         }
         else
         {
-            InitialStates.Add(new MapInitialStateRecord
+            if (current.ParentRevisionId is null)
             {
-                InitialStateId = plan.InitialStateId,
-                ProjectId = plan.ProjectId,
-                MapId = plan.MapId,
-                BaselineSchemaVersion = plan.BaselineSchemaVersion,
-                ContentFingerprint = "-",
-                CreatedAtUtcMs = plan.NowUtcMs,
-                UpdatedAtUtcMs = plan.NowUtcMs,
-            });
-        }
-
-        var seen = new HashSet<Guid>();
-        foreach (var member in plan.Members)
-        {
-            if (!seen.Add(member.ObjectIdentityId))
-            {
-                throw new CoreDomainConflictException("成员集合含重复身份。");
+                throw new CoreDomainConflictException("Revision zero（baseline root）不可 Undo。");
             }
 
-            var identity = Objects.FirstOrDefault(o =>
-                    o.ProjectId == plan.ProjectId && o.ObjectIdentityId == member.ObjectIdentityId)
-                ?? throw new CoreDomainConflictException("成员身份不存在。");
-            if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
-            {
-                throw new CoreDomainConflictException("draft/abandoned 身份不得进入 Initial State。");
-            }
-
-            if (FindMapObjectRef(plan.ProjectId, plan.MapId, member.ObjectIdentityId) is null)
-            {
-                throw new CoreDomainConflictException("成员缺少注册行（P3⇒P2）。");
-            }
+            SetCursor(cursor, current.ParentRevisionId.Value, current.RevisionId, plan.ExpectedCursorVersion + 1, plan.NowUtcMs);
         }
-
-        InitialObjects.RemoveAll(m => m.ProjectId == plan.ProjectId && m.MapId == plan.MapId);
-        foreach (var member in plan.Members)
-        {
-            InitialObjects.Add(new InitialObjectRecord
-            {
-                ProjectId = plan.ProjectId,
-                MapId = plan.MapId,
-                InitialStateId = plan.InitialStateId,
-                ObjectIdentityId = member.ObjectIdentityId,
-                MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-                PlacementPayloadJson = member.PlacementPayloadJson is null
-                    ? null
-                    : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-                PlacementSchemaVersion = member.PlacementSchemaVersion,
-                CreatedAtUtcMs = plan.NowUtcMs,
-            });
-        }
-
-        var members = ListInitialObjects(plan.ProjectId, plan.MapId);
-        var fingerprint = InitialStateFingerprint.Compute(plan.BaselineSchemaVersion, members);
-        var updated = InitialStates.First(s => s.ProjectId == plan.ProjectId && s.MapId == plan.MapId);
-        InitialStates.Remove(updated);
-        InitialStates.Add(updated with
-        {
-            BaselineSchemaVersion = plan.BaselineSchemaVersion,
-            ContentFingerprint = fingerprint,
-            UpdatedAtUtcMs = plan.NowUtcMs,
-        });
     }
+
+    public void SelectMapInitialStateRedoChild(SelectMapInitialStateRedoChildPlan plan)
+    {
+        var cursor = RequireCursor(plan.ProjectId, plan.MapId);
+        ValidateExpectedCursor(cursor, plan.ExpectedActiveRevisionId, plan.ExpectedCursorVersion);
+        if (cursor.InitialStateId != plan.InitialStateId)
+        {
+            throw new CoreDomainDataException("redo 选择计划 baseline 与既有 baseline 不一致（fail-closed）。");
+        }
+
+        var child = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == plan.ProjectId
+            && x.MapId == plan.MapId
+            && x.InitialStateId == cursor.InitialStateId
+            && x.RevisionId == plan.ChildRevisionId);
+        InitialStateRevisionRules.ValidateDirectChild(cursor.ActiveRevisionId, plan.ChildRevisionId, child?.ParentRevisionId);
+        SetCursor(cursor, cursor.ActiveRevisionId, plan.ChildRevisionId, plan.ExpectedCursorVersion + 1, plan.NowUtcMs);
+    }
+
+    // ---- 内存写辅助（与适配器规则一致） ----
 
     // ---- Asset / definition link ----
 
@@ -899,41 +1009,213 @@ public sealed class FakeCoreDomainDatabase : ICoreDomainDatabase
         });
     }
 
-    private void AppendInitialMember(Guid projectId, Guid mapId, Guid objectIdentityId, InitialObjectWrite member, long nowUtcMs)
+    /// <summary>InsertObject 事务内的 revision 追加（FOUNDATION-01B §10；与 Sqlite 适配器同规则）。</summary>
+    private void AppendRevisionForInsertObject(ObjectInsertPlan plan, Guid mapId, InitialObjectWrite newMember)
     {
-        var baseline = FindMapInitialState(projectId, mapId);
-        if (baseline is null)
+        var append = plan.InitialRevisionAppend!;
+        var cursor = RequireCursor(plan.ProjectId, mapId);
+        ValidateExpectedCursor(cursor, append.ExpectedActiveRevisionId, append.ExpectedCursorVersion);
+        if (cursor.InitialStateId != append.InitialStateId)
         {
-            baseline = new MapInitialStateRecord
-            {
-                InitialStateId = Guid.NewGuid(),
-                ProjectId = projectId,
-                MapId = mapId,
-                BaselineSchemaVersion = MapInitialStateService.StructuralBaselineSchemaVersion,
-                ContentFingerprint = "-",
-                CreatedAtUtcMs = nowUtcMs,
-                UpdatedAtUtcMs = nowUtcMs,
-            };
-            InitialStates.Add(baseline);
+            throw new CoreDomainDataException("Insert 计划 baseline 与既有 baseline 不一致（fail-closed）。");
         }
 
-        InitialObjects.Add(new InitialObjectRecord
+        var parent = InitialStateRevisions.FirstOrDefault(x =>
+            x.ProjectId == plan.ProjectId
+            && x.MapId == mapId
+            && x.InitialStateId == cursor.InitialStateId
+            && x.RevisionId == cursor.ActiveRevisionId)
+            ?? throw new CoreDomainDataException("cursor 指向不存在的 active revision（数据损坏）。");
+
+        var parentMembers = ListRevisionMembers(plan.ProjectId, mapId, parent.RevisionId);
+        if (parentMembers.Any(m => m.ObjectIdentityId == plan.ObjectIdentityId))
         {
+            throw new CoreDomainConflictException("身份已是活动 revision 成员，拒绝重复追加。");
+        }
+
+        // Insert 路径放宽：父快照成员在各自提交时已校验；新成员身份在本事务结束才
+        // draft→active（与 Sqlite 适配器一致），此处只做 canonical 化与成对校验。
+        if (newMember.PlacementPayloadJson is null != newMember.PlacementSchemaVersion is null)
+        {
+            throw new CoreDomainConflictException("placement payload 与 schema version 必须成对提供。");
+        }
+
+        var childMembers = parentMembers
+            .Select(m => new InitialObjectWrite
+            {
+                ObjectIdentityId = m.ObjectIdentityId,
+                MembershipPayloadJson = m.MembershipPayloadJson,
+                PlacementPayloadJson = m.PlacementPayloadJson,
+                PlacementSchemaVersion = m.PlacementSchemaVersion,
+            })
+            .Append(new InitialObjectWrite
+            {
+                ObjectIdentityId = newMember.ObjectIdentityId,
+                MembershipPayloadJson = CanonicalJson.Canonicalize(newMember.MembershipPayloadJson),
+                PlacementPayloadJson = newMember.PlacementPayloadJson is null
+                    ? null
+                    : CanonicalJson.Canonicalize(newMember.PlacementPayloadJson),
+                PlacementSchemaVersion = newMember.PlacementSchemaVersion,
+            })
+            .ToArray();
+        var childFingerprint = InitialStateFingerprint.Compute(parent.BaselineSchemaVersion, childMembers);
+        if (!string.Equals(childFingerprint, append.ContentFingerprint, StringComparison.Ordinal))
+        {
+            throw new CoreDomainDataException("fingerprint 与 Domain 计划不一致（fail-closed）。");
+        }
+
+        var operationPayload = InitialStateRevisionRules.BuildOperationPayload(
+            parent.ContentFingerprint, childFingerprint, parentMembers, childMembers);
+        if (!string.Equals(operationPayload, append.OperationPayloadJson, StringComparison.Ordinal))
+        {
+            throw new CoreDomainDataException("operation payload 与 Domain 计划不一致（fail-closed）。");
+        }
+
+        InsertRevisionInMemory(plan.ProjectId, mapId, cursor.InitialStateId, parent.RevisionId,
+            append.NewRevisionId, parent.BaselineSchemaVersion, childFingerprint, operationPayload, childMembers, plan.NowUtcMs);
+        SetCursor(cursor, append.NewRevisionId, null, append.ExpectedCursorVersion + 1, plan.NowUtcMs);
+    }
+
+    private MapInitialStateCursorRecord RequireCursor(Guid projectId, Guid mapId)
+    {
+        if (FindMapInitialStateBaseline(projectId, mapId) is null)
+        {
+            throw new CoreDomainDataException("缺少 Initial State baseline 身份行（数据损坏）。");
+        }
+
+        return InitialStateCursors.FirstOrDefault(x => x.ProjectId == projectId && x.MapId == mapId)
+            ?? throw new CoreDomainDataException("存在 baseline 但缺少 cursor 行（数据损坏）。");
+    }
+
+    private static void ValidateExpectedCursor(
+        MapInitialStateCursorRecord cursor, Guid expectedActiveRevisionId, long expectedCursorVersion)
+    {
+        if (cursor.ActiveRevisionId != expectedActiveRevisionId || cursor.CursorVersion != expectedCursorVersion)
+        {
+            throw new CoreDomainConflictException("Initial State cursor 冲突：expected revision/version 不匹配。");
+        }
+    }
+
+    private void SetCursor(
+        MapInitialStateCursorRecord cursor,
+        Guid activeRevisionId,
+        Guid? selectedRedoChildRevisionId,
+        long cursorVersion,
+        long nowUtcMs)
+    {
+        InitialStateCursors.Remove(cursor);
+        InitialStateCursors.Add(cursor with
+        {
+            ActiveRevisionId = activeRevisionId,
+            SelectedRedoChildRevisionId = selectedRedoChildRevisionId,
+            CursorVersion = cursorVersion,
+            UpdatedAtUtcMs = nowUtcMs,
+        });
+    }
+
+    private void InsertRevisionInMemory(
+        Guid projectId,
+        Guid mapId,
+        Guid initialStateId,
+        Guid parentRevisionId,
+        Guid newRevisionId,
+        long baselineSchemaVersion,
+        string contentFingerprint,
+        string operationPayloadJson,
+        IReadOnlyList<InitialObjectWrite> members,
+        long nowUtcMs)
+    {
+        if (InitialStateRevisions.Any(x =>
+            x.ProjectId == projectId && x.MapId == mapId && x.InitialStateId == initialStateId && x.RevisionId == newRevisionId))
+        {
+            throw new CoreDomainConflictException("revision 身份重复（UNIQUE 语义）。");
+        }
+
+        var nextRevisionNumber = InitialStateRevisions
+            .Where(x => x.ProjectId == projectId && x.MapId == mapId && x.InitialStateId == initialStateId)
+            .Select(x => x.RevisionNumber)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+        InitialStateRevisions.Add(new MapInitialStateRevisionRecord
+        {
+            RevisionId = newRevisionId,
             ProjectId = projectId,
             MapId = mapId,
-            InitialStateId = baseline.InitialStateId,
-            ObjectIdentityId = objectIdentityId,
-            MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
-            PlacementPayloadJson = member.PlacementPayloadJson is null
-                ? null
-                : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
-            PlacementSchemaVersion = member.PlacementSchemaVersion,
+            InitialStateId = initialStateId,
+            RevisionNumber = nextRevisionNumber,
+            ParentRevisionId = parentRevisionId,
+            BaselineSchemaVersion = baselineSchemaVersion,
+            ContentFingerprint = contentFingerprint,
+            OperationKind = InitialStateRevisionRules.SnapshotReplaceOperationKind,
+            OperationPayloadJson = operationPayloadJson,
             CreatedAtUtcMs = nowUtcMs,
         });
 
-        var members = ListInitialObjects(projectId, mapId);
-        var fingerprint = InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, members);
-        InitialStates.Remove(baseline);
-        InitialStates.Add(baseline with { ContentFingerprint = fingerprint, UpdatedAtUtcMs = nowUtcMs });
+        foreach (var member in members)
+        {
+            InitialStateRevisionMembers.Add(new InitialObjectRecord
+            {
+                ProjectId = projectId,
+                MapId = mapId,
+                InitialStateId = initialStateId,
+                RevisionId = newRevisionId,
+                ObjectIdentityId = member.ObjectIdentityId,
+                MembershipPayloadJson = member.MembershipPayloadJson,
+                PlacementPayloadJson = member.PlacementPayloadJson,
+                PlacementSchemaVersion = member.PlacementSchemaVersion,
+                CreatedAtUtcMs = nowUtcMs,
+            });
+        }
+    }
+
+    private IReadOnlyList<InitialObjectRecord> ListRevisionMembers(Guid projectId, Guid mapId, Guid revisionId) =>
+        InitialStateRevisionMembers
+            .Where(m => m.ProjectId == projectId && m.MapId == mapId && m.RevisionId == revisionId)
+            .OrderBy(m => m.ObjectIdentityId)
+            .ToArray();
+
+    /// <summary>成员前置校验 + canonical 化（与 Sqlite 适配器同规则）。</summary>
+    private List<InitialObjectWrite> CanonicalizeMembers(
+        Guid projectId, Guid mapId, IReadOnlyList<InitialObjectWrite> members)
+    {
+        var seen = new HashSet<Guid>();
+        var result = new List<InitialObjectWrite>(members.Count);
+        foreach (var member in members)
+        {
+            if (member.PlacementPayloadJson is null != member.PlacementSchemaVersion is null)
+            {
+                throw new CoreDomainConflictException("placement payload 与 schema version 必须成对提供。");
+            }
+
+            if (!seen.Add(member.ObjectIdentityId))
+            {
+                throw new CoreDomainConflictException("成员集合含重复身份。");
+            }
+
+            var identity = Objects.FirstOrDefault(o =>
+                    o.ProjectId == projectId && o.ObjectIdentityId == member.ObjectIdentityId)
+                ?? throw new CoreDomainConflictException("成员身份不存在。");
+            if (identity.LifecycleStatus != ObjectLifecycleStatus.Active)
+            {
+                throw new CoreDomainConflictException("draft/abandoned 身份不得进入 Initial State。");
+            }
+
+            if (FindMapObjectRef(projectId, mapId, member.ObjectIdentityId) is null)
+            {
+                throw new CoreDomainConflictException("成员缺少注册行（P3⇒P2）。");
+            }
+
+            result.Add(new InitialObjectWrite
+            {
+                ObjectIdentityId = member.ObjectIdentityId,
+                MembershipPayloadJson = CanonicalJson.Canonicalize(member.MembershipPayloadJson),
+                PlacementPayloadJson = member.PlacementPayloadJson is null
+                    ? null
+                    : CanonicalJson.Canonicalize(member.PlacementPayloadJson),
+                PlacementSchemaVersion = member.PlacementSchemaVersion,
+            });
+        }
+
+        return result;
     }
 }

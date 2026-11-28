@@ -298,6 +298,52 @@ public sealed partial class SqliteCoreDomainDatabase : ICoreDomainDatabase
                     updated_at_utc_ms = plan.DayZeroConfiguration.UpdatedAtUtcMs,
                 });
 
+                // Initial State baseline identity + revision zero + active cursor
+                // （FOUNDATION-01B §5）：同一事务写入，无 lazy 建立路径。空快照指纹按
+                // 提交行重算并拒绝与 Domain 计划不一致（§7）。
+                var baseline = plan.InitialStateBaseline;
+                if (baseline.BaselineSchemaVersion != MapInitialStateService.StructuralBaselineSchemaVersion
+                    || !string.Equals(
+                        baseline.RevisionZeroFingerprint,
+                        InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, []),
+                        StringComparison.Ordinal))
+                {
+                    throw new CoreDomainDataException(
+                        $"Map {plan.Map.MapId} 的 revision zero 计划指纹与 Domain 空快照重算值不一致（fail-closed）。");
+                }
+
+                db.MapInitialStates.Add(new CoreMapInitialStateEntity
+                {
+                    initial_state_id = baseline.InitialStateId,
+                    project_id = plan.Map.ProjectId,
+                    map_id = plan.Map.MapId,
+                    created_at_utc_ms = plan.Map.CreatedAtUtcMs,
+                });
+                db.MapInitialStateRevisions.Add(new CoreMapInitialStateRevisionEntity
+                {
+                    revision_id = baseline.RevisionZeroId,
+                    project_id = plan.Map.ProjectId,
+                    map_id = plan.Map.MapId,
+                    initial_state_id = baseline.InitialStateId,
+                    revision_number = 0,
+                    parent_revision_id = null,
+                    baseline_schema_version = baseline.BaselineSchemaVersion,
+                    content_fingerprint = baseline.RevisionZeroFingerprint,
+                    operation_kind = null,
+                    operation_payload_json = null,
+                    created_at_utc_ms = plan.Map.CreatedAtUtcMs,
+                });
+                db.MapInitialStateCursors.Add(new CoreMapInitialStateCursorEntity
+                {
+                    project_id = plan.Map.ProjectId,
+                    map_id = plan.Map.MapId,
+                    initial_state_id = baseline.InitialStateId,
+                    active_revision_id = baseline.RevisionZeroId,
+                    selected_redo_child_revision_id = null,
+                    cursor_version = 0,
+                    updated_at_utc_ms = plan.Map.CreatedAtUtcMs,
+                });
+
                 db.SaveChanges();
                 transaction.Commit();
             }

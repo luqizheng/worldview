@@ -85,9 +85,33 @@ public sealed record InitialObjectMembership
 }
 
 /// <summary>
+/// Insert 路径的 Initial State revision 追加上下文（FOUNDATION-01B §10）：正式创建携带
+/// Initial State 成员时必须同事务追加 immutable child revision。expected active revision
+/// /cursor version 为 CAS 凭据（stale 拒绝）；指纹与操作描述由 Domain 预计算、持久化层
+/// 事务内按提交行重算并拒绝不一致。
+/// </summary>
+public sealed record ObjectInsertInitialRevisionAppend
+{
+    public required Guid InitialStateId { get; init; }
+
+    public required Guid ExpectedActiveRevisionId { get; init; }
+
+    public required long ExpectedCursorVersion { get; init; }
+
+    /// <summary>新 revision 身份（Domain 预生成；持久化层不产生身份）。</summary>
+    public required Guid NewRevisionId { get; init; }
+
+    /// <summary>子快照（父快照 + 新成员）的权威指纹。</summary>
+    public required string ContentFingerprint { get; init; }
+
+    /// <summary>canonical 操作描述（父→子 diff）。</summary>
+    public required string OperationPayloadJson { get; init; }
+}
+
+/// <summary>
 /// 正式创建计划（Bound→Inserted 原子边界，P2-09-12 TX-55）：identity draft→active +
-/// reservation→Inserted + definition 首行 + 可选注册 + 可选 Initial State 成员，
-/// 全部同一事务；失败整体回滚、无半成品。
+/// reservation→Inserted + definition 首行 + 可选注册 + 可选 Initial State 成员与
+/// revision 追加，全部同一事务；失败整体回滚、无半成品。
 /// </summary>
 public sealed record ObjectInsertPlan
 {
@@ -103,8 +127,11 @@ public sealed record ObjectInsertPlan
     /// <summary>可选 Map 注册（map_local 仅 owner Map）。</summary>
     public MapObjectRegistration? Registration { get; init; }
 
-    /// <summary>可选 time-zero 成员（指定时 Registration 必须同 Map；基线缺失则同事务建立）。</summary>
+    /// <summary>可选 time-zero 成员（指定时 Registration 必须同 Map；P3⇒P2）。</summary>
     public InitialObjectMembership? InitialMembership { get; init; }
+
+    /// <summary>InitialMembership 非空时必填：同事务的 Initial State revision 追加上下文。</summary>
+    public ObjectInsertInitialRevisionAppend? InitialRevisionAppend { get; init; }
 
     public required long NowUtcMs { get; init; }
 }
@@ -161,8 +188,8 @@ public sealed record MapObjectRegistrationPlan
     public required long NowUtcMs { get; init; }
 }
 
-/// <summary>Initial State 成员写入项（完整替换集合的元素）。</summary>
-public sealed record InitialObjectWrite
+/// <summary>Initial State 成员写入项（revision 快照集合的元素）。</summary>
+public sealed record InitialObjectWrite : IInitialObjectContent
 {
     public required Guid ObjectIdentityId { get; init; }
 
@@ -172,29 +199,4 @@ public sealed record InitialObjectWrite
     public string? PlacementPayloadJson { get; init; }
 
     public long? PlacementSchemaVersion { get; init; }
-}
-
-/// <summary>
-/// Initial State 编辑计划（CAS 全量重写，P2-09-11 §4.1 "baseline/成员行重写"）：
-/// 基线不存在且 ExpectedFingerprint 为 null 时建立；已存在时 expected 必须匹配当前
-/// content_fingerprint。成员行全量替换（delete + insert），fingerprint 由 Domain 重算。
-/// </summary>
-public sealed record EditInitialStatePlan
-{
-    public required Guid ProjectId { get; init; }
-
-    public required Guid MapId { get; init; }
-
-    /// <summary>基线 ID（建立时由 Domain 服务生成；编辑时为既有 ID）。</summary>
-    public required Guid InitialStateId { get; init; }
-
-    /// <summary>CAS 凭据：基线已存在时必须匹配当前指纹；null 仅在基线不存在（建立）时合法。</summary>
-    public string? ExpectedFingerprint { get; init; }
-
-    public required long BaselineSchemaVersion { get; init; }
-
-    /// <summary>完整新成员集合（顺序无关；按 identity 去重校验）。</summary>
-    public required IReadOnlyList<InitialObjectWrite> Members { get; init; }
-
-    public required long NowUtcMs { get; init; }
 }

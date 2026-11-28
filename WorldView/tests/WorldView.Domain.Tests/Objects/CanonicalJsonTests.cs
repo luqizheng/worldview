@@ -72,6 +72,7 @@ public sealed class InitialStateFingerprintTests
             ProjectId = Guid.NewGuid(),
             MapId = Guid.NewGuid(),
             InitialStateId = Guid.NewGuid(),
+            RevisionId = Guid.NewGuid(),
             ObjectIdentityId = identityId,
             MembershipPayloadJson = payload,
             PlacementPayloadJson = placement,

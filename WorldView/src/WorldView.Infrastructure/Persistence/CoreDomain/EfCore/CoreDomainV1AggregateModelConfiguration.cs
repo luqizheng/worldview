@@ -193,23 +193,6 @@ internal static class CoreDomainV1AggregateModelConfiguration
                 .HasPrincipalKey(x => new { x.ProjectId, x.MapId }).OnDelete(DeleteBehavior.NoAction);
         });
 
-        modelBuilder.Entity<CoreMapInitialObjectEntity>(e =>
-        {
-            ConfigureGuidText(e);
-            e.ToTable("core_map_initial_object", t => t.HasCheckConstraint("CK_core_map_initial_object_placement_pair",
-                "(initial_placement_payload_json IS NULL AND initial_placement_schema_version IS NULL) OR (initial_placement_payload_json IS NOT NULL AND initial_placement_schema_version IS NOT NULL)"));
-            e.HasKey(x => new { x.initial_state_id, x.object_identity_id });
-            e.HasOne<CoreMapInitialStateEntity>().WithMany()
-                .HasForeignKey(x => new { x.project_id, x.map_id, x.initial_state_id })
-                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.initial_state_id }).OnDelete(DeleteBehavior.NoAction);
-            e.HasOne<CoreMapObjectRefEntity>().WithMany()
-                .HasForeignKey(x => new { x.project_id, x.map_id, x.object_identity_id })
-                .HasPrincipalKey(x => new { x.project_id, x.map_id, x.object_identity_id }).OnDelete(DeleteBehavior.NoAction);
-            e.HasOne<CoreObjectEntity>().WithMany()
-                .HasForeignKey(x => new { x.project_id, x.object_identity_id })
-                .HasPrincipalKey(x => new { x.project_id, x.object_identity_id }).OnDelete(DeleteBehavior.NoAction);
-        });
-
         modelBuilder.Entity<CoreObjectDefinitionAssetEntity>(e =>
         {
             ConfigureGuidText(e);

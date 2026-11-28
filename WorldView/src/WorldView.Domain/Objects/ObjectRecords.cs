@@ -182,10 +182,11 @@ public sealed record MapObjectRefRecord
 }
 
 /// <summary>
-/// Map Initial State 基线行（core_map_initial_state）：每 Map 恰一个逻辑可变 time-zero
-/// 基线；不是 Command/Event/State Change（CD-02-A §10）。
+/// Map Initial State 基线身份行（core_map_initial_state，FOUNDATION-01B §3.1）：
+/// 每 Map 恰一条稳定 baseline identity；可变指纹/schema 版本字段已移入不可变
+/// revision 行。编辑不是 Command/Event/State Change（CD-02-A §10；FOUNDATION-01B）。
 /// </summary>
-public sealed record MapInitialStateRecord
+public sealed record MapInitialStateBaselineRecord
 {
     public required Guid InitialStateId { get; init; }
 
@@ -193,29 +194,39 @@ public sealed record MapInitialStateRecord
 
     public required Guid MapId { get; init; }
 
-    /// <summary>baseline payload 结构版本（typed schema 为 open decision OD-1；V1 结构层 = 1）。</summary>
-    public required long BaselineSchemaVersion { get; init; }
-
-    /// <summary>成员集合规范化序列化的确定性哈希（Domain 计算；不含时间戳/审计字段）。</summary>
-    public required string ContentFingerprint { get; init; }
-
     public required long CreatedAtUtcMs { get; init; }
-
-    public required long UpdatedAtUtcMs { get; init; }
 }
 
 /// <summary>
-/// Initial State 对象成员行（core_map_initial_object，P3 存在层）：
-/// 必有对应 core_map_object_ref（P3⇒P2，复合 FK 数据库层强制）；
+/// Initial State 成员内容的公共形状（指纹/canonical diff 只依赖这四个字段）；
+/// <see cref="InitialObjectRecord"/>（已提交行）与 <see cref="InitialObjectWrite"/>（写入项）共用。
+/// </summary>
+public interface IInitialObjectContent
+{
+    Guid ObjectIdentityId { get; }
+
+    string MembershipPayloadJson { get; }
+
+    string? PlacementPayloadJson { get; }
+
+    long? PlacementSchemaVersion { get; }
+}
+
+/// <summary>
+/// Initial State revision 成员行（core_map_initial_state_revision_member，P3 存在层）：
+/// 必有对应 core_map_object_ref（P3⇒P2，复合 FK 数据库层强制）；提交后不可变。
 /// payload 只含 Map 特有初始事实，不是共享定义副本（P2-09-07 §3）。
 /// </summary>
-public sealed record InitialObjectRecord
+public sealed record InitialObjectRecord : IInitialObjectContent
 {
     public required Guid ProjectId { get; init; }
 
     public required Guid MapId { get; init; }
 
     public required Guid InitialStateId { get; init; }
+
+    /// <summary>所属不可变 revision（快照解析键；revision 提交后成员行永不改写）。</summary>
+    public required Guid RevisionId { get; init; }
 
     public required Guid ObjectIdentityId { get; init; }
 

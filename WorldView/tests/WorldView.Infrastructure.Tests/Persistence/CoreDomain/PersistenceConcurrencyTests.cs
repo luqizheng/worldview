@@ -475,7 +475,7 @@ public sealed class PersistenceConcurrencyTests : IDisposable
                          "core_calendar", "core_calendar_configuration",
                          "core_object_type", "core_object", "core_object_definition",
                          "core_object_id_allocator", "core_object_id_reservation",
-                         "core_map_object_ref", "core_map_initial_state", "core_map_initial_object",
+                         "core_map_object_ref", "core_map_initial_state", "core_map_initial_state_revision",
                          "core_asset", "core_object_definition_asset", "core_map_field_dataset", "core_map_field_revision",
                      })
             {

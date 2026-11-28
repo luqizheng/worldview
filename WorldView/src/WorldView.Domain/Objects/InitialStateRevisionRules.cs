@@ -11,6 +11,9 @@ namespace WorldView.Domain.Objects;
 /// </summary>
 public static class InitialStateRevisionRules
 {
+    /// <summary>唯一认可的编辑操作种类（FOUNDATION-01B §4：一编辑一 revision 一操作描述）。</summary>
+    public const string SnapshotReplaceOperationKind = "snapshot_replace";
+
     /// <summary>
     /// Build the canonical audit diff for a complete child snapshot. The snapshot itself
     /// remains authoritative; this payload is descriptive metadata, never replay input.

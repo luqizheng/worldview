@@ -57,10 +57,13 @@ public sealed record AppendMapInitialStateRevisionPlan
     public required Guid InitialStateId { get; init; }
     public required Guid ExpectedActiveRevisionId { get; init; }
     public required long ExpectedCursorVersion { get; init; }
+    /// <summary>新 revision 身份（Domain 预生成；持久化层不产生身份）。</summary>
     public required Guid RevisionId { get; init; }
-    public required long BaselineSchemaVersion { get; init; }
+    /// <summary>完整子快照成员集合（顺序无关；按 identity 去重校验）。</summary>
     public required IReadOnlyList<InitialObjectWrite> Members { get; init; }
+    /// <summary>Domain 按提交行计算的权威指纹；持久化层事务内重算并拒绝不一致。</summary>
     public required string ContentFingerprint { get; init; }
+    /// <summary>canonical 操作描述（added/removed/updated + 父子指纹）；持久化层重算并拒绝不一致。</summary>
     public required string OperationPayloadJson { get; init; }
     public required long NowUtcMs { get; init; }
 }

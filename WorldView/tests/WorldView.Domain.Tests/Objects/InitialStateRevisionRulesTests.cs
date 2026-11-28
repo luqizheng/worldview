@@ -14,6 +14,7 @@ public sealed class InitialStateRevisionRulesTests
         ProjectId = Guid.NewGuid(),
         MapId = Guid.NewGuid(),
         InitialStateId = Guid.NewGuid(),
+        RevisionId = Guid.NewGuid(),
         ObjectIdentityId = id,
         MembershipPayloadJson = membership,
         PlacementPayloadJson = placement,
