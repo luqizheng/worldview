@@ -239,14 +239,16 @@ public sealed class CoreMapInitialStateConvergenceMigrationTests : IDisposable
             Assert.Equal(0, CountRows("core_map_initial_state_revision_member", $"WHERE map_id = '{mapId:D}'"));
         }
 
-        // 7) 跨 Map 隔离：cursor/revision 不存在指向他 Map baseline 的关联行。
+        // 7) 跨 Map 隔离：JOIN 仅按所属 (project_id, map_id) 配对，WHERE 检查
+        // cursor/revision 的 initial_state_id 是否与其所属 Map 的 baseline identity
+        // 不一致——不一致行数必须为 0。
         Assert.Equal(0, CountRows(
             "core_map_initial_state_cursor c JOIN core_map_initial_state b",
-            "ON c.project_id = b.project_id AND c.map_id = b.map_id AND c.initial_state_id = b.initial_state_id "
+            "ON c.project_id = b.project_id AND c.map_id = b.map_id "
             + "WHERE c.initial_state_id <> b.initial_state_id"));
         Assert.Equal(0, CountRows(
             "core_map_initial_state_revision r JOIN core_map_initial_state b",
-            "ON r.project_id = b.project_id AND r.map_id = b.map_id AND r.initial_state_id = b.initial_state_id "
+            "ON r.project_id = b.project_id AND r.map_id = b.map_id "
             + "WHERE r.initial_state_id <> b.initial_state_id"));
 
         // 8) 迁移结果可进入现有正式写入流程：对一个迁移出的 baseline 走完整 append。
