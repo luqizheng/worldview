@@ -155,6 +155,118 @@ public sealed class CoreMapInitialStateConvergenceMigrationTests : IDisposable
         Assert.Equal(appended.Cursor.ActiveRevisionId, undone.Cursor.SelectedRedoChildRevisionId);
     }
 
+    /// <summary>
+    /// 多 Map 回归（PR #54 修复）：同一次收敛 migration 处理多个无 baseline 的 Map，
+    /// 每个 Map 必须获得独立唯一的 baseline identity（修复前非相关 FROM 子查询被
+    /// SQLite 物化为单一随机值，第二个无 baseline Map 即触发主键冲突导致 migration 失败）。
+    /// 真实执行 SQLite migration，不做 SQL 字符串断言。
+    /// </summary>
+    [Fact]
+    public void Convergence_MultipleBaselinelessMaps_GetDistinctBaselineIdentities()
+    {
+        // 1) 停留在收敛前的迁移序列（旧形态 schema）。
+        Session().Execute(db => db.Database.Migrate("20261128014741_CoreMapInitialStateRevisions"));
+
+        var projectId = Guid.NewGuid();
+        ExecuteRaw($"""
+            INSERT INTO core_project (project_id, project_name, project_format_version, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{projectId:D}', 'Multi Map Legacy', 1, {Now}, {Now});
+            """);
+
+        // 2) 25 个无 baseline 的 Map（远超任务要求的 3 个；若随机表达式被物化为单值，
+        //    第二个 Map 即主键冲突，migration 必败）。其中一个 Map 预置可注册对象，
+        //    供迁移后走正式 append 流程。
+        const int mapCount = 25;
+        var mapIds = Enumerable.Range(0, mapCount).Select(_ => Guid.NewGuid()).ToArray();
+        var typeId = Guid.NewGuid();
+        var objectId = Guid.NewGuid();
+        var registrationId = Guid.NewGuid();
+        var sb = new System.Text.StringBuilder();
+        foreach (var mapId in mapIds)
+        {
+            sb.Append($"""
+                INSERT INTO core_map (map_id, project_id, map_space_id, map_name, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+                VALUES ('{mapId:D}', '{projectId:D}', '{Guid.NewGuid():D}', 'Legacy {mapId:D}', 'active', {Now}, {Now});
+                """);
+        }
+
+        sb.Append($"""
+            INSERT INTO core_object_type (object_type_id, project_id, type_key, display_name, allocatable, allocation_format_json, allocation_format_version, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{typeId:D}', '{projectId:D}', 'river', 'River', 1, 'fmt', 1, {Now}, {Now});
+            INSERT INTO core_object (object_identity_id, project_id, object_type_id, object_type_schema_version, object_type_semantics_id, sharing_scope, owner_map_id, lifecycle_status, created_at_utc_ms, updated_at_utc_ms)
+            VALUES ('{objectId:D}', '{projectId:D}', '{typeId:D}', 2, 'world-view.object-type.river.v1', 'map_local', '{mapIds[0]:D}', 'active', {Now}, {Now});
+            INSERT INTO core_map_object_ref (map_object_ref_id, project_id, map_id, object_identity_id, created_at_utc_ms)
+            VALUES ('{registrationId:D}', '{projectId:D}', '{mapIds[0]:D}', '{objectId:D}', {Now});
+            """);
+        ExecuteRaw(sb.ToString());
+
+        // 3) 执行完整收敛 migration（真实 SQLite migration，含修复后的身份生成路径）。
+        _ = new SqliteCoreDomainDatabase(_database);
+
+        // 4) migration 成功完成：三个存储全部按 Map 数量就位。
+        Assert.Equal(mapCount, CountRows("core_map_initial_state"));
+        Assert.Equal(mapCount, CountRows("core_map_initial_state_revision"));
+        Assert.Equal(mapCount, CountRows("core_map_initial_state_cursor"));
+
+        // 5) 每个 Map 恰一条 baseline identity；全部非空且两两不同。
+        var core = new SqliteCoreDomainDatabase(_database);
+        var baselineIds = new List<Guid>();
+        foreach (var mapId in mapIds)
+        {
+            var baseline = core.FindMapInitialStateBaseline(projectId, mapId);
+            Assert.NotNull(baseline);
+            Assert.NotEqual(Guid.Empty, baseline!.InitialStateId);
+            baselineIds.Add(baseline.InitialStateId);
+        }
+        Assert.Equal(mapCount, baselineIds.Distinct().Count());
+
+        // 6) 每个 Map 恰一条 revision zero（parent 空、ordinal 0、无 operation metadata、
+        //    快照为空），且 cursor 正确指向自己的 revision zero（version 0、无 redo 选择）。
+        foreach (var mapId in mapIds)
+        {
+            var state = core.FindMapInitialStateRevisionState(projectId, mapId);
+            Assert.NotNull(state);
+            Assert.Equal(0, state!.Snapshot.Revision.RevisionNumber);
+            Assert.Null(state.Snapshot.Revision.ParentRevisionId);
+            Assert.Null(state.Snapshot.Revision.OperationKind);
+            Assert.Null(state.Snapshot.Revision.OperationPayloadJson);
+            Assert.Empty(state.Snapshot.Members);
+            Assert.Equal(0, state.Cursor.CursorVersion);
+            Assert.Null(state.Cursor.SelectedRedoChildRevisionId);
+            Assert.Equal(state.Snapshot.Revision.RevisionId, state.Cursor.ActiveRevisionId);
+            Assert.Equal(state.Cursor.InitialStateId, state.Snapshot.Revision.InitialStateId);
+            Assert.Equal(1, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}' AND revision_number = 0"));
+            Assert.Equal(0, CountRows("core_map_initial_state_revision_member", $"WHERE map_id = '{mapId:D}'"));
+        }
+
+        // 7) 跨 Map 隔离：cursor/revision 不存在指向他 Map baseline 的关联行。
+        Assert.Equal(0, CountRows(
+            "core_map_initial_state_cursor c JOIN core_map_initial_state b",
+            "ON c.project_id = b.project_id AND c.map_id = b.map_id AND c.initial_state_id = b.initial_state_id "
+            + "WHERE c.initial_state_id <> b.initial_state_id"));
+        Assert.Equal(0, CountRows(
+            "core_map_initial_state_revision r JOIN core_map_initial_state b",
+            "ON r.project_id = b.project_id AND r.map_id = b.map_id AND r.initial_state_id = b.initial_state_id "
+            + "WHERE r.initial_state_id <> b.initial_state_id"));
+
+        // 8) 迁移结果可进入现有正式写入流程：对一个迁移出的 baseline 走完整 append。
+        var zeroState = core.FindMapInitialStateRevisionState(projectId, mapIds[0])!;
+        var appended = MapInitialStateService.AppendRevision(
+            core, projectId, mapIds[0],
+            zeroState.Cursor.ActiveRevisionId, zeroState.Cursor.CursorVersion,
+            new[] { new InitialObjectWrite { ObjectIdentityId = objectId, MembershipPayloadJson = """{"placed":true}""" } },
+            Now + 1);
+        Assert.Equal(1, appended.Snapshot.Revision.RevisionNumber);
+        Assert.Equal(zeroState.Cursor.ActiveRevisionId, appended.Snapshot.Revision.ParentRevisionId);
+        Assert.Single(appended.Snapshot.Members);
+        Assert.Equal(objectId, appended.Snapshot.Members[0].ObjectIdentityId);
+        Assert.Equal(mapCount + 1, CountRows("core_map_initial_state_revision"));
+
+        // 其余 Map 不受影响（仍各恰一条 revision zero、无成员）。
+        Assert.Equal(0, CountRows("core_map_initial_state_revision_member", $"WHERE map_id = '{mapIds[1]:D}'"));
+        Assert.Equal(1, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapIds[1]:D}'"));
+    }
+
     private static InitialObjectRecord MakeMemberRecord(
         Guid projectId, Guid mapId, Guid initialStateId, Guid objectId, string membershipPayload) => new()
         {

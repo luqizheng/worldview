@@ -513,18 +513,38 @@ internal static class CoreDomainInitialSql
             SELECT initial_state_id, project_id, map_id, created_at_utc_ms FROM core_map_initial_state;
 
         -- Maps without a baseline receive a fresh baseline identity + empty revision zero.
-        INSERT INTO core_map_initial_state_converged (initial_state_id, project_id, map_id, created_at_utc_ms)
-            SELECT
-                lower(
-                    substr(h, 1, 8) || '-' || substr(h, 9, 4) || '-' || substr(h, 13, 4)
-                    || '-' || substr(h, 17, 4) || '-' || substr(h, 21, 12)),
-                m.project_id,
-                m.map_id,
-                m.created_at_utc_ms
-            FROM core_map m, (SELECT hex(randomblob(16)) AS h)
+        -- Per-row identity generation: each Map's 16 random bytes are produced by a bare
+        -- result-column expression (non-deterministic functions in a result list are evaluated
+        -- once per output row — planner-independent), staged in a temp table, and the canonical
+        -- UUID is then sliced from those SAME stored bytes. A non-correlated FROM-subquery
+        -- expression is NOT safe here: the planner may materialize it once and hand every Map
+        -- the same initial_state_id, failing the primary key on the second baseline-less Map.
+        CREATE TEMP TABLE t_new_baseline_id (
+            project_id        TEXT    NOT NULL,
+            map_id            TEXT    NOT NULL,
+            raw_random_hex    TEXT    NOT NULL,
+            created_at_utc_ms INTEGER NOT NULL
+        );
+
+        INSERT INTO t_new_baseline_id (project_id, map_id, raw_random_hex, created_at_utc_ms)
+            SELECT m.project_id, m.map_id, hex(randomblob(16)), m.created_at_utc_ms
+            FROM core_map m
             WHERE NOT EXISTS (
                 SELECT 1 FROM core_map_initial_state b
                 WHERE b.project_id = m.project_id AND b.map_id = m.map_id);
+
+        INSERT INTO core_map_initial_state_converged (initial_state_id, project_id, map_id, created_at_utc_ms)
+            SELECT
+                lower(
+                    substr(t.raw_random_hex, 1, 8) || '-' || substr(t.raw_random_hex, 9, 4)
+                    || '-' || substr(t.raw_random_hex, 13, 4) || '-' || substr(t.raw_random_hex, 17, 4)
+                    || '-' || substr(t.raw_random_hex, 21, 12)),
+                t.project_id,
+                t.map_id,
+                t.created_at_utc_ms
+            FROM t_new_baseline_id t;
+
+        DROP TABLE t_new_baseline_id;
 
         DROP TABLE core_map_initial_state;
         ALTER TABLE core_map_initial_state_converged RENAME TO core_map_initial_state;
