@@ -346,7 +346,11 @@ internal static class CoreDomainInitialSql
     /// integrity_state 由完整性扫描服务管理（verified/unverified/corrupt/missing）。
     /// </summary>
 
-    /// <summary>Immutable complete snapshots and the single mutable active cursor for time-zero authoring.</summary>
+    /// <summary>
+    /// Immutable complete snapshots and the single mutable active cursor for time-zero authoring.
+    /// Executed by the forward baseline-revision migration (not the initial migration) so that
+    /// existing development databases also receive the revision/cursor storage.
+    /// </summary>
     public const string CoreMapInitialStateRevisionTablesSql = """
         CREATE TABLE core_map_initial_state_revision (
             revision_id TEXT NOT NULL PRIMARY KEY,
@@ -466,7 +470,6 @@ internal static class CoreDomainInitialSql
         CoreObjectIdentityTablesSql,
         CoreMapObjectRefTableSql,
         CoreMapInitialStateTablesSql,
-        CoreMapInitialStateRevisionTablesSql,
         CoreAssetTableSql,
         CoreObjectDefinitionAssetTableSql,
     ];
