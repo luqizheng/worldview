@@ -68,7 +68,7 @@ Required constraints:
 - composite FK to the owning baseline;
 - composite self-FK `(project_id,initial_state_id,parent_revision_id)` to a revision of the same baseline;
 - revision zero iff parent and operation metadata are NULL; non-root revisions require a parent and complete operation metadata;
-- SQLite immutability triggers reject UPDATE/DELETE on committed revision and revision-member rows. Inserts are allowed only through the coordinated Core Domain transaction; the cursor remains the sole mutable row.
+- SQLite immutability triggers reject UPDATE/DELETE on committed revision and revision-member rows. Insert ownership is enforced by the Core Domain persistence port and adapter transaction boundary, with relational constraints validating ownership; SQLite triggers do not attempt to identify the application caller. The cursor remains the sole mutable row.
 
 ### 3.3 Immutable revision members
 
