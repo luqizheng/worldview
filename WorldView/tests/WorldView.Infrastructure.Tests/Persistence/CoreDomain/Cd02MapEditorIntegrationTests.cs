@@ -150,13 +150,13 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
             BuildingAggregateWithFootprint("Demo Hall Renamed", componentId, asset.AssetId, asset.ContentHash), 1, Now + 9);
         Assert.Contains("Demo Hall Renamed", updated.DefinitionPayloadJson);
 
-        // 7) Initial State CAS 编辑（baseline 建立时成员已由 Insert 建立 → expected=null 非法；用重读凭据）。
-        var baseline = core.FindMapInitialState(project.ProjectId, mapId)!;
-        var members = core.ListInitialObjects(project.ProjectId, mapId);
-        Assert.Single(members);
+        // 7) Initial State 修订权威（Insert 路径同事务追加 revision one；快照指纹与成员一致）。
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        Assert.Equal(1, state.Snapshot.Revision.RevisionNumber);
+        Assert.Single(state.Snapshot.Members);
         Assert.Equal(
-            InitialStateFingerprint.Compute(baseline.BaselineSchemaVersion, members),
-            baseline.ContentFingerprint);
+            InitialStateFingerprint.Compute(state.Snapshot.Revision.BaselineSchemaVersion, state.Snapshot.Members),
+            state.Snapshot.Revision.ContentFingerprint);
 
         // 8) Branch 创建：baseline 继承是解析时语义——Branch 创建不触碰 Initial State/
         //    Definition/Reservation 任何行（CD-02-A §11 红线）。
@@ -211,9 +211,12 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
                 Now + 3);
         }
 
-        // 三个对象全部注册 + 成员（P2⇒P3 链完整）。
+        // 三个对象全部注册 + 成员（P2⇒P3 链完整；Insert 路径各自追加一个 revision）。
         Assert.Equal(3, core.ListMapObjectRefs(project.ProjectId, mapId).Count);
-        Assert.Equal(3, core.ListInitialObjects(project.ProjectId, mapId).Count);
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        Assert.Equal(3, state.Snapshot.Members.Count);
+        Assert.Equal(3, state.Snapshot.Revision.RevisionNumber);
+        Assert.Equal(4, core.ListMapInitialStateRevisions(project.ProjectId, mapId).Count);
     }
 
     private long CountInitialStateRows()
@@ -221,7 +224,7 @@ public sealed class Cd02MapEditorIntegrationTests : IDisposable
         return ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM core_map_initial_object;";
+            command.CommandText = "SELECT COUNT(*) FROM core_map_initial_state_revision_member;";
             return (long)command.ExecuteScalar()!;
         });
     }

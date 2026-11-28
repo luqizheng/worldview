@@ -130,7 +130,9 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         Assert.Contains("core_object_id_reservation", tables);
         Assert.Contains("core_map_object_ref", tables);
         Assert.Contains("core_map_initial_state", tables);
-        Assert.Contains("core_map_initial_object", tables);
+        Assert.Contains("core_map_initial_state_revision", tables);
+        Assert.Contains("core_map_initial_state_revision_member", tables);
+        Assert.Contains("core_map_initial_state_cursor", tables);
         Assert.Contains("core_asset", tables);
         Assert.Contains("core_object_definition_asset", tables);
         Assert.Contains("core_map_field_dataset", tables);
@@ -156,12 +158,14 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
         }
 
         var migrationIds = session.Execute(db => db.Database.GetAppliedMigrations().ToArray());
-        Assert.Equal(6, migrationIds.Length);
+        Assert.Equal(8, migrationIds.Length);
         Assert.Contains("20261122090235_CoreDomainInitial", migrationIds);
         Assert.Contains("20261122140144_MapSpatialReferenceOwnership", migrationIds);
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldRevisionTypedMetadata", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_FieldPayloadStorage", StringComparison.Ordinal));
         Assert.Contains(migrationIds, id => id.EndsWith("_ProjectMapSettingsDocuments", StringComparison.Ordinal));
+        Assert.Contains(migrationIds, id => id.EndsWith("_CoreMapInitialStateRevisions", StringComparison.Ordinal));
+        Assert.Contains(migrationIds, id => id.EndsWith("_CoreMapInitialStateConvergence", StringComparison.Ordinal));
 
         var triggerCount = ((ISqliteConnectionProvider)_database).GetAccess().Execute(connection =>
         {
@@ -173,11 +177,15 @@ public sealed class CoreDomainInitialMigrationTests : IDisposable
                     'trg_core_map_object_ref_update_scope',
                     'trg_core_map_field_revision_immutable_update',
                     'trg_core_map_field_revision_immutable_delete',
-                    'trg_core_map_field_dataset_pin_immutable'
+                    'trg_core_map_field_dataset_pin_immutable',
+                    'trg_core_map_initial_state_revision_no_update',
+                    'trg_core_map_initial_state_revision_no_delete',
+                    'trg_core_map_initial_state_revision_member_no_update',
+                    'trg_core_map_initial_state_revision_member_no_delete'
                 );
                 """;
             return Convert.ToInt32(command.ExecuteScalar());
         });
-        Assert.Equal(5, triggerCount);
+        Assert.Equal(9, triggerCount);
     }
 }

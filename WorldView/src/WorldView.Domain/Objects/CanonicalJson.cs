@@ -140,7 +140,7 @@ public static class InitialStateFingerprint
 {
     private const string CompositionVersion = "initial-state-fingerprint-v1";
 
-    public static string Compute(long baselineSchemaVersion, IReadOnlyList<InitialObjectRecord> members)
+    public static string Compute(long baselineSchemaVersion, IReadOnlyList<IInitialObjectContent> members)
     {
         ArgumentNullException.ThrowIfNull(members);
 
@@ -150,7 +150,7 @@ public static class InitialStateFingerprint
             .Append(baselineSchemaVersion.ToString(CultureInfo.InvariantCulture))
             .Append('\n');
 
-        var sorted = new List<InitialObjectRecord>(members);
+        var sorted = new List<IInitialObjectContent>(members);
         sorted.Sort(static (a, b) => string.CompareOrdinal(
             a.ObjectIdentityId.ToString("D"),
             b.ObjectIdentityId.ToString("D")));

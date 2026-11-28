@@ -6,8 +6,9 @@ namespace WorldView.Domain.Objects;
 
 /// <summary>
 /// Object 正式创建服务（Bound→Inserted 原子边界，P2-09-12 TX-55；CD-02-A §13.2）。
-/// 定义首行、Map 注册、Initial State 成员与身份激活/状态转换同事务提交；失败整体
-/// 回滚、无半成品；重试复用同一 reservation/identity（绝不分配替代 ID）。
+/// 定义首行、Map 注册、Initial State 成员 + immutable revision 追加与身份激活/状态转换
+/// 同事务提交；失败整体回滚、无半成品；重试复用同一 reservation/identity（绝不分配替代 ID）。
+/// 携带 Initial State 成员时 revision/cursor authority 不可绕过（FOUNDATION-01B §10）。
 /// </summary>
 public static class ObjectCreationService
 {
@@ -16,8 +17,10 @@ public static class ObjectCreationService
     /// <paramref name="definition"/>：首行定义（schema 版本须与身份 pin 一致；
     /// payload canonical 化与 hash 计算归 Domain/适配器路径）。
     /// <paramref name="registration"/>：可选 Map 注册（map_local 仅 owner Map）。
-    /// <paramref name="initialMembership"/>：可选 time-zero 成员；指定时必须同时
-    /// 注册到同一 Map（P3⇒P2），基线缺失时同事务建立。
+    /// <paramref name="initialMembership"/>：可选 time-zero 成员；指定时必须同时注册到
+    /// 同一 Map（P3⇒P2），并在同事务内追加 Initial State child revision（expected
+    /// active revision/cursor 校验，stale 拒绝；Map 创建事务已建立 baseline/revision
+    /// zero/cursor，无 lazy 建立）。
     /// </summary>
     public static void InsertObject(
         ICoreDomainDatabase database,
@@ -62,8 +65,7 @@ public static class ObjectCreationService
                 + "publish formal Geometry Assets afterward through PublishDefinitionWithGeometryAssets.");
         }
 
-        ValidatePlacementPairing(initialMembership);
-
+        ObjectInsertInitialRevisionAppend? initialRevisionAppend = null;
         if (initialMembership is not null)
         {
             if (registration is null)
@@ -80,6 +82,11 @@ public static class ObjectCreationService
             {
                 throw new CoreDomainConflictException($"目标 Map {registration.MapId} 不存在或不属于项目 {projectId}。");
             }
+
+            // 活动快照推导 revision 追加上下文（父快照 + 新成员）；持久化层事务内
+            // 重读 cursor 重验 CAS 并重算指纹/操作描述，双重 fail-closed。
+            initialRevisionAppend = MapInitialStateService.BuildInsertObjectAppend(
+                database, projectId, registration.MapId, identityId, initialMembership);
         }
 
         database.InsertObject(new ObjectInsertPlan
@@ -90,6 +97,7 @@ public static class ObjectCreationService
             Definition = definition,
             Registration = registration,
             InitialMembership = initialMembership,
+            InitialRevisionAppend = initialRevisionAppend,
             NowUtcMs = nowUtcMs,
         });
     }
@@ -100,21 +108,5 @@ public static class ObjectCreationService
         return document.RootElement.TryGetProperty("geometry_components", out var components)
             && components.ValueKind == JsonValueKind.Array
             && components.GetArrayLength() > 0;
-    }
-
-    /// <summary>placement payload 与 schema version 必须成对出现（迁移 CHECK 的服务层前置）。</summary>
-    private static void ValidatePlacementPairing(InitialObjectMembership? membership)
-    {
-        if (membership is null)
-        {
-            return;
-        }
-
-        var hasPayload = membership.PlacementPayloadJson is not null;
-        var hasVersion = membership.PlacementSchemaVersion is not null;
-        if (hasPayload != hasVersion)
-        {
-            throw new ArgumentException("初始 placement payload 与 schema version 必须成对提供。", nameof(membership));
-        }
     }
 }

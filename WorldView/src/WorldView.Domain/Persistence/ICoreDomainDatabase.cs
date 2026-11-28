@@ -10,11 +10,12 @@ namespace WorldView.Domain.Persistence;
 
 /// <summary>
 /// Core Domain 持久化端口（Domain 拥有；由 Infrastructure 以 SQLite 实现）。
-/// 结构写操作（InsertProject / CreateMapStructure / CreateBranchStructure）与 Object
-/// 写路径（Reserve/Bind/Insert/Definition CAS/注册/Initial State CAS）各自构成一个
-/// 原子事务，失败整体回滚，不留半成品（事务边界归实现方，AF-02 端口契约；
-/// CD-02-A §13.2 写路径事务表）。所有复合写在实现方的统一连接协调器临界区内
-/// 完成事务内前置状态重读校验（CD-01-F1 条件 1 响应，CD-02-A §13.3）。
+/// 结构写操作（InsertProject / CreateMapStructure / CreateBranchStructure）、Object
+/// 写路径（Reserve/Bind/Insert/Definition CAS/注册）与 Initial State 修订写路径
+/// （AppendRevision/MoveCursor/SelectRedoChild）各自构成一个原子事务，失败整体回滚，
+/// 不留半成品（事务边界归实现方，AF-02 端口契约；CD-02-A §13.2 写路径事务表；
+/// FOUNDATION-01B §6）。所有复合写在实现方的统一连接协调器临界区内完成事务内
+/// 前置状态重读校验（CD-01-F1 条件 1 响应，CD-02-A §13.3）。
 /// 读操作按 Project 范围隔离；行数据损坏时实现方抛 <see cref="CoreDomainDataException"/>
 /// （fail-closed，不静默修补）；前置状态/CAS 不匹配抛 <see cref="CoreDomainConflictException"/>。
 /// </summary>
@@ -116,8 +117,10 @@ public interface ICoreDomainDatabase
 
     /// <summary>
     /// 事务：正式创建（Bound→Inserted，TX-55）——identity draft→active + reservation
-    /// →Inserted + definition 首行 + 可选 Map 注册 + 可选 Initial State 成员（含基线
-    /// 建立与指纹重算）。事务内重读校验前置状态；失败整体回滚、无半成品。
+    /// →Inserted + definition 首行 + 可选 Map 注册 + 可选 Initial State 成员 + 同事务
+    /// immutable child revision 追加（事务内重读 cursor 校验 expected active revision +
+    /// cursor version，按提交行重算指纹/操作描述；<see cref="ObjectInsertPlan.InitialRevisionAppend"/>
+    /// 为 InitialMembership 必需上下文）。事务内重读校验前置状态；失败整体回滚、无半成品。
     /// </summary>
     void InsertObject(ObjectInsertPlan plan);
 
@@ -150,26 +153,52 @@ public interface ICoreDomainDatabase
     void RegisterMapObject(MapObjectRegistrationPlan plan);
 
     /// <summary>
-    /// 事务：取消注册——该 Map 上存在 Initial State 成员行时拒绝（P3⇒P2 不变量，
-    /// 须先经 Initial State 编辑移除成员）；无成员行则单行删除。
+    /// 事务：取消注册——该 Map 任一 revision 快照仍含该身份成员时拒绝（P3⇒P2 不变量；
+    /// revision 树不可变、成员行复合 FK 指向注册行，永久保留）；无成员引用则单行删除。
     /// </summary>
     void UnregisterMapObject(Guid projectId, Guid mapId, Guid objectIdentityId);
 
-    // ---- Map Initial State（P3 存在层；CD-02-A §10） ----
+    // ---- Map Initial State 修订（P3 存在层；CD-02-A §10 + FOUNDATION-01B §3/§6/§10） ----
+    // baseline identity（core_map_initial_state）与 revision 树（immutable 完整快照）
+    // 由 Map 创建事务建立，无 lazy 建立路径；cursor 是唯一可变权威行。全部 cursor
+    // mutation 校验 expected active revision + cursor version（stale 拒绝，无部分写）。
 
-    /// <summary>查找 Map 的 Initial State 基线；不存在返回 null（每 Map 至多一行）。</summary>
-    MapInitialStateRecord? FindMapInitialState(Guid projectId, Guid mapId);
+    /// <summary>查找 Map 的 Initial State baseline 身份；不存在返回 null（每 Map 至多一行）。</summary>
+    MapInitialStateBaselineRecord? FindMapInitialStateBaseline(Guid projectId, Guid mapId);
 
-    /// <summary>列出基线的全部成员行（按 identity 稳定排序）。</summary>
-    IReadOnlyList<InitialObjectRecord> ListInitialObjects(Guid projectId, Guid mapId);
+    /// <summary>按 revision 身份读取不可变快照（revision 元数据 + 全部成员行）；不存在返回 null。</summary>
+    MapInitialStateRevisionSnapshot? FindMapInitialStateRevisionSnapshot(Guid projectId, Guid mapId, Guid revisionId);
+
+    /// <summary>列出 baseline 全部 revision 元数据（revision_number 升序；历史展示/校验用）。</summary>
+    IReadOnlyList<MapInitialStateRevisionRecord> ListMapInitialStateRevisions(Guid projectId, Guid mapId);
 
     /// <summary>
-    /// 事务：Initial State 编辑（CAS 全量重写）——基线存在时 expected fingerprint 必须
-    /// 匹配当前值（不匹配抛 <see cref="CoreDomainConflictException"/>）；不存在时仅
-    /// expected 为 null 可建立。成员全量替换 + 指纹由 Domain 重算写入。成员必须有
-    /// 对应注册行（P3⇒P2）且身份 active；校验在事务内完成。
+    /// 读取活动状态（活动 revision 快照 + cursor + 活动 revision 的直接子 revision 列表）
+    /// 作为单一逻辑读（连接协调器临界区内一致快照）；baseline/cursor 缺失返回 null。
     /// </summary>
-    void EditMapInitialState(EditInitialStatePlan plan);
+    MapInitialStateRevisionState? FindMapInitialStateRevisionState(Guid projectId, Guid mapId);
+
+    /// <summary>
+    /// 事务：追加 immutable child revision（完整快照成员集）——事务内重读 cursor 校验
+    /// expected active revision + cursor version（不匹配抛 <see cref="CoreDomainConflictException"/>），
+    /// 重读父快照并按提交行重算指纹/操作描述（与计划不一致 fail-closed），同一事务写入
+    /// 新 revision 行、全部成员行与 cursor 前移（清除 redo 选择、version+1）；失败整体回滚。
+    /// revision_number 取该 baseline 现有最大值 +1（单调递增）；旧 revision 与后代原样保留。
+    /// </summary>
+    void AppendMapInitialStateRevision(AppendMapInitialStateRevisionPlan plan);
+
+    /// <summary>
+    /// 事务：cursor 移动——Undo 移到 parent（selected redo child 指向刚离开的 revision），
+    /// Redo 移到直接子（清除 redo 选择）。事务内重读校验 expected active revision +
+    /// cursor version 与 parent/direct-child 关系；root 不可 Undo；失败整体回滚、无 revision 写入。
+    /// </summary>
+    void MoveMapInitialStateCursor(MoveMapInitialStateCursorPlan plan);
+
+    /// <summary>
+    /// 事务：持久化显式 redo 分支选择（不动 active revision）——目标必须是活动 revision
+    /// 的直接子且同 baseline；事务内重读校验 CAS；cursor version+1；失败整体回滚。
+    /// </summary>
+    void SelectMapInitialStateRedoChild(SelectMapInitialStateRedoChildPlan plan);
 
     // ---- Core Asset 权威元数据（core_asset；P2-09-11 §4.6） ----
 

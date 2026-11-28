@@ -201,7 +201,7 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 ### Phase 3 — Core Domain and persistence completion for map authoring
 
-**Status: FOUNDATION-01A COMPLETE; FOUNDATION-01B DESIGN IN REVIEW.** Default Spatial Reference implementation is merged; durable baseline revision/cursor design is prepared for review.
+**Status: FOUNDATION-01A COMPLETE; FOUNDATION-01B READY FOR INDEPENDENT REVIEW.** Default Spatial Reference implementation is merged (PR #50). The durable baseline revision/cursor implementation is complete on PR #54 (design gate merged in PR #53) and awaits independent review and acceptance.
 
 **Current work package: FOUNDATION-01B**
 
@@ -215,7 +215,7 @@ Audit: `docs/architecture/ARCH-01-cross-domain-dependency-and-reconciliation-v0.
 
 **Sequential implementation gates**
 1. **FOUNDATION-01A — Default Spatial Reference:** COMPLETE — merged in PR #50 (`02adf552`). Create and bind the immutable 2D Local Cartesian / XY / `world-unit` Map-local definition in the same transaction as Map, root History, Calendar and day-zero configuration. Precision policy remains unspecified; Field Revision publication that requires it must fail closed.
-2. **FOUNDATION-01B — Durable baseline revisions:** DESIGN IN REVIEW — `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`. Establish the empty baseline identity and revision zero as part of Map creation; replace mutable baseline/member replacement with immutable revisions, durable active cursor and Core Domain-owned deterministic Undo/Redo. Stale cursor/revision requests fail closed.
+2. **FOUNDATION-01B — Durable baseline revisions:** READY FOR INDEPENDENT REVIEW — implemented on PR #54 (design: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`; implementation report: `docs/architecture/FOUNDATION-01B-durable-baseline-revision-implementation-v0.1.md`). Map creation atomically establishes the baseline identity, empty revision zero and active cursor; the mutable baseline/member storage is retired by the convergence migration (design §9); all authoritative reads resolve through immutable revision snapshots and all edits append immutable revisions behind expected active-revision/cursor CAS checks with deterministic Core Domain Undo/Redo/redo-branch selection. Stale cursor/revision requests fail closed. Not accepted until independently reviewed and merged.
 3. **FOUNDATION-01C — Geometry Asset publication:** integrate immutable content-addressed Geometry Assets with POI/River/Landmass membership and revision publication in one formal database transaction.
 
 **Design constraints**
@@ -592,4 +592,4 @@ No work package may bypass a failed prerequisite. PR #41 being merged closes onl
 
 ## 12. Immediate next action
 
-PRODUCT-01 is complete (PR #45); ARCH-01 audit and accepted product decisions are merged (PRs #46–48). FOUNDATION-01A is implemented and merged (PR #50). The current gate is independent review of `docs/architecture/FOUNDATION-01B-durable-baseline-revision-design-v0.1.md`: confirm immutable full-snapshot storage, revision-tree lineage, durable cursor/redo selection, atomic Object insertion membership, and close/reopen behavior against the source and authoritative time-zero contract. After design approval, implement FOUNDATION-01B and merge it before beginning FOUNDATION-01C. Keep DESIGN-EXTENT/PRA-03 as the gate for numeric precision, tolerances and valid extent; do not enable geometry publication without that policy. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.
+PRODUCT-01 is complete (PR #45); ARCH-01 audit and accepted product decisions are merged (PRs #46–48). FOUNDATION-01A is implemented and merged (PR #50); the FOUNDATION-01B design gate is merged (PR #53). The current gate is independent review and acceptance of PR #54 (FOUNDATION-01B implementation): verify the immutable full-snapshot storage, revision-tree lineage, durable cursor/redo selection, atomic Map creation and Object insertion membership, the §9 convergence migration of existing development data, and close/reopen behavior against the design and the authoritative time-zero contract. After PR #54 is accepted and merged, begin FOUNDATION-01C (Geometry Asset publication). Keep DESIGN-EXTENT/PRA-03 as the gate for numeric precision, tolerances and valid extent; do not enable geometry publication without that policy. Then continue the M1 window/camera and content-projection prerequisites in dependency order. Do not start PRA-05 optimization before correctness and representative fixtures are proven.

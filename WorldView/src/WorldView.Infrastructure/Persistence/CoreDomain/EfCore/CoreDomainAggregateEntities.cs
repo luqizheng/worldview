@@ -133,21 +133,6 @@ internal sealed class CoreMapInitialStateEntity
     public Guid initial_state_id { get; set; }
     public Guid project_id { get; set; }
     public Guid map_id { get; set; }
-    public long baseline_schema_version { get; set; }
-    public string content_fingerprint { get; set; } = "";
-    public long created_at_utc_ms { get; set; }
-    public long updated_at_utc_ms { get; set; }
-}
-
-internal sealed class CoreMapInitialObjectEntity
-{
-    public Guid project_id { get; set; }
-    public Guid map_id { get; set; }
-    public Guid initial_state_id { get; set; }
-    public Guid object_identity_id { get; set; }
-    public string initial_membership_payload_json { get; set; } = "";
-    public string? initial_placement_payload_json { get; set; }
-    public long? initial_placement_schema_version { get; set; }
     public long created_at_utc_ms { get; set; }
 }
 
@@ -159,4 +144,45 @@ internal sealed class CoreObjectDefinitionAssetEntity
     public Guid asset_id { get; set; }
     public string role { get; set; } = "";
     public long created_at_utc_ms { get; set; }
+}
+
+
+// Immutable time-zero baseline revision snapshot and the sole mutable cursor row.
+internal sealed class CoreMapInitialStateRevisionEntity
+{
+    public Guid revision_id { get; set; }
+    public Guid project_id { get; set; }
+    public Guid map_id { get; set; }
+    public Guid initial_state_id { get; set; }
+    public long revision_number { get; set; }
+    public Guid? parent_revision_id { get; set; }
+    public long baseline_schema_version { get; set; }
+    public string content_fingerprint { get; set; } = "";
+    public string? operation_kind { get; set; }
+    public string? operation_payload_json { get; set; }
+    public long created_at_utc_ms { get; set; }
+}
+
+internal sealed class CoreMapInitialStateRevisionMemberEntity
+{
+    public Guid project_id { get; set; }
+    public Guid map_id { get; set; }
+    public Guid initial_state_id { get; set; }
+    public Guid revision_id { get; set; }
+    public Guid object_identity_id { get; set; }
+    public string initial_membership_payload_json { get; set; } = "";
+    public string? initial_placement_payload_json { get; set; }
+    public long? initial_placement_schema_version { get; set; }
+    public long created_at_utc_ms { get; set; }
+}
+
+internal sealed class CoreMapInitialStateCursorEntity
+{
+    public Guid project_id { get; set; }
+    public Guid map_id { get; set; }
+    public Guid initial_state_id { get; set; }
+    public Guid active_revision_id { get; set; }
+    public Guid? selected_redo_child_revision_id { get; set; }
+    public long cursor_version { get; set; }
+    public long updated_at_utc_ms { get; set; }
 }

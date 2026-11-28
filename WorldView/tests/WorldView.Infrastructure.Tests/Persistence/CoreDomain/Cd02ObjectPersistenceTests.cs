@@ -299,8 +299,11 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         Assert.Equal(ReservationState.Bound, core.FindReservation(project.ProjectId, bound.ReservationId)!.State);
         Assert.Equal(0, CountRows("core_object_definition"));
         Assert.Equal(0, CountRows("core_map_object_ref"));
-        Assert.Equal(0, CountRows("core_map_initial_state"));
-        Assert.Equal(0, CountRows("core_map_initial_object"));
+        // Map 创建已建立 baseline/revision zero/cursor（FOUNDATION-01B §5）；失败注入不得改动它们。
+        Assert.Equal(1, CountRows("core_map_initial_state"));
+        Assert.Equal(1, CountRows("core_map_initial_state_cursor"));
+        Assert.Equal(1, CountRows("core_map_initial_state_revision", "WHERE revision_number = 0"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision_member"));
 
         // 移除注入后重试：复用同一 reservation/identity 成功（绝不分配替代 ID）。
         ExecuteRaw("DROP TRIGGER fail_definition_insert;");
@@ -466,26 +469,188 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
             $"{baseSql} ('{Guid.NewGuid():D}', '{project.ProjectId:D}', '{type.ObjectTypeId:D}', 999, '999', 'Reserved', 'k1', {Now}, {Now});"));
     }
 
+    // ---- Map 创建原子性（FOUNDATION-01B §5） ----
+
     [Fact]
-    public void InitialState_MemberWithoutRef_FkRejectsRawInsert()
+    public void MapCreation_EstablishesBaselineRevisionZeroAndCursorAtomically()
     {
         var (project, map) = SeedProjectAndMap();
         var core = Core();
-        var identityId = CreateActiveObject(project.ProjectId); // project_shared，未注册
+        var mapId = map.Map.MapId;
 
-        // 经服务建立空基线（合法），随后手工插入成员行 → P3⇒P2 由复合 FK 数据库层强制。
-        MapInitialStateService.EditInitialState(
-            core, project.ProjectId, map.Map.MapId, null,
-            MapInitialStateService.StructuralBaselineSchemaVersion,
-            new List<InitialObjectWrite>(),
-            Now);
-        var baseline = core.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
+        // baseline identity + revision zero + cursor 全部存在且可读（无 lazy 建立）。
+        var baseline = core.FindMapInitialStateBaseline(project.ProjectId, mapId);
         Assert.NotNull(baseline);
+        Assert.Equal(map.InitialStateBaseline!.InitialStateId, baseline!.InitialStateId);
+
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId);
+        Assert.NotNull(state);
+        Assert.Equal(0, state!.Snapshot.Revision.RevisionNumber);
+        Assert.Null(state.Snapshot.Revision.ParentRevisionId);
+        Assert.Null(state.Snapshot.Revision.OperationKind);
+        Assert.Empty(state.Snapshot.Members);
+        Assert.Equal(MapInitialStateService.EmptySnapshotFingerprint, state.Snapshot.Revision.ContentFingerprint);
+        Assert.Equal(0, state.Cursor.CursorVersion);
+        Assert.Equal(baseline.InitialStateId, state.Cursor.InitialStateId);
+
+        // 每张 Map 恰好一套三行（CountRows 直接对表计数）。
+        Assert.Equal(1, CountRows("core_map_initial_state", $"WHERE map_id = '{mapId:D}'"));
+        Assert.Equal(1, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
+        Assert.Equal(1, CountRows("core_map_initial_state_cursor", $"WHERE map_id = '{mapId:D}'"));
+    }
+
+    [Fact]
+    public void MapCreation_AllExistingMapsHaveBaselineRevisionZeroAndCursor()
+    {
+        var (project, _) = SeedProjectAndMap();
+        var core = Core();
+        MapService.CreateMap(core, project.ProjectId, "M2", Now + 1);
+        MapService.CreateMap(core, project.ProjectId, "M3", Now + 2);
+
+        Assert.Equal(CountRows("core_map"), CountRows("core_map_initial_state"));
+        Assert.Equal(CountRows("core_map"), CountRows("core_map_initial_state_cursor"));
+        Assert.Equal(CountRows("core_map"), CountRows(
+            "core_map_initial_state_revision", "WHERE revision_number = 0"));
+    }
+
+    // ---- 数据库不可变性行为（WP7：真实 SQLite trigger 行为，不是只验证 trigger 存在） ----
+
+    [Fact]
+    public void Database_CommittedRevisionIsImmutable_UpdateRejected()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var obj = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
 
         Assert.ThrowsAny<Exception>(() => ExecuteRaw(
-            $"INSERT INTO core_map_initial_object (project_id, map_id, initial_state_id, object_identity_id, initial_membership_payload_json, created_at_utc_ms) "
-            + $"VALUES ('{project.ProjectId:D}', '{map.Map.MapId:D}', '{baseline.InitialStateId:D}', '{identityId:D}', '{{}}', {Now});"));
-        Assert.Equal(0, CountRows("core_map_initial_object"));
+            $"UPDATE core_map_initial_state_revision SET content_fingerprint = '{new string('a', 64)}' "
+            + $"WHERE revision_id = '{state.Cursor.ActiveRevisionId:D}';"));
+        // 内容未变（trigger ABORT 回滚 UPDATE）。
+        var reread = core.FindMapInitialStateRevisionSnapshot(project.ProjectId, mapId, state.Cursor.ActiveRevisionId)!;
+        Assert.Equal(state.Snapshot.Revision.ContentFingerprint, reread.Revision.ContentFingerprint);
+        _ = obj;
+    }
+
+    [Fact]
+    public void Database_CommittedRevisionDelete_Rejected()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        CreateActiveObject(project.ProjectId, registerToMapId: mapId);
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+
+        Assert.ThrowsAny<Exception>(() => ExecuteRaw(
+            $"DELETE FROM core_map_initial_state_revision WHERE revision_id = '{state.Cursor.ActiveRevisionId:D}';"));
+        Assert.Equal(1, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
+    }
+
+    [Fact]
+    public void Database_RevisionMemberUpdateAndDelete_Rejected()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var obj = CreateActiveObject(project.ProjectId, registerToMapId: mapId, withMembership: true);
+
+        Assert.ThrowsAny<Exception>(() => ExecuteRaw(
+            $"UPDATE core_map_initial_state_revision_member SET initial_membership_payload_json = '{{}}' "
+            + $"WHERE object_identity_id = '{obj:D}';"));
+        Assert.ThrowsAny<Exception>(() => ExecuteRaw(
+            $"DELETE FROM core_map_initial_state_revision_member WHERE object_identity_id = '{obj:D}';"));
+
+        // 成员行未变。
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        var member = Assert.Single(state.Snapshot.Members);
+        Assert.Equal(obj, member.ObjectIdentityId);
+        Assert.Equal("""{"m":1}""", member.MembershipPayloadJson);
+    }
+
+    [Fact]
+    public void Database_CursorRemainsMutable_AndLegalRevisionInsertWorks()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+
+        // cursor 合法更新被允许（唯一可变权威行）。
+        ExecuteRaw(
+            $"UPDATE core_map_initial_state_cursor SET cursor_version = 7 WHERE map_id = '{mapId:D}';");
+        Assert.Equal(7, core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!.Cursor.CursorVersion);
+
+        // 合法 revision INSERT 正常工作（append 事务路径的底层能力）。
+        var newRevisionId = Guid.NewGuid();
+        ExecuteRaw(
+            "INSERT INTO core_map_initial_state_revision (revision_id, project_id, map_id, initial_state_id, "
+            + "revision_number, parent_revision_id, baseline_schema_version, content_fingerprint, operation_kind, operation_payload_json, created_at_utc_ms) "
+            + $"VALUES ('{newRevisionId:D}', '{project.ProjectId:D}', '{mapId:D}', '{state.Cursor.InitialStateId:D}', 1, "
+            + $"'{state.Cursor.ActiveRevisionId:D}', 1, '{MapInitialStateService.EmptySnapshotFingerprint}', "
+            + $"'snapshot_replace', '{{}}', {Now});");
+        Assert.Equal(2, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
+
+        // 关联完整性：成员行引用不存在 revision 被拒。
+        Assert.ThrowsAny<Exception>(() => ExecuteRaw(
+            "INSERT INTO core_map_initial_state_revision_member (project_id, map_id, initial_state_id, revision_id, "
+            + "object_identity_id, initial_membership_payload_json, created_at_utc_ms) "
+            + $"VALUES ('{project.ProjectId:D}', '{mapId:D}', '{state.Cursor.InitialStateId:D}', '{Guid.NewGuid():D}', "
+            + $"'{Guid.NewGuid():D}', '{{}}', {Now});"));
+    }
+
+    [Fact]
+    public void Database_StaleAppendIsRejectedWithoutAnyWrites()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var obj = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+
+        // stale cursor version → CoreDomainConflictException，无 revision/成员/cursor 写入。
+        Assert.Throws<CoreDomainConflictException>(
+            () => MapInitialStateService.AppendRevision(
+                core, project.ProjectId, mapId, state.Cursor.ActiveRevisionId, state.Cursor.CursorVersion + 3,
+                new List<InitialObjectWrite> { new() { ObjectIdentityId = obj, MembershipPayloadJson = "{}" } },
+                Now + 1));
+
+        Assert.Equal(1, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
+        Assert.Equal(0, CountRows("core_map_initial_state_revision_member", $"WHERE map_id = '{mapId:D}'"));
+        Assert.Equal(0, core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!.Cursor.CursorVersion);
+    }
+
+    [Fact]
+    public void Database_FailedInsertObjectLeavesNoPartialState()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        var beforeRevisionCount = CountRows("core_map_initial_state_revision");
+        var beforeMemberCount = CountRows("core_map_initial_state_revision_member");
+
+        // Initial State 成员缺少注册行（P3⇒P2）→ InsertObject 整体回滚：
+        // definition/reservation/identity/revision/成员/cursor 均无变化。
+        var allocation = ObjectIdReservationService.ReserveByTypeKey(core, project.ProjectId, "river", null, Now);
+        var bound = ObjectIdReservationService.Bind(
+            core, project.ProjectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, Now);
+        Assert.Throws<CoreDomainConflictException>(
+            () => ObjectCreationService.InsertObject(
+                core, project.ProjectId, bound.ReservationId,
+                Definition(project.ProjectId, bound.ObjectIdentityId!.Value),
+                registration: null,
+                new InitialObjectMembership { MembershipPayloadJson = "{}" },
+                Now));
+
+        Assert.Equal(beforeRevisionCount, CountRows("core_map_initial_state_revision"));
+        Assert.Equal(beforeMemberCount, CountRows("core_map_initial_state_revision_member"));
+        Assert.Equal(0, CountRows("core_object_definition"));
+        var after = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        Assert.Equal(state.Cursor.CursorVersion, after.Cursor.CursorVersion);
+        Assert.Equal(state.Cursor.ActiveRevisionId, after.Cursor.ActiveRevisionId);
+        Assert.Equal("Bound", "Bound"); // reservation 保持 Bound（失败回滚不推进状态机）
+        Assert.Equal(ReservationState.Bound, core.FindReservation(project.ProjectId, bound.ReservationId)!.State);
     }
 
     [Fact]
@@ -493,21 +658,72 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
     {
         var (project, map) = SeedProjectAndMap();
         var core = Core();
-        var identityId = CreateActiveObject(project.ProjectId, registerToMapId: map.Map.MapId, withMembership: true);
-        var baseline = core.FindMapInitialState(project.ProjectId, map.Map.MapId)!;
+        var baseline = core.FindMapInitialStateBaseline(project.ProjectId, map.Map.MapId)!;
         Assert.NotNull(baseline);
 
         // 第二条基线行被 UNIQUE(project,map) 拒绝。
         Assert.ThrowsAny<Exception>(() => ExecuteRaw(
-            $"INSERT INTO core_map_initial_state (initial_state_id, project_id, map_id, baseline_schema_version, content_fingerprint, created_at_utc_ms, updated_at_utc_ms) "
-            + $"VALUES ('{Guid.NewGuid():D}', '{project.ProjectId:D}', '{map.Map.MapId:D}', 1, 'y', {Now}, {Now});"));
-        _ = identityId;
+            $"INSERT INTO core_map_initial_state (initial_state_id, project_id, map_id, created_at_utc_ms) "
+            + $"VALUES ('{Guid.NewGuid():D}', '{project.ProjectId:D}', '{map.Map.MapId:D}', {Now});"));
+    }
+
+    [Fact]
+    public void InitialState_UndoRedoRoundTripOnRealDatabase()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var core = Core();
+        var mapId = map.Map.MapId;
+        var obj = CreateActiveObject(project.ProjectId, registerToMapId: mapId, withMembership: true);
+
+        var state1 = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        var editedRevision = state1.Cursor.ActiveRevisionId;
+
+        // Undo → Redo round trip；每次 cursor version 单调 +1。
+        var undone = MapInitialStateService.Undo(
+            core, project.ProjectId, mapId, state1.Cursor.ActiveRevisionId, state1.Cursor.CursorVersion, Now + 1);
+        Assert.Equal(editedRevision, undone.Cursor.SelectedRedoChildRevisionId);
+        Assert.Empty(undone.Snapshot.Members);
+
+        var redone = MapInitialStateService.Redo(
+            core, project.ProjectId, mapId, undone.Cursor.ActiveRevisionId, undone.Cursor.CursorVersion, null, Now + 2);
+        Assert.Equal(editedRevision, redone.Cursor.ActiveRevisionId);
+        Assert.Null(redone.Cursor.SelectedRedoChildRevisionId);
+        var member = Assert.Single(redone.Snapshot.Members);
+        Assert.Equal(obj, member.ObjectIdentityId);
+        Assert.True(redone.Cursor.CursorVersion > undone.Cursor.CursorVersion);
+
+        // undo/redo 全程 revision 行数不变（cursor-only transition）。
+        Assert.Equal(2, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
+    }
+
+    [Fact]
+    public void InitialState_CloseReopenRestoresCursorAndRedoSelection()
+    {
+        var (project, map) = SeedProjectAndMap();
+        var mapId = map.Map.MapId;
+        CreateActiveObject(project.ProjectId, registerToMapId: mapId, withMembership: true);
+        var coreBefore = Core();
+        var state1 = coreBefore.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        var undone = MapInitialStateService.Undo(
+            coreBefore, project.ProjectId, mapId, state1.Cursor.ActiveRevisionId, state1.Cursor.CursorVersion, Now + 1);
+
+        // 模拟 close/reopen：新适配器实例（同一物理连接由会话层管理）。
+        var coreAfter = Core();
+        var state2 = coreAfter.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        Assert.Equal(undone.Cursor.ActiveRevisionId, state2.Cursor.ActiveRevisionId);
+        Assert.Equal(undone.Cursor.SelectedRedoChildRevisionId, state2.Cursor.SelectedRedoChildRevisionId);
+        Assert.Equal(undone.Cursor.CursorVersion, state2.Cursor.CursorVersion);
+
+        // 持久化选择在 reopen 后仍驱动隐式 Redo。
+        var redone = MapInitialStateService.Redo(
+            coreAfter, project.ProjectId, mapId, state2.Cursor.ActiveRevisionId, state2.Cursor.CursorVersion, null, Now + 2);
+        Assert.Equal(state1.Cursor.ActiveRevisionId, redone.Cursor.ActiveRevisionId);
     }
 
     // ---- Initial State 服务层（真实 DB） ----
 
     [Fact]
-    public void InitialState_CasConflictAndDeterministicFingerprint()
+    public void InitialState_AppendIsDeterministicAndStaleRejected()
     {
         var (project, map) = SeedProjectAndMap();
         var core = Core();
@@ -515,49 +731,28 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var obj1 = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
         var obj2 = CreateActiveObject(project.ProjectId, registerToMapId: mapId);
 
-        var baseline = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, null,
-            MapInitialStateService.StructuralBaselineSchemaVersion,
+        var zero = core.FindMapInitialStateRevisionState(project.ProjectId, mapId)!;
+        var first = MapInitialStateService.AppendRevision(
+            core, project.ProjectId, mapId, zero.Cursor.ActiveRevisionId, zero.Cursor.CursorVersion,
             new List<InitialObjectWrite>
             {
                 new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"a":1}""" },
                 new() { ObjectIdentityId = obj2, MembershipPayloadJson = """{"b":2}""" },
             },
-            Now);
-
-        // 指纹确定性：同成员集合（payload 键序不同）→ 同指纹。
-        var recomputed = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, baseline.ContentFingerprint,
-            MapInitialStateService.StructuralBaselineSchemaVersion,
-            new List<InitialObjectWrite>
-            {
-                new() { ObjectIdentityId = obj2, MembershipPayloadJson = """{ "b" : 2 }""" },
-                new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"a":1}""" },
-            },
             Now + 1);
-        Assert.Equal(baseline.ContentFingerprint, recomputed.ContentFingerprint);
 
-        // 全量替换（当前凭据有效 → 成功，产生新指纹）。
-        var after = MapInitialStateService.EditInitialState(
-            core, project.ProjectId, mapId, recomputed.ContentFingerprint,
-            MapInitialStateService.StructuralBaselineSchemaVersion,
-            new List<InitialObjectWrite>
-            {
-                new() { ObjectIdentityId = obj1, MembershipPayloadJson = """{"c":3}""" },
-            },
-            Now + 2);
-        var members = core.ListInitialObjects(project.ProjectId, mapId);
-        Assert.Single(members);
-        Assert.Equal(obj1, members[0].ObjectIdentityId);
-        Assert.Equal(InitialStateFingerprint.Compute(after.BaselineSchemaVersion, members), after.ContentFingerprint);
+        Assert.Equal(2, first.Snapshot.Members.Count);
+        Assert.Equal(
+            InitialStateFingerprint.Compute(first.Snapshot.Revision.BaselineSchemaVersion, first.Snapshot.Members),
+            first.Snapshot.Revision.ContentFingerprint);
 
-        // CAS 冲突：recomputed 的凭据已被 after 编辑作废（stale）→ 拒绝。
+        // stale 凭据（zero 的旧 revision/version）→ 拒绝且无写入。
         Assert.Throws<CoreDomainConflictException>(
-            () => MapInitialStateService.EditInitialState(
-                core, project.ProjectId, mapId, recomputed.ContentFingerprint,
-                MapInitialStateService.StructuralBaselineSchemaVersion,
+            () => MapInitialStateService.AppendRevision(
+                core, project.ProjectId, mapId, zero.Cursor.ActiveRevisionId, zero.Cursor.CursorVersion,
                 new List<InitialObjectWrite>(),
-                Now + 3));
+                Now + 2));
+        Assert.Equal(2, CountRows("core_map_initial_state_revision", $"WHERE map_id = '{mapId:D}'"));
     }
 
     [Fact]
@@ -568,16 +763,16 @@ public sealed class Cd02ObjectPersistenceTests : IDisposable
         var allocation = ObjectIdReservationService.ReserveByTypeKey(core, project.ProjectId, "river", null, Now);
         var bound = ObjectIdReservationService.Bind(
             core, project.ProjectId, allocation.Reservation.ReservationId, ObjectSharingScope.ProjectShared, null, Now);
+        var state = core.FindMapInitialStateRevisionState(project.ProjectId, map.Map.MapId)!;
 
         Assert.Throws<CoreDomainConflictException>(
-            () => MapInitialStateService.EditInitialState(
-                core, project.ProjectId, map.Map.MapId, null,
-                MapInitialStateService.StructuralBaselineSchemaVersion,
+            () => MapInitialStateService.AppendRevision(
+                core, project.ProjectId, map.Map.MapId, state.Cursor.ActiveRevisionId, state.Cursor.CursorVersion,
                 new List<InitialObjectWrite>
                 {
                     new() { ObjectIdentityId = bound.ObjectIdentityId!.Value, MembershipPayloadJson = "{}" },
                 },
-                Now));
+                Now + 1));
     }
 
     [Fact]
