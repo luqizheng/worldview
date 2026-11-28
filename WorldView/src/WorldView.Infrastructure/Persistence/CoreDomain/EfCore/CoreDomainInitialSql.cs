@@ -466,6 +466,7 @@ internal static class CoreDomainInitialSql
         CoreObjectIdentityTablesSql,
         CoreMapObjectRefTableSql,
         CoreMapInitialStateTablesSql,
+        CoreMapInitialStateRevisionTablesSql,
         CoreAssetTableSql,
         CoreObjectDefinitionAssetTableSql,
     ];
